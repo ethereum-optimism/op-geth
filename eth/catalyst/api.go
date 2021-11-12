@@ -262,12 +262,12 @@ func (api *ConsensusAPI) ExecutePayloadV1(params ExecutableDataV1) (ExecutePaylo
 		return ExecutePayloadResponse{Status: VALID.Status, LatestValidHash: block.Hash()}, nil
 	}
 	if !api.eth.BlockChain().HasBlock(block.ParentHash(), block.NumberU64()-1) {
-		/*
-			TODO (MariusVanDerWijden) reenable once sync is merged
-			if err := api.eth.Downloader().BeaconSync(api.eth.SyncMode(), block.Header()); err != nil {
-				return SYNCING, err
-			}
-		*/
+
+		//TODO (MariusVanDerWijden) reenable once sync is merged
+		if err := api.eth.Downloader().BeaconSync(api.eth.SyncMode(), block.Header()); err != nil {
+			return ExecutePayloadResponse{Status: SYNCING.Status, LatestValidHash: common.Hash{}}, err
+		}
+
 		// TODO (MariusVanDerWijden) we should return nil here not empty hash
 		return ExecutePayloadResponse{Status: SYNCING.Status, LatestValidHash: common.Hash{}}, nil
 	}
