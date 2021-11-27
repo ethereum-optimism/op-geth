@@ -31,6 +31,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/mclock"
 	"github.com/ethereum/go-ethereum/common/prque"
 	"github.com/ethereum/go-ethereum/consensus"
+	"github.com/ethereum/go-ethereum/consensus/beacon"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/state/snapshot"
@@ -1358,6 +1359,29 @@ func (bc *BlockChain) InsertChain(chain types.Blocks) (int, error) {
 				prev.Hash().Bytes()[:4], i, block.NumberU64(), block.Hash().Bytes()[:4], block.ParentHash().Bytes()[:4])
 		}
 	}
+	if chain[len(chain)-1].Difficulty().Cmp(common.Big0) == 0 {
+		start := 0
+		for i := 0; i < len(chain); i++ {
+			if chain[i].Difficulty().Cmp(common.Big0) != 0 {
+				start++
+			}
+		}
+		if start != 0 {
+			newChain := types.Blocks(chain[0:start])
+			if in, err := bc.insertChain(newChain, true, true); err != nil {
+				return in, err
+			}
+		}
+		for i := start; i < len(chain); i++ {
+			conf := bc.GetVMConfig()
+			conf.RandomOpcode = true
+			bc.SetVMConfig(*conf)
+			if err := bc.InsertBlockWithoutSetHead(chain[i]); err != nil {
+				return len(chain), err
+			}
+		}
+		return len(chain), nil
+	}
 	// Pre-checks passed, start the full block imports
 	if !bc.chainmu.TryLock() {
 		return 0, errChainStopped
@@ -2264,6 +2288,16 @@ func (bc *BlockChain) reportBlock(block *types.Block, receipts types.Receipts, e
 		receiptString += fmt.Sprintf("\t %d: cumulative: %v gas: %v contract: %v status: %v tx: %v logs: %v bloom: %x state: %x\n",
 			i, receipt.CumulativeGasUsed, receipt.GasUsed, receipt.ContractAddress.Hex(),
 			receipt.Status, receipt.TxHash.Hex(), receipt.Logs, receipt.Bloom, receipt.PostState)
+	}
+	if eng, ok := bc.engine.(*beacon.Beacon); ok {
+		if eng.IsPoSHeader(block.Header()) {
+			fmt.Println("PoSHeader")
+		}
+		if reached, err := beacon.IsTTDReached(bc, block.ParentHash(), block.NumberU64()-1); reached {
+			fmt.Println("TTDD reached")
+		} else if err != nil {
+			fmt.Printf("TTDReached error: %v\n", err)
+		}
 	}
 	log.Error(fmt.Sprintf(`
 ########## BAD BLOCK #########
