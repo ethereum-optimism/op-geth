@@ -191,8 +191,9 @@ func (d *Downloader) fetchBeaconHeaders(from uint64) error {
 		headers := make([]*types.Header, 0, maxHeadersProcess)
 		hashes := make([]common.Hash, 0, cap(headers))
 		for i := 0; i < maxHeadersProcess && from <= head.Number.Uint64(); i++ {
-			headers = append(headers, d.skeleton.Header(from))
-			hashes = append(hashes, headers[len(headers)-1].Hash())
+			header := d.skeleton.Header(from)
+			headers = append(headers, header)
+			hashes = append(hashes, header.Hash())
 			from++
 		}
 		select {
