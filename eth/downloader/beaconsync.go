@@ -189,12 +189,14 @@ func (d *Downloader) fetchBeaconHeaders(from uint64) error {
 	for {
 		// Retrieve a batch of headers and feed it to the header processor
 		headers := make([]*types.Header, 0, maxHeadersProcess)
+		hashes := make([]common.Hash, 0, cap(headers))
 		for i := 0; i < maxHeadersProcess && from <= head.Number.Uint64(); i++ {
 			headers = append(headers, d.skeleton.Header(from))
+			hashes = append(hashes, headers[len(headers)-1].Hash())
 			from++
 		}
 		select {
-		case d.headerProcCh <- headers:
+		case d.headerProcCh <- &headerTask{headers: headers, hashes: hashes}:
 		case <-d.cancelCh:
 			return errCanceled
 		}
