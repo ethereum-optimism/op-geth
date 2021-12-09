@@ -1379,7 +1379,7 @@ func (bc *BlockChain) InsertChain(chain types.Blocks) (int, error) {
 			}
 		}
 		// Insert the post-merge blocks
-		if start < len(chain)-1 {
+		if start < len(chain) {
 			conf := bc.GetVMConfig()
 			conf.RandomOpcode = true
 			bc.SetVMConfig(*conf)
