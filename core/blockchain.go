@@ -1366,17 +1366,25 @@ func (bc *BlockChain) InsertChain(chain types.Blocks) (int, error) {
 				start++
 			}
 		}
+		// Pre-checks passed, start the full block imports
+		if !bc.chainmu.TryLock() {
+			return 0, errChainStopped
+		}
+		defer bc.chainmu.Unlock()
+		// Insert the pre-merge blocks
 		if start != 0 {
 			newChain := types.Blocks(chain[0:start])
 			if in, err := bc.insertChain(newChain, true, true); err != nil {
 				return in, err
 			}
 		}
-		for i := start; i < len(chain); i++ {
+		// Insert the post-merge blocks
+		if start < len(chain)-1 {
 			conf := bc.GetVMConfig()
 			conf.RandomOpcode = true
 			bc.SetVMConfig(*conf)
-			if err := bc.InsertBlockWithoutSetHead(chain[i]); err != nil {
+			newChain := types.Blocks(chain[start:])
+			if _, err := bc.insertChain(newChain, true, true); err != nil {
 				return len(chain), err
 			}
 		}
