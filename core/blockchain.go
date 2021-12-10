@@ -1904,6 +1904,19 @@ func (bc *BlockChain) recoverAncestors(block *types.Block) error {
 		} else {
 			b = bc.GetBlock(hashes[i], numbers[i])
 		}
+		if b.Difficulty() != nil {
+			// Disable Random for pre-merge blocks
+			conf := bc.GetVMConfig()
+			conf.RandomOpcode = false
+			bc.SetVMConfig(*conf)
+			// Reenable Random afterwards
+			defer func() {
+				conf := bc.GetVMConfig()
+				conf.RandomOpcode = true
+				bc.SetVMConfig(*conf)
+			}()
+		}
+
 		if _, err := bc.insertChain(types.Blocks{b}, false, false); err != nil {
 			return err
 		}

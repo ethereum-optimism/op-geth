@@ -261,6 +261,10 @@ func (api *ConsensusAPI) ExecutePayloadV1(params ExecutableDataV1) (ExecutePaylo
 		}
 		return ExecutePayloadResponse{Status: VALID.Status, LatestValidHash: block.Hash()}, nil
 	}
+	if api.eth.BlockChain().GetBlockByHash(params.BlockHash) != nil {
+		log.Info("Ignoring already processed block", "number", params.Number, "hash", params.BlockHash)
+		return ExecutePayloadResponse{Status: VALID.Status, LatestValidHash: block.Hash()}, nil
+	}
 	if !api.eth.BlockChain().HasBlock(block.ParentHash(), block.NumberU64()-1) {
 
 		//TODO (MariusVanDerWijden) reenable once sync is merged
