@@ -584,6 +584,12 @@ func (pool *TxPool) local() map[common.Address]types.Transactions {
 // validateTx checks whether a transaction is valid according to the consensus
 // rules and adheres to some heuristic limits of the local node (price and size).
 func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
+	// No unauthenticated deposits allowed in the transaction pool.
+	// This is for spam protection, not consensus,
+	// as the external engine-API user authenticates deposits.
+	if tx.Type() == types.DepositTxType {
+		return ErrTxTypeNotSupported
+	}
 	// Accept only legacy transactions until EIP-2718/2930 activates.
 	if !pool.eip2718 && tx.Type() != types.LegacyTxType {
 		return ErrTxTypeNotSupported

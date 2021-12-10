@@ -341,6 +341,36 @@ func (api *ConsensusAPI) assembleBlock(parentHash common.Hash, params *PayloadAt
 	if err != nil {
 		return nil, err
 	}
+	if len(params.Transactions) > 0 {
+		// decode all before executing
+		transactions := make([]*types.Transaction, 0, len(params.Transactions))
+		for i, otx := range params.Transactions {
+			var tx types.Transaction
+			if err := tx.UnmarshalBinary(otx); err != nil {
+				return nil, fmt.Errorf("transaction %d is not valid: %v", i, err)
+			}
+			transactions = append(transactions, &tx)
+		}
+
+		for i, tx := range transactions {
+			// Execute the transaction
+			env.state.Prepare(tx.Hash(), env.tcount) // tcount is used for logs in state db
+			// It's up to the rollup-node to provide a well-formed set of transactions.
+			// A returned error here means the block
+			err = env.commitTransaction(tx, coinbase)
+			if err != nil {
+				return nil, fmt.Errorf("malformed, invalid or excessive (gas) tx at index %d: %v", i, err)
+			}
+			env.tcount++
+		}
+
+		// Create the block.
+		block, err := api.engine.FinalizeAndAssemble(bc, header, env.state, transactions, nil /* uncles */, env.receipts)
+		if err != nil {
+			return nil, err
+		}
+		return BlockToExecutableData(block, params.Random), nil
+	}
 	var (
 		signer       = types.MakeSigner(bc.Config(), header.Number)
 		txHeap       = types.NewTransactionsByPriceAndNonce(signer, pending, nil)
