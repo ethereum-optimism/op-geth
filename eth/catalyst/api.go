@@ -356,7 +356,7 @@ func (api *ConsensusAPI) assembleBlock(parentHash common.Hash, params *PayloadAt
 			// Execute the transaction
 			env.state.Prepare(tx.Hash(), env.tcount) // tcount is used for logs in state db
 			// It's up to the rollup-node to provide a well-formed set of transactions.
-			// A returned error here means the block
+			// A returned error here means the block is invalid.
 			err = env.commitTransaction(tx, coinbase)
 			if err != nil {
 				return nil, fmt.Errorf("malformed, invalid or excessive (gas) tx at index %d: %v", i, err)

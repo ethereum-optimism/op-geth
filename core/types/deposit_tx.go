@@ -49,13 +49,13 @@ func (tx *DepositTx) copy() TxData {
 		TransactionIndex: tx.TransactionIndex,
 		From:             tx.From,
 		To:               copyAddressPtr(tx.To),
-		Mint:             new(big.Int),
+		Mint:             nil,
 		Value:            new(big.Int),
 		Gas:              tx.Gas,
 		Data:             common.CopyBytes(tx.Data),
 	}
 	if tx.Mint != nil {
-		cpy.Mint.Set(tx.Mint)
+		cpy.Mint = new(big.Int).Set(tx.Mint)
 	}
 	if tx.Value != nil {
 		cpy.Value.Set(tx.Value)

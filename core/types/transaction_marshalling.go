@@ -108,6 +108,9 @@ func (t *Transaction) MarshalJSON() ([]byte, error) {
 		enc.BlockHeight = (*hexutil.Uint64)(&tx.BlockHeight)
 		enc.TransactionIndex = (*hexutil.Uint64)(&tx.TransactionIndex)
 		enc.From = &tx.From
+		if tx.Mint != nil {
+			enc.Mint = (*hexutil.Big)(tx.Mint)
+		}
 		// other fields will show up as null.
 	}
 	return json.Marshal(&enc)
