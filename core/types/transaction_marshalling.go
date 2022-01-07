@@ -282,7 +282,7 @@ func (t *Transaction) UnmarshalJSON(input []byte) error {
 		}
 	case DepositTxType:
 		if dec.AccessList != nil || dec.V != nil || dec.R != nil || dec.S != nil || dec.MaxFeePerGas != nil ||
-			dec.MaxPriorityFeePerGas != nil || dec.GasPrice != nil || dec.Nonce != nil {
+			dec.MaxPriorityFeePerGas != nil || dec.GasPrice != nil || (dec.Nonce != nil && *dec.Nonce != 0) {
 			return errors.New("unexpected field(s) in deposit transaction")
 		}
 		var itx DepositTx
@@ -295,17 +295,12 @@ func (t *Transaction) UnmarshalJSON(input []byte) error {
 			return errors.New("missing required field 'value' in transaction")
 		}
 		itx.Value = (*big.Int)(dec.Value)
-		if dec.Mint == nil {
-			return errors.New("missing required field 'mint' in transaction")
-		}
+		// mint may be omitted or nil if there is nothing to mint.
 		itx.Mint = (*big.Int)(dec.Mint)
 		if dec.Data == nil {
 			return errors.New("missing required field 'input' in transaction")
 		}
 		itx.Data = *dec.Data
-		if dec.V == nil {
-			return errors.New("missing required field 'v' in transaction")
-		}
 		if dec.From == nil {
 			return errors.New("missing required field 'from' in transaction")
 		}
