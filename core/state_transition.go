@@ -312,15 +312,17 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 	london := st.evm.ChainConfig().IsLondon(st.evm.Context.BlockNumber)
 	contractCreation := msg.To() == nil
 
-	// Check clauses 4-5, subtract intrinsic gas if everything is correct
-	gas, err := IntrinsicGas(st.data, st.msg.AccessList(), contractCreation, homestead, istanbul)
-	if err != nil {
-		return nil, err
+	if st.msg.Nonce() != types.DepositsNonce {
+		// Check clauses 4-5, subtract intrinsic gas if everything is correct
+		gas, err := IntrinsicGas(st.data, st.msg.AccessList(), contractCreation, homestead, istanbul)
+		if err != nil {
+			return nil, err
+		}
+		if st.gas < gas {
+			return nil, fmt.Errorf("%w: have %d, want %d", ErrIntrinsicGas, st.gas, gas)
+		}
+		st.gas -= gas
 	}
-	if st.gas < gas {
-		return nil, fmt.Errorf("%w: have %d, want %d", ErrIntrinsicGas, st.gas, gas)
-	}
-	st.gas -= gas
 
 	// Check clause 6
 	if msg.Value().Sign() > 0 && !st.evm.Context.CanTransfer(st.state, msg.From(), msg.Value()) {
