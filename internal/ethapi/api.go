@@ -1299,7 +1299,10 @@ type RPCTransaction struct {
 func newRPCTransaction(tx *types.Transaction, blockHash common.Hash, blockNumber uint64, index uint64, baseFee *big.Int, config *params.ChainConfig) *RPCTransaction {
 	signer := types.MakeSigner(config, big.NewInt(0).SetUint64(blockNumber))
 	from, _ := types.Sender(signer, tx)
-	v, r, s := tx.RawSignatureValues()
+	var v, r, s *big.Int
+	if tx.Type() != types.DepositTxType {
+		v, r, s = tx.RawSignatureValues()
+	}
 	result := &RPCTransaction{
 		Type:     hexutil.Uint64(tx.Type()),
 		From:     from,
