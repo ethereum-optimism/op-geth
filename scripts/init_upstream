@@ -1,0 +1,6 @@
+#!/bin/bash
+git remote add --no-tags upstream git@github.com:ethereum/go-ethereum.git
+git fetch upstream master
+git checkout master
+#git branch --set-upstream-to=upstream/master master
+

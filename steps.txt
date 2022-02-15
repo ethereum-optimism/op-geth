@@ -1,0 +1,19 @@
+git clone git@github.com:ethereum-optimism/reference-optimistic-geth.git test-op-geth
+cd test-op-geth
+git remote add --no-tags upstream git@github.com:ethereum/go-ethereum.git
+git fetch upstream
+git branch --set-upstream-to=upstream/master master
+git fetch upstream "+refs/tags/*:refs/tags/geth/*"
+
+
+# Use geth/v1.10.8 to checkout an upstream version
+# Use git log develop ^master to see our own commits
+# Use git cherry-pick to create the branch
+# Use the rename imports script to modify everything (on it's own branch)
+
+
+# Branching model
+# master follows upstream/master
+# develop contains our work rebased on master
+# release/vx.y.z contains our work rebased on top of vx.y.z of geth
+# release/vx.y.z-op contains our work and a rename of the import path on top of vx.y.z of geth

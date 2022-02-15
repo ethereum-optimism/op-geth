@@ -1,0 +1,24 @@
+#!/bin/bash
+
+if [[ -z $1 ]]; then
+       echo Must provide git tag to base release on top of
+       exit 1
+fi
+
+
+# Checkout onto branch
+git checkout geth/$1
+
+# Release branch
+git checkout -b release/$1
+git cherry-pick $(git rev-list dev2 ^master)
+git tag $1
+
+# Rename import branch
+git checkout -b release/$1-op
+./scripts/rename_imports
+git commit -a -m "Rename imports"
+git tag $1-op
+
+# Push tags & branches
+
