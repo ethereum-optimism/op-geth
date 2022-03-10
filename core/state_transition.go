@@ -57,6 +57,7 @@ type StateTransition struct {
 	gasTipCap  *big.Int
 	initialGas uint64
 	value      *big.Int
+	mint       *big.Int
 	data       []byte
 	state      vm.StateDB
 	evm        *vm.EVM
@@ -72,6 +73,9 @@ type Message interface {
 	GasTipCap() *big.Int
 	Gas() uint64
 	Value() *big.Int
+
+	// Mint is nil if there is no minting
+	Mint() *big.Int
 
 	Nonce() uint64
 	IsFake() bool
@@ -165,6 +169,7 @@ func NewStateTransition(evm *vm.EVM, msg Message, gp *GasPool) *StateTransition 
 		gasFeeCap: msg.GasFeeCap(),
 		gasTipCap: msg.GasTipCap(),
 		value:     msg.Value(),
+		mint:      msg.Mint(),
 		data:      msg.Data(),
 		state:     evm.StateDB,
 	}
@@ -212,6 +217,11 @@ func (st *StateTransition) buyGas() error {
 }
 
 func (st *StateTransition) preCheck() error {
+	if st.msg.Nonce() == types.DepositsNonce {
+		// No fee fields to check, no nonce to check, and no need to check if EOA (L1 already verified it for us)
+		// Gas is free, but no refunds!
+		return nil
+	}
 	// Only check transactions that are not fake
 	if !st.msg.IsFake() {
 		// Make sure this transaction's nonce is correct.
@@ -273,6 +283,14 @@ func (st *StateTransition) preCheck() error {
 // However if any consensus issue encountered, return the error directly with
 // nil evm execution result.
 func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
+	if st.mint != nil {
+		// The deposit mints value into the account before execution
+		// This is NOT rolled back if EVM execution fails.
+		// If the EVM execution fails (e.g. out of gas) then the deposited ETH remains in the L2,
+		// in the deposit From address.
+		st.state.AddBalance(st.msg.From(), st.mint)
+	}
+
 	// First check this message satisfies all consensus rules before
 	// applying the message. The rules include these clauses
 	//
@@ -302,15 +320,17 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 		contractCreation = msg.To() == nil
 	)
 
-	// Check clauses 4-5, subtract intrinsic gas if everything is correct
-	gas, err := IntrinsicGas(st.data, st.msg.AccessList(), contractCreation, rules.IsHomestead, rules.IsIstanbul)
-	if err != nil {
-		return nil, err
+	if st.msg.Nonce() != types.DepositsNonce {
+		// Check clauses 4-5, subtract intrinsic gas if everything is correct
+		gas, err := IntrinsicGas(st.data, st.msg.AccessList(), contractCreation, rules.IsHomestead, rules.IsIstanbul)
+		if err != nil {
+			return nil, err
+		}
+		if st.gas < gas {
+			return nil, fmt.Errorf("%w: have %d, want %d", ErrIntrinsicGas, st.gas, gas)
+		}
+		st.gas -= gas
 	}
-	if st.gas < gas {
-		return nil, fmt.Errorf("%w: have %d, want %d", ErrIntrinsicGas, st.gas, gas)
-	}
-	st.gas -= gas
 
 	// Check clause 6
 	if msg.Value().Sign() > 0 && !st.evm.Context.CanTransfer(st.state, msg.From(), msg.Value()) {
@@ -333,6 +353,14 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 		ret, st.gas, vmerr = st.evm.Call(sender, st.to(), st.data, st.gas, st.value)
 	}
 
+	// if deposit: skip refunds, skip tipping coinbase
+	if st.msg.Nonce() == types.DepositsNonce {
+		return &ExecutionResult{
+			UsedGas:    st.gasUsed(),
+			Err:        vmerr,
+			ReturnData: ret,
+		}, nil
+	}
 	if !rules.IsLondon {
 		// Before EIP-3529: refunds were capped to gasUsed / 2
 		st.refundGas(params.RefundQuotient)
