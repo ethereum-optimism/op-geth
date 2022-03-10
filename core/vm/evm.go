@@ -20,10 +20,12 @@ import (
 	"math/big"
 	"sync/atomic"
 
+	"github.com/holiman/uint256"
+
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/holiman/uint256"
 )
 
 // emptyCodeHash is used by create to ensure deployment is disallowed to already
@@ -66,6 +68,8 @@ type BlockContext struct {
 	Transfer TransferFunc
 	// GetHash returns the hash corresponding to n
 	GetHash GetHashFunc
+	// L1CostFunc returns the L1 cost of the rollup message, the function may be nil, or return nil
+	L1CostFunc types.L1CostFunc
 
 	// Block information
 	Coinbase    common.Address // Provides information for COINBASE

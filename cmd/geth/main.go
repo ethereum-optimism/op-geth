@@ -149,6 +149,9 @@ var (
 		utils.GpoMaxGasPriceFlag,
 		utils.GpoIgnoreGasPriceFlag,
 		utils.MinerNotifyFullFlag,
+		utils.RollupSequencerHTTPFlag,
+		utils.RollupHistoricalRPCFlag,
+		utils.RollupDisableTxPoolGossipFlag,
 		configFileFlag,
 	}, utils.NetworkFlags, utils.DatabasePathFlags)
 

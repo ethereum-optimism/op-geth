@@ -87,6 +87,7 @@ type handlerConfig struct {
 	EventMux       *event.TypeMux            // Legacy event mux, deprecate for `feed`
 	Checkpoint     *params.TrustedCheckpoint // Hard coded checkpoint for sync challenges
 	RequiredBlocks map[uint64]common.Hash    // Hard coded map of required block hashes for sync challenges
+	NoTxGossip     bool                      // Disable P2P transaction gossip
 }
 
 type handler struct {
@@ -103,6 +104,8 @@ type handler struct {
 	txpool   txPool
 	chain    *core.BlockChain
 	maxPeers int
+
+	noTxGossip bool
 
 	downloader   *downloader.Downloader
 	blockFetcher *fetcher.BlockFetcher
@@ -137,6 +140,7 @@ func newHandler(config *handlerConfig) (*handler, error) {
 		eventMux:       config.EventMux,
 		database:       config.Database,
 		txpool:         config.TxPool,
+		noTxGossip:     config.NoTxGossip,
 		chain:          config.Chain,
 		peers:          newPeerSet(),
 		merger:         config.Merger,

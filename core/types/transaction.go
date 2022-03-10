@@ -28,6 +28,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
@@ -56,6 +58,9 @@ type Transaction struct {
 	hash atomic.Value
 	size atomic.Value
 	from atomic.Value
+
+	// cache how much gas the tx takes on L1 for its share of rollup data
+	rollupGas atomic.Value
 }
 
 // NewTx creates a new transaction.
@@ -82,6 +87,7 @@ type TxData interface {
 	value() *big.Int
 	nonce() uint64
 	to() *common.Address
+	isSystemTx() bool
 
 	rawSignatureValues() (v, r, s *big.Int)
 	setSignatureValues(chainID, v, r, s *big.Int)
@@ -182,6 +188,10 @@ func (tx *Transaction) decodeTyped(b []byte) (TxData, error) {
 		return &inner, err
 	case DynamicFeeTxType:
 		var inner DynamicFeeTx
+		err := rlp.DecodeBytes(b[1:], &inner)
+		return &inner, err
+	case DepositTxType:
+		var inner DepositTx
 		err := rlp.DecodeBytes(b[1:], &inner)
 		return &inner, err
 	default:
@@ -285,10 +295,68 @@ func (tx *Transaction) To() *common.Address {
 	return copyAddressPtr(tx.inner.to())
 }
 
+// SourceHash returns the hash that uniquely identifies the source of the deposit tx,
+// e.g. a user deposit event, or a L1 info deposit included in a specific L2 block height.
+// Non-deposit transactions return a zeroed hash.
+func (tx *Transaction) SourceHash() common.Hash {
+	if dep, ok := tx.inner.(*DepositTx); ok {
+		return dep.SourceHash
+	}
+	return common.Hash{}
+}
+
+// Mint returns the ETH to mint in the deposit tx.
+// This returns nil if there is nothing to mint, or if this is not a deposit tx.
+func (tx *Transaction) Mint() *big.Int {
+	if dep, ok := tx.inner.(*DepositTx); ok {
+		return dep.Mint
+	}
+	return nil
+}
+
+// IsDepositTx returns true if the transaction is a deposit tx type.
+func (tx *Transaction) IsDepositTx() bool {
+	return tx.Type() == DepositTxType
+}
+
+// IsSystemTx returns true for deposits that are system transactions. These transactions
+// are executed in an unmetered environment & do not contribute to the block gas limit.
+func (tx *Transaction) IsSystemTx() bool {
+	return tx.inner.isSystemTx()
+}
+
 // Cost returns gas * gasPrice + value.
 func (tx *Transaction) Cost() *big.Int {
 	total := new(big.Int).Mul(tx.GasPrice(), new(big.Int).SetUint64(tx.Gas()))
 	total.Add(total, tx.Value())
+	return total
+}
+
+// RollupDataGas is the amount of gas it takes to confirm the tx on L1 as a rollup
+func (tx *Transaction) RollupDataGas() uint64 {
+	if tx.Type() == DepositTxType {
+		return 0
+	}
+	if v := tx.rollupGas.Load(); v != nil {
+		return v.(uint64)
+	}
+	data, err := tx.MarshalBinary()
+	if err != nil { // Silent error, invalid txs will not be marshalled/unmarshalled for batch submission anyway.
+		log.Error("failed to encode tx for L1 cost computation", "err", err)
+	}
+	var zeroes uint64
+	var ones uint64
+	for _, byt := range data {
+		if byt == 0 {
+			zeroes++
+		} else {
+			ones++
+		}
+	}
+	zeroesGas := zeroes * params.TxDataZeroGas
+	onesGas := (ones + 68) * params.TxDataNonZeroGasEIP2028
+	total := zeroesGas + onesGas
+	tx.rollupGas.Store(total)
 	return total
 }
 
@@ -322,6 +390,9 @@ func (tx *Transaction) GasTipCapIntCmp(other *big.Int) int {
 // Note: if the effective gasTipCap is negative, this method returns both error
 // the actual negative value, _and_ ErrGasFeeCapTooLow
 func (tx *Transaction) EffectiveGasTip(baseFee *big.Int) (*big.Int, error) {
+	if tx.Type() == DepositTxType {
+		return new(big.Int), nil
+	}
 	if baseFee == nil {
 		return tx.GasTipCap(), nil
 	}
@@ -596,6 +667,11 @@ type Message struct {
 	data       []byte
 	accessList AccessList
 	isFake     bool
+	// Optimism rollup fields
+	isSystemTx  bool
+	isDepositTx bool
+	mint        *big.Int
+	l1CostGas   uint64
 }
 
 func NewMessage(from common.Address, to *common.Address, nonce uint64, amount *big.Int, gasLimit uint64, gasPrice, gasFeeCap, gasTipCap *big.Int, data []byte, accessList AccessList, isFake bool) Message {
@@ -611,6 +687,11 @@ func NewMessage(from common.Address, to *common.Address, nonce uint64, amount *b
 		data:       data,
 		accessList: accessList,
 		isFake:     isFake,
+		// Optimism rollup fields
+		isSystemTx:  false,
+		isDepositTx: false,
+		mint:        nil,
+		l1CostGas:   0,
 	}
 }
 
@@ -627,6 +708,11 @@ func (tx *Transaction) AsMessage(s Signer, baseFee *big.Int) (Message, error) {
 		data:       tx.Data(),
 		accessList: tx.AccessList(),
 		isFake:     false,
+		// Optimism rollup fields
+		isSystemTx:  tx.inner.isSystemTx(),
+		isDepositTx: tx.IsDepositTx(),
+		mint:        tx.Mint(),
+		l1CostGas:   tx.RollupDataGas(),
 	}
 	// If baseFee provided, set gasPrice to effectiveGasPrice.
 	if baseFee != nil {
@@ -648,6 +734,10 @@ func (m Message) Nonce() uint64          { return m.nonce }
 func (m Message) Data() []byte           { return m.data }
 func (m Message) AccessList() AccessList { return m.accessList }
 func (m Message) IsFake() bool           { return m.isFake }
+func (m Message) IsSystemTx() bool       { return m.isSystemTx }
+func (m Message) IsDepositTx() bool      { return m.isDepositTx }
+func (m Message) Mint() *big.Int         { return m.mint }
+func (m Message) RollupDataGas() uint64  { return m.l1CostGas }
 
 // copyAddressPtr copies an address.
 func copyAddressPtr(a *common.Address) *common.Address {

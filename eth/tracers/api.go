@@ -28,6 +28,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/consensus"
@@ -88,6 +89,7 @@ type Backend interface {
 	ChainDb() ethdb.Database
 	StateAtBlock(ctx context.Context, block *types.Block, reexec uint64, base *state.StateDB, readOnly bool, preferDisk bool) (*state.StateDB, StateReleaseFunc, error)
 	StateAtTransaction(ctx context.Context, block *types.Block, txIndex int, reexec uint64) (core.Message, vm.BlockContext, *state.StateDB, StateReleaseFunc, error)
+	HistoricalRPCService() *rpc.Client
 }
 
 // API is the collection of tracing APIs exposed over the private debugging endpoint.
@@ -138,7 +140,7 @@ func (api *API) blockByNumber(ctx context.Context, number rpc.BlockNumber) (*typ
 		return nil, err
 	}
 	if block == nil {
-		return nil, fmt.Errorf("block #%d not found", number)
+		return nil, fmt.Errorf("block #%d %w", number, ethereum.NotFound)
 	}
 	return block, nil
 }
@@ -151,7 +153,7 @@ func (api *API) blockByHash(ctx context.Context, hash common.Hash) (*types.Block
 		return nil, err
 	}
 	if block == nil {
-		return nil, fmt.Errorf("block %s not found", hash.Hex())
+		return nil, fmt.Errorf("block %s %w", hash.Hex(), ethereum.NotFound)
 	}
 	return block, nil
 }
@@ -291,6 +293,7 @@ func (api *API) traceChain(start, end *types.Block, config *TraceConfig, closed 
 					signer   = types.MakeSigner(api.backend.ChainConfig(), task.block.Number())
 					blockCtx = core.NewEVMBlockContext(task.block.Header(), api.chainContext(ctx), nil)
 				)
+				blockCtx.L1CostFunc = types.NewL1CostFunc(api.backend.ChainConfig(), task.statedb)
 				// Trace all the transactions contained within
 				for i, tx := range task.block.Transactions() {
 					msg, _ := tx.AsMessage(signer, task.block.BaseFee())
@@ -455,7 +458,14 @@ func (api *API) traceChain(start, end *types.Block, config *TraceConfig, closed 
 // EVM and returns them as a JSON object.
 func (api *API) TraceBlockByNumber(ctx context.Context, number rpc.BlockNumber, config *TraceConfig) ([]*txTraceResult, error) {
 	block, err := api.blockByNumber(ctx, number)
-	if err != nil {
+	if errors.Is(err, ethereum.NotFound) && api.backend.HistoricalRPCService() != nil {
+		var histResult []*txTraceResult
+		err = api.backend.HistoricalRPCService().CallContext(ctx, &histResult, "debug_traceBlockByNumber", number, config)
+		if err != nil && err.Error() == "not found" {
+			return nil, fmt.Errorf("block #%d %w", number, ethereum.NotFound)
+		}
+		return histResult, err
+	} else if err != nil {
 		return nil, err
 	}
 	return api.traceBlock(ctx, block, config)
@@ -465,7 +475,14 @@ func (api *API) TraceBlockByNumber(ctx context.Context, number rpc.BlockNumber, 
 // EVM and returns them as a JSON object.
 func (api *API) TraceBlockByHash(ctx context.Context, hash common.Hash, config *TraceConfig) ([]*txTraceResult, error) {
 	block, err := api.blockByHash(ctx, hash)
-	if err != nil {
+	if errors.Is(err, ethereum.NotFound) && api.backend.HistoricalRPCService() != nil {
+		var histResult []*txTraceResult
+		err = api.backend.HistoricalRPCService().CallContext(ctx, &histResult, "debug_traceBlockByHash", hash, config)
+		if err != nil && err.Error() == "not found" {
+			return nil, fmt.Errorf("block #%d %w", hash, ethereum.NotFound)
+		}
+		return histResult, err
+	} else if err != nil {
 		return nil, err
 	}
 	return api.traceBlock(ctx, block, config)
@@ -548,6 +565,7 @@ func (api *API) IntermediateRoots(ctx context.Context, hash common.Hash, config 
 		vmctx              = core.NewEVMBlockContext(block.Header(), api.chainContext(ctx), nil)
 		deleteEmptyObjects = chainConfig.IsEIP158(block.Number())
 	)
+	vmctx.L1CostFunc = types.NewL1CostFunc(chainConfig, statedb)
 	for i, tx := range block.Transactions() {
 		if err := ctx.Err(); err != nil {
 			return nil, err
@@ -653,7 +671,6 @@ func (api *API) traceBlockParallel(ctx context.Context, block *types.Block, stat
 	var (
 		txs       = block.Transactions()
 		blockHash = block.Hash()
-		blockCtx  = core.NewEVMBlockContext(block.Header(), api.chainContext(ctx), nil)
 		signer    = types.MakeSigner(api.backend.ChainConfig(), block.Number())
 		results   = make([]*txTraceResult, len(txs))
 		pend      sync.WaitGroup
@@ -669,6 +686,8 @@ func (api *API) traceBlockParallel(ctx context.Context, block *types.Block, stat
 			defer pend.Done()
 			// Fetch and execute the next transaction trace tasks
 			for task := range jobs {
+				blockCtx := core.NewEVMBlockContext(block.Header(), api.chainContext(ctx), nil)
+				blockCtx.L1CostFunc = types.NewL1CostFunc(api.backend.ChainConfig(), task.statedb)
 				msg, _ := txs[task.index].AsMessage(signer, block.BaseFee())
 				txctx := &Context{
 					BlockHash: blockHash,
@@ -687,6 +706,8 @@ func (api *API) traceBlockParallel(ctx context.Context, block *types.Block, stat
 
 	// Feed the transactions into the tracers and return
 	var failed error
+	blockCtx := core.NewEVMBlockContext(block.Header(), api.chainContext(ctx), nil)
+	blockCtx.L1CostFunc = types.NewL1CostFunc(api.backend.ChainConfig(), statedb)
 txloop:
 	for i, tx := range txs {
 		// Send the trace task over for execution
@@ -776,6 +797,7 @@ func (api *API) standardTraceBlockToFile(ctx context.Context, block *types.Block
 		// Note: This copies the config, to not screw up the main config
 		chainConfig, canon = overrideConfig(chainConfig, config.Overrides)
 	}
+	vmctx.L1CostFunc = types.NewL1CostFunc(chainConfig, statedb)
 	for i, tx := range block.Transactions() {
 		// Prepare the transaction for un-traced execution
 		var (
@@ -851,9 +873,13 @@ func (api *API) TraceTransaction(ctx context.Context, hash common.Hash, config *
 	if err != nil {
 		return nil, err
 	}
-	// Only mined txes are supported
 	if tx == nil {
-		return nil, errTxNotFound
+		var histResult []*txTraceResult
+		err = api.backend.HistoricalRPCService().CallContext(ctx, &histResult, "debug_traceTransaction", hash, config)
+		if err != nil && err.Error() == "not found" {
+			return nil, fmt.Errorf("transaction %s %w", hash, ethereum.NotFound)
+		}
+		return histResult, err
 	}
 	// It shouldn't happen in practice.
 	if blockNumber == 0 {
@@ -905,6 +931,29 @@ func (api *API) TraceCall(ctx context.Context, args ethapi.TransactionArgs, bloc
 	} else {
 		return nil, errors.New("invalid arguments; neither block nor hash specified")
 	}
+
+	// If block still holds no value, but we have an error, then one of the two previous conditions
+	// was entered, meaning:
+	// 1. blockNrOrHash has either a valid block or hash
+	// 2. we don't have that block locally
+	if block == nil && errors.Is(err, ethereum.NotFound) && api.backend.HistoricalRPCService() != nil {
+		var histResult json.RawMessage
+		err = api.backend.HistoricalRPCService().CallContext(ctx, &histResult, "debug_traceCall", args, blockNrOrHash, config)
+		if err != nil && err.Error() == "not found" {
+			// Not found locally or in history. We need to return different errors based on the input
+			// in order match geth's native behavior
+			if hash, ok := blockNrOrHash.Hash(); ok {
+				return nil, fmt.Errorf("block %s %w", hash, ethereum.NotFound)
+			} else if number, ok := blockNrOrHash.Number(); ok {
+				return nil, fmt.Errorf("block #%d %w", number, ethereum.NotFound)
+			}
+		} else if err != nil {
+			return nil, fmt.Errorf("error querying historical RPC: %w", err)
+		}
+
+		return histResult, nil
+	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -927,6 +976,7 @@ func (api *API) TraceCall(ctx context.Context, args ethapi.TransactionArgs, bloc
 		}
 		config.BlockOverrides.Apply(&vmctx)
 	}
+	vmctx.L1CostFunc = types.NewL1CostFunc(api.backend.ChainConfig(), statedb)
 	// Execute the trace
 	msg, err := args.ToMessage(api.backend.RPCGasCap(), block.BaseFee())
 	if err != nil {

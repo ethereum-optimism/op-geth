@@ -512,7 +512,7 @@ func doDocker(cmdline []string) {
 	case env.Branch == "master":
 		tags = []string{"latest"}
 	case strings.HasPrefix(env.Tag, "v1."):
-		tags = []string{"stable", fmt.Sprintf("release-1.%d", params.VersionMinor), "v" + params.Version}
+		tags = []string{"stable", fmt.Sprintf("release-1.%d", params.OPVersionMinor), "v" + params.Version}
 	}
 	// If architecture specific image builds are requested, build and push them
 	if *image {

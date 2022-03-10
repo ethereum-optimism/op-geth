@@ -21,8 +21,9 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/ethereum/go-ethereum/common"
 	"golang.org/x/crypto/sha3"
+
+	"github.com/ethereum/go-ethereum/common"
 )
 
 // Genesis hashes to enforce below configs on.
@@ -448,6 +449,9 @@ type ChainConfig struct {
 	// Various consensus engines
 	Ethash *EthashConfig `json:"ethash,omitempty"`
 	Clique *CliqueConfig `json:"clique,omitempty"`
+
+	// Optimism config, nil if not active
+	Optimism *OptimismConfig `json:"optimism,omitempty"`
 }
 
 // EthashConfig is the consensus engine configs for proof-of-work based sealing.
@@ -467,6 +471,17 @@ type CliqueConfig struct {
 // String implements the stringer interface, returning the consensus engine details.
 func (c *CliqueConfig) String() string {
 	return "clique"
+}
+
+// OptimismConfig is the optimism config.
+type OptimismConfig struct {
+	EIP1559Elasticity  uint64 `json:"eip1559Elasticity"`
+	EIP1559Denominator uint64 `json:"eip1559Denominator"`
+}
+
+// String implements the stringer interface, returning the optimism fee config details.
+func (o *OptimismConfig) String() string {
+	return "optimism"
 }
 
 // Description returns a human-readable description of ChainConfig.
@@ -496,6 +511,8 @@ func (c *ChainConfig) Description() string {
 		} else {
 			banner += "Consensus: Beacon (proof-of-stake), merged from Clique (proof-of-authority)\n"
 		}
+	case c.Optimism != nil:
+		banner += "Consensus: Optimism\n"
 	default:
 		banner += "Consensus: unknown\n"
 	}
@@ -815,11 +832,17 @@ func (c *ChainConfig) checkCompatible(newcfg *ChainConfig, headNumber *big.Int, 
 
 // BaseFeeChangeDenominator bounds the amount the base fee can change between blocks.
 func (c *ChainConfig) BaseFeeChangeDenominator() uint64 {
+	if c.Optimism != nil {
+		return c.Optimism.EIP1559Denominator
+	}
 	return DefaultBaseFeeChangeDenominator
 }
 
 // ElasticityMultiplier bounds the maximum gas limit an EIP-1559 block may have.
 func (c *ChainConfig) ElasticityMultiplier() uint64 {
+	if c.Optimism != nil {
+		return c.Optimism.EIP1559Elasticity
+	}
 	return DefaultElasticityMultiplier
 }
 

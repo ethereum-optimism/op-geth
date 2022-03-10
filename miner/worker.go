@@ -31,6 +31,7 @@ import (
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/eth/tracers"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
@@ -794,6 +795,14 @@ func (w *worker) makeEnv(parent *types.Block, header *types.Header, coinbase com
 	// Retrieve the parent state to execute on top and start a prefetcher for
 	// the miner to speed block sealing up a bit.
 	state, err := w.chain.StateAt(parent.Root())
+	if err != nil && w.chainConfig.Optimism != nil { // Allow the miner to reorg its own chain arbitrarily deep
+		if historicalBackend, ok := w.eth.(BackendWithHistoricalState); ok {
+			var release tracers.StateReleaseFunc
+			state, release, err = historicalBackend.StateAtBlock(parent, ^uint64(0), nil, false, false)
+			state = state.Copy()
+			release()
+		}
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -976,6 +985,9 @@ type generateParams struct {
 	withdrawals types.Withdrawals // List of withdrawals to include in block.
 	noUncle     bool              // Flag whether the uncle block inclusion is allowed
 	noTxs       bool              // Flag whether an empty block without any transaction is expected
+
+	txs      types.Transactions // Deposit transactions to include at the start of the block
+	gasLimit *uint64            // Optional gas limit override
 }
 
 // prepareWork constructs the sealing task according to the given parameters,
@@ -1025,6 +1037,9 @@ func (w *worker) prepareWork(genParams *generateParams) (*environment, error) {
 			parentGasLimit := parent.GasLimit() * w.chainConfig.ElasticityMultiplier()
 			header.GasLimit = core.CalcGasLimit(parentGasLimit, w.config.GasCeil)
 		}
+	}
+	if genParams.gasLimit != nil { // override gas limit if specified
+		header.GasLimit = *genParams.gasLimit
 	}
 	// Run the consensus preparation with the default or customized consensus engine.
 	if err := w.engine.Prepare(w.chain, header); err != nil {
@@ -1090,14 +1105,28 @@ func (w *worker) fillTransactions(interrupt *int32, env *environment) error {
 }
 
 // generateWork generates a sealing block based on the given parameters.
-func (w *worker) generateWork(params *generateParams) (*types.Block, *big.Int, error) {
-	work, err := w.prepareWork(params)
+func (w *worker) generateWork(genParams *generateParams) (*types.Block, *big.Int, error) {
+	work, err := w.prepareWork(genParams)
 	if err != nil {
 		return nil, nil, err
 	}
 	defer work.discard()
+	if work.gasPool == nil {
+		work.gasPool = new(core.GasPool).AddGas(work.header.GasLimit)
+	}
 
-	if !params.noTxs {
+	for _, tx := range genParams.txs {
+		from, _ := types.Sender(work.signer, tx)
+		work.state.SetTxContext(tx.Hash(), work.tcount)
+		_, err := w.commitTransaction(work, tx)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to force-include tx: %s type: %d sender: %s nonce: %d, err: %w", tx.Hash(), tx.Type(), from, tx.Nonce(), err)
+		}
+		work.tcount++
+	}
+
+	// forced transactions done, fill rest of block with transactions
+	if !genParams.noTxs {
 		interrupt := new(int32)
 		timer := time.AfterFunc(w.newpayloadTimeout, func() {
 			atomic.StoreInt32(interrupt, commitInterruptTimeout)
@@ -1109,7 +1138,7 @@ func (w *worker) generateWork(params *generateParams) (*types.Block, *big.Int, e
 			log.Warn("Block building is interrupted", "allowance", common.PrettyDuration(w.newpayloadTimeout))
 		}
 	}
-	block, err := w.engine.FinalizeAndAssemble(w.chain, work.header, work.state, work.txs, work.unclelist(), work.receipts, params.withdrawals)
+	block, err := w.engine.FinalizeAndAssemble(w.chain, work.header, work.state, work.txs, work.unclelist(), work.receipts, genParams.withdrawals)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -1226,7 +1255,7 @@ func (w *worker) commit(env *environment, interval func(), update bool, start ti
 // getSealingBlock generates the sealing block based on the given parameters.
 // The generation result will be passed back via the given channel no matter
 // the generation itself succeeds or not.
-func (w *worker) getSealingBlock(parent common.Hash, timestamp uint64, coinbase common.Address, random common.Hash, withdrawals types.Withdrawals, noTxs bool) (*types.Block, *big.Int, error) {
+func (w *worker) getSealingBlock(parent common.Hash, timestamp uint64, coinbase common.Address, random common.Hash, withdrawals types.Withdrawals, noTxs bool, transactions types.Transactions, gasLimit *uint64) (*types.Block, *big.Int, error) {
 	req := &getWorkReq{
 		params: &generateParams{
 			timestamp:   timestamp,
@@ -1237,6 +1266,8 @@ func (w *worker) getSealingBlock(parent common.Hash, timestamp uint64, coinbase 
 			withdrawals: withdrawals,
 			noUncle:     true,
 			noTxs:       noTxs,
+			txs:         transactions,
+			gasLimit:    gasLimit,
 		},
 		result: make(chan *newPayloadResult, 1),
 	}

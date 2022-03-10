@@ -22,9 +22,14 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"net"
+	"net/http"
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/internal/ethapi"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
@@ -210,7 +215,62 @@ var testTx2 = types.MustSignNewTx(testKey, types.LatestSigner(genesis.Config), &
 	To:       &common.Address{2},
 })
 
+type mockHistoricalBackend struct{}
+
+func (m *mockHistoricalBackend) Call(ctx context.Context, args ethapi.TransactionArgs, blockNrOrHash rpc.BlockNumberOrHash, overrides *ethapi.StateOverride) (hexutil.Bytes, error) {
+	num, ok := blockNrOrHash.Number()
+	if ok && num == 100 {
+		return hexutil.Bytes("test"), nil
+	}
+	return nil, ethereum.NotFound
+}
+
+func (m *mockHistoricalBackend) EstimateGas(ctx context.Context, args ethapi.TransactionArgs, blockNrOrHash *rpc.BlockNumberOrHash) (hexutil.Uint64, error) {
+	num, ok := blockNrOrHash.Number()
+	if ok && num == 100 {
+		return hexutil.Uint64(12345), nil
+	}
+	return 0, ethereum.NotFound
+}
+
+func newMockHistoricalBackend(t *testing.T) string {
+	s := rpc.NewServer()
+	err := node.RegisterApis([]rpc.API{
+		{
+			Namespace:     "eth",
+			Service:       new(mockHistoricalBackend),
+			Public:        true,
+			Authenticated: false,
+		},
+	}, nil, s)
+	if err != nil {
+		t.Fatalf("error creating mock historical backend: %v", err)
+	}
+
+	hdlr := node.NewHTTPHandlerStack(s, []string{"*"}, []string{"*"}, nil)
+	mux := http.NewServeMux()
+	mux.Handle("/", hdlr)
+
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("error creating mock historical backend listener: %v", err)
+	}
+
+	go func() {
+		httpS := &http.Server{Handler: mux}
+		httpS.Serve(listener)
+
+		t.Cleanup(func() {
+			httpS.Shutdown(context.Background())
+		})
+	}()
+
+	return fmt.Sprintf("http://%s", listener.Addr().String())
+}
+
 func newTestBackend(t *testing.T) (*node.Node, []*types.Block) {
+	histAddr := newMockHistoricalBackend(t)
+
 	// Generate test chain.
 	blocks := generateTestChain()
 
@@ -222,6 +282,7 @@ func newTestBackend(t *testing.T) (*node.Node, []*types.Block) {
 	// Create Ethereum Service
 	config := &ethconfig.Config{Genesis: genesis}
 	config.Ethash.PowMode = ethash.ModeFake
+	config.RollupHistoricalRPC = histAddr
 	ethservice, err := eth.New(n, config)
 	if err != nil {
 		t.Fatalf("can't create new ethereum service: %v", err)
@@ -288,6 +349,9 @@ func TestEthClient(t *testing.T) {
 		},
 		"TransactionSender": {
 			func(t *testing.T) { testTransactionSender(t, client) },
+		},
+		"EstimateGas": {
+			func(t *testing.T) { testEstimateGas(t, client) },
 		},
 	}
 
@@ -580,6 +644,14 @@ func testCallContract(t *testing.T, client *rpc.Client) {
 	if _, err := ec.PendingCallContract(context.Background(), msg); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
+	// Historical
+	histVal, err := ec.CallContract(context.Background(), msg, big.NewInt(100))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if string(histVal) != "test" {
+		t.Fatalf("expected %s to equal test", string(histVal))
+	}
 }
 
 func testAtFunctions(t *testing.T, client *rpc.Client) {
@@ -684,6 +756,35 @@ func testTransactionSender(t *testing.T, client *rpc.Client) {
 	}
 	if sender2 != testAddr {
 		t.Fatal("wrong sender:", sender2)
+	}
+}
+
+func testEstimateGas(t *testing.T, client *rpc.Client) {
+	ec := NewClient(client)
+
+	// EstimateGas
+	msg := ethereum.CallMsg{
+		From:  testAddr,
+		To:    &common.Address{},
+		Gas:   21000,
+		Value: big.NewInt(1),
+	}
+	gas, err := ec.EstimateGas(context.Background(), msg)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if gas != 21000 {
+		t.Fatalf("unexpected gas price: %v", gas)
+	}
+
+	// historical case
+	var res hexutil.Uint64
+	err = client.CallContext(context.Background(), &res, "eth_estimateGas", toCallArg(msg), rpc.BlockNumberOrHashWithNumber(100))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if res != 12345 {
+		t.Fatalf("invalid result: %d", res)
 	}
 }
 

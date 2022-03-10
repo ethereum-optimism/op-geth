@@ -20,6 +20,7 @@ import (
 	"fmt"
 )
 
+// Version is the version of upstream geth
 const (
 	VersionMajor = 1        // Major version component of the current release
 	VersionMinor = 11       // Minor version component of the current release
@@ -27,14 +28,36 @@ const (
 	VersionMeta  = "stable" // Version metadata to append to the version string
 )
 
+// OPVersion is the version of op-geth
+const (
+	OPVersionMajor = 0          // Major version component of the current release
+	OPVersionMinor = 1          // Minor version component of the current release
+	OPVersionPatch = 0          // Patch version component of the current release
+	OPVersionMeta  = "unstable" // Version metadata to append to the version string
+)
+
 // Version holds the textual version string.
 var Version = func() string {
-	return fmt.Sprintf("%d.%d.%d", VersionMajor, VersionMinor, VersionPatch)
+	return fmt.Sprintf("%d.%d.%d", OPVersionMajor, OPVersionMinor, OPVersionPatch)
 }()
 
 // VersionWithMeta holds the textual version string including the metadata.
 var VersionWithMeta = func() string {
 	v := Version
+	if OPVersionMeta != "" {
+		v += "-" + OPVersionMeta
+	}
+	return v
+}()
+
+// GethVersion holds the textual geth version string.
+var GethVersion = func() string {
+	return fmt.Sprintf("%d.%d.%d", VersionMajor, VersionMinor, VersionPatch)
+}()
+
+// GethVersionWithMeta holds the textual geth version string including the metadata.
+var GethVersionWithMeta = func() string {
+	v := GethVersion
 	if VersionMeta != "" {
 		v += "-" + VersionMeta
 	}
@@ -46,8 +69,8 @@ var VersionWithMeta = func() string {
 // releases.
 func ArchiveVersion(gitCommit string) string {
 	vsn := Version
-	if VersionMeta != "stable" {
-		vsn += "-" + VersionMeta
+	if OPVersionMeta != "stable" {
+		vsn += "-" + OPVersionMeta
 	}
 	if len(gitCommit) >= 8 {
 		vsn += "-" + gitCommit[:8]
@@ -60,7 +83,7 @@ func VersionWithCommit(gitCommit, gitDate string) string {
 	if len(gitCommit) >= 8 {
 		vsn += "-" + gitCommit[:8]
 	}
-	if (VersionMeta != "stable") && (gitDate != "") {
+	if (OPVersionMeta != "stable") && (gitDate != "") {
 		vsn += "-" + gitDate
 	}
 	return vsn

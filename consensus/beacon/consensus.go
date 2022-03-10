@@ -445,6 +445,9 @@ func IsTTDReached(chain consensus.ChainHeaderReader, parentHash common.Hash, par
 	if chain.Config().TerminalTotalDifficulty == nil {
 		return false, nil
 	}
+	if common.Big0.Cmp(chain.Config().TerminalTotalDifficulty) == 0 { // in case TTD is reached at genesis.
+		return true, nil
+	}
 	td := chain.GetTd(parentHash, parentNumber)
 	if td == nil {
 		return false, consensus.ErrUnknownAncestor

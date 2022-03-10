@@ -137,6 +137,7 @@ func printVersion(ctx *cli.Context) error {
 	if git.Date != "" {
 		fmt.Println("Git Commit Date:", git.Date)
 	}
+	fmt.Println("Upstream Version:", params.GethVersionWithMeta)
 	fmt.Println("Architecture:", runtime.GOARCH)
 	fmt.Println("Go Version:", runtime.Version())
 	fmt.Println("Operating System:", runtime.GOOS)

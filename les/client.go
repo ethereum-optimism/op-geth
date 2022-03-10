@@ -18,6 +18,7 @@
 package les
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
@@ -66,6 +67,9 @@ type LightEthereum struct {
 	serverPoolIterator enode.Iterator
 	pruner             *pruner
 	merger             *consensus.Merger
+
+	seqRPCService        *rpc.Client
+	historicalRPCService *rpc.Client
 
 	bloomRequests chan chan *bloombits.Retrieval // Channel receiving bloom data retrieval requests
 	bloomIndexer  *core.ChainIndexer             // Bloom indexer operating during block imports
@@ -195,6 +199,26 @@ func New(stack *node.Node, config *ethconfig.Config) (*LightEthereum, error) {
 	if leth.handler.ulc != nil {
 		log.Warn("Ultra light client is enabled", "trustedNodes", len(leth.handler.ulc.keys), "minTrustedFraction", leth.handler.ulc.fraction)
 		leth.blockchain.DisableCheckFreq()
+	}
+
+	if config.RollupSequencerHTTP != "" {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		client, err := rpc.DialContext(ctx, config.RollupSequencerHTTP)
+		cancel()
+		if err != nil {
+			return nil, err
+		}
+		leth.seqRPCService = client
+	}
+
+	if config.RollupHistoricalRPC != "" {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		client, err := rpc.DialContext(ctx, config.RollupHistoricalRPC)
+		cancel()
+		if err != nil {
+			return nil, err
+		}
+		leth.historicalRPCService = client
 	}
 
 	leth.netRPCService = ethapi.NewNetAPI(leth.p2pServer, leth.config.NetworkId)

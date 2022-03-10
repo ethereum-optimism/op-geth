@@ -62,6 +62,7 @@ type StateTransition struct {
 	gasTipCap  *big.Int
 	initialGas uint64
 	value      *big.Int
+	mint       *big.Int
 	data       []byte
 	state      vm.StateDB
 	evm        *vm.EVM
@@ -77,6 +78,11 @@ type Message interface {
 	GasTipCap() *big.Int
 	Gas() uint64
 	Value() *big.Int
+
+	IsSystemTx() bool      // IsSystemTx indicates the message, if also a deposit, does not emit gas usage.
+	IsDepositTx() bool     // IsDepositTx indicates the message is force-included and can persist a mint.
+	Mint() *big.Int        // Mint is the amount to mint before EVM processing, or nil if there is no minting.
+	RollupDataGas() uint64 // RollupDataGas indicates the rollup cost of the message, 0 if not a rollup or no cost.
 
 	Nonce() uint64
 	IsFake() bool
@@ -188,6 +194,7 @@ func NewStateTransition(evm *vm.EVM, msg Message, gp *GasPool) *StateTransition 
 		gasFeeCap: msg.GasFeeCap(),
 		gasTipCap: msg.GasTipCap(),
 		value:     msg.Value(),
+		mint:      msg.Mint(),
 		data:      msg.Data(),
 		state:     evm.StateDB,
 	}
@@ -215,11 +222,21 @@ func (st *StateTransition) to() common.Address {
 func (st *StateTransition) buyGas() error {
 	mgval := new(big.Int).SetUint64(st.msg.Gas())
 	mgval = mgval.Mul(mgval, st.gasPrice)
+	var l1Cost *big.Int
+	if st.evm.Context.L1CostFunc != nil {
+		l1Cost = st.evm.Context.L1CostFunc(st.evm.Context.BlockNumber.Uint64(), st.msg)
+	}
+	if l1Cost != nil {
+		mgval = mgval.Add(mgval, l1Cost)
+	}
 	balanceCheck := mgval
 	if st.gasFeeCap != nil {
 		balanceCheck = new(big.Int).SetUint64(st.msg.Gas())
 		balanceCheck = balanceCheck.Mul(balanceCheck, st.gasFeeCap)
 		balanceCheck.Add(balanceCheck, st.value)
+		if l1Cost != nil {
+			balanceCheck.Add(balanceCheck, l1Cost)
+		}
 	}
 	if have, want := st.state.GetBalance(st.msg.From()), balanceCheck; have.Cmp(want) < 0 {
 		return fmt.Errorf("%w: address %v have %v want %v", ErrInsufficientFunds, st.msg.From().Hex(), have, want)
@@ -235,6 +252,17 @@ func (st *StateTransition) buyGas() error {
 }
 
 func (st *StateTransition) preCheck() error {
+	if st.msg.IsDepositTx() {
+		// No fee fields to check, no nonce to check, and no need to check if EOA (L1 already verified it for us)
+		// Gas is free, but no refunds!
+		st.initialGas = st.msg.Gas()
+		st.gas += st.msg.Gas() // Add gas here in order to be able to execute calls.
+		// Don't touch the gas pool for system transactions
+		if st.msg.IsSystemTx() {
+			return nil
+		}
+		return st.gp.SubGas(st.msg.Gas()) // gas used by deposits may not be used by other txs
+	}
 	// Only check transactions that are not fake
 	if !st.msg.IsFake() {
 		// Make sure this transaction's nonce is correct.
@@ -293,6 +321,35 @@ func (st *StateTransition) preCheck() error {
 // However if any consensus issue encountered, return the error directly with
 // nil evm execution result.
 func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
+	if mint := st.msg.Mint(); mint != nil {
+		st.state.AddBalance(st.msg.From(), mint)
+	}
+	snap := st.state.Snapshot()
+
+	result, err := st.innerTransitionDb()
+	// Failed deposits must still be included. Unless we cannot produce the block at all due to the gas limit.
+	// On deposit failure, we rewind any state changes from after the minting, and increment the nonce.
+	if err != nil && err != ErrGasLimitReached && st.msg.IsDepositTx() {
+		st.state.RevertToSnapshot(snap)
+		// Even though we revert the state changes, always increment the nonce for the next deposit transaction
+		st.state.SetNonce(st.msg.From(), st.state.GetNonce(st.msg.From())+1)
+		// Record deposits as using all their gas (matches the gas pool)
+		// System Transactions are special & are not recorded as using any gas (anywhere)
+		gasUsed := st.msg.Gas()
+		if st.msg.IsSystemTx() {
+			gasUsed = 0
+		}
+		result = &ExecutionResult{
+			UsedGas:    gasUsed,
+			Err:        fmt.Errorf("failed deposit: %w", err),
+			ReturnData: nil,
+		}
+		err = nil
+	}
+	return result, err
+}
+
+func (st *StateTransition) innerTransitionDb() (*ExecutionResult, error) {
 	// First check this message satisfies all consensus rules before
 	// applying the message. The rules include these clauses
 	//
@@ -359,6 +416,20 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 		ret, st.gas, vmerr = st.evm.Call(sender, st.to(), st.data, st.gas, st.value)
 	}
 
+	// if deposit: skip refunds, skip tipping coinbase
+	if st.msg.IsDepositTx() {
+		// Record deposits as using all their gas (matches the gas pool)
+		// System Transactions are special & are not recorded as using any gas (anywhere)
+		gasUsed := st.msg.Gas()
+		if st.msg.IsSystemTx() {
+			gasUsed = 0
+		}
+		return &ExecutionResult{
+			UsedGas:    gasUsed,
+			Err:        vmerr,
+			ReturnData: ret,
+		}, nil
+	}
 	if !rules.IsLondon {
 		// Before EIP-3529: refunds were capped to gasUsed / 2
 		st.refundGas(params.RefundQuotient)
@@ -379,6 +450,13 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 		fee := new(big.Int).SetUint64(st.gasUsed())
 		fee.Mul(fee, effectiveTip)
 		st.state.AddBalance(st.evm.Context.Coinbase, fee)
+	}
+
+	if optimismConfig := st.evm.ChainConfig().Optimism; optimismConfig != nil {
+		st.state.AddBalance(params.OptimismBaseFeeRecipient, new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), st.evm.Context.BaseFee))
+		if cost := st.evm.Context.L1CostFunc(st.evm.Context.BlockNumber.Uint64(), st.msg); cost != nil {
+			st.state.AddBalance(params.OptimismL1FeeRecipient, cost)
+		}
 	}
 
 	return &ExecutionResult{

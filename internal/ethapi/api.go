@@ -26,6 +26,9 @@ import (
 	"time"
 
 	"github.com/davecgh/go-spew/spew"
+	"github.com/tyler-smith/go-bip39"
+
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
@@ -46,8 +49,9 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
-	"github.com/tyler-smith/go-bip39"
 )
+
+var ErrHeaderNotFound = fmt.Errorf("header %w", ethereum.NotFound)
 
 // EthereumAPI provides an API to access Ethereum related information.
 type EthereumAPI struct {
@@ -1048,7 +1052,11 @@ func (e *revertError) ErrorData() interface{} {
 // useful to execute and retrieve values.
 func (s *BlockChainAPI) Call(ctx context.Context, args TransactionArgs, blockNrOrHash rpc.BlockNumberOrHash, overrides *StateOverride) (hexutil.Bytes, error) {
 	result, err := DoCall(ctx, s.b, args, blockNrOrHash, overrides, s.b.RPCEVMTimeout(), s.b.RPCGasCap())
-	if err != nil {
+	if errors.Is(err, ethereum.NotFound) && s.b.HistoricalRPCService() != nil {
+		var histResult hexutil.Bytes
+		err = s.b.HistoricalRPCService().CallContext(ctx, &histResult, "eth_call", args, blockNrOrHash, overrides)
+		return histResult, err
+	} else if err != nil {
 		return nil, err
 	}
 	// If the result contains a revert reason, try to unpack and return it.
@@ -1185,7 +1193,17 @@ func (s *BlockChainAPI) EstimateGas(ctx context.Context, args TransactionArgs, b
 	if blockNrOrHash != nil {
 		bNrOrHash = *blockNrOrHash
 	}
-	return DoEstimateGas(ctx, s.b, args, bNrOrHash, s.b.RPCGasCap())
+
+	res, err := DoEstimateGas(ctx, s.b, args, bNrOrHash, s.b.RPCGasCap())
+	if errors.Is(err, ethereum.NotFound) && s.b.HistoricalRPCService() != nil {
+		var result hexutil.Uint64
+		err := s.b.HistoricalRPCService().CallContext(ctx, &result, "eth_estimateGas", args, blockNrOrHash)
+		return result, err
+	} else if err != nil {
+		return 0, err
+	}
+
+	return res, err
 }
 
 // RPCMarshalHeader converts the given header to the RPC output .
@@ -1301,6 +1319,11 @@ type RPCTransaction struct {
 	V                *hexutil.Big      `json:"v"`
 	R                *hexutil.Big      `json:"r"`
 	S                *hexutil.Big      `json:"s"`
+
+	// deposit-tx only
+	SourceHash *common.Hash `json:"sourceHash,omitempty"`
+	Mint       *hexutil.Big `json:"mint,omitempty"`
+	IsSystemTx *bool        `json:"isSystemTx,omitempty"`
 }
 
 // newRPCTransaction returns a transaction that will serialize to the RPC
@@ -1308,6 +1331,28 @@ type RPCTransaction struct {
 func newRPCTransaction(tx *types.Transaction, blockHash common.Hash, blockNumber uint64, index uint64, baseFee *big.Int, config *params.ChainConfig) *RPCTransaction {
 	signer := types.MakeSigner(config, new(big.Int).SetUint64(blockNumber))
 	from, _ := types.Sender(signer, tx)
+	if tx.Type() == types.DepositTxType {
+		srcHash := tx.SourceHash()
+		isSystemTx := tx.IsSystemTx()
+		result := &RPCTransaction{
+			Type:       hexutil.Uint64(tx.Type()),
+			From:       from,
+			Gas:        hexutil.Uint64(tx.Gas()),
+			Hash:       tx.Hash(),
+			Input:      hexutil.Bytes(tx.Data()),
+			To:         tx.To(),
+			Value:      (*hexutil.Big)(tx.Value()),
+			Mint:       (*hexutil.Big)(tx.Mint()),
+			SourceHash: &srcHash,
+			IsSystemTx: &isSystemTx,
+		}
+		if blockHash != (common.Hash{}) {
+			result.BlockHash = &blockHash
+			result.BlockNumber = (*hexutil.Big)(new(big.Int).SetUint64(blockNumber))
+			result.TransactionIndex = (*hexutil.Uint64)(&index)
+		}
+		return result
+	}
 	v, r, s := tx.RawSignatureValues()
 	result := &RPCTransaction{
 		Type:     hexutil.Uint64(tx.Type()),
@@ -1648,6 +1693,12 @@ func (s *TransactionAPI) GetTransactionReceipt(ctx context.Context, hash common.
 		"logs":              receipt.Logs,
 		"logsBloom":         receipt.Bloom,
 		"type":              hexutil.Uint(tx.Type()),
+	}
+	if s.b.ChainConfig().Optimism != nil && !tx.IsDepositTx() {
+		fields["l1GasPrice"] = (*hexutil.Big)(receipt.L1GasPrice)
+		fields["l1GasUsed"] = (*hexutil.Big)(receipt.L1GasUsed)
+		fields["l1Fee"] = (*hexutil.Big)(receipt.L1Fee)
+		fields["l1FeeScalar"] = receipt.FeeScalar.String()
 	}
 	// Assign the effective gas price paid
 	if !s.b.ChainConfig().IsLondon(bigblock) {

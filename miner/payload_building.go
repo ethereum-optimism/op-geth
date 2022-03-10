@@ -40,6 +40,10 @@ type BuildPayloadArgs struct {
 	FeeRecipient common.Address    // The provided recipient address for collecting transaction fee
 	Random       common.Hash       // The provided randomness value
 	Withdrawals  types.Withdrawals // The provided withdrawals
+
+	NoTxPool     bool                 // Optimism addition: option to disable tx pool contents from being included
+	Transactions []*types.Transaction // Optimism addition: txs forced into the block via engine API
+	GasLimit     *uint64              // Optimism addition: override gas limit of the block to build
 }
 
 // Id computes an 8-byte identifier by hashing the components of the payload arguments.
@@ -51,6 +55,19 @@ func (args *BuildPayloadArgs) Id() engine.PayloadID {
 	hasher.Write(args.Random[:])
 	hasher.Write(args.FeeRecipient[:])
 	rlp.Encode(hasher, args.Withdrawals)
+
+	if args.NoTxPool || len(args.Transactions) > 0 { // extend if extra payload attributes are used
+		binary.Write(hasher, binary.BigEndian, args.NoTxPool)
+		binary.Write(hasher, binary.BigEndian, uint64(len(args.Transactions)))
+		for _, tx := range args.Transactions {
+			h := tx.Hash()
+			hasher.Write(h[:])
+		}
+	}
+	if args.GasLimit != nil {
+		binary.Write(hasher, binary.BigEndian, *args.GasLimit)
+	}
+
 	var out engine.PayloadID
 	copy(out[:], hasher.Sum(nil)[:8])
 	return out
@@ -156,12 +173,15 @@ func (w *worker) buildPayload(args *BuildPayloadArgs) (*Payload, error) {
 	// Build the initial version with no transaction included. It should be fast
 	// enough to run. The empty payload can at least make sure there is something
 	// to deliver for not missing slot.
-	empty, _, err := w.getSealingBlock(args.Parent, args.Timestamp, args.FeeRecipient, args.Random, args.Withdrawals, true)
+	empty, _, err := w.getSealingBlock(args.Parent, args.Timestamp, args.FeeRecipient, args.Random, args.Withdrawals, true, args.Transactions, args.GasLimit)
 	if err != nil {
 		return nil, err
 	}
 	// Construct a payload object for return.
 	payload := newPayload(empty, args.Id())
+	if args.NoTxPool { // don't start the background payload updating job if there is no tx pool to pull from
+		return payload, nil
+	}
 
 	// Spin up a routine for updating the payload in background. This strategy
 	// can maximum the revenue for including transactions with highest fee.
@@ -180,7 +200,7 @@ func (w *worker) buildPayload(args *BuildPayloadArgs) (*Payload, error) {
 			select {
 			case <-timer.C:
 				start := time.Now()
-				block, fees, err := w.getSealingBlock(args.Parent, args.Timestamp, args.FeeRecipient, args.Random, args.Withdrawals, false)
+				block, fees, err := w.getSealingBlock(args.Parent, args.Timestamp, args.FeeRecipient, args.Random, args.Withdrawals, false, args.Transactions, args.GasLimit)
 				if err == nil {
 					payload.update(block, fees, time.Since(start))
 				}
