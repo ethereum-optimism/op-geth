@@ -184,6 +184,10 @@ func (tx *Transaction) decodeTyped(b []byte) (TxData, error) {
 		var inner DynamicFeeTx
 		err := rlp.DecodeBytes(b[1:], &inner)
 		return &inner, err
+	case DepositTxType:
+		var inner DepositTx
+		err := rlp.DecodeBytes(b[1:], &inner)
+		return &inner, err
 	default:
 		return nil, ErrTxTypeNotSupported
 	}
@@ -283,6 +287,27 @@ func (tx *Transaction) Nonce() uint64 { return tx.inner.nonce() }
 // For contract-creation transactions, To returns nil.
 func (tx *Transaction) To() *common.Address {
 	return copyAddressPtr(tx.inner.to())
+}
+
+func (tx *Transaction) BlockHeight() uint64 {
+	if dep, ok := tx.inner.(*DepositTx); ok {
+		return dep.BlockHeight
+	}
+	return 0
+}
+
+func (tx *Transaction) TransactionIndex() uint64 {
+	if dep, ok := tx.inner.(*DepositTx); ok {
+		return dep.TransactionIndex
+	}
+	return 0
+}
+
+func (tx *Transaction) Mint() *big.Int {
+	if dep, ok := tx.inner.(*DepositTx); ok {
+		return dep.Mint
+	}
+	return nil
 }
 
 // Cost returns gas * gasPrice + value.
@@ -590,6 +615,7 @@ type Message struct {
 	data       []byte
 	accessList AccessList
 	isFake     bool
+	mint       *big.Int
 }
 
 func NewMessage(from common.Address, to *common.Address, nonce uint64, amount *big.Int, gasLimit uint64, gasPrice, gasFeeCap, gasTipCap *big.Int, data []byte, accessList AccessList, isFake bool) Message {
@@ -605,6 +631,7 @@ func NewMessage(from common.Address, to *common.Address, nonce uint64, amount *b
 		data:       data,
 		accessList: accessList,
 		isFake:     isFake,
+		mint:       big.NewInt(0),
 	}
 }
 
@@ -621,6 +648,9 @@ func (tx *Transaction) AsMessage(s Signer, baseFee *big.Int) (Message, error) {
 		data:       tx.Data(),
 		accessList: tx.AccessList(),
 		isFake:     false,
+	}
+	if dep, ok := tx.inner.(*DepositTx); ok {
+		msg.mint = dep.Mint
 	}
 	// If baseFee provided, set gasPrice to effectiveGasPrice.
 	if baseFee != nil {
@@ -642,6 +672,7 @@ func (m Message) Nonce() uint64          { return m.nonce }
 func (m Message) Data() []byte           { return m.data }
 func (m Message) AccessList() AccessList { return m.accessList }
 func (m Message) IsFake() bool           { return m.isFake }
+func (m Message) Mint() *big.Int         { return m.mint }
 
 // copyAddressPtr copies an address.
 func copyAddressPtr(a *common.Address) *common.Address {
