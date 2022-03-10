@@ -237,8 +237,8 @@ func (miner *Miner) DisablePreseal() {
 
 // GetSealingBlock retrieves a sealing block based on the given parameters.
 // The returned block is not sealed but all other fields should be filled.
-func (miner *Miner) GetSealingBlock(parent common.Hash, timestamp uint64, coinbase common.Address, random common.Hash) (*types.Block, error) {
-	return miner.worker.getSealingBlock(parent, timestamp, coinbase, random)
+func (miner *Miner) GetSealingBlock(parent common.Hash, timestamp uint64, coinbase common.Address, random common.Hash, forceTxs types.Transactions, noTxPool bool) (*types.Block, error) {
+	return miner.worker.getSealingBlock(parent, timestamp, coinbase, random, forceTxs, noTxPool)
 }
 
 // SubscribePendingLogs starts delivering logs from pending transactions
