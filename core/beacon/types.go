@@ -33,11 +33,16 @@ type PayloadAttributesV1 struct {
 	Timestamp             uint64         `json:"timestamp"     gencodec:"required"`
 	Random                common.Hash    `json:"prevRandao"        gencodec:"required"`
 	SuggestedFeeRecipient common.Address `json:"suggestedFeeRecipient"  gencodec:"required"`
+
+	// Transactions is a field for rollups: if non-empty, the transactions list is used instead
+	// of any transactions from the engine like the tx-pool.
+	Transactions [][]byte `json:"transactions,omitempty"  gencodec:"optional"`
 }
 
 // JSON type overrides for PayloadAttributesV1.
 type payloadAttributesMarshaling struct {
-	Timestamp hexutil.Uint64
+	Timestamp    hexutil.Uint64
+	Transactions []hexutil.Bytes
 }
 
 //go:generate go run github.com/fjl/gencodec -type ExecutableDataV1 -field-override executableDataMarshaling -out gen_ed.go
