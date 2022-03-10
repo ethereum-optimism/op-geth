@@ -42,6 +42,11 @@ type txJSON struct {
 	S                    *hexutil.Big    `json:"s"`
 	To                   *common.Address `json:"to"`
 
+	// Deposit transaction fields
+	SourceHash *common.Hash    `json:"sourceHash,omitempty"`
+	From       *common.Address `json:"from,omitempty"`
+	Mint       *hexutil.Big    `json:"mint,omitempty"`
+
 	// Access list transaction fields:
 	ChainID    *hexutil.Big `json:"chainId,omitempty"`
 	AccessList *AccessList  `json:"accessList,omitempty"`
@@ -94,6 +99,17 @@ func (t *Transaction) MarshalJSON() ([]byte, error) {
 		enc.V = (*hexutil.Big)(tx.V)
 		enc.R = (*hexutil.Big)(tx.R)
 		enc.S = (*hexutil.Big)(tx.S)
+	case *DepositTx:
+		enc.Gas = (*hexutil.Uint64)(&tx.Gas)
+		enc.Value = (*hexutil.Big)(tx.Value)
+		enc.Data = (*hexutil.Bytes)(&tx.Data)
+		enc.To = t.To()
+		enc.SourceHash = &tx.SourceHash
+		enc.From = &tx.From
+		if tx.Mint != nil {
+			enc.Mint = (*hexutil.Big)(tx.Mint)
+		}
+		// other fields will show up as null.
 	}
 	return json.Marshal(&enc)
 }
@@ -262,7 +278,35 @@ func (t *Transaction) UnmarshalJSON(input []byte) error {
 				return err
 			}
 		}
-
+	case DepositTxType:
+		if dec.AccessList != nil || dec.V != nil || dec.R != nil || dec.S != nil || dec.MaxFeePerGas != nil ||
+			dec.MaxPriorityFeePerGas != nil || dec.GasPrice != nil || (dec.Nonce != nil && *dec.Nonce != 0) {
+			return errors.New("unexpected field(s) in deposit transaction")
+		}
+		var itx DepositTx
+		inner = &itx
+		if dec.To != nil {
+			itx.To = dec.To
+		}
+		itx.Gas = uint64(*dec.Gas)
+		if dec.Value == nil {
+			return errors.New("missing required field 'value' in transaction")
+		}
+		itx.Value = (*big.Int)(dec.Value)
+		// mint may be omitted or nil if there is nothing to mint.
+		itx.Mint = (*big.Int)(dec.Mint)
+		if dec.Data == nil {
+			return errors.New("missing required field 'input' in transaction")
+		}
+		itx.Data = *dec.Data
+		if dec.From == nil {
+			return errors.New("missing required field 'from' in transaction")
+		}
+		itx.From = *dec.From
+		if dec.SourceHash == nil {
+			return errors.New("missing required field 'sourceHash' in transaction")
+		}
+		itx.SourceHash = *dec.SourceHash
 	default:
 		return ErrTxTypeNotSupported
 	}

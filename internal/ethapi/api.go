@@ -1229,6 +1229,10 @@ type RPCTransaction struct {
 	V                *hexutil.Big      `json:"v"`
 	R                *hexutil.Big      `json:"r"`
 	S                *hexutil.Big      `json:"s"`
+
+	// deposit-tx only
+	SourceHash *common.Hash `json:"sourceHash,omitempty"`
+	Mint       *hexutil.Big `json:"mint,omitempty"`
 }
 
 // newRPCTransaction returns a transaction that will serialize to the RPC
@@ -1236,6 +1240,26 @@ type RPCTransaction struct {
 func newRPCTransaction(tx *types.Transaction, blockHash common.Hash, blockNumber uint64, index uint64, baseFee *big.Int, config *params.ChainConfig) *RPCTransaction {
 	signer := types.MakeSigner(config, big.NewInt(0).SetUint64(blockNumber))
 	from, _ := types.Sender(signer, tx)
+	if tx.Type() == types.DepositTxType {
+		srcHash := tx.SourceHash()
+		result := &RPCTransaction{
+			Type:       hexutil.Uint64(tx.Type()),
+			From:       from,
+			Gas:        hexutil.Uint64(tx.Gas()),
+			Hash:       tx.Hash(),
+			Input:      hexutil.Bytes(tx.Data()),
+			To:         tx.To(),
+			Value:      (*hexutil.Big)(tx.Value()),
+			Mint:       (*hexutil.Big)(tx.Mint()),
+			SourceHash: (*common.Hash)(&srcHash),
+		}
+		if blockHash != (common.Hash{}) {
+			result.BlockHash = &blockHash
+			result.BlockNumber = (*hexutil.Big)(new(big.Int).SetUint64(blockNumber))
+			result.TransactionIndex = (*hexutil.Uint64)(&index)
+		}
+		return result
+	}
 	v, r, s := tx.RawSignatureValues()
 	result := &RPCTransaction{
 		Type:     hexutil.Uint64(tx.Type()),

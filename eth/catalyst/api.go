@@ -343,7 +343,16 @@ func (api *ConsensusAPI) invalid(err error) beacon.PayloadStatusV1 {
 // data" required for beacon clients to process the new block.
 func (api *ConsensusAPI) assembleBlock(parentHash common.Hash, params *beacon.PayloadAttributesV1) (*beacon.ExecutableDataV1, error) {
 	log.Info("Producing block", "parentHash", parentHash)
-	block, err := api.eth.Miner().GetSealingBlock(parentHash, params.Timestamp, params.SuggestedFeeRecipient, params.Random)
+	// Decode deposits. TODO: How to handle tx validity.
+	deposits := make(types.Transactions, 0, len(params.Transactions))
+	for i, otx := range params.Transactions {
+		var tx types.Transaction
+		if err := tx.UnmarshalBinary(otx); err != nil {
+			return nil, fmt.Errorf("transaction %d is not valid: %v", i, err)
+		}
+		deposits = append(deposits, &tx)
+	}
+	block, err := api.eth.Miner().GetSealingBlock(parentHash, params.Timestamp, params.SuggestedFeeRecipient, params.Random, deposits, params.NoTxPool)
 	if err != nil {
 		return nil, err
 	}
