@@ -65,7 +65,7 @@ func (tx *DepositTx) copy() TxData {
 
 // DepositsNonce identifies a deposit, since go-ethereum abstracts all transaction types to a core.Message.
 // Deposits do not set a nonce, deposits are included by the system and cannot be repeated or included elsewhere.
-const DepositsNonce uint64 = 0xffff_ffff_ffff_ffff
+const DepositsNonce uint64 = 0xffff_ffff_ffff_fffd
 
 // accessors for innerTx.
 func (tx *DepositTx) txType() byte           { return DepositTxType }
