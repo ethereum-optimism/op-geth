@@ -36,6 +36,8 @@ type BuildPayloadArgs struct {
 	Timestamp    uint64         // The provided timestamp of generated payload
 	FeeRecipient common.Address // The provided recipient address for collecting transaction fee
 	Random       common.Hash    // The provided randomness value
+
+	Transactions []*types.Transaction // Optimism addition: txs forced into the block via engine API
 }
 
 // Payload wraps the built payload(block waiting for sealing). According to the
@@ -134,7 +136,7 @@ func (w *worker) buildPayload(args *BuildPayloadArgs) (*Payload, error) {
 	// Build the initial version with no transaction included. It should be fast
 	// enough to run. The empty payload can at least make sure there is something
 	// to deliver for not missing slot.
-	empty, _, err := w.getSealingBlock(args.Parent, args.Timestamp, args.FeeRecipient, args.Random, true)
+	empty, _, err := w.getSealingBlock(args.Parent, args.Timestamp, args.FeeRecipient, args.Random, true, args.Transactions)
 	if err != nil {
 		return nil, err
 	}
@@ -158,7 +160,7 @@ func (w *worker) buildPayload(args *BuildPayloadArgs) (*Payload, error) {
 			select {
 			case <-timer.C:
 				start := time.Now()
-				block, fees, err := w.getSealingBlock(args.Parent, args.Timestamp, args.FeeRecipient, args.Random, false)
+				block, fees, err := w.getSealingBlock(args.Parent, args.Timestamp, args.FeeRecipient, args.Random, false, args.Transactions)
 				if err == nil {
 					payload.update(block, fees, time.Since(start))
 				}
