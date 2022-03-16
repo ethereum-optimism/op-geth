@@ -263,24 +263,29 @@ func (api *ConsensusAPI) ForkchoiceUpdatedV1(update beacon.ForkchoiceStateV1, pa
 	// sealed by the beacon client. The payload will be requested later, and we
 	// might replace it arbitrarily many times in between.
 	if payloadAttributes != nil {
-		// Decode deposits. TODO: How to handle tx validity.
-		deposits := make(types.Transactions, 0, len(payloadAttributes.Transactions))
+		// Decode forceTxs. TODO: How to handle tx validity.
+		forceTxs := make(types.Transactions, 0, len(payloadAttributes.Transactions))
 		for i, otx := range payloadAttributes.Transactions {
 			var tx types.Transaction
 			if err := tx.UnmarshalBinary(otx); err != nil {
 				return beacon.STATUS_INVALID, fmt.Errorf("transaction %d is not valid: %v", i, err)
 			}
-			deposits = append(deposits, &tx)
+			forceTxs = append(forceTxs, &tx)
 		}
 		// Create an empty block first which can be used as a fallback
-		empty, err := api.eth.Miner().GetSealingBlockSync(update.HeadBlockHash, payloadAttributes.Timestamp, payloadAttributes.SuggestedFeeRecipient, payloadAttributes.Random, true, deposits)
+		empty, err := api.eth.Miner().GetSealingBlockSync(update.HeadBlockHash, payloadAttributes.Timestamp, payloadAttributes.SuggestedFeeRecipient, payloadAttributes.Random, true, forceTxs)
 		if err != nil {
 			log.Error("Failed to create empty sealing payload", "err", err)
 			return valid(nil), beacon.InvalidPayloadAttributes.With(err)
 		}
+		if payloadAttributes.NoTxPool {
+			id := computePayloadId(update.HeadBlockHash, payloadAttributes)
+			api.localBlocks.put(id, &payload{block: empty, result: nil, done: true}) // we don't let it default to "empty", we just mark the thing as done.
+			return valid(&id), nil
+		}
 		// Send a request to generate a full block in the background.
 		// The result can be obtained via the returned channel.
-		resCh, err := api.eth.Miner().GetSealingBlockAsync(update.HeadBlockHash, payloadAttributes.Timestamp, payloadAttributes.SuggestedFeeRecipient, payloadAttributes.Random, false, deposits)
+		resCh, err := api.eth.Miner().GetSealingBlockAsync(update.HeadBlockHash, payloadAttributes.Timestamp, payloadAttributes.SuggestedFeeRecipient, payloadAttributes.Random, false, forceTxs)
 		if err != nil {
 			log.Error("Failed to create async sealing payload", "err", err)
 			return valid(nil), beacon.InvalidPayloadAttributes.With(err)

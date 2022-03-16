@@ -19,6 +19,7 @@ func (p PayloadAttributesV1) MarshalJSON() ([]byte, error) {
 		Random                common.Hash     `json:"prevRandao"        gencodec:"required"`
 		SuggestedFeeRecipient common.Address  `json:"suggestedFeeRecipient"  gencodec:"required"`
 		Transactions          []hexutil.Bytes `json:"transactions,omitempty"  gencodec:"optional"`
+		NoTxPool              bool            `json:"noTxPool,omitempty" gencodec:"optional"`
 	}
 	var enc PayloadAttributesV1
 	enc.Timestamp = hexutil.Uint64(p.Timestamp)
@@ -30,6 +31,7 @@ func (p PayloadAttributesV1) MarshalJSON() ([]byte, error) {
 			enc.Transactions[k] = v
 		}
 	}
+	enc.NoTxPool = p.NoTxPool
 	return json.Marshal(&enc)
 }
 
@@ -40,6 +42,7 @@ func (p *PayloadAttributesV1) UnmarshalJSON(input []byte) error {
 		Random                *common.Hash    `json:"prevRandao"        gencodec:"required"`
 		SuggestedFeeRecipient *common.Address `json:"suggestedFeeRecipient"  gencodec:"required"`
 		Transactions          []hexutil.Bytes `json:"transactions,omitempty"  gencodec:"optional"`
+		NoTxPool              *bool           `json:"noTxPool,omitempty" gencodec:"optional"`
 	}
 	var dec PayloadAttributesV1
 	if err := json.Unmarshal(input, &dec); err != nil {
@@ -62,6 +65,9 @@ func (p *PayloadAttributesV1) UnmarshalJSON(input []byte) error {
 		for k, v := range dec.Transactions {
 			p.Transactions[k] = v
 		}
+	}
+	if dec.NoTxPool != nil {
+		p.NoTxPool = *dec.NoTxPool
 	}
 	return nil
 }

@@ -961,7 +961,7 @@ type generateParams struct {
 	noExtra    bool           // Flag whether the extra field assignment is allowed
 	noTxs      bool           // Flag whether an empty block without any transaction is expected
 
-	deposits types.Transactions // Deposit transactions to include at the start of the block
+	forceTxs types.Transactions // Transactions to force-include at the start of the block
 }
 
 // prepareWork constructs the sealing task according to the given parameters,
@@ -1083,13 +1083,12 @@ func (w *worker) generateWork(genParams *generateParams) (*types.Block, error) {
 	}
 	defer work.discard()
 
-	// Hacked in running deposits first
 	gasLimit := work.header.GasLimit
 	if work.gasPool == nil {
 		work.gasPool = new(core.GasPool).AddGas(gasLimit)
 	}
 
-	for _, tx := range genParams.deposits {
+	for _, tx := range genParams.forceTxs {
 		// If we don't have enough gas for any further transactions then we're done
 		if work.gasPool.Gas() < params.TxGas {
 			log.Trace("Not enough gas for further transactions", "have", work.gasPool, "want", params.TxGas)
@@ -1230,7 +1229,7 @@ func (w *worker) commit(env *environment, interval func(), update bool, start ti
 // getSealingBlock generates the sealing block based on the given parameters.
 // The generation result will be passed back via the given channel no matter
 // the generation itself succeeds or not.
-func (w *worker) getSealingBlock(parent common.Hash, timestamp uint64, coinbase common.Address, random common.Hash, noTxs bool, deposits types.Transactions) (chan *types.Block, chan error, error) {
+func (w *worker) getSealingBlock(parent common.Hash, timestamp uint64, coinbase common.Address, random common.Hash, noTxs bool, forceTxs types.Transactions) (chan *types.Block, chan error, error) {
 	var (
 		resCh = make(chan *types.Block, 1)
 		errCh = make(chan error, 1)
@@ -1245,7 +1244,7 @@ func (w *worker) getSealingBlock(parent common.Hash, timestamp uint64, coinbase 
 			noUncle:    true,
 			noExtra:    true,
 			noTxs:      noTxs,
-			deposits:   deposits,
+			forceTxs:   forceTxs,
 		},
 		result: resCh,
 		err:    errCh,
