@@ -295,6 +295,7 @@ func (api *ConsensusAPI) ForkchoiceUpdatedV1(update beacon.ForkchoiceStateV1, pa
 			Timestamp:    payloadAttributes.Timestamp,
 			FeeRecipient: payloadAttributes.SuggestedFeeRecipient,
 			Random:       payloadAttributes.Random,
+			NoTxPool:     payloadAttributes.NoTxPool,
 			Transactions: transactions,
 		}
 		payload, err := api.eth.Miner().BuildPayload(args)

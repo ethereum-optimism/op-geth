@@ -37,6 +37,7 @@ type BuildPayloadArgs struct {
 	FeeRecipient common.Address // The provided recipient address for collecting transaction fee
 	Random       common.Hash    // The provided randomness value
 
+	NoTxPool     bool                 // Optimism addition: option to disable tx pool contents from being included
 	Transactions []*types.Transaction // Optimism addition: txs forced into the block via engine API
 }
 
@@ -142,6 +143,9 @@ func (w *worker) buildPayload(args *BuildPayloadArgs) (*Payload, error) {
 	}
 	// Construct a payload object for return.
 	payload := newPayload(empty)
+	if args.NoTxPool { // don't start the background payload updating job if there is no tx pool to pull from
+		return payload, nil
+	}
 
 	// Spin up a routine for updating the payload in background. This strategy
 	// can maximum the revenue for including transactions with highest fee.

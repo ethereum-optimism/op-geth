@@ -34,9 +34,11 @@ type PayloadAttributesV1 struct {
 	Random                common.Hash    `json:"prevRandao"        gencodec:"required"`
 	SuggestedFeeRecipient common.Address `json:"suggestedFeeRecipient"  gencodec:"required"`
 
-	// Transactions is a field for rollups: if non-empty, the transactions list is used instead
-	// of any transactions from the engine like the tx-pool.
+	// Transactions is a field for rollups: the transactions list is forced into the block
 	Transactions [][]byte `json:"transactions,omitempty"  gencodec:"optional"`
+	// NoTxPool is a field for rollups: if true, the no transactions are taken out of the tx-pool,
+	// only transactions from the above Transactions list will be included.
+	NoTxPool bool `json:"noTxPool,omitempty" gencodec:"optional"`
 }
 
 // JSON type overrides for PayloadAttributesV1.

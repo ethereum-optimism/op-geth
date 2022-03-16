@@ -1091,7 +1091,6 @@ func (w *worker) generateWork(genParams *generateParams) (*types.Block, *big.Int
 	}
 	defer work.discard()
 
-	// Hacked in running deposits first
 	gasLimit := work.header.GasLimit
 	if work.gasPool == nil {
 		work.gasPool = new(core.GasPool).AddGas(gasLimit)
