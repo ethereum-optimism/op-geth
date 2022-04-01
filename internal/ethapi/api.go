@@ -1264,7 +1264,7 @@ type RPCTransaction struct {
 
 	// deposit-tx only
 	BlockHeight *hexutil.Uint64 `json:"blockHeight,omitempty"`
-	Mint        *hexutil.Big    `json:"big,omitempty"`
+	Mint        *hexutil.Big    `json:"mint,omitempty"`
 }
 
 // newRPCTransaction returns a transaction that will serialize to the RPC
