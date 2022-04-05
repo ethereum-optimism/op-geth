@@ -63,13 +63,12 @@ func (v *BlockValidator) ValidateBody(block *types.Block) error {
 		return fmt.Errorf("uncle root hash mismatch: have %x, want %x", hash, header.UncleHash)
 	}
 	// deposits included their positional information for tx-hashing purposes.
-	// height := block.NumberU64()
+	height := block.NumberU64()
 	for i, tx := range block.Transactions() {
 		if tx.Type() == types.DepositTxType {
-			// TODO: Deposit Tx includes the height of the L1 block, not the L2 block
-			// if tx.BlockHeight() != height {
-			// 	return fmt.Errorf("deposit included in block with wrong block height: %d, expected %d", tx.BlockHeight(), height)
-			// }
+			if tx.BlockHeight() != height {
+				return fmt.Errorf("deposit included in block with wrong block height: %d, expected %d", tx.BlockHeight(), height)
+			}
 			if tx.TransactionIndex() != uint64(i) {
 				return fmt.Errorf("deposit included in block at wrong index: %d, expected %d", tx.TransactionIndex(), i)
 			}

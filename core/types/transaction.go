@@ -289,6 +289,8 @@ func (tx *Transaction) To() *common.Address {
 	return copyAddressPtr(tx.inner.to())
 }
 
+// BlockHeight returns the L2 block height encoded in the deposit tx.
+// This returns 0 if this is not a deposit tx.
 func (tx *Transaction) BlockHeight() uint64 {
 	if dep, ok := tx.inner.(*DepositTx); ok {
 		return dep.BlockHeight
@@ -296,6 +298,8 @@ func (tx *Transaction) BlockHeight() uint64 {
 	return 0
 }
 
+// TransactionIndex returns the tx index encoded in the deposit tx.
+// This returns 0 if this is not a deposit tx.
 func (tx *Transaction) TransactionIndex() uint64 {
 	if dep, ok := tx.inner.(*DepositTx); ok {
 		return dep.TransactionIndex
@@ -303,6 +307,8 @@ func (tx *Transaction) TransactionIndex() uint64 {
 	return 0
 }
 
+// Mint returns the ETH to mint in the deposit tx.
+// This returns nil if there is nothing to mint, or if this is not a deposit tx.
 func (tx *Transaction) Mint() *big.Int {
 	if dep, ok := tx.inner.(*DepositTx); ok {
 		return dep.Mint
