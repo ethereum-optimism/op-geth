@@ -1283,6 +1283,16 @@ func (pool *TxPool) reset(oldHead, newHead *types.Header) {
 						return
 					}
 				}
+				// Do not insert deposit txs back into the pool
+				// (validateTx would still catch it if not filtered, but no need to re-inject in the first place).
+				j := 0
+				for _, tx := range discarded {
+					if tx.Type() != types.DepositTxType {
+						discarded[j] = tx
+						j++
+					}
+				}
+				discarded = discarded[:j]
 				reinject = types.TxDifference(discarded, included)
 			}
 		}
