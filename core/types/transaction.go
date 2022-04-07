@@ -289,22 +289,14 @@ func (tx *Transaction) To() *common.Address {
 	return copyAddressPtr(tx.inner.to())
 }
 
-// BlockHeight returns the L2 block height encoded in the deposit tx.
-// This returns 0 if this is not a deposit tx.
-func (tx *Transaction) BlockHeight() uint64 {
+// SourceHash returns the hash that uniquely identifies the source of the deposit tx,
+// e.g. a user deposit event, or a L1 info deposit included in a specific L2 block height.
+// Non-deposit transactions return a zeroed hash.
+func (tx *Transaction) SourceHash() common.Hash {
 	if dep, ok := tx.inner.(*DepositTx); ok {
-		return dep.BlockHeight
+		return dep.SourceHash
 	}
-	return 0
-}
-
-// TransactionIndex returns the tx index encoded in the deposit tx.
-// This returns 0 if this is not a deposit tx.
-func (tx *Transaction) TransactionIndex() uint64 {
-	if dep, ok := tx.inner.(*DepositTx); ok {
-		return dep.TransactionIndex
-	}
-	return 0
+	return common.Hash{}
 }
 
 // Mint returns the ETH to mint in the deposit tx.

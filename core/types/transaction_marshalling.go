@@ -43,10 +43,9 @@ type txJSON struct {
 	To                   *common.Address `json:"to"`
 
 	// Deposit transaction fields
-	BlockHeight      *hexutil.Uint64 `json:"blockHeight,omitempty"`
-	TransactionIndex *hexutil.Uint64 `json:"transactionIndex,omitempty"`
-	From             *common.Address `json:"from,omitempty"`
-	Mint             *hexutil.Big    `json:"mint,omitempty"`
+	SourceHash *common.Hash    `json:"sourceHash,omitempty"`
+	From       *common.Address `json:"from,omitempty"`
+	Mint       *hexutil.Big    `json:"mint,omitempty"`
 
 	// Access list transaction fields:
 	ChainID    *hexutil.Big `json:"chainId,omitempty"`
@@ -105,8 +104,7 @@ func (tx *Transaction) MarshalJSON() ([]byte, error) {
 		enc.Value = (*hexutil.Big)(itx.Value)
 		enc.Data = (*hexutil.Bytes)(&itx.Data)
 		enc.To = tx.To()
-		enc.BlockHeight = (*hexutil.Uint64)(&itx.BlockHeight)
-		enc.TransactionIndex = (*hexutil.Uint64)(&itx.TransactionIndex)
+		enc.SourceHash = &itx.SourceHash
 		enc.From = &itx.From
 		if itx.Mint != nil {
 			enc.Mint = (*hexutil.Big)(itx.Mint)
@@ -305,14 +303,10 @@ func (tx *Transaction) UnmarshalJSON(input []byte) error {
 			return errors.New("missing required field 'from' in transaction")
 		}
 		itx.From = *dec.From
-		if dec.BlockHeight == nil {
-			return errors.New("missing required field 'blockHeight' in transaction")
+		if dec.SourceHash == nil {
+			return errors.New("missing required field 'sourceHash' in transaction")
 		}
-		itx.BlockHeight = uint64(*dec.BlockHeight)
-		if dec.TransactionIndex == nil {
-			return errors.New("missing required field 'transactionIndex' in transaction")
-		}
-		itx.TransactionIndex = uint64(*dec.TransactionIndex)
+		itx.SourceHash = *dec.SourceHash
 	default:
 		return ErrTxTypeNotSupported
 	}
