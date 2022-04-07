@@ -25,10 +25,8 @@ import (
 const DepositTxType = 0x7E
 
 type DepositTx struct {
-	// BlockHeight avoids tx-hash collisions between deposits on the same chain
-	BlockHeight uint64
-	// TransactionIndex avoids tx-hash collisions between deposits in the same block
-	TransactionIndex uint64
+	// SourceHash uniquely identifies the source of the deposit
+	SourceHash common.Hash
 	// From is exposed through the types.Signer, not through TxData
 	From common.Address
 	// nil means contract creation
@@ -45,14 +43,13 @@ type DepositTx struct {
 // copy creates a deep copy of the transaction data and initializes all fields.
 func (tx *DepositTx) copy() TxData {
 	cpy := &DepositTx{
-		BlockHeight:      tx.BlockHeight,
-		TransactionIndex: tx.TransactionIndex,
-		From:             tx.From,
-		To:               copyAddressPtr(tx.To),
-		Mint:             nil,
-		Value:            new(big.Int),
-		Gas:              tx.Gas,
-		Data:             common.CopyBytes(tx.Data),
+		SourceHash: tx.SourceHash,
+		From:       tx.From,
+		To:         copyAddressPtr(tx.To),
+		Mint:       nil,
+		Value:      new(big.Int),
+		Gas:        tx.Gas,
+		Data:       common.CopyBytes(tx.Data),
 	}
 	if tx.Mint != nil {
 		cpy.Mint = new(big.Int).Set(tx.Mint)
