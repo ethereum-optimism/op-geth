@@ -62,18 +62,6 @@ func (v *BlockValidator) ValidateBody(block *types.Block) error {
 	if hash := types.CalcUncleHash(block.Uncles()); hash != header.UncleHash {
 		return fmt.Errorf("uncle root hash mismatch: have %x, want %x", hash, header.UncleHash)
 	}
-	// deposits included their positional information for tx-hashing purposes.
-	height := block.NumberU64()
-	for i, tx := range block.Transactions() {
-		if tx.Type() == types.DepositTxType {
-			if tx.BlockHeight() != height {
-				return fmt.Errorf("deposit included in block with wrong block height: %d, expected %d", tx.BlockHeight(), height)
-			}
-			if tx.TransactionIndex() != uint64(i) {
-				return fmt.Errorf("deposit included in block at wrong index: %d, expected %d", tx.TransactionIndex(), i)
-			}
-		}
-	}
 	if hash := types.DeriveSha(block.Transactions(), trie.NewStackTrie(nil)); hash != header.TxHash {
 		return fmt.Errorf("transaction root hash mismatch: have %x, want %x", hash, header.TxHash)
 	}
