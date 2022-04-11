@@ -283,14 +283,31 @@ func (st *StateTransition) preCheck() error {
 // However if any consensus issue encountered, return the error directly with
 // nil evm execution result.
 func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
-	if st.mint != nil {
-		// The deposit mints value into the account before execution
-		// This is NOT rolled back if EVM execution fails.
-		// If the EVM execution fails (e.g. out of gas) then the deposited ETH remains in the L2,
-		// in the deposit From address.
-		st.state.AddBalance(st.msg.From(), st.mint)
+	if mint := st.msg.Mint(); mint != nil {
+		st.state.AddBalance(st.msg.From(), mint)
 	}
+	snap := st.state.Snapshot()
 
+	result, err := st.innerTransitionDb()
+	if err != nil { // EVM errors would have a result.Err and a nil execution err
+		// Failed deposits must still be included.
+		// On failure, we rewind any state changes from after the minting, and increment the nonce.
+		if st.msg.Nonce() == types.DepositsNonce {
+			st.state.RevertToSnapshot(snap)
+			// Even though we revert the state changes, always increment the nonce for the next deposit transaction
+			st.state.SetNonce(st.msg.From(), st.state.GetNonce(st.msg.From())+1)
+			result = &ExecutionResult{
+				UsedGas:    0, // No gas charge on non-EVM fails like balance checks, congestion is controlled on L1
+				Err:        fmt.Errorf("failed deposit: %w", err),
+				ReturnData: nil,
+			}
+			err = nil
+		}
+	}
+	return result, err
+}
+
+func (st *StateTransition) innerTransitionDb() (*ExecutionResult, error) {
 	// First check this message satisfies all consensus rules before
 	// applying the message. The rules include these clauses
 	//
