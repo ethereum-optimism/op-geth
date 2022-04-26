@@ -220,6 +220,8 @@ func (st *StateTransition) preCheck() error {
 	if st.msg.Nonce() == types.DepositsNonce {
 		// No fee fields to check, no nonce to check, and no need to check if EOA (L1 already verified it for us)
 		// Gas is free, but no refunds!
+		st.initialGas = st.msg.Gas()
+		st.gas += st.msg.Gas() // Add gas here in order to be able to execute calls.
 		return nil
 	}
 	// Only check transactions that are not fake
@@ -373,7 +375,7 @@ func (st *StateTransition) innerTransitionDb() (*ExecutionResult, error) {
 	// if deposit: skip refunds, skip tipping coinbase
 	if st.msg.Nonce() == types.DepositsNonce {
 		return &ExecutionResult{
-			UsedGas:    st.gasUsed(),
+			UsedGas:    0, // Ignore actual used gas for deposits (until full deposit gas design is done)
 			Err:        vmerr,
 			ReturnData: ret,
 		}, nil
