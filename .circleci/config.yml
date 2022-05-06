@@ -41,6 +41,13 @@ workflows:
               only:
                 - optimism-prototype
           image-name: reference-optimistic-geth
-          image-tag: develop
+          image-tag: latest
           dockerfile: Dockerfile
-          name: Build reference-optimistic-geth
+          name: Build reference-optimistic-geth develop
+      - build-dockerfile:
+          context:
+            - optimism
+          image-name: reference-optimistic-geth
+          image-tag: $CIRCLE_SHA1
+          dockerfile: Dockerfile
+          name: Build reference-optimistic-geth per-commit
