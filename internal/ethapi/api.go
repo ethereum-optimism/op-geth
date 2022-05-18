@@ -1283,7 +1283,7 @@ func newRPCTransaction(tx *types.Transaction, blockHash common.Hash, blockNumber
 			To:         tx.To(),
 			Value:      (*hexutil.Big)(tx.Value()),
 			Mint:       (*hexutil.Big)(tx.Mint()),
-			SourceHash: (*common.Hash)(&srcHash),
+			SourceHash: &srcHash,
 		}
 		if blockHash != (common.Hash{}) {
 			result.BlockHash = &blockHash
