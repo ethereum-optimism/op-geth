@@ -140,6 +140,9 @@ func DialHTTP(endpoint string) (*Client, error) {
 
 // DialHTTPWithAuth creates a new authenticated RPC client that connects to an RPC server over HTTP.
 func DialHTTPWithAuth(endpoint string, auth HeaderAuthProvider) (*Client, error) {
+	if auth == nil {
+		return nil, errors.New("cannot dial http endpoint with auth without auth-provider")
+	}
 	// Sanity check URL so we don't end up with a client that will fail every request.
 	_, err := url.Parse(endpoint)
 	if err != nil {
@@ -212,8 +215,7 @@ func (hc *httpConn) doRequest(ctx context.Context, msg interface{}) (io.ReadClos
 	req.Header = hc.headers.Clone()
 	hc.mu.Unlock()
 	if hc.auth != nil {
-		err = hc.auth.AddAuthHeader(&req.Header)
-		if err != nil {
+		if err := hc.auth.AddAuthHeader(&req.Header); err != nil {
 			return nil, err
 		}
 	}

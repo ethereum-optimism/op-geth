@@ -19,6 +19,7 @@ package rpc
 import (
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -222,6 +223,9 @@ func DialWebsocket(ctx context.Context, endpoint, origin string) (*Client, error
 // The context is used for the initial connection establishment. It does not
 // affect subsequent interactions with the client.
 func DialWebsocketWithAuth(ctx context.Context, endpoint, origin string, auth HeaderAuthProvider) (*Client, error) {
+	if auth == nil {
+		return nil, errors.New("cannot dial websocket endpoint with auth without auth-provider")
+	}
 	endpoint, header, err := wsClientHeaders(endpoint, origin, auth)
 	if err != nil {
 		return nil, err
@@ -255,8 +259,7 @@ func wsClientHeaders(endpoint, origin string, authProvider HeaderAuthProvider) (
 	}
 	// Add JWT Authorization Header if provided
 	if authProvider != nil {
-		err = authProvider.AddAuthHeader(&header)
-		if err != nil {
+		if err := authProvider.AddAuthHeader(&header); err != nil {
 			return endpoint, nil, err
 		}
 	}
