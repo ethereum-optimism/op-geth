@@ -38,6 +38,10 @@ var (
 	ErrTxTypeNotSupported   = errors.New("transaction type not supported")
 	ErrGasFeeCapTooLow      = errors.New("fee cap less than base fee")
 	errShortTypedTx         = errors.New("typed transaction too short")
+
+	// Custom Errors for deposits
+	ErrDepositTxTypeNotSupported = errors.New("deposit transaction type not supported")
+	errUnversionedDeposit        = errors.New("deposit transaction does not have version byte")
 )
 
 // Transaction types.
@@ -105,6 +109,10 @@ func (tx *Transaction) EncodeRLP(w io.Writer) error {
 // encodeTyped writes the canonical encoding of a typed transaction to w.
 func (tx *Transaction) encodeTyped(w *bytes.Buffer) error {
 	w.WriteByte(tx.Type())
+	// Only support v0 right now.
+	if tx.Type() == DepositTxType {
+		w.WriteByte(DepositTxVersionZeroType)
+	}
 	return rlp.Encode(w, tx.inner)
 }
 
@@ -186,7 +194,13 @@ func (tx *Transaction) decodeTyped(b []byte) (TxData, error) {
 		return &inner, err
 	case DepositTxType:
 		var inner DepositTx
-		err := rlp.DecodeBytes(b[1:], &inner)
+		if len(b) < 2 {
+			return nil, errUnversionedDeposit
+		}
+		if b[1] != DepositTxVersionZeroType {
+			return nil, ErrDepositTxTypeNotSupported
+		}
+		err := rlp.DecodeBytes(b[2:], &inner)
 		return &inner, err
 	default:
 		return nil, ErrTxTypeNotSupported
