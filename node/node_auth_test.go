@@ -153,12 +153,12 @@ func TestAuthEndpoints(t *testing.T) {
 		t.Fatalf("expected http and auth-http endpoints to be different, got: %q and %q", a, b)
 	}
 
-	goodAuth := rpc.NewJWTAuthProvider(secret[:])
+	goodAuth := rpc.NewJWTAuthProvider(secret)
 	var otherSecret [32]byte
 	if _, err := crand.Read(otherSecret[:]); err != nil {
 		t.Fatalf("failed to create jwt secret: %v", err)
 	}
-	badAuth := rpc.NewJWTAuthProvider(otherSecret[:])
+	badAuth := rpc.NewJWTAuthProvider(otherSecret)
 	noneAuth := TestAuthProvider(func(header *http.Header) error {
 		token := jwt.NewWithClaims(jwt.SigningMethodNone, jwt.MapClaims{
 			"iat": time.Now().Unix(),

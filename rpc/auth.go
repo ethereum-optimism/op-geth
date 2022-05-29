@@ -34,12 +34,12 @@ type HeaderAuthProvider interface {
 }
 
 type JWTAuthProvider struct {
-	secret []byte
+	secret [32]byte
 }
 
 // NewJWTAuthProvider creates a new JWT Auth Provider.
-// The secret should not be empty.
-func NewJWTAuthProvider(jwtsecret []byte) *JWTAuthProvider {
+// The secret MUST be 32 bytes (256 bits) as defined by the Engine-API authentication spec.
+func NewJWTAuthProvider(jwtsecret [32]byte) *JWTAuthProvider {
 	return &JWTAuthProvider{secret: jwtsecret}
 }
 
@@ -48,7 +48,7 @@ func (p *JWTAuthProvider) AddAuthHeader(header *http.Header) error {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"iat": time.Now().Unix(),
 	})
-	s, err := token.SignedString(p.secret)
+	s, err := token.SignedString(p.secret[:])
 	if err != nil {
 		return fmt.Errorf("failed to create JWT token: %w", err)
 	}
