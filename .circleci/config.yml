@@ -1,7 +1,31 @@
 version: 2.1
 
-
 jobs:
+  build-geth:
+    docker:
+      - image: cimg/go:1.18
+    resource_class: medium
+    steps:
+      - checkout
+      - run:
+          command: go run build/ci.go install
+  unit-test:
+    resource_class: medium
+    docker:
+      - image: cimg/go:1.18
+    steps:
+      - checkout
+      - run:
+          command: go run build/ci.go test
+  lint-geth:
+    resource_class: medium
+    docker:
+      - image: cimg/go:1.18
+    steps:
+      - checkout
+      - run:
+          command: go run build/ci.go lint
+
   build-dockerfile:
     docker:
       - image: cimg/base:2022.04
@@ -33,6 +57,12 @@ jobs:
 workflows:
   main:
     jobs:
+      - build-geth:
+          name: Build geth
+      - unit-test:
+          name: Run unit tests for geth
+      - lint-geth:
+          name: Run linter over geth
       - build-dockerfile:
           context:
             - optimism
