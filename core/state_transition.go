@@ -299,7 +299,7 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 			// Even though we revert the state changes, always increment the nonce for the next deposit transaction
 			st.state.SetNonce(st.msg.From(), st.state.GetNonce(st.msg.From())+1)
 			result = &ExecutionResult{
-				UsedGas:    0, // No gas charge on non-EVM fails like balance checks, congestion is controlled on L1
+				UsedGas:    st.msg.Gas(), // Always record the deposit using the full amount of gas
 				Err:        fmt.Errorf("failed deposit: %w", err),
 				ReturnData: nil,
 			}
@@ -339,17 +339,15 @@ func (st *StateTransition) innerTransitionDb() (*ExecutionResult, error) {
 		contractCreation = msg.To() == nil
 	)
 
-	if st.msg.Nonce() != types.DepositsNonce {
-		// Check clauses 4-5, subtract intrinsic gas if everything is correct
-		gas, err := IntrinsicGas(st.data, st.msg.AccessList(), contractCreation, rules.IsHomestead, rules.IsIstanbul)
-		if err != nil {
-			return nil, err
-		}
-		if st.gas < gas {
-			return nil, fmt.Errorf("%w: have %d, want %d", ErrIntrinsicGas, st.gas, gas)
-		}
-		st.gas -= gas
+	// Check clauses 4-5, subtract intrinsic gas if everything is correct
+	gas, err := IntrinsicGas(st.data, st.msg.AccessList(), contractCreation, rules.IsHomestead, rules.IsIstanbul)
+	if err != nil {
+		return nil, err
 	}
+	if st.gas < gas {
+		return nil, fmt.Errorf("%w: have %d, want %d", ErrIntrinsicGas, st.gas, gas)
+	}
+	st.gas -= gas
 
 	// Check clause 6
 	if msg.Value().Sign() > 0 && !st.evm.Context.CanTransfer(st.state, msg.From(), msg.Value()) {
@@ -375,7 +373,7 @@ func (st *StateTransition) innerTransitionDb() (*ExecutionResult, error) {
 	// if deposit: skip refunds, skip tipping coinbase
 	if st.msg.Nonce() == types.DepositsNonce {
 		return &ExecutionResult{
-			UsedGas:    0, // Ignore actual used gas for deposits (until full deposit gas design is done)
+			UsedGas:    st.msg.Gas(), // Always record the deposit using the full amount of gas
 			Err:        vmerr,
 			ReturnData: ret,
 		}, nil
