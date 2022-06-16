@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"container/heap"
 	"errors"
+	"fmt"
 	"io"
 	"math/big"
 	"sync/atomic"
@@ -612,6 +613,22 @@ func (t *TransactionsByPriceAndNonce) Pop() {
 	heap.Pop(&t.heads)
 }
 
+// MsgOption defines optional params for AsMessage.
+// This is currently used to update Message with L1Cost but can be accommodated
+// for additional params to be applied to tx or msg.
+// See L1CostOption for usage.
+type MsgOption interface {
+	Apply(tx *Transaction, msg *Message) error
+}
+
+// MsgOptionFunc defines the optional param func.
+type MsgOptionFunc func(tx *Transaction, msg *Message) error
+
+// Apply applies the optional param func and is called from AsMessage.
+func (fn MsgOptionFunc) Apply(tx *Transaction, msg *Message) error {
+	return fn(tx, msg)
+}
+
 // Message is a fully derived transaction and implements core.Message
 //
 // NOTE: In a future PR this will be removed.
@@ -628,6 +645,7 @@ type Message struct {
 	accessList AccessList
 	isFake     bool
 	mint       *big.Int
+	l1Cost     *big.Int
 }
 
 func NewMessage(from common.Address, to *common.Address, nonce uint64, amount *big.Int, gasLimit uint64, gasPrice, gasFeeCap, gasTipCap *big.Int, data []byte, accessList AccessList, isFake bool) Message {
@@ -648,7 +666,7 @@ func NewMessage(from common.Address, to *common.Address, nonce uint64, amount *b
 }
 
 // AsMessage returns the transaction as a core.Message.
-func (tx *Transaction) AsMessage(s Signer, baseFee *big.Int) (Message, error) {
+func (tx *Transaction) AsMessage(s Signer, baseFee *big.Int, opts ...MsgOption) (Message, error) {
 	msg := Message{
 		nonce:      tx.Nonce(),
 		gasLimit:   tx.Gas(),
@@ -661,8 +679,14 @@ func (tx *Transaction) AsMessage(s Signer, baseFee *big.Int) (Message, error) {
 		accessList: tx.AccessList(),
 		isFake:     false,
 	}
+	for i, opt := range opts {
+		if err := opt.Apply(tx, &msg); err != nil {
+			return Message{}, fmt.Errorf("failed to apply option %d: %w", i, err)
+		}
+	}
 	if dep, ok := tx.inner.(*DepositTx); ok {
 		msg.mint = dep.Mint
+		msg.l1Cost = nil
 	}
 	// If baseFee provided, set gasPrice to effectiveGasPrice.
 	if baseFee != nil {
@@ -685,6 +709,7 @@ func (m Message) Data() []byte           { return m.data }
 func (m Message) AccessList() AccessList { return m.accessList }
 func (m Message) IsFake() bool           { return m.isFake }
 func (m Message) Mint() *big.Int         { return m.mint }
+func (m Message) L1Cost() *big.Int       { return m.l1Cost }
 
 // copyAddressPtr copies an address.
 func copyAddressPtr(a *common.Address) *common.Address {
@@ -693,4 +718,12 @@ func copyAddressPtr(a *common.Address) *common.Address {
 	}
 	cpy := *a
 	return &cpy
+}
+
+// L1CostOption applies the l1 cost to the msg
+func L1CostOption(cost *big.Int) MsgOption {
+	return MsgOptionFunc(func(_ *Transaction, msg *Message) error {
+		msg.l1Cost = cost
+		return nil
+	})
 }

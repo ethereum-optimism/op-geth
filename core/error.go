@@ -96,4 +96,8 @@ var (
 
 	// ErrSenderNoEOA is returned if the sender of a transaction is a contract.
 	ErrSenderNoEOA = errors.New("sender not an eoa")
+
+	// ErrNoL1Cost is returned if the transaction requires L1 cost but doesn't
+	// provide it.
+	ErrNoL1Cost = errors.New("l1 cost is nil")
 )

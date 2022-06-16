@@ -819,6 +819,7 @@ func (m callMsg) Value() *big.Int              { return m.CallMsg.Value }
 func (m callMsg) Data() []byte                 { return m.CallMsg.Data }
 func (m callMsg) AccessList() types.AccessList { return m.CallMsg.AccessList }
 func (m callMsg) Mint() *big.Int               { return nil }
+func (m callMsg) L1Cost() *big.Int             { return nil }
 
 // filterBackend implements filters.Backend to support filtering for logs without
 // taking bloom-bits acceleration structures into account.
