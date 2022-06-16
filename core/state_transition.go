@@ -77,6 +77,8 @@ type Message interface {
 	// Mint is nil if there is no minting
 	Mint() *big.Int
 
+	L1Cost() *big.Int
+
 	Nonce() uint64
 	IsFake() bool
 	Data() []byte
@@ -197,11 +199,17 @@ func (st *StateTransition) to() common.Address {
 func (st *StateTransition) buyGas() error {
 	mgval := new(big.Int).SetUint64(st.msg.Gas())
 	mgval = mgval.Mul(mgval, st.gasPrice)
+	if st.msg.L1Cost() != nil {
+		mgval = mgval.Add(mgval, st.msg.L1Cost())
+	}
 	balanceCheck := mgval
 	if st.gasFeeCap != nil {
 		balanceCheck = new(big.Int).SetUint64(st.msg.Gas())
 		balanceCheck = balanceCheck.Mul(balanceCheck, st.gasFeeCap)
 		balanceCheck.Add(balanceCheck, st.value)
+		if st.msg.L1Cost() != nil {
+			balanceCheck.Add(balanceCheck, st.msg.L1Cost())
+		}
 	}
 	if have, want := st.state.GetBalance(st.msg.From()), balanceCheck; have.Cmp(want) < 0 {
 		return fmt.Errorf("%w: address %v have %v want %v", ErrInsufficientFunds, st.msg.From().Hex(), have, want)
@@ -398,6 +406,16 @@ func (st *StateTransition) innerTransitionDb() (*ExecutionResult, error) {
 		fee := new(big.Int).SetUint64(st.gasUsed())
 		fee.Mul(fee, effectiveTip)
 		st.state.AddBalance(st.evm.Context.Coinbase, fee)
+	}
+
+	if st.evm.ChainConfig().Optimism != nil {
+		optimismConfig := st.evm.ChainConfig().Optimism
+		if optimismConfig.Enabled {
+			st.state.AddBalance(optimismConfig.BaseFeeRecipient, new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), st.evm.Context.BaseFee))
+			if st.msg.L1Cost() != nil {
+				st.state.AddBalance(optimismConfig.L1FeeRecipient, st.msg.L1Cost())
+			}
+		}
 	}
 
 	return &ExecutionResult{
