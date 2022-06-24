@@ -24,6 +24,11 @@ import (
 	"github.com/golang-jwt/jwt/v4"
 )
 
+func init() {
+	// change time-precision from seconds to milliseconds to keep the 5 second boundary accurate
+	jwt.TimePrecision = time.Millisecond
+}
+
 // HeaderAuthProvider is an interface for adding JWT Bearer Tokens to HTTP/WS (on the initial upgrade)
 // requests to authenticated APIs.
 // See https://github.com/ethereum/execution-apis/blob/main/src/engine/authentication.md for details
@@ -34,19 +39,25 @@ type HeaderAuthProvider interface {
 }
 
 type JWTAuthProvider struct {
-	secret [32]byte
+	secret        [32]byte
+	timePrecision time.Duration
 }
 
 // NewJWTAuthProvider creates a new JWT Auth Provider.
 // The secret MUST be 32 bytes (256 bits) as defined by the Engine-API authentication spec.
 func NewJWTAuthProvider(jwtsecret [32]byte) *JWTAuthProvider {
-	return &JWTAuthProvider{secret: jwtsecret}
+	return &JWTAuthProvider{secret: jwtsecret, timePrecision: jwt.TimePrecision}
+}
+
+// SetTimePrecision truncates the issued-at claim (iat) to the given precision.
+func (p *JWTAuthProvider) SetTimePrecision(precision time.Duration) {
+	p.timePrecision = precision
 }
 
 // AddAuthHeader adds a JWT Authorization token to the header
 func (p *JWTAuthProvider) AddAuthHeader(header *http.Header) error {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"iat": time.Now().Unix(),
+		"iat": &jwt.NumericDate{Time: time.Now()},
 	})
 	s, err := token.SignedString(p.secret[:])
 	if err != nil {

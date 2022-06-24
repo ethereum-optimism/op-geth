@@ -161,7 +161,7 @@ func TestAuthEndpoints(t *testing.T) {
 	badAuth := rpc.NewJWTAuthProvider(otherSecret)
 	noneAuth := TestAuthProvider(func(header *http.Header) error {
 		token := jwt.NewWithClaims(jwt.SigningMethodNone, jwt.MapClaims{
-			"iat": time.Now().Unix(),
+			"iat": &jwt.NumericDate{Time: time.Now()},
 		})
 		s, err := token.SignedString(secret[:])
 		if err != nil {
@@ -173,7 +173,7 @@ func TestAuthEndpoints(t *testing.T) {
 	offsetTimeAuth := func(offset time.Duration) TestAuthProvider {
 		return func(header *http.Header) error {
 			token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-				"iat": time.Now().Add(offset).Unix(),
+				"iat": &jwt.NumericDate{Time: time.Now().Add(offset)},
 			})
 			s, err := token.SignedString(secret[:])
 			if err != nil {
@@ -196,7 +196,7 @@ func TestAuthEndpoints(t *testing.T) {
 
 	notTooLong := time.Second * 3
 	tooLong := time.Second * 5
-	requestDelay := time.Millisecond * 800
+	requestDelay := time.Millisecond * 20
 
 	testCases := []authTest{
 		// Auth works

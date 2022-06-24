@@ -24,6 +24,11 @@ import (
 	"github.com/golang-jwt/jwt/v4"
 )
 
+func init() {
+	// change time-precision from seconds to milliseconds to keep the 5 second boundary accurate
+	jwt.TimePrecision = time.Millisecond
+}
+
 type jwtHandler struct {
 	keyFunc func(token *jwt.Token) (interface{}, error)
 	next    http.Handler
