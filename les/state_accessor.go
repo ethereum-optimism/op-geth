@@ -67,6 +67,7 @@ func (leth *LightEthereum) stateAtTransaction(ctx context.Context, block *types.
 		if idx == txIndex {
 			return msg, context, statedb, release, nil
 		}
+		context.L1CostFunc = types.NewL1CostFunc(leth.blockchain.Config(), statedb)
 		// Not yet the searched for transaction, execute on top of the current state
 		vmenv := vm.NewEVM(context, txContext, statedb, leth.blockchain.Config(), vm.Config{})
 		if _, err := core.ApplyMessage(vmenv, msg, new(core.GasPool).AddGas(tx.Gas())); err != nil {

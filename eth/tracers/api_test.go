@@ -181,6 +181,7 @@ func (b *testBackend) StateAtTransaction(ctx context.Context, block *types.Block
 		if idx == txIndex {
 			return msg, context, statedb, release, nil
 		}
+		context.L1CostFunc = types.NewL1CostFunc(b.chainConfig, statedb)
 		vmenv := vm.NewEVM(context, txContext, statedb, b.chainConfig, vm.Config{})
 		if _, err := core.ApplyMessage(vmenv, msg, new(core.GasPool).AddGas(tx.Gas())); err != nil {
 			return nil, vm.BlockContext{}, nil, nil, fmt.Errorf("transaction %#x failed: %v", tx.Hash(), err)
