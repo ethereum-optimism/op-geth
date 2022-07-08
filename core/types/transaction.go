@@ -20,7 +20,6 @@ import (
 	"bytes"
 	"container/heap"
 	"errors"
-	"fmt"
 	"io"
 	"math/big"
 	"sync/atomic"
@@ -29,6 +28,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
@@ -61,6 +62,9 @@ type Transaction struct {
 	hash atomic.Value
 	size atomic.Value
 	from atomic.Value
+
+	// cache how much gas the tx takes on L1 for its share of rollup data
+	rollupGas atomic.Value
 }
 
 // NewTx creates a new transaction.
@@ -327,6 +331,34 @@ func (tx *Transaction) Mint() *big.Int {
 func (tx *Transaction) Cost() *big.Int {
 	total := new(big.Int).Mul(tx.GasPrice(), new(big.Int).SetUint64(tx.Gas()))
 	total.Add(total, tx.Value())
+	return total
+}
+
+// RollupDataGas is the amount of gas it takes to confirm the tx on L1 as a rollup
+func (tx *Transaction) RollupDataGas() uint64 {
+	if tx.Type() == DepositTxType {
+		return 0
+	}
+	if v := tx.rollupGas.Load(); v != nil {
+		return v.(uint64)
+	}
+	data, err := tx.MarshalBinary()
+	if err != nil { // Silent error, invalid txs will not be marshalled/unmarshalled for batch submission anyway.
+		log.Error("failed to encode tx for L1 cost computation", "err", err)
+	}
+	var zeroes uint64
+	var ones uint64
+	for _, byt := range data {
+		if byt == 0 {
+			zeroes++
+		} else {
+			ones++
+		}
+	}
+	zeroesGas := zeroes * params.TxDataZeroGas
+	onesGas := (ones + 68) * params.TxDataNonZeroGasEIP2028
+	total := zeroesGas + onesGas
+	tx.rollupGas.Store(total)
 	return total
 }
 
@@ -613,22 +645,6 @@ func (t *TransactionsByPriceAndNonce) Pop() {
 	heap.Pop(&t.heads)
 }
 
-// MsgOption defines optional params for AsMessage.
-// This is currently used to update Message with L1Cost but can be accommodated
-// for additional params to be applied to tx or msg.
-// See L1CostOption for usage.
-type MsgOption interface {
-	Apply(tx *Transaction, msg *Message) error
-}
-
-// MsgOptionFunc defines the optional param func.
-type MsgOptionFunc func(tx *Transaction, msg *Message) error
-
-// Apply applies the optional param func and is called from AsMessage.
-func (fn MsgOptionFunc) Apply(tx *Transaction, msg *Message) error {
-	return fn(tx, msg)
-}
-
 // Message is a fully derived transaction and implements core.Message
 //
 // NOTE: In a future PR this will be removed.
@@ -645,7 +661,7 @@ type Message struct {
 	accessList AccessList
 	isFake     bool
 	mint       *big.Int
-	l1Cost     *big.Int
+	l1CostGas  uint64
 }
 
 func NewMessage(from common.Address, to *common.Address, nonce uint64, amount *big.Int, gasLimit uint64, gasPrice, gasFeeCap, gasTipCap *big.Int, data []byte, accessList AccessList, isFake bool) Message {
@@ -661,12 +677,13 @@ func NewMessage(from common.Address, to *common.Address, nonce uint64, amount *b
 		data:       data,
 		accessList: accessList,
 		isFake:     isFake,
-		mint:       big.NewInt(0),
+		mint:       nil,
+		l1CostGas:  0,
 	}
 }
 
 // AsMessage returns the transaction as a core.Message.
-func (tx *Transaction) AsMessage(s Signer, baseFee *big.Int, opts ...MsgOption) (Message, error) {
+func (tx *Transaction) AsMessage(s Signer, baseFee *big.Int) (Message, error) {
 	msg := Message{
 		nonce:      tx.Nonce(),
 		gasLimit:   tx.Gas(),
@@ -679,14 +696,10 @@ func (tx *Transaction) AsMessage(s Signer, baseFee *big.Int, opts ...MsgOption) 
 		accessList: tx.AccessList(),
 		isFake:     false,
 	}
-	for i, opt := range opts {
-		if err := opt.Apply(tx, &msg); err != nil {
-			return Message{}, fmt.Errorf("failed to apply option %d: %w", i, err)
-		}
-	}
 	if dep, ok := tx.inner.(*DepositTx); ok {
 		msg.mint = dep.Mint
-		msg.l1Cost = nil
+	} else {
+		msg.l1CostGas = tx.RollupDataGas()
 	}
 	// If baseFee provided, set gasPrice to effectiveGasPrice.
 	if baseFee != nil {
@@ -709,7 +722,7 @@ func (m Message) Data() []byte           { return m.data }
 func (m Message) AccessList() AccessList { return m.accessList }
 func (m Message) IsFake() bool           { return m.isFake }
 func (m Message) Mint() *big.Int         { return m.mint }
-func (m Message) L1Cost() *big.Int       { return m.l1Cost }
+func (m Message) RollupDataGas() uint64  { return m.l1CostGas }
 
 // copyAddressPtr copies an address.
 func copyAddressPtr(a *common.Address) *common.Address {
@@ -718,12 +731,4 @@ func copyAddressPtr(a *common.Address) *common.Address {
 	}
 	cpy := *a
 	return &cpy
-}
-
-// L1CostOption applies the l1 cost to the msg
-func L1CostOption(cost *big.Int) MsgOption {
-	return MsgOptionFunc(func(_ *Transaction, msg *Message) error {
-		msg.l1Cost = cost
-		return nil
-	})
 }
