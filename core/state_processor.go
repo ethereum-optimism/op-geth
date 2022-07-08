@@ -71,20 +71,11 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 		misc.ApplyDAOHardFork(statedb)
 	}
 	blockContext := NewEVMBlockContext(header, p.bc, nil)
+	blockContext.L1CostFunc = NewL1CostFunc(p.config, statedb)
 	vmenv := vm.NewEVM(blockContext, vm.TxContext{}, statedb, p.config, cfg)
-
-	opts := make([][]types.MsgOption, len(block.Transactions()))
-	if p.config.Optimism != nil && p.config.Optimism.Enabled {
-		l1FeeContext := NewL1FeeContext(statedb)
-		for i, tx := range block.Transactions() {
-			l1Cost := L1Cost(tx, l1FeeContext)
-			opts[i] = append(opts[i], types.L1CostOption(l1Cost))
-		}
-	}
-
 	// Iterate over and process the individual transactions
 	for i, tx := range block.Transactions() {
-		msg, err := tx.AsMessage(types.MakeSigner(p.config, header.Number), header.BaseFee, opts[i]...)
+		msg, err := tx.AsMessage(types.MakeSigner(p.config, header.Number), header.BaseFee)
 		if err != nil {
 			return nil, nil, 0, fmt.Errorf("could not apply tx %d [%v]: %w", i, tx.Hash().Hex(), err)
 		}
@@ -152,22 +143,13 @@ func applyTransaction(msg types.Message, config *params.ChainConfig, bc ChainCon
 // for the transaction, gas used and an error if the transaction failed,
 // indicating the block was invalid.
 func ApplyTransaction(config *params.ChainConfig, bc ChainContext, author *common.Address, gp *GasPool, statedb *state.StateDB, header *types.Header, tx *types.Transaction, usedGas *uint64, cfg vm.Config) (*types.Receipt, error) {
-	var opts []types.MsgOption = nil
-	isOptimism := config.Optimism != nil && config.Optimism.Enabled
-	if isOptimism {
-		l1FeeContext := NewL1FeeContext(statedb)
-		l1Cost := L1Cost(tx, l1FeeContext)
-		opts = append(opts, types.L1CostOption(l1Cost))
-	}
-	msg, err := tx.AsMessage(types.MakeSigner(config, header.Number), header.BaseFee, opts...)
+	msg, err := tx.AsMessage(types.MakeSigner(config, header.Number), header.BaseFee)
 	if err != nil {
 		return nil, err
 	}
-	if isOptimism && msg.Nonce() != types.DepositsNonce && msg.L1Cost() == nil {
-		return nil, ErrNoL1Cost
-	}
 	// Create a new context to be used in the EVM environment
 	blockContext := NewEVMBlockContext(header, bc, author)
+	blockContext.L1CostFunc = NewL1CostFunc(config, statedb)
 	vmenv := vm.NewEVM(blockContext, vm.TxContext{}, statedb, config, cfg)
 	return applyTransaction(msg, config, bc, author, gp, statedb, header.Number, header.Hash(), tx, usedGas, vmenv)
 }

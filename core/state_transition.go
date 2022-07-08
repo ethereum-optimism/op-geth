@@ -76,8 +76,7 @@ type Message interface {
 
 	// Mint is nil if there is no minting
 	Mint() *big.Int
-
-	L1Cost() *big.Int
+	RollupDataGas() uint64
 
 	Nonce() uint64
 	IsFake() bool
@@ -199,16 +198,20 @@ func (st *StateTransition) to() common.Address {
 func (st *StateTransition) buyGas() error {
 	mgval := new(big.Int).SetUint64(st.msg.Gas())
 	mgval = mgval.Mul(mgval, st.gasPrice)
-	if st.msg.L1Cost() != nil {
-		mgval = mgval.Add(mgval, st.msg.L1Cost())
+	var l1Cost *big.Int
+	if st.evm.Context.L1CostFunc != nil {
+		l1Cost = st.evm.Context.L1CostFunc(st.evm.Context.BlockNumber.Uint64(), st.msg)
+	}
+	if l1Cost != nil {
+		mgval = mgval.Add(mgval, l1Cost)
 	}
 	balanceCheck := mgval
 	if st.gasFeeCap != nil {
 		balanceCheck = new(big.Int).SetUint64(st.msg.Gas())
 		balanceCheck = balanceCheck.Mul(balanceCheck, st.gasFeeCap)
 		balanceCheck.Add(balanceCheck, st.value)
-		if st.msg.L1Cost() != nil {
-			balanceCheck.Add(balanceCheck, st.msg.L1Cost())
+		if l1Cost != nil {
+			balanceCheck.Add(balanceCheck, l1Cost)
 		}
 	}
 	if have, want := st.state.GetBalance(st.msg.From()), balanceCheck; have.Cmp(want) < 0 {
@@ -408,13 +411,10 @@ func (st *StateTransition) innerTransitionDb() (*ExecutionResult, error) {
 		st.state.AddBalance(st.evm.Context.Coinbase, fee)
 	}
 
-	if st.evm.ChainConfig().Optimism != nil {
-		optimismConfig := st.evm.ChainConfig().Optimism
-		if optimismConfig.Enabled {
-			st.state.AddBalance(optimismConfig.BaseFeeRecipient, new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), st.evm.Context.BaseFee))
-			if st.msg.L1Cost() != nil {
-				st.state.AddBalance(optimismConfig.L1FeeRecipient, st.msg.L1Cost())
-			}
+	if optimismConfig := st.evm.ChainConfig().Optimism; optimismConfig != nil {
+		st.state.AddBalance(optimismConfig.BaseFeeRecipient, new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), st.evm.Context.BaseFee))
+		if cost := st.evm.Context.L1CostFunc(st.evm.Context.BlockNumber.Uint64(), st.msg); cost != nil {
+			st.state.AddBalance(optimismConfig.L1FeeRecipient, cost)
 		}
 	}
 
