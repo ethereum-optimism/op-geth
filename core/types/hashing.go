@@ -53,9 +53,6 @@ func prefixedRlpHash(prefix byte, x interface{}) (h common.Hash) {
 	defer hasherPool.Put(sha)
 	sha.Reset()
 	sha.Write([]byte{prefix})
-	if prefix == DepositTxType {
-		sha.Write([]byte{0})
-	}
 	rlp.Encode(sha, x)
 	sha.Read(h[:])
 	return h
