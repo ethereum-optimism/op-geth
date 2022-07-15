@@ -756,6 +756,9 @@ func (w *worker) makeEnv(parent *types.Block, header *types.Header, coinbase com
 	// Retrieve the parent state to execute on top and start a prefetcher for
 	// the miner to speed block sealing up a bit.
 	state, err := w.chain.StateAt(parent.Root())
+	if err != nil && w.chainConfig.Optimism != nil { // Allow the miner to reorg its own chain arbitrarily deep
+		state, err = w.eth.StateAtBlock(parent, ^uint64(0), nil, false, false)
+	}
 	if err != nil {
 		return nil, err
 	}
