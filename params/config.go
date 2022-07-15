@@ -449,6 +449,8 @@ func (c *ChainConfig) Description() string {
 		} else {
 			banner += "Consensus: Beacon (proof-of-stake), merged from Clique (proof-of-authority)\n"
 		}
+	case c.Optimism != nil:
+		banner += "Consensus: Optimism\n"
 	default:
 		banner += "Consensus: unknown\n"
 	}
