@@ -57,6 +57,7 @@ type StateTransition struct {
 	gasTipCap  *big.Int
 	initialGas uint64
 	value      *big.Int
+	mint       *big.Int
 	data       []byte
 	state      vm.StateDB
 	evm        *vm.EVM
@@ -72,6 +73,10 @@ type Message interface {
 	GasTipCap() *big.Int
 	Gas() uint64
 	Value() *big.Int
+
+	// Mint is nil if there is no minting
+	Mint() *big.Int
+	RollupDataGas() uint64
 
 	Nonce() uint64
 	IsFake() bool
@@ -165,6 +170,7 @@ func NewStateTransition(evm *vm.EVM, msg Message, gp *GasPool) *StateTransition 
 		gasFeeCap: msg.GasFeeCap(),
 		gasTipCap: msg.GasTipCap(),
 		value:     msg.Value(),
+		mint:      msg.Mint(),
 		data:      msg.Data(),
 		state:     evm.StateDB,
 	}
@@ -192,11 +198,21 @@ func (st *StateTransition) to() common.Address {
 func (st *StateTransition) buyGas() error {
 	mgval := new(big.Int).SetUint64(st.msg.Gas())
 	mgval = mgval.Mul(mgval, st.gasPrice)
+	var l1Cost *big.Int
+	if st.evm.Context.L1CostFunc != nil {
+		l1Cost = st.evm.Context.L1CostFunc(st.evm.Context.BlockNumber.Uint64(), st.msg)
+	}
+	if l1Cost != nil {
+		mgval = mgval.Add(mgval, l1Cost)
+	}
 	balanceCheck := mgval
 	if st.gasFeeCap != nil {
 		balanceCheck = new(big.Int).SetUint64(st.msg.Gas())
 		balanceCheck = balanceCheck.Mul(balanceCheck, st.gasFeeCap)
 		balanceCheck.Add(balanceCheck, st.value)
+		if l1Cost != nil {
+			balanceCheck.Add(balanceCheck, l1Cost)
+		}
 	}
 	if have, want := st.state.GetBalance(st.msg.From()), balanceCheck; have.Cmp(want) < 0 {
 		return fmt.Errorf("%w: address %v have %v want %v", ErrInsufficientFunds, st.msg.From().Hex(), have, want)
@@ -212,6 +228,13 @@ func (st *StateTransition) buyGas() error {
 }
 
 func (st *StateTransition) preCheck() error {
+	if st.msg.Nonce() == types.DepositsNonce {
+		// No fee fields to check, no nonce to check, and no need to check if EOA (L1 already verified it for us)
+		// Gas is free, but no refunds!
+		st.initialGas = st.msg.Gas()
+		st.gas += st.msg.Gas() // Add gas here in order to be able to execute calls.
+		return nil
+	}
 	// Only check transactions that are not fake
 	if !st.msg.IsFake() {
 		// Make sure this transaction's nonce is correct.
@@ -273,6 +296,31 @@ func (st *StateTransition) preCheck() error {
 // However if any consensus issue encountered, return the error directly with
 // nil evm execution result.
 func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
+	if mint := st.msg.Mint(); mint != nil {
+		st.state.AddBalance(st.msg.From(), mint)
+	}
+	snap := st.state.Snapshot()
+
+	result, err := st.innerTransitionDb()
+	if err != nil { // EVM errors would have a result.Err and a nil execution err
+		// Failed deposits must still be included.
+		// On failure, we rewind any state changes from after the minting, and increment the nonce.
+		if st.msg.Nonce() == types.DepositsNonce {
+			st.state.RevertToSnapshot(snap)
+			// Even though we revert the state changes, always increment the nonce for the next deposit transaction
+			st.state.SetNonce(st.msg.From(), st.state.GetNonce(st.msg.From())+1)
+			result = &ExecutionResult{
+				UsedGas:    st.msg.Gas(), // Always record the deposit using the full amount of gas
+				Err:        fmt.Errorf("failed deposit: %w", err),
+				ReturnData: nil,
+			}
+			err = nil
+		}
+	}
+	return result, err
+}
+
+func (st *StateTransition) innerTransitionDb() (*ExecutionResult, error) {
 	// First check this message satisfies all consensus rules before
 	// applying the message. The rules include these clauses
 	//
@@ -333,6 +381,14 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 		ret, st.gas, vmerr = st.evm.Call(sender, st.to(), st.data, st.gas, st.value)
 	}
 
+	// if deposit: skip refunds, skip tipping coinbase
+	if st.msg.Nonce() == types.DepositsNonce {
+		return &ExecutionResult{
+			UsedGas:    st.msg.Gas(), // Always record the deposit using the full amount of gas
+			Err:        vmerr,
+			ReturnData: ret,
+		}, nil
+	}
 	if !rules.IsLondon {
 		// Before EIP-3529: refunds were capped to gasUsed / 2
 		st.refundGas(params.RefundQuotient)
@@ -353,6 +409,13 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 		fee := new(big.Int).SetUint64(st.gasUsed())
 		fee.Mul(fee, effectiveTip)
 		st.state.AddBalance(st.evm.Context.Coinbase, fee)
+	}
+
+	if optimismConfig := st.evm.ChainConfig().Optimism; optimismConfig != nil {
+		st.state.AddBalance(optimismConfig.BaseFeeRecipient, new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), st.evm.Context.BaseFee))
+		if cost := st.evm.Context.L1CostFunc(st.evm.Context.BlockNumber.Uint64(), st.msg); cost != nil {
+			st.state.AddBalance(optimismConfig.L1FeeRecipient, cost)
+		}
 	}
 
 	return &ExecutionResult{

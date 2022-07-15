@@ -756,6 +756,9 @@ func (w *worker) makeEnv(parent *types.Block, header *types.Header, coinbase com
 	// Retrieve the parent state to execute on top and start a prefetcher for
 	// the miner to speed block sealing up a bit.
 	state, err := w.chain.StateAt(parent.Root())
+	if err != nil && w.chainConfig.Optimism != nil { // Allow the miner to reorg its own chain arbitrarily deep
+		state, err = w.eth.StateAtBlock(parent, ^uint64(0), nil, false, false)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -960,6 +963,8 @@ type generateParams struct {
 	noUncle    bool           // Flag whether the uncle block inclusion is allowed
 	noExtra    bool           // Flag whether the extra field assignment is allowed
 	noTxs      bool           // Flag whether an empty block without any transaction is expected
+
+	forceTxs types.Transactions // Transactions to force-include at the start of the block
 }
 
 // prepareWork constructs the sealing task according to the given parameters,
@@ -1074,14 +1079,71 @@ func (w *worker) fillTransactions(interrupt *int32, env *environment) error {
 }
 
 // generateWork generates a sealing block based on the given parameters.
-func (w *worker) generateWork(params *generateParams) (*types.Block, error) {
-	work, err := w.prepareWork(params)
+func (w *worker) generateWork(genParams *generateParams) (*types.Block, error) {
+	work, err := w.prepareWork(genParams)
 	if err != nil {
 		return nil, err
 	}
 	defer work.discard()
 
-	if !params.noTxs {
+	gasLimit := work.header.GasLimit
+	if work.gasPool == nil {
+		work.gasPool = new(core.GasPool).AddGas(gasLimit)
+	}
+
+	for _, tx := range genParams.forceTxs {
+		// If we don't have enough gas for any further transactions then we're done
+		if work.gasPool.Gas() < params.TxGas {
+			log.Trace("Not enough gas for further transactions", "have", work.gasPool, "want", params.TxGas)
+			break
+		}
+
+		// Error may be ignored here. The error has already been checked
+		// during transaction acceptance is the transaction pool.
+		//
+		// We use the eip155 signer regardless of the current hf.
+		from, _ := types.Sender(work.signer, tx)
+		// Check whether the tx is replay protected. If we're not in the EIP155 hf
+		// phase, start ignoring the sender until we do.
+		if tx.Protected() && !w.chainConfig.IsEIP155(work.header.Number) {
+			log.Trace("Ignoring reply protected transaction", "hash", tx.Hash(), "eip155", w.chainConfig.EIP155Block)
+			continue
+		}
+		// Start executing the transaction
+		work.state.Prepare(tx.Hash(), work.tcount)
+
+		_, err := w.commitTransaction(work, tx)
+		switch {
+		case errors.Is(err, core.ErrGasLimitReached):
+			// Pop the current out-of-gas transaction without shifting in the next from the account
+			log.Trace("Gas limit exceeded for current block", "sender", from)
+
+		case errors.Is(err, core.ErrNonceTooLow):
+			// New head notification data race between the transaction pool and miner, shift
+			log.Trace("Skipping transaction with low nonce", "sender", from, "nonce", tx.Nonce())
+
+		case errors.Is(err, core.ErrNonceTooHigh):
+			// Reorg notification data race between the transaction pool and miner, skip account =
+			log.Trace("Skipping account with high nonce", "sender", from, "nonce", tx.Nonce())
+		case errors.Is(err, nil):
+			// Everything ok, collect the logs and shift in the next transaction from the same account
+			// coalescedLogs = append(coalescedLogs, logs...)
+			work.tcount++
+
+		case errors.Is(err, core.ErrTxTypeNotSupported):
+			// Pop the unsupported transaction without shifting in the next from the account
+			log.Trace("Skipping unsupported transaction type", "sender", from, "type", tx.Type())
+
+		default:
+			// Strange error, discard the transaction and get the next in line (note, the
+			// nonce-too-high clause will prevent us from executing in vain).
+			log.Debug("Transaction failed, account skipped", "hash", tx.Hash(), "err", err)
+		}
+	}
+
+	// Deposits done, fill rest of block with transactions
+
+	if !genParams.noTxs {
 		w.fillTransactions(nil, work)
 	}
 	return w.engine.FinalizeAndAssemble(w.chain, work.header, work.state, work.txs, work.unclelist(), work.receipts)
@@ -1170,7 +1232,7 @@ func (w *worker) commit(env *environment, interval func(), update bool, start ti
 // getSealingBlock generates the sealing block based on the given parameters.
 // The generation result will be passed back via the given channel no matter
 // the generation itself succeeds or not.
-func (w *worker) getSealingBlock(parent common.Hash, timestamp uint64, coinbase common.Address, random common.Hash, noTxs bool) (chan *types.Block, chan error, error) {
+func (w *worker) getSealingBlock(parent common.Hash, timestamp uint64, coinbase common.Address, random common.Hash, noTxs bool, forceTxs types.Transactions) (chan *types.Block, chan error, error) {
 	var (
 		resCh = make(chan *types.Block, 1)
 		errCh = make(chan error, 1)
@@ -1185,6 +1247,7 @@ func (w *worker) getSealingBlock(parent common.Hash, timestamp uint64, coinbase 
 			noUncle:    true,
 			noExtra:    true,
 			noTxs:      noTxs,
+			forceTxs:   forceTxs,
 		},
 		result: resCh,
 		err:    errCh,

@@ -1,4 +1,4 @@
-## Go Ethereum
+## Go Ethereum (Optimism)
 
 Official Golang implementation of the Ethereum protocol.
 
