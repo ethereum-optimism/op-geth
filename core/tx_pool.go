@@ -1358,7 +1358,7 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) []*types.Trans
 		if !list.Empty() {
 			// Reduce the cost-cap by L1 rollup cost of the first tx if necessary. Other txs will get filtered out afterwards.
 			if l1Cost := pool.l1CostFn(list.txs.FirstElement()); l1Cost != nil {
-				balance = balance.Sub(balance, l1Cost) // negative big int is fine
+				balance = new(big.Int).Sub(balance, l1Cost) // negative big int is fine
 			}
 		}
 		// Drop all transactions that are too costly (low balance or out of gas)
@@ -1562,7 +1562,7 @@ func (pool *TxPool) demoteUnexecutables() {
 		if !list.Empty() {
 			// Reduce the cost-cap by L1 rollup cost of the first tx if necessary. Other txs will get filtered out afterwards.
 			if l1Cost := pool.l1CostFn(list.txs.FirstElement()); l1Cost != nil {
-				balance = balance.Sub(balance, l1Cost) // negative big int is fine
+				balance = new(big.Int).Sub(balance, l1Cost) // negative big int is fine
 			}
 		}
 		// Drop all transactions that are too costly (low balance or out of gas), and queue any invalids back for later
