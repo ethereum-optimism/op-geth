@@ -232,8 +232,8 @@ func (st *StateTransition) preCheck() error {
 		// No fee fields to check, no nonce to check, and no need to check if EOA (L1 already verified it for us)
 		// Gas is free, but no refunds!
 		st.initialGas = st.msg.Gas()
-		st.gas += st.msg.Gas() // Add gas here in order to be able to execute calls.
-		return nil
+		st.gas += st.msg.Gas()            // Add gas here in order to be able to execute calls.
+		return st.gp.SubGas(st.msg.Gas()) // gas used by deposits may not be used by other txs
 	}
 	// Only check transactions that are not fake
 	if !st.msg.IsFake() {
@@ -302,20 +302,18 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 	snap := st.state.Snapshot()
 
 	result, err := st.innerTransitionDb()
-	if err != nil { // EVM errors would have a result.Err and a nil execution err
-		// Failed deposits must still be included.
-		// On failure, we rewind any state changes from after the minting, and increment the nonce.
-		if st.msg.Nonce() == types.DepositsNonce {
-			st.state.RevertToSnapshot(snap)
-			// Even though we revert the state changes, always increment the nonce for the next deposit transaction
-			st.state.SetNonce(st.msg.From(), st.state.GetNonce(st.msg.From())+1)
-			result = &ExecutionResult{
-				UsedGas:    st.msg.Gas(), // Always record the deposit using the full amount of gas
-				Err:        fmt.Errorf("failed deposit: %w", err),
-				ReturnData: nil,
-			}
-			err = nil
+	// Failed deposits must still be included. Unless we cannot produce the block at all due to the gas limit.
+	// On deposit failure, we rewind any state changes from after the minting, and increment the nonce.
+	if err != nil && err != ErrGasLimitReached && st.msg.Nonce() == types.DepositsNonce {
+		st.state.RevertToSnapshot(snap)
+		// Even though we revert the state changes, always increment the nonce for the next deposit transaction
+		st.state.SetNonce(st.msg.From(), st.state.GetNonce(st.msg.From())+1)
+		result = &ExecutionResult{
+			UsedGas:    st.msg.Gas(), // Always record the deposit using the full amount of gas
+			Err:        fmt.Errorf("failed deposit: %w", err),
+			ReturnData: nil,
 		}
+		err = nil
 	}
 	return result, err
 }
