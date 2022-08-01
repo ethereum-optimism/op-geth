@@ -80,6 +80,7 @@ type Message interface {
 
 	Nonce() uint64
 	IsFake() bool
+	IsSystemTx() bool
 	Data() []byte
 	AccessList() types.AccessList
 }
@@ -232,7 +233,11 @@ func (st *StateTransition) preCheck() error {
 		// No fee fields to check, no nonce to check, and no need to check if EOA (L1 already verified it for us)
 		// Gas is free, but no refunds!
 		st.initialGas = st.msg.Gas()
-		st.gas += st.msg.Gas()            // Add gas here in order to be able to execute calls.
+		st.gas += st.msg.Gas() // Add gas here in order to be able to execute calls.
+		// Don't touch the gas pool for system transactions
+		if st.msg.IsSystemTx() {
+			return nil
+		}
 		return st.gp.SubGas(st.msg.Gas()) // gas used by deposits may not be used by other txs
 	}
 	// Only check transactions that are not fake
@@ -308,8 +313,14 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 		st.state.RevertToSnapshot(snap)
 		// Even though we revert the state changes, always increment the nonce for the next deposit transaction
 		st.state.SetNonce(st.msg.From(), st.state.GetNonce(st.msg.From())+1)
+		// Record deposits as using all their gas (matches the gas pool)
+		// System Transactions are special & are not recorded as using any gas (anywhere)
+		gasUsed := st.msg.Gas()
+		if st.msg.IsSystemTx() {
+			gasUsed = 0
+		}
 		result = &ExecutionResult{
-			UsedGas:    st.msg.Gas(), // Always record the deposit using the full amount of gas
+			UsedGas:    gasUsed,
 			Err:        fmt.Errorf("failed deposit: %w", err),
 			ReturnData: nil,
 		}
@@ -381,8 +392,14 @@ func (st *StateTransition) innerTransitionDb() (*ExecutionResult, error) {
 
 	// if deposit: skip refunds, skip tipping coinbase
 	if st.msg.Nonce() == types.DepositsNonce {
+		// Record deposits as using all their gas (matches the gas pool)
+		// System Transactions are special & are not recorded as using any gas (anywhere)
+		gasUsed := st.msg.Gas()
+		if st.msg.IsSystemTx() {
+			gasUsed = 0
+		}
 		return &ExecutionResult{
-			UsedGas:    st.msg.Gas(), // Always record the deposit using the full amount of gas
+			UsedGas:    gasUsed,
 			Err:        vmerr,
 			ReturnData: ret,
 		}, nil

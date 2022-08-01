@@ -46,6 +46,7 @@ type txJSON struct {
 	SourceHash *common.Hash    `json:"sourceHash,omitempty"`
 	From       *common.Address `json:"from,omitempty"`
 	Mint       *hexutil.Big    `json:"mint,omitempty"`
+	IsSystemTx *bool           `json:"isSystemTx,omitempty"`
 
 	// Access list transaction fields:
 	ChainID    *hexutil.Big `json:"chainId,omitempty"`
@@ -109,6 +110,7 @@ func (t *Transaction) MarshalJSON() ([]byte, error) {
 		if tx.Mint != nil {
 			enc.Mint = (*hexutil.Big)(tx.Mint)
 		}
+		enc.IsSystemTx = &tx.IsSystemTransaction
 		// other fields will show up as null.
 	}
 	return json.Marshal(&enc)
@@ -307,6 +309,10 @@ func (t *Transaction) UnmarshalJSON(input []byte) error {
 			return errors.New("missing required field 'sourceHash' in transaction")
 		}
 		itx.SourceHash = *dec.SourceHash
+		// IsSystemTx may be omitted. Defaults to false.
+		if dec.IsSystemTx != nil {
+			itx.IsSystemTransaction = *dec.IsSystemTx
+		}
 	default:
 		return ErrTxTypeNotSupported
 	}
