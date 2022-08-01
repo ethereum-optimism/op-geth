@@ -87,6 +87,7 @@ type TxData interface {
 	value() *big.Int
 	nonce() uint64
 	to() *common.Address
+	isSystemTx() bool
 
 	rawSignatureValues() (v, r, s *big.Int)
 	setSignatureValues(chainID, v, r, s *big.Int)
@@ -311,6 +312,12 @@ func (tx *Transaction) Mint() *big.Int {
 		return dep.Mint
 	}
 	return nil
+}
+
+// IsSystemTx returns true for deposits that are system transactions. These transactions
+// are executed in an unmetered environment & do not contribute to the block gas limit.
+func (tx *Transaction) IsSystemTx() bool {
+	return tx.inner.isSystemTx()
 }
 
 // Cost returns gas * gasPrice + value.
@@ -649,6 +656,7 @@ type Message struct {
 	data       []byte
 	accessList AccessList
 	isFake     bool
+	isSystemTx bool
 	mint       *big.Int
 	l1CostGas  uint64
 }
@@ -666,6 +674,7 @@ func NewMessage(from common.Address, to *common.Address, nonce uint64, amount *b
 		data:       data,
 		accessList: accessList,
 		isFake:     isFake,
+		isSystemTx: false,
 		mint:       nil,
 		l1CostGas:  0,
 	}
@@ -684,6 +693,7 @@ func (tx *Transaction) AsMessage(s Signer, baseFee *big.Int) (Message, error) {
 		data:       tx.Data(),
 		accessList: tx.AccessList(),
 		isFake:     false,
+		isSystemTx: tx.inner.isSystemTx(),
 	}
 	if dep, ok := tx.inner.(*DepositTx); ok {
 		msg.mint = dep.Mint
@@ -710,6 +720,7 @@ func (m Message) Nonce() uint64          { return m.nonce }
 func (m Message) Data() []byte           { return m.data }
 func (m Message) AccessList() AccessList { return m.accessList }
 func (m Message) IsFake() bool           { return m.isFake }
+func (m Message) IsSystemTx() bool       { return m.isSystemTx }
 func (m Message) Mint() *big.Int         { return m.mint }
 func (m Message) RollupDataGas() uint64  { return m.l1CostGas }
 
