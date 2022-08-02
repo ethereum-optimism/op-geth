@@ -756,6 +756,9 @@ func (w *worker) makeEnv(parent *types.Block, header *types.Header, coinbase com
 	// Retrieve the parent state to execute on top and start a prefetcher for
 	// the miner to speed block sealing up a bit.
 	state, err := w.chain.StateAt(parent.Root())
+	if err != nil && w.chainConfig.Optimism != nil { // Allow the miner to reorg its own chain arbitrarily deep
+		state, err = w.eth.StateAtBlock(parent, ^uint64(0), nil, false, false)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -960,6 +963,8 @@ type generateParams struct {
 	noUncle    bool           // Flag whether the uncle block inclusion is allowed
 	noExtra    bool           // Flag whether the extra field assignment is allowed
 	noTxs      bool           // Flag whether an empty block without any transaction is expected
+
+	forceTxs types.Transactions // Transactions to force-include at the start of the block
 }
 
 // prepareWork constructs the sealing task according to the given parameters,
@@ -1080,7 +1085,18 @@ func (w *worker) generateWork(params *generateParams) (*types.Block, error) {
 		return nil, err
 	}
 	defer work.discard()
-
+	if work.gasPool == nil {
+		work.gasPool = new(core.GasPool).AddGas(work.header.GasLimit)
+	}
+	for _, tx := range params.forceTxs {
+		from, _ := types.Sender(work.signer, tx)
+		work.state.Prepare(tx.Hash(), work.tcount)
+		_, err := w.commitTransaction(work, tx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to force-include tx: %s type: %d sender: %s nonce: %d", tx.Hash(), tx.Type(), from, tx.Nonce())
+		}
+		work.tcount++
+	}
 	if !params.noTxs {
 		w.fillTransactions(nil, work)
 	}
@@ -1170,7 +1186,7 @@ func (w *worker) commit(env *environment, interval func(), update bool, start ti
 // getSealingBlock generates the sealing block based on the given parameters.
 // The generation result will be passed back via the given channel no matter
 // the generation itself succeeds or not.
-func (w *worker) getSealingBlock(parent common.Hash, timestamp uint64, coinbase common.Address, random common.Hash, noTxs bool) (chan *types.Block, chan error, error) {
+func (w *worker) getSealingBlock(parent common.Hash, timestamp uint64, coinbase common.Address, random common.Hash, noTxs bool, forceTxs types.Transactions) (chan *types.Block, chan error, error) {
 	var (
 		resCh = make(chan *types.Block, 1)
 		errCh = make(chan error, 1)
@@ -1185,6 +1201,7 @@ func (w *worker) getSealingBlock(parent common.Hash, timestamp uint64, coinbase 
 			noUncle:    true,
 			noExtra:    true,
 			noTxs:      noTxs,
+			forceTxs:   forceTxs,
 		},
 		result: resCh,
 		err:    errCh,
