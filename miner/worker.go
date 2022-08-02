@@ -1079,71 +1079,25 @@ func (w *worker) fillTransactions(interrupt *int32, env *environment) error {
 }
 
 // generateWork generates a sealing block based on the given parameters.
-func (w *worker) generateWork(genParams *generateParams) (*types.Block, error) {
-	work, err := w.prepareWork(genParams)
+func (w *worker) generateWork(params *generateParams) (*types.Block, error) {
+	work, err := w.prepareWork(params)
 	if err != nil {
 		return nil, err
 	}
 	defer work.discard()
-
-	gasLimit := work.header.GasLimit
 	if work.gasPool == nil {
-		work.gasPool = new(core.GasPool).AddGas(gasLimit)
+		work.gasPool = new(core.GasPool).AddGas(work.header.GasLimit)
 	}
-
-	for _, tx := range genParams.forceTxs {
-		// If we don't have enough gas for any further transactions then we're done
-		if work.gasPool.Gas() < params.TxGas {
-			log.Trace("Not enough gas for further transactions", "have", work.gasPool, "want", params.TxGas)
-			break
-		}
-
-		// Error may be ignored here. The error has already been checked
-		// during transaction acceptance is the transaction pool.
-		//
-		// We use the eip155 signer regardless of the current hf.
+	for _, tx := range params.forceTxs {
 		from, _ := types.Sender(work.signer, tx)
-		// Check whether the tx is replay protected. If we're not in the EIP155 hf
-		// phase, start ignoring the sender until we do.
-		if tx.Protected() && !w.chainConfig.IsEIP155(work.header.Number) {
-			log.Trace("Ignoring reply protected transaction", "hash", tx.Hash(), "eip155", w.chainConfig.EIP155Block)
-			continue
-		}
-		// Start executing the transaction
 		work.state.Prepare(tx.Hash(), work.tcount)
-
 		_, err := w.commitTransaction(work, tx)
-		switch {
-		case errors.Is(err, core.ErrGasLimitReached):
-			// Pop the current out-of-gas transaction without shifting in the next from the account
-			log.Trace("Gas limit exceeded for current block", "sender", from)
-
-		case errors.Is(err, core.ErrNonceTooLow):
-			// New head notification data race between the transaction pool and miner, shift
-			log.Trace("Skipping transaction with low nonce", "sender", from, "nonce", tx.Nonce())
-
-		case errors.Is(err, core.ErrNonceTooHigh):
-			// Reorg notification data race between the transaction pool and miner, skip account =
-			log.Trace("Skipping account with high nonce", "sender", from, "nonce", tx.Nonce())
-		case errors.Is(err, nil):
-			// Everything ok, collect the logs and shift in the next transaction from the same account
-			// coalescedLogs = append(coalescedLogs, logs...)
-			work.tcount++
-
-		case errors.Is(err, core.ErrTxTypeNotSupported):
-			// Pop the unsupported transaction without shifting in the next from the account
-			log.Trace("Skipping unsupported transaction type", "sender", from, "type", tx.Type())
-
-		default:
-			// Strange error, discard the transaction and get the next in line (note, the
-			// nonce-too-high clause will prevent us from executing in vain).
-			log.Debug("Transaction failed, account skipped", "hash", tx.Hash(), "err", err)
+		if err != nil {
+			return nil, fmt.Errorf("failed to force-include tx: %s type: %d sender: %s nonce: %d", tx.Hash(), tx.Type(), from, tx.Nonce())
 		}
+		work.tcount++
 	}
-
-	// Deposits done, fill rest of block with transactions
-
-	if !genParams.noTxs {
+	if !params.noTxs {
 		w.fillTransactions(nil, work)
 	}
 	return w.engine.FinalizeAndAssemble(w.chain, work.header, work.state, work.txs, work.unclelist(), work.receipts)
