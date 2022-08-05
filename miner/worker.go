@@ -1093,12 +1093,12 @@ func (w *worker) generateWork(params *generateParams) (*types.Block, error) {
 		work.state.Prepare(tx.Hash(), work.tcount)
 		_, err := w.commitTransaction(work, tx)
 		if err != nil {
-			return nil, fmt.Errorf("failed to force-include tx: %s type: %d sender: %s nonce: %d", tx.Hash(), tx.Type(), from, tx.Nonce())
+			return nil, fmt.Errorf("failed to force-include tx: %s, type: %d, sender: %s nonce: %d, err: %w", tx.Hash(), tx.Type(), from, tx.Nonce(), err)
 		}
 		work.tcount++
 	}
 	if !params.noTxs {
-		w.fillTransactions(nil, work)
+		_ = w.fillTransactions(nil, work) // may error on interrupt, but an empty block is fine.
 	}
 	return w.engine.FinalizeAndAssemble(w.chain, work.header, work.state, work.txs, work.unclelist(), work.receipts)
 }

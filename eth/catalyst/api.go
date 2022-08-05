@@ -276,7 +276,7 @@ func (api *ConsensusAPI) ForkchoiceUpdatedV1(update beacon.ForkchoiceStateV1, pa
 		empty, err := api.eth.Miner().GetSealingBlockSync(update.HeadBlockHash, payloadAttributes.Timestamp, payloadAttributes.SuggestedFeeRecipient, payloadAttributes.Random, true, forceTxs)
 		if err != nil {
 			log.Error("Failed to create empty sealing payload", "err", err)
-			return valid(nil), beacon.InvalidPayloadAttributes.With(err)
+			return beacon.STATUS_INVALID, beacon.InvalidPayloadAttributes.With(err)
 		}
 		if payloadAttributes.NoTxPool {
 			id := computePayloadId(update.HeadBlockHash, payloadAttributes)
