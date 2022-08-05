@@ -1102,7 +1102,7 @@ func (w *worker) generateWork(genParams *generateParams) (*types.Block, *big.Int
 		work.state.Prepare(tx.Hash(), work.tcount)
 		_, err := w.commitTransaction(work, tx)
 		if err != nil {
-			return nil, nil, fmt.Errorf("failed to force-include tx: %s type: %d sender: %s nonce: %d", tx.Hash(), tx.Type(), from, tx.Nonce())
+			return nil, nil, fmt.Errorf("failed to force-include tx: %s type: %d sender: %s nonce: %d, err: %w", tx.Hash(), tx.Type(), from, tx.Nonce(), err)
 		}
 		work.tcount++
 	}
