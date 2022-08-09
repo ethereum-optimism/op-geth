@@ -210,6 +210,8 @@ type Config struct {
 
 	// OverrideTerminalTotalDifficultyPassed (TODO: remove after the fork)
 	OverrideTerminalTotalDifficultyPassed *bool `toml:",omitempty"`
+
+	RollupSequencerHTTP string
 }
 
 // CreateConsensusEngine creates a consensus engine for the given chain configuration.
