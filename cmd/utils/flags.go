@@ -875,6 +875,13 @@ var (
 		Category: flags.GasPriceCategory,
 	}
 
+	// Rollup Flags
+	RollupSequencerHTTPFlag = &cli.StringFlag{
+		Name:     "rollup.sequencerhttp",
+		Usage:    "HTTP endpoint for the sequencer mempool",
+		Category: flags.RollupCategory,
+	}
+
 	// Metrics flags
 	MetricsEnabledFlag = &cli.BoolFlag{
 		Name:     "metrics",
@@ -1848,6 +1855,10 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 		} else {
 			cfg.EthDiscoveryURLs = SplitAndTrim(urls)
 		}
+	}
+	// Only configure sequencer http flag if we're running in verifier mode i.e. --mine is disabled.
+	if ctx.IsSet(RollupSequencerHTTPFlag.Name) && !ctx.IsSet(MiningEnabledFlag.Name) {
+		cfg.RollupSequencerHTTP = ctx.String(RollupSequencerHTTPFlag.Name)
 	}
 	// Override any default configs for hard coded networks.
 	switch {

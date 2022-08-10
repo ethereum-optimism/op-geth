@@ -31,6 +31,7 @@ const (
 	MinerCategory      = "MINER"
 	GasPriceCategory   = "GAS PRICE ORACLE"
 	VMCategory         = "VIRTUAL MACHINE"
+	RollupCategory     = "ROLLUP NODE"
 	LoggingCategory    = "LOGGING AND DEBUGGING"
 	MetricsCategory    = "METRICS AND STATS"
 	MiscCategory       = "MISC"
