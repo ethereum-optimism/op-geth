@@ -231,6 +231,7 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 		EventMux:       eth.eventMux,
 		Checkpoint:     checkpoint,
 		RequiredBlocks: config.RequiredBlocks,
+		NoTxGossip:     config.RollupDisableTxPoolGossip,
 	}); err != nil {
 		return nil, err
 	}

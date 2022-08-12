@@ -216,6 +216,8 @@ type Config struct {
 	OverrideTerminalTotalDifficultyPassed *bool `toml:",omitempty"`
 
 	RollupSequencerHTTP string
+
+	RollupDisableTxPoolGossip bool
 }
 
 // CreateConsensusEngine creates a consensus engine for the given chain configuration.
