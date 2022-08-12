@@ -218,6 +218,8 @@ type Config struct {
 	SyncTarget *types.Block
 
 	RollupSequencerHTTP string
+
+	RollupDisableTxPoolGossip bool
 }
 
 // CreateConsensusEngine creates a consensus engine for the given chain configuration.
