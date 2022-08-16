@@ -296,7 +296,7 @@ func makeExtraData(extra []byte) []byte {
 	if len(extra) == 0 {
 		// create default extradata
 		extra, _ = rlp.EncodeToBytes([]interface{}{
-			uint(params.VersionMajor<<16 | params.VersionMinor<<8 | params.VersionPatch),
+			uint(params.OPVersionMajor<<16 | params.OPVersionMinor<<8 | params.OPVersionPatch),
 			"geth",
 			runtime.Version(),
 			runtime.GOOS,
