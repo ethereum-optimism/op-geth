@@ -47,6 +47,13 @@ jobs:
                   docker tag "ethereumoptimism/op-geth:$CIRCLE_SHA1" "ethereumoptimism/op-geth:$CIRCLE_BRANCH"
                   docker push "ethereumoptimism/op-geth:$CIRCLE_SHA1"
                   docker push "ethereumoptimism/op-geth:$CIRCLE_BRANCH"
+
+                  if [ $CIRCLE_BRANCH = "optimism" ]
+                  then
+                    docker tag "ethereumoptimism/op-geth:$CIRCLE_SHA1" "ethereumoptimism/op-geth:latest"
+                    docker push "ethereumoptimism/op-geth:latest"
+                  pwd
+                  fi
       # Below step is required to prevent CircleCI from barfing on a
       # job with no steps
       - run: echo 0
