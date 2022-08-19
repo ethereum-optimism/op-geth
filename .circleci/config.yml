@@ -43,10 +43,10 @@ jobs:
                 name: Build and push
                 command: |
                   echo "$DOCKER_PASS" | docker login -u "$DOCKER_USERNAME" --password-stdin
-                  docker build -t "ethereumoptimism/reference-optimistic-geth:$CIRCLE_SHA1" -f Dockerfile .
-                  docker tag "ethereumoptimism/reference-optimistic-geth:$CIRCLE_SHA1" "ethereumoptimism/reference-optimistic-geth:$CIRCLE_BRANCH"
-                  docker push "ethereumoptimism/reference-optimistic-geth:$CIRCLE_SHA1"
-                  docker push "ethereumoptimism/reference-optimistic-geth:$CIRCLE_BRANCH"
+                  docker build -t "ethereumoptimism/op-geth:$CIRCLE_SHA1" -f Dockerfile .
+                  docker tag "ethereumoptimism/op-geth:$CIRCLE_SHA1" "ethereumoptimism/op-geth:$CIRCLE_BRANCH"
+                  docker push "ethereumoptimism/op-geth:$CIRCLE_SHA1"
+                  docker push "ethereumoptimism/op-geth:$CIRCLE_BRANCH"
       # Below step is required to prevent CircleCI from barfing on a
       # job with no steps
       - run: echo 0
