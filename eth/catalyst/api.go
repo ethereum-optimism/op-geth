@@ -445,6 +445,14 @@ func computePayloadId(headBlockHash common.Hash, params *beacon.PayloadAttribute
 	binary.Write(hasher, binary.BigEndian, params.Timestamp)
 	hasher.Write(params.Random[:])
 	hasher.Write(params.SuggestedFeeRecipient[:])
+	if params.NoTxPool || len(params.Transactions) > 0 { // extend if extra payload attributes are used
+		binary.Write(hasher, binary.BigEndian, params.NoTxPool)
+		binary.Write(hasher, binary.BigEndian, uint64(len(params.Transactions)))
+		for _, tx := range params.Transactions {
+			binary.Write(hasher, binary.BigEndian, uint64(len(tx)))
+			hasher.Write(tx)
+		}
+	}
 	var out beacon.PayloadID
 	copy(out[:], hasher.Sum(nil)[:8])
 	return out
