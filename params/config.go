@@ -726,6 +726,20 @@ func (c *ChainConfig) checkCompatible(newcfg *ChainConfig, head *big.Int) *Confi
 	return nil
 }
 
+func (c *ChainConfig) ElasticityMultiplier() uint64 {
+	if c.Optimism != nil {
+		return c.Optimism.EIP1559Elasticity
+	}
+	return ElasticityMultiplier
+}
+
+func (c *ChainConfig) BaseFeeChangeDenominator() uint64 {
+	if c.Optimism != nil {
+		return c.Optimism.EIP1559Denominator
+	}
+	return BaseFeeChangeDenominator
+}
+
 // isForkIncompatible returns true if a fork scheduled at s1 cannot be rescheduled to
 // block s2 because head is already past the fork.
 func isForkIncompatible(s1, s2, head *big.Int) bool {
