@@ -18,12 +18,14 @@
 package eth
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"math/big"
 	"runtime"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
@@ -72,6 +74,7 @@ type Ethereum struct {
 	ethDialCandidates  enode.Iterator
 	snapDialCandidates enode.Iterator
 	merger             *consensus.Merger
+	seqRPCService      *rpc.Client
 
 	// DB interfaces
 	chainDb ethdb.Database // Block chain database
@@ -228,6 +231,7 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 		EventMux:       eth.eventMux,
 		Checkpoint:     checkpoint,
 		RequiredBlocks: config.RequiredBlocks,
+		NoTxGossip:     config.RollupDisableTxPoolGossip,
 	}); err != nil {
 		return nil, err
 	}
@@ -256,6 +260,16 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 		return nil, err
 	}
 
+	if config.RollupSequencerHTTP != "" {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		client, err := rpc.DialContext(ctx, config.RollupSequencerHTTP)
+		cancel()
+		if err != nil {
+			return nil, err
+		}
+		eth.seqRPCService = client
+	}
+
 	// Start the RPC service
 	eth.netRPCService = ethapi.NewNetAPI(eth.p2pServer, config.NetworkId)
 
@@ -274,7 +288,7 @@ func makeExtraData(extra []byte) []byte {
 	if len(extra) == 0 {
 		// create default extradata
 		extra, _ = rlp.EncodeToBytes([]interface{}{
-			uint(params.VersionMajor<<16 | params.VersionMinor<<8 | params.VersionPatch),
+			uint(params.OPVersionMajor<<16 | params.OPVersionMinor<<8 | params.OPVersionPatch),
 			"geth",
 			runtime.Version(),
 			runtime.GOOS,
@@ -547,6 +561,9 @@ func (s *Ethereum) Stop() error {
 	s.miner.Close()
 	s.blockchain.Stop()
 	s.engine.Close()
+	if s.seqRPCService != nil {
+		s.seqRPCService.Close()
+	}
 
 	// Clean shutdown marker as the last thing before closing db
 	s.shutdownTracker.Stop()

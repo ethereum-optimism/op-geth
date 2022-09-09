@@ -1,0 +1,71 @@
+version: 2.1
+
+jobs:
+  build-geth:
+    docker:
+      - image: cimg/go:1.18
+    resource_class: medium
+    steps:
+      - checkout
+      - run:
+          command: go run build/ci.go install
+  unit-test:
+    resource_class: medium
+    docker:
+      - image: cimg/go:1.18
+    steps:
+      - checkout
+      - run:
+          command: go run build/ci.go test
+  lint-geth:
+    resource_class: medium
+    docker:
+      - image: cimg/go:1.18
+    steps:
+      - checkout
+      - run:
+          command: go run build/ci.go lint
+
+  push-geth:
+    docker:
+      - image: cimg/base:2022.04
+    steps:
+      - when:
+          condition:
+            or:
+              - equal: [ optimism, <<pipeline.git.branch>> ]
+              - equal: [ optimism-history, <<pipeline.git.branch>> ]
+          steps:
+            - checkout
+            - setup_remote_docker:
+                version: 20.10.12
+            - run:
+                name: Build and push
+                command: |
+                  echo "$DOCKER_PASS" | docker login -u "$DOCKER_USERNAME" --password-stdin
+                  docker build -t "ethereumoptimism/op-geth:$CIRCLE_SHA1" -f Dockerfile .
+                  docker tag "ethereumoptimism/op-geth:$CIRCLE_SHA1" "ethereumoptimism/op-geth:$CIRCLE_BRANCH"
+                  docker push "ethereumoptimism/op-geth:$CIRCLE_SHA1"
+                  docker push "ethereumoptimism/op-geth:$CIRCLE_BRANCH"
+
+                  if [ $CIRCLE_BRANCH = "optimism" ]
+                  then
+                    docker tag "ethereumoptimism/op-geth:$CIRCLE_SHA1" "ethereumoptimism/op-geth:latest"
+                    docker push "ethereumoptimism/op-geth:latest"
+                  pwd
+                  fi
+      # Below step is required to prevent CircleCI from barfing on a
+      # job with no steps
+      - run: echo 0
+
+workflows:
+  main:
+    jobs:
+      - build-geth:
+          name: Build geth
+      - unit-test:
+          name: Run unit tests for geth
+      - lint-geth:
+          name: Run linter over geth
+      - push-geth:
+          name: Push geth
