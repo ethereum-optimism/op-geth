@@ -136,6 +136,9 @@ func NewConsensusAPI(eth *eth.Ethereum) *ConsensusAPI {
 		invalidTipsets:    make(map[common.Hash]*types.Header),
 	}
 	eth.Downloader().SetBadBlockCallback(api.setInvalidAncestor)
+	if api.eth.BlockChain().Config().Optimism != nil { // don't start the api heartbeat, there is no transition
+		return api
+	}
 	go api.heartbeat()
 
 	return api
