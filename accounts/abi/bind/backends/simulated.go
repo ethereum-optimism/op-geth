@@ -74,39 +74,88 @@ type SimulatedBackend struct {
 	config *params.ChainConfig
 }
 
-// NewSimulatedBackendWithCacheConfig creates a new binding backend using a simulated
-// blockchain with the passed-in cache config. Useful if you need to export state
-// from the simulated backend.
-func NewSimulatedBackendWithCacheConfig(cacheConfig *core.CacheConfig, alloc core.GenesisAlloc, gasLimit uint64) *SimulatedBackend {
-	return newSimulatedBackend(rawdb.NewMemoryDatabase(), cacheConfig, alloc, gasLimit)
-}
-
 // NewSimulatedBackendWithDatabase creates a new binding backend based on the given database
 // and uses a simulated blockchain for testing purposes.
 // A simulated backend always uses chainID 1337.
 func NewSimulatedBackendWithDatabase(database ethdb.Database, alloc core.GenesisAlloc, gasLimit uint64) *SimulatedBackend {
-	return newSimulatedBackend(database, nil, alloc, gasLimit)
+	return NewSimulatedBackendWithOpts(WithDatabase(database), WithAlloc(alloc), WithGasLimit(gasLimit))
 }
 
 // NewSimulatedBackend creates a new binding backend using a simulated blockchain
 // for testing purposes.
 // A simulated backend always uses chainID 1337.
 func NewSimulatedBackend(alloc core.GenesisAlloc, gasLimit uint64) *SimulatedBackend {
-	return newSimulatedBackend(rawdb.NewMemoryDatabase(), nil, alloc, gasLimit)
+	return NewSimulatedBackendWithOpts(WithGasLimit(gasLimit), WithAlloc(alloc))
 }
 
-func newSimulatedBackend(database ethdb.Database, cacheConfig *core.CacheConfig, alloc core.GenesisAlloc, gasLimit uint64) *SimulatedBackend {
-	genesis := core.Genesis{Config: params.AllEthashProtocolChanges, GasLimit: gasLimit, Alloc: alloc}
-	genesis.MustCommit(database)
-	blockchain, _ := core.NewBlockChain(database, cacheConfig, &genesis, nil, ethash.NewFaker(), vm.Config{}, nil, nil)
+type simulatedBackendConfig struct {
+	genesis     core.Genesis
+	cacheConfig *core.CacheConfig
+	database    ethdb.Database
+	vmConfig    vm.Config
+}
 
-	backend := &SimulatedBackend{
-		database:   database,
-		blockchain: blockchain,
-		config:     genesis.Config,
+type SimulatedBackendOpt func(s *simulatedBackendConfig)
+
+func WithDatabase(database ethdb.Database) SimulatedBackendOpt {
+	return func(s *simulatedBackendConfig) {
+		s.database = database
+	}
+}
+
+func WithGasLimit(gasLimit uint64) SimulatedBackendOpt {
+	return func(s *simulatedBackendConfig) {
+		s.genesis.GasLimit = gasLimit
+	}
+}
+
+func WithAlloc(alloc core.GenesisAlloc) SimulatedBackendOpt {
+	return func(s *simulatedBackendConfig) {
+		s.genesis.Alloc = alloc
+	}
+}
+
+func WithCacheConfig(cacheConfig *core.CacheConfig) SimulatedBackendOpt {
+	return func(s *simulatedBackendConfig) {
+		s.cacheConfig = cacheConfig
+	}
+}
+
+func WithGenesis(genesis core.Genesis) SimulatedBackendOpt {
+	return func(s *simulatedBackendConfig) {
+		s.genesis = genesis
+	}
+}
+
+func WithVMConfig(vmConfig vm.Config) SimulatedBackendOpt {
+	return func(s *simulatedBackendConfig) {
+		s.vmConfig = vmConfig
+	}
+}
+
+// NewSimulatedBackendWithOpts creates a new binding backend based on the given database
+// and uses a simulated blockchain for testing purposes. It exposes additional configuration
+// options that are useful to
+func NewSimulatedBackendWithOpts(opts ...SimulatedBackendOpt) *SimulatedBackend {
+	config := &simulatedBackendConfig{
+		genesis:  core.Genesis{Config: params.AllEthashProtocolChanges, GasLimit: 100000000, Alloc: make(core.GenesisAlloc)},
+		database: rawdb.NewMemoryDatabase(),
 	}
 
-	filterBackend := &filterBackend{database, blockchain, backend}
+	for _, opt := range opts {
+		opt(config)
+	}
+
+	config.genesis.MustCommit(config.database)
+	blockchain, _ := core.NewBlockChain(config.database, config.cacheConfig, &config.genesis, nil, ethash.NewFaker(), config.vmConfig, nil, nil)
+
+	backend := &SimulatedBackend{
+		database:   config.database,
+		blockchain: blockchain,
+		config:     config.genesis.Config,
+	}
+
+	filterBackend := &filterBackend{config.database, blockchain, backend}
 	backend.filterSystem = filters.NewFilterSystem(filterBackend, filters.Config{})
 	backend.events = filters.NewEventSystem(backend.filterSystem, false)
 
