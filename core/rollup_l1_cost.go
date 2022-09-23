@@ -20,7 +20,6 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/params"
 )
@@ -47,7 +46,7 @@ func NewL1CostFunc(config *params.ChainConfig, statedb vm.StateDB) vm.L1CostFunc
 	var l1BaseFee, overhead, scalar, decimals, divisor *big.Int
 	return func(blockNum uint64, msg vm.RollupMessage) *big.Int {
 		rollupDataGas := msg.RollupDataGas() // Only fake txs for RPC view-calls are 0.
-		if config.Optimism == nil || msg.Nonce() == types.DepositsNonce || rollupDataGas == 0 {
+		if config.Optimism == nil || msg.IsDepositTx() || rollupDataGas == 0 {
 			return nil
 		}
 		if blockNum != cacheBlockNum {

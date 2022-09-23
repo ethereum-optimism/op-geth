@@ -21,10 +21,11 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/holiman/uint256"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/holiman/uint256"
 )
 
 // emptyCodeHash is used by create to ensure deployment is disallowed to already
@@ -34,6 +35,7 @@ var emptyCodeHash = crypto.Keccak256Hash(nil)
 type RollupMessage interface {
 	Nonce() uint64
 	RollupDataGas() uint64
+	IsDepositTx() bool
 }
 
 type (
