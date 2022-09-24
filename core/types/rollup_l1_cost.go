@@ -25,8 +25,8 @@ import (
 )
 
 type RollupMessage interface {
-	Nonce() uint64
 	RollupDataGas() uint64
+	IsDepositTx() bool
 }
 
 // L1CostFunc is used in the state transition to determine the cost of a rollup message.
@@ -55,7 +55,7 @@ func NewL1CostFunc(config *params.ChainConfig, statedb vm.StateDB) L1CostFunc {
 	var l1BaseFee, overhead, scalar, decimals, divisor *big.Int
 	return func(blockNum uint64, msg RollupMessage) *big.Int {
 		rollupDataGas := msg.RollupDataGas() // Only fake txs for RPC view-calls are 0.
-		if config.Optimism == nil || msg.Nonce() == DepositsNonce || rollupDataGas == 0 {
+		if config.Optimism == nil || msg.IsDepositTx() || rollupDataGas == 0 {
 			return nil
 		}
 		if blockNum != cacheBlockNum {

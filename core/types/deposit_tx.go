@@ -64,10 +64,6 @@ func (tx *DepositTx) copy() TxData {
 	return cpy
 }
 
-// DepositsNonce identifies a deposit, since go-ethereum abstracts all transaction types to a core.Message.
-// Deposits do not set a nonce, deposits are included by the system and cannot be repeated or included elsewhere.
-const DepositsNonce uint64 = 0xffff_ffff_ffff_fffd
-
 // accessors for innerTx.
 func (tx *DepositTx) txType() byte           { return DepositTxType }
 func (tx *DepositTx) chainID() *big.Int      { return common.Big0 }
@@ -78,7 +74,7 @@ func (tx *DepositTx) gasFeeCap() *big.Int    { return new(big.Int) }
 func (tx *DepositTx) gasTipCap() *big.Int    { return new(big.Int) }
 func (tx *DepositTx) gasPrice() *big.Int     { return new(big.Int) }
 func (tx *DepositTx) value() *big.Int        { return tx.Value }
-func (tx *DepositTx) nonce() uint64          { return DepositsNonce }
+func (tx *DepositTx) nonce() uint64          { return 0 }
 func (tx *DepositTx) to() *common.Address    { return tx.To }
 func (tx *DepositTx) isSystemTx() bool       { return tx.IsSystemTransaction }
 
