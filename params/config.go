@@ -411,10 +411,11 @@ func (c *CliqueConfig) String() string {
 
 // OptimismConfig is the optimism config.
 type OptimismConfig struct {
-	BaseFeeRecipient   common.Address `json:"baseFeeRecipient"`
-	L1FeeRecipient     common.Address `json:"l1FeeRecipient"`
-	EIP1559Elasticity  uint64         `json:"eip1559Elasticity"`
-	EIP1559Denominator uint64         `json:"eip1559Denominator"`
+	BaseFeeRecipient          common.Address `json:"baseFeeRecipient"`
+	L1FeeRecipient            common.Address `json:"l1FeeRecipient"`
+	EIP1559Elasticity         uint64         `json:"eip1559Elasticity"`
+	EIP1559Denominator        uint64         `json:"eip1559Denominator"`
+	HistoricalTransitionBlock uint64         `json:"historicalTransitionBlock"`
 }
 
 // String implements the stringer interface, returning the optimism fee config details.
