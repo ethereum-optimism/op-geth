@@ -32,6 +32,7 @@ import (
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/eth/tracers"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
@@ -787,7 +788,10 @@ func (w *worker) makeEnv(parent *types.Block, header *types.Header, coinbase com
 	// the miner to speed block sealing up a bit.
 	state, err := w.chain.StateAt(parent.Root())
 	if err != nil && w.chainConfig.Optimism != nil { // Allow the miner to reorg its own chain arbitrarily deep
-		state, err = w.eth.StateAtBlock(parent, ^uint64(0), nil, false, false)
+		var release tracers.StateReleaseFunc
+		state, release, err = w.eth.StateAtBlock(parent, ^uint64(0), nil, false, false)
+		state = state.Copy()
+		release()
 	}
 	if err != nil {
 		return nil, err

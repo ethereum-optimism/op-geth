@@ -75,7 +75,9 @@ type Ethereum struct {
 	ethDialCandidates  enode.Iterator
 	snapDialCandidates enode.Iterator
 	merger             *consensus.Merger
-	seqRPCService      *rpc.Client
+
+	seqRPCService        *rpc.Client
+	historicalRPCService *rpc.Client
 
 	// DB interfaces
 	chainDb ethdb.Database // Block chain database
@@ -269,6 +271,16 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 			return nil, err
 		}
 		eth.seqRPCService = client
+	}
+
+	if config.RollupHistoricalRPC != "" {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		client, err := rpc.DialContext(ctx, config.RollupHistoricalRPC)
+		cancel()
+		if err != nil {
+			return nil, err
+		}
+		eth.historicalRPCService = client
 	}
 
 	// Start the RPC service
@@ -564,6 +576,9 @@ func (s *Ethereum) Stop() error {
 	s.engine.Close()
 	if s.seqRPCService != nil {
 		s.seqRPCService.Close()
+	}
+	if s.historicalRPCService != nil {
+		s.historicalRPCService.Close()
 	}
 
 	// Clean shutdown marker as the last thing before closing db

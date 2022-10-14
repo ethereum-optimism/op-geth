@@ -151,6 +151,7 @@ var (
 		utils.MinerNotifyFullFlag,
 		utils.IgnoreLegacyReceiptsFlag,
 		utils.RollupSequencerHTTPFlag,
+		utils.RollupHistoricalRPCFlag,
 		utils.RollupDisableTxPoolGossipFlag,
 		configFileFlag,
 	}, utils.NetworkFlags, utils.DatabasePathFlags)
