@@ -216,6 +216,7 @@ type Config struct {
 	OverrideTerminalTotalDifficultyPassed *bool `toml:",omitempty"`
 
 	RollupSequencerHTTP string
+	RollupHistoricalRPC string
 
 	RollupDisableTxPoolGossip bool
 }
