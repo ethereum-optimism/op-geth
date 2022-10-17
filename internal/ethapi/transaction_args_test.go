@@ -339,4 +339,6 @@ func (b *backendMock) SubscribeRemovedLogsEvent(ch chan<- core.RemovedLogsEvent)
 	return nil
 }
 
-func (b *backendMock) Engine() consensus.Engine { return nil }
+func (b *backendMock) Engine() consensus.Engine         { return nil }
+func (b *backendMock) SequencerRPCService() *rpc.Client { return nil }
+func (b *backendMock) Genesis() *types.Block            { return nil }
