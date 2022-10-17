@@ -260,9 +260,9 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 		return nil, err
 	}
 
-	if config.RollupSequencerHTTP != "" {
+	if config.RollupSequencerRPC != "" {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		client, err := rpc.DialContext(ctx, config.RollupSequencerHTTP)
+		client, err := rpc.DialContext(ctx, config.RollupSequencerRPC)
 		cancel()
 		if err != nil {
 			return nil, err

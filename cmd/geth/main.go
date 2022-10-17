@@ -154,7 +154,7 @@ var (
 		utils.GpoIgnoreGasPriceFlag,
 		utils.MinerNotifyFullFlag,
 		utils.IgnoreLegacyReceiptsFlag,
-		utils.RollupSequencerHTTPFlag,
+		utils.RollupSequencerRPCFlag,
 		utils.RollupDisableTxPoolGossipFlag,
 		configFileFlag,
 	}, utils.NetworkFlags, utils.DatabasePathFlags)

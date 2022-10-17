@@ -215,7 +215,7 @@ type Config struct {
 	// OverrideTerminalTotalDifficultyPassed (TODO: remove after the fork)
 	OverrideTerminalTotalDifficultyPassed *bool `toml:",omitempty"`
 
-	RollupSequencerHTTP string
+	RollupSequencerRPC string
 
 	RollupDisableTxPoolGossip bool
 }
