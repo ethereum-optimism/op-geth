@@ -329,3 +329,11 @@ func (b *LesApiBackend) StateAtBlock(ctx context.Context, block *types.Block, re
 func (b *LesApiBackend) StateAtTransaction(ctx context.Context, block *types.Block, txIndex int, reexec uint64) (core.Message, vm.BlockContext, *state.StateDB, error) {
 	return b.eth.stateAtTransaction(ctx, block, txIndex, reexec)
 }
+
+func (b *LesApiBackend) SequencerRPCService() *rpc.Client {
+	return b.eth.seqRPCService
+}
+
+func (b *LesApiBackend) Genesis() *types.Block {
+	return b.eth.blockchain.Genesis()
+}
