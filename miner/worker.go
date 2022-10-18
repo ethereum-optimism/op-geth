@@ -31,6 +31,7 @@ import (
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
@@ -98,6 +99,8 @@ type environment struct {
 	txs      []*types.Transaction
 	receipts []*types.Receipt
 	uncles   map[common.Hash]*types.Header
+
+	blockContext vm.BlockContext // shared block context to match `StateProcessor.Process`
 }
 
 // copy creates a deep copy of environment.
@@ -784,6 +787,11 @@ func (w *worker) makeEnv(parent *types.Block, header *types.Header, coinbase com
 	}
 	// Keep track of transactions which return errors so they can be removed
 	env.tcount = 0
+
+	blockContext := core.NewEVMBlockContext(header, w.chain, &coinbase)
+	blockContext.L1CostFunc = core.NewL1CostFunc(w.chainConfig, state)
+	env.blockContext = blockContext
+
 	return env, nil
 }
 
@@ -828,7 +836,7 @@ func (w *worker) updateSnapshot(env *environment) {
 func (w *worker) commitTransaction(env *environment, tx *types.Transaction) ([]*types.Log, error) {
 	snap := env.state.Snapshot()
 
-	receipt, err := core.ApplyTransaction(w.chainConfig, w.chain, &env.coinbase, env.gasPool, env.state, env.header, tx, &env.header.GasUsed, *w.chain.GetVMConfig())
+	receipt, err := core.ApplyTransactionWithContext(w.chainConfig, env.blockContext, w.chain, &env.coinbase, env.gasPool, env.state, env.header, tx, &env.header.GasUsed, *w.chain.GetVMConfig())
 	if err != nil {
 		env.state.RevertToSnapshot(snap)
 		return nil, err

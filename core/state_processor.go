@@ -138,6 +138,22 @@ func applyTransaction(msg types.Message, config *params.ChainConfig, author *com
 	return receipt, err
 }
 
+// ApplyTransactionWithContext attempts to apply a transaction to the given state database
+// and uses the input parameters for its environment. It returns the receipt
+// for the transaction, gas used and an error if the transaction failed,
+// indicating the block was invalid.
+// This is different than ApplyTransaction in that is uses the supplied block context. This
+// enables users of ApplyTransaction to emulate `Process` (which reuses the evm across all
+// transactions).
+func ApplyTransactionWithContext(config *params.ChainConfig, blockContext vm.BlockContext, bc ChainContext, author *common.Address, gp *GasPool, statedb *state.StateDB, header *types.Header, tx *types.Transaction, usedGas *uint64, cfg vm.Config) (*types.Receipt, error) {
+	msg, err := tx.AsMessage(types.MakeSigner(config, header.Number), header.BaseFee)
+	if err != nil {
+		return nil, err
+	}
+	vmenv := vm.NewEVM(blockContext, vm.TxContext{}, statedb, config, cfg)
+	return applyTransaction(msg, config, author, gp, statedb, header.Number, header.Hash(), tx, usedGas, vmenv)
+}
+
 // ApplyTransaction attempts to apply a transaction to the given state database
 // and uses the input parameters for its environment. It returns the receipt
 // for the transaction, gas used and an error if the transaction failed,
