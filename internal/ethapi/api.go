@@ -48,6 +48,8 @@ import (
 	"github.com/tyler-smith/go-bip39"
 )
 
+var ErrHeaderNotFound = errors.New("header not found")
+
 // EthereumAPI provides an API to access Ethereum related information.
 type EthereumAPI struct {
 	b Backend
@@ -1013,15 +1015,12 @@ func (e *revertError) ErrorData() interface{} {
 // Note, this function doesn't make and changes in the state/blockchain and is
 // useful to execute and retrieve values.
 func (s *BlockChainAPI) Call(ctx context.Context, args TransactionArgs, blockNrOrHash rpc.BlockNumberOrHash, overrides *StateOverride) (hexutil.Bytes, error) {
-	// first look for the header locally
-	_, err := s.b.HeaderByNumberOrHash(ctx, blockNrOrHash)
-	if err.Error() == "header for hash not found" {
-		var result hexutil.Bytes
-		err := s.b.HistoricalRPCService().CallContext(ctx, &result, "eth_call", args, blockNrOrHash, overrides)
-		return result, err
-	}
 	result, err := DoCall(ctx, s.b, args, blockNrOrHash, overrides, s.b.RPCEVMTimeout(), s.b.RPCGasCap())
-	if err != nil {
+	if errors.Is(err, ErrHeaderNotFound) && s.b.HistoricalRPCService() != nil {
+		var histResult hexutil.Bytes
+		err = s.b.HistoricalRPCService().CallContext(ctx, &histResult, "eth_call", args, blockNrOrHash, overrides)
+		return histResult, err
+	} else if err != nil {
 		return nil, err
 	}
 	// If the result contains a revert reason, try to unpack and return it.
@@ -1154,18 +1153,21 @@ func DoEstimateGas(ctx context.Context, b Backend, args TransactionArgs, blockNr
 // EstimateGas returns an estimate of the amount of gas needed to execute the
 // given transaction against the current pending block.
 func (s *BlockChainAPI) EstimateGas(ctx context.Context, args TransactionArgs, blockNrOrHash *rpc.BlockNumberOrHash) (hexutil.Uint64, error) {
-	// first look for the header locally
-	_, err := s.b.HeaderByNumberOrHash(ctx, *blockNrOrHash)
-	if err.Error() == "header for hash not found" {
-		var result hexutil.Uint64
-		err := s.b.HistoricalRPCService().CallContext(ctx, &result, "eth_estimateGas", args, blockNrOrHash)
-		return result, err
-	}
 	bNrOrHash := rpc.BlockNumberOrHashWithNumber(rpc.PendingBlockNumber)
 	if blockNrOrHash != nil {
 		bNrOrHash = *blockNrOrHash
 	}
-	return DoEstimateGas(ctx, s.b, args, bNrOrHash, s.b.RPCGasCap())
+
+	res, err := DoEstimateGas(ctx, s.b, args, bNrOrHash, s.b.RPCGasCap())
+	if errors.Is(err, ErrHeaderNotFound) && s.b.HistoricalRPCService() != nil {
+		var result hexutil.Uint64
+		err := s.b.HistoricalRPCService().CallContext(ctx, &result, "eth_estimateGas", args, blockNrOrHash)
+		return result, err
+	} else if err != nil {
+		return 0, err
+	}
+
+	return res, err
 }
 
 // RPCMarshalHeader converts the given header to the RPC output .
