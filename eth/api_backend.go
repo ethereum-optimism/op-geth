@@ -38,6 +38,7 @@ import (
 	"github.com/ethereum/go-ethereum/eth/tracers"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
+	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/miner"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
@@ -173,7 +174,7 @@ func (b *EthAPIBackend) StateAndHeaderByNumber(ctx context.Context, number rpc.B
 		return nil, nil, err
 	}
 	if header == nil {
-		return nil, nil, errors.New("header not found")
+		return nil, nil, ethapi.ErrHeaderNotFound
 	}
 	stateDb, err := b.eth.BlockChain().StateAt(header.Root)
 	return stateDb, header, err
@@ -383,8 +384,8 @@ func (b *EthAPIBackend) StateAtTransaction(ctx context.Context, block *types.Blo
 	return b.eth.stateAtTransaction(block, txIndex, reexec)
 }
 
-func (b *EthAPIBackend) SequencerRPCService() *rpc.Client {
-	return b.eth.seqRPCService
+func (b *EthAPIBackend) HistoricalRPCService() *rpc.Client {
+	return b.eth.historicalRPCService
 }
 
 func (b *EthAPIBackend) Genesis() *types.Block {

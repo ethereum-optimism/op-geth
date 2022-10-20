@@ -331,8 +331,8 @@ func (b *LesApiBackend) StateAtTransaction(ctx context.Context, block *types.Blo
 	return b.eth.stateAtTransaction(ctx, block, txIndex, reexec)
 }
 
-func (b *LesApiBackend) SequencerRPCService() *rpc.Client {
-	return b.eth.seqRPCService
+func (b *LesApiBackend) HistoricalRPCService() *rpc.Client {
+	return b.eth.historicalRPCService
 }
 
 func (b *LesApiBackend) Genesis() *types.Block {
