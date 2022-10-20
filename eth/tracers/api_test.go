@@ -23,7 +23,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/node"
 	"math/big"
+	"net"
+	"net/http"
 	"reflect"
 	"sort"
 	"testing"
@@ -52,18 +55,68 @@ var (
 	errTransactionNotFound = errors.New("transaction not found")
 )
 
+type mockHistoricalBackend struct{}
+
+func (m *mockHistoricalBackend) Dummy() {
+
+}
+
+func newMockHistoricalBackend(t *testing.T) string {
+	s := rpc.NewServer()
+	err := node.RegisterApis([]rpc.API{
+		{
+			Namespace:     "eth",
+			Service:       new(mockHistoricalBackend),
+			Public:        true,
+			Authenticated: false,
+		},
+	}, nil, s)
+	if err != nil {
+		t.Fatalf("error creating mock historical backend: %v", err)
+	}
+
+	hdlr := node.NewHTTPHandlerStack(s, []string{"*"}, []string{"*"}, nil)
+	mux := http.NewServeMux()
+	mux.Handle("/", hdlr)
+
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("error creating mock historical backend listener: %v", err)
+	}
+
+	go func() {
+		httpS := &http.Server{Handler: mux}
+		httpS.Serve(listener)
+
+		t.Cleanup(func() {
+			httpS.Shutdown(context.Background())
+		})
+	}()
+
+	return fmt.Sprintf("http://%s", listener.Addr().String())
+}
+
 type testBackend struct {
 	chainConfig *params.ChainConfig
 	engine      consensus.Engine
 	chaindb     ethdb.Database
 	chain       *core.BlockChain
+	historical  *rpc.Client
 }
 
 func newTestBackend(t *testing.T, n int, gspec *core.Genesis, generator func(i int, b *core.BlockGen)) *testBackend {
+	historicalAddr := newMockHistoricalBackend(t)
+
+	historicalClient, err := rpc.Dial(historicalAddr)
+	if err != nil {
+		t.Fatalf("error making historical client: %v", err)
+	}
+
 	backend := &testBackend{
 		chainConfig: params.TestChainConfig,
 		engine:      ethash.NewFaker(),
 		chaindb:     rawdb.NewMemoryDatabase(),
+		historical:  historicalClient,
 	}
 	// Generate blocks for testing
 	gspec.Config = backend.chainConfig
@@ -176,6 +229,10 @@ func (b *testBackend) StateAtTransaction(ctx context.Context, block *types.Block
 		statedb.Finalise(vmenv.ChainConfig().IsEIP158(block.Number()))
 	}
 	return nil, vm.BlockContext{}, nil, fmt.Errorf("transaction index %d out of range for block %#x", txIndex, block.Hash())
+}
+
+func (b *testBackend) HistoricalRPCService() *rpc.Client {
+	return b.historical
 }
 
 func TestTraceCall(t *testing.T) {
