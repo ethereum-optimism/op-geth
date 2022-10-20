@@ -86,7 +86,7 @@ type Backend interface {
 
 	ChainConfig() *params.ChainConfig
 	Engine() consensus.Engine
-	SequencerRPCService() *rpc.Client
+	HistoricalRPCService() *rpc.Client
 	Genesis() *types.Block
 
 	// eth/filters needs to be initialized from this backend type, so methods needed by
