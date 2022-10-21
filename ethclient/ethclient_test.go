@@ -221,7 +221,11 @@ type mockHistoricalBackend struct{}
 func (m *mockHistoricalBackend) Call(ctx context.Context, args ethapi.TransactionArgs, blockNrOrHash rpc.BlockNumberOrHash, overrides *ethapi.StateOverride) (hexutil.Bytes, error) {
 	num, ok := blockNrOrHash.Number()
 	if ok && num == 100 {
-		return hexutil.Bytes("test"), nil
+		return hexutil.Bytes("testNum"), nil
+	}
+	hash, ok := blockNrOrHash.Hash()
+	if ok && hash == common.HexToHash("0x1234") {
+		return hexutil.Bytes("testHash"), nil
 	}
 	return nil, ethapi.ErrHeaderNotFound
 }
@@ -649,12 +653,21 @@ func testCallContract(t *testing.T, client *rpc.Client) {
 	if _, err := ec.PendingCallContract(context.Background(), msg); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	// Historical
+	// Historical by Number
 	histVal, err := ec.CallContract(context.Background(), msg, big.NewInt(100))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if string(histVal) != "test" {
+	if string(histVal) != "testNum" {
+		t.Fatalf("expected %s to equal test", string(histVal))
+	}
+
+	// Historical by Hash
+	histVal2, err := ec.CallContractAtHash(context.Background(), msg, common.HexToHash("0x1234"))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if string(histVal2) != "testNum" {
 		t.Fatalf("expected %s to equal test", string(histVal))
 	}
 }
