@@ -631,6 +631,11 @@ func (s *BlockChainAPI) BlockNumber() hexutil.Uint64 {
 // block numbers are also allowed.
 func (s *BlockChainAPI) GetBalance(ctx context.Context, address common.Address, blockNrOrHash rpc.BlockNumberOrHash) (*hexutil.Big, error) {
 	state, _, err := s.b.StateAndHeaderByNumberOrHash(ctx, blockNrOrHash)
+	if errors.Is(err, ethereum.NotFound) && s.b.HistoricalRPCService() != nil {
+		var histResult *hexutil.Big
+		err = s.b.HistoricalRPCService().CallContext(ctx, &histResult, "eth_getBalance", address, blockNrOrHash)
+		return histResult, err
+	}
 	if state == nil || err != nil {
 		return nil, err
 	}
@@ -657,6 +662,11 @@ type StorageResult struct {
 // GetProof returns the Merkle-proof for a given account and optionally some storage keys.
 func (s *BlockChainAPI) GetProof(ctx context.Context, address common.Address, storageKeys []string, blockNrOrHash rpc.BlockNumberOrHash) (*AccountResult, error) {
 	state, _, err := s.b.StateAndHeaderByNumberOrHash(ctx, blockNrOrHash)
+	if errors.Is(err, ethereum.NotFound) && s.b.HistoricalRPCService() != nil {
+		var histResult *AccountResult
+		err = s.b.HistoricalRPCService().CallContext(ctx, &histResult, "eth_getProof", address, blockNrOrHash)
+		return histResult, err
+	}
 	if state == nil || err != nil {
 		return nil, err
 	}
@@ -812,6 +822,11 @@ func (s *BlockChainAPI) GetUncleCountByBlockHash(ctx context.Context, blockHash 
 // GetCode returns the code stored at the given address in the state for the given block number.
 func (s *BlockChainAPI) GetCode(ctx context.Context, address common.Address, blockNrOrHash rpc.BlockNumberOrHash) (hexutil.Bytes, error) {
 	state, _, err := s.b.StateAndHeaderByNumberOrHash(ctx, blockNrOrHash)
+	if errors.Is(err, ethereum.NotFound) && s.b.HistoricalRPCService() != nil {
+		var histResult hexutil.Bytes
+		err = s.b.HistoricalRPCService().CallContext(ctx, &histResult, "eth_getCode", address, blockNrOrHash)
+		return histResult, err
+	}
 	if state == nil || err != nil {
 		return nil, err
 	}
@@ -824,6 +839,11 @@ func (s *BlockChainAPI) GetCode(ctx context.Context, address common.Address, blo
 // numbers are also allowed.
 func (s *BlockChainAPI) GetStorageAt(ctx context.Context, address common.Address, key string, blockNrOrHash rpc.BlockNumberOrHash) (hexutil.Bytes, error) {
 	state, _, err := s.b.StateAndHeaderByNumberOrHash(ctx, blockNrOrHash)
+	if errors.Is(err, ethereum.NotFound) && s.b.HistoricalRPCService() != nil {
+		var histResult hexutil.Bytes
+		err = s.b.HistoricalRPCService().CallContext(ctx, &histResult, "eth_getStorageAt", address, blockNrOrHash)
+		return histResult, err
+	}
 	if state == nil || err != nil {
 		return nil, err
 	}
@@ -1415,6 +1435,11 @@ func (s *BlockChainAPI) CreateAccessList(ctx context.Context, args TransactionAr
 		bNrOrHash = *blockNrOrHash
 	}
 	acl, gasUsed, vmerr, err := AccessList(ctx, s.b, bNrOrHash, args)
+	if errors.Is(err, ethereum.NotFound) && s.b.HistoricalRPCService() != nil {
+		var histResult *accessListResult
+		err = s.b.HistoricalRPCService().CallContext(ctx, &histResult, "eth_createAccessList", args, blockNrOrHash)
+		return histResult, err
+	}
 	if err != nil {
 		return nil, err
 	}
