@@ -223,7 +223,7 @@ func (m *mockHistoricalBackend) Call(ctx context.Context, args ethapi.Transactio
 	if ok && num == 100 {
 		return hexutil.Bytes("test"), nil
 	}
-	return nil, ethapi.ErrHeaderNotFound
+	return nil, ethereum.NotFound
 }
 
 func (m *mockHistoricalBackend) EstimateGas(ctx context.Context, args ethapi.TransactionArgs, blockNrOrHash *rpc.BlockNumberOrHash) (hexutil.Uint64, error) {
@@ -231,7 +231,7 @@ func (m *mockHistoricalBackend) EstimateGas(ctx context.Context, args ethapi.Tra
 	if ok && num == 100 {
 		return hexutil.Uint64(12345), nil
 	}
-	return 0, ethapi.ErrHeaderNotFound
+	return 0, ethereum.NotFound
 }
 
 func newMockHistoricalBackend(t *testing.T) string {
