@@ -234,6 +234,14 @@ func (m *mockHistoricalBackend) EstimateGas(ctx context.Context, args ethapi.Tra
 	return 0, ethereum.NotFound
 }
 
+func (m *mockHistoricalBackend) GetBalance(ctx context.Context, address common.Address, blockNrOrHash rpc.BlockNumberOrHash) (hexutil.Big, error) {
+	num, ok := blockNrOrHash.Number()
+	if ok && num == 100 {
+		return hexutil.Big(*big.NewInt(54321)), nil
+	}
+	return hexutil.Big{}, fmt.Errorf("header %w", ethereum.NotFound)
+}
+
 func newMockHistoricalBackend(t *testing.T) string {
 	s := rpc.NewServer()
 	err := node.RegisterApis([]rpc.API{
