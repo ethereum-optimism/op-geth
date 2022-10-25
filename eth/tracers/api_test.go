@@ -23,7 +23,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/node"
 	"math/big"
 	"net"
 	"net/http"
@@ -52,8 +51,9 @@ import (
 )
 
 var (
-	errStateNotFound = errors.New("state not found")
-	errBlockNotFound = errors.New("block not found")
+	errStateNotFound   = errors.New("state not found")
+	errBlockNotFound   = errors.New("block not found")
+	errFailingUpstream = errors.New("historical query failed")
 )
 
 type mockHistoricalBackend struct{}
@@ -81,6 +81,17 @@ func (m *mockHistoricalBackend) TraceTransaction(ctx context.Context, hash commo
 		result := make([]*txTraceResult, 1)
 		result[0] = &txTraceResult{Result: "0x8888"}
 		return result, nil
+	}
+	return nil, ethereum.NotFound
+}
+
+func (m *mockHistoricalBackend) TraceCall(ctx context.Context, args ethapi.TransactionArgs, blockNrOrHash rpc.BlockNumberOrHash, config *TraceCallConfig) (interface{}, error) {
+	num, ok := blockNrOrHash.Number()
+	if ok && num == 777 {
+		return json.RawMessage(`{"gas":21000,"failed":false,"returnValue":"777","structLogs":[]}`), nil
+	}
+	if ok && num == 12345 {
+		return nil, errFailingUpstream
 	}
 	return nil, ethereum.NotFound
 }
@@ -324,6 +335,40 @@ func TestTraceCall(t *testing.T) {
 			expectErr: fmt.Errorf("block #%d %w", genBlocks+1, ethereum.NotFound),
 			//expect:    nil,
 		},
+		// Optimism: Trace block on the historical chain
+		{
+			blockNumber: rpc.BlockNumber(777),
+			call: ethapi.TransactionArgs{
+				From:  &accounts[0].addr,
+				To:    &accounts[1].addr,
+				Value: (*hexutil.Big)(big.NewInt(1000)),
+			},
+			config:    nil,
+			expectErr: nil,
+			expect:    `{"gas":21000,"failed":false,"returnValue":"777","structLogs":[]}`,
+		},
+		// Optimism: Trace block that doesn't exist anywhere
+		{
+			blockNumber: rpc.BlockNumber(39347856),
+			call: ethapi.TransactionArgs{
+				From:  &accounts[0].addr,
+				To:    &accounts[1].addr,
+				Value: (*hexutil.Big)(big.NewInt(1000)),
+			},
+			config:    nil,
+			expectErr: fmt.Errorf("block #39347856 %w", ethereum.NotFound),
+		},
+		// Optimism: Trace block with failing historical upstream
+		{
+			blockNumber: rpc.BlockNumber(12345),
+			call: ethapi.TransactionArgs{
+				From:  &accounts[0].addr,
+				To:    &accounts[1].addr,
+				Value: (*hexutil.Big)(big.NewInt(1000)),
+			},
+			config:    nil,
+			expectErr: fmt.Errorf("error querying historical RPC: %w", errFailingUpstream),
+		},
 		// Standard JSON trace upon the latest block
 		{
 			blockNumber: rpc.LatestBlockNumber,
@@ -369,8 +414,10 @@ func TestTraceCall(t *testing.T) {
 				t.Errorf("test %d: expect error %v, got nothing", i, testspec.expectErr)
 				continue
 			}
+			// Have to introduce this diff to reflect the fact that errors
+			// from the upstream will not preserve pointer equality.
 			if err.Error() != testspec.expectErr.Error() {
-				t.Errorf("test %d: error mismatch, want %v, git %v", i, testspec.expectErr, err)
+				t.Errorf("test %d: error mismatch, want %v, got %v", i, testspec.expectErr, err)
 			}
 		} else {
 			if err != nil {
