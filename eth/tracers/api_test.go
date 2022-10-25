@@ -32,6 +32,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/consensus"
@@ -297,7 +298,7 @@ func TestTraceCall(t *testing.T) {
 				Value: (*hexutil.Big)(big.NewInt(1000)),
 			},
 			config:    nil,
-			expectErr: fmt.Errorf("block #%d not found", genBlocks+1),
+			expectErr: fmt.Errorf("block #%d %w", genBlocks+1, ethereum.NotFound),
 			//expect:    nil,
 		},
 		// Standard JSON trace upon the latest block
@@ -450,7 +451,7 @@ func TestTraceBlock(t *testing.T) {
 		// Trace non-existent block
 		{
 			blockNumber: rpc.BlockNumber(genBlocks + 1),
-			expectErr:   fmt.Errorf("block #%d not found", genBlocks+1),
+			expectErr:   fmt.Errorf("block #%d %w", genBlocks+1, ethereum.NotFound),
 		},
 		// Trace latest block
 		{
