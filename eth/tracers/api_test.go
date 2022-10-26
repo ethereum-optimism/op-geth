@@ -58,15 +58,29 @@ var (
 
 type mockHistoricalBackend struct{}
 
-func (m *mockHistoricalBackend) Dummy() {
+func (m *mockHistoricalBackend) TraceBlockByHash(ctx context.Context, hash common.Hash, config *TraceConfig) ([]*txTraceResult, error) {
+	if hash == common.HexToHash("0xabba") {
+		result := make([]*txTraceResult, 1)
+		result[0] = &txTraceResult{Result: "0xabba"}
+		return result, nil
+	}
+	return nil, ethereum.NotFound
+}
 
+func (m *mockHistoricalBackend) TraceBlockByNumber(ctx context.Context, number rpc.BlockNumber, config *TraceConfig) ([]*txTraceResult, error) {
+	if number == 999 {
+		result := make([]*txTraceResult, 1)
+		result[0] = &txTraceResult{Result: "0xabba"}
+		return result, nil
+	}
+	return nil, ethereum.NotFound
 }
 
 func newMockHistoricalBackend(t *testing.T) string {
 	s := rpc.NewServer()
 	err := node.RegisterApis([]rpc.API{
 		{
-			Namespace:     "eth",
+			Namespace:     "debug",
 			Service:       new(mockHistoricalBackend),
 			Public:        true,
 			Authenticated: false,
@@ -452,6 +466,11 @@ func TestTraceBlock(t *testing.T) {
 		{
 			blockNumber: rpc.BlockNumber(genBlocks + 1),
 			expectErr:   fmt.Errorf("block #%d %w", genBlocks+1, ethereum.NotFound),
+		},
+		// Optimism: Trace block on the historical chain
+		{
+			blockNumber: rpc.BlockNumber(999),
+			want:        `[{"result":"0xabba"}]`,
 		},
 		// Trace latest block
 		{
