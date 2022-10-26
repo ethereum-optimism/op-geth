@@ -65,7 +65,7 @@ const (
 	FinalizedBlockNumber = BlockNumber(-3)
 	PendingBlockNumber   = BlockNumber(-2)
 	LatestBlockNumber    = BlockNumber(-1)
-	EarliestBlockNumber  = BlockNumber(0)
+	EarliestBlockNumber  = BlockNumber(0) // how are we thinking about having two genesis blocks?
 )
 
 // UnmarshalJSON parses the given JSON fragment into a BlockNumber. It supports:
