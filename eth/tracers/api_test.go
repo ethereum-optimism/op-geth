@@ -84,6 +84,14 @@ func (m *mockHistoricalBackend) TraceTransaction(ctx context.Context, hash commo
 	return nil, ethereum.NotFound
 }
 
+func (m *mockHistoricalBackend) TraceCall(ctx context.Context, args ethapi.TransactionArgs, blockNrOrHash rpc.BlockNumberOrHash, config *TraceCallConfig) (interface{}, error) {
+	num, ok := blockNrOrHash.Number()
+	if ok && num == 777 {
+		return hexutil.Bytes("0x9999"), nil
+	}
+	return nil, ethereum.NotFound
+}
+
 func newMockHistoricalBackend(t *testing.T) string {
 	s := rpc.NewServer()
 	err := node.RegisterApis([]rpc.API{
@@ -322,6 +330,18 @@ func TestTraceCall(t *testing.T) {
 			config:    nil,
 			expectErr: fmt.Errorf("block #%d %w", genBlocks+1, ethereum.NotFound),
 			//expect:    nil,
+		},
+		// Optimism: Trace block on the historical chain
+		{
+			blockNumber: rpc.BlockNumber(777),
+			call: ethapi.TransactionArgs{
+				From:  &accounts[0].addr,
+				To:    &accounts[1].addr,
+				Value: (*hexutil.Big)(big.NewInt(1000)),
+			},
+			config:    nil,
+			expectErr: nil,
+			expect:    "0x9999",
 		},
 		// Standard JSON trace upon the latest block
 		{
