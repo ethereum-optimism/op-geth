@@ -799,9 +799,18 @@ func containsTx(block *types.Block, hash common.Hash) bool {
 // TraceTransaction returns the structured logs created during the execution of EVM
 // and returns them as a JSON object.
 func (api *API) TraceTransaction(ctx context.Context, hash common.Hash, config *TraceConfig) (interface{}, error) {
-	_, blockHash, blockNumber, index, err := api.backend.GetTransaction(ctx, hash)
+	// GetTransaction returns 0 for the blocknumber if the transaction is not found
+	tx, blockHash, blockNumber, index, err := api.backend.GetTransaction(ctx, hash)
 	if err != nil {
 		return nil, err
+	}
+	if tx == nil {
+		var histResult []*txTraceResult
+		err = api.backend.HistoricalRPCService().CallContext(ctx, &histResult, "debug_traceTransaction", hash, config)
+		if err != nil && err.Error() == "not found" {
+			return nil, fmt.Errorf("transaction %s %w", hash, ethereum.NotFound)
+		}
+		return histResult, err
 	}
 	// It shouldn't happen in practice.
 	if blockNumber == 0 {

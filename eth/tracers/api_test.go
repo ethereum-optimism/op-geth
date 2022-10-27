@@ -51,9 +51,8 @@ import (
 )
 
 var (
-	errStateNotFound       = errors.New("state not found")
-	errBlockNotFound       = errors.New("block not found")
-	errTransactionNotFound = errors.New("transaction not found")
+	errStateNotFound = errors.New("state not found")
+	errBlockNotFound = errors.New("block not found")
 )
 
 type mockHistoricalBackend struct{}
@@ -71,6 +70,15 @@ func (m *mockHistoricalBackend) TraceBlockByNumber(ctx context.Context, number r
 	if number == 999 {
 		result := make([]*txTraceResult, 1)
 		result[0] = &txTraceResult{Result: "0xabba"}
+		return result, nil
+	}
+	return nil, ethereum.NotFound
+}
+
+func (m *mockHistoricalBackend) TraceTransaction(ctx context.Context, hash common.Hash, config *TraceConfig) (interface{}, error) {
+	if hash == common.HexToHash("0xACDC") {
+		result := make([]*txTraceResult, 1)
+		result[0] = &txTraceResult{Result: "0x8888"}
 		return result, nil
 	}
 	return nil, ethereum.NotFound
@@ -186,7 +194,7 @@ func (b *testBackend) BlockByNumber(ctx context.Context, number rpc.BlockNumber)
 func (b *testBackend) GetTransaction(ctx context.Context, txHash common.Hash) (*types.Transaction, common.Hash, uint64, uint64, error) {
 	tx, hash, blockNumber, index := rawdb.ReadTransaction(b.chaindb, txHash)
 	if tx == nil {
-		return nil, common.Hash{}, 0, 0, errTransactionNotFound
+		return nil, common.Hash{}, 0, 0, nil
 	}
 	return tx, hash, blockNumber, index, nil
 }
@@ -420,6 +428,18 @@ func TestTraceTransaction(t *testing.T) {
 		StructLogs:  []logger.StructLogRes{},
 	}) {
 		t.Error("Transaction tracing result is different")
+	}
+
+	// test TraceTransaction for a historical transaction
+	result2, err := api.TraceTransaction(context.Background(), common.HexToHash("0xACDC"), nil)
+	resBytes, _ := json.Marshal(result2)
+	have2 := string(resBytes)
+	if err != nil {
+		t.Errorf("want no error, have %v", err)
+	}
+	want2 := `[{"result":"0x8888"}]`
+	if have2 != want2 {
+		t.Errorf("test result mismatch, have\n%v\n, want\n%v\n", have2, want2)
 	}
 }
 
