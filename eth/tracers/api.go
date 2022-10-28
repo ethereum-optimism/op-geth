@@ -840,6 +840,13 @@ func (api *API) TraceTransaction(ctx context.Context, hash common.Hash, config *
 // created during the execution of EVM if the given transaction was added on
 // top of the provided block and returns them as a JSON object.
 func (api *API) TraceCall(ctx context.Context, args ethapi.TransactionArgs, blockNrOrHash rpc.BlockNumberOrHash, config *TraceCallConfig) (interface{}, error) {
+	// is it a number?
+	// is it hash?
+		// if so, do we have it locally?
+			// if so, do the thing
+			// if not, call the history
+	// if neither: error.
+	//
 	// Try to retrieve the specified block
 	var (
 		err   error
@@ -860,6 +867,23 @@ func (api *API) TraceCall(ctx context.Context, args ethapi.TransactionArgs, bloc
 	} else {
 		return nil, errors.New("invalid arguments; neither block nor hash specified")
 	}
+	// If block still holds no value, but we have an error, then one of the two previous conditions
+	// was entered, meaning:
+	// 1. blockNrOrHash has either a valid block or hash
+	// 2. we don't have that block locally
+	// if errors.Is(err, ethereum.NotFound) && api.backend.HistoricalRPCService() != nil {
+	if block == nil && errors.Is(err, ethereum.NotFound) && api.backend.HistoricalRPCService() != nil {
+		var histResult []*txTraceResult
+		err = api.backend.HistoricalRPCService().CallContext(ctx, &histResult, "debug_traceCall", args, blockNrOrHash, config)
+		fmt.Println("Case:", blockNrOrHash.String())
+		fmt.Println("xxxxxxx", err)
+		if err != nil && err.Error() == "not found" {
+			// return nil, fmt.Errorf("block #%d %w", number, ethereum.NotFound)
+			return nil, fmt.Errorf("block #%s %w", blockNrOrHash.String(), ethereum.NotFound)
+		}
+		return histResult, err
+	}
+
 	if err != nil {
 		return nil, err
 	}

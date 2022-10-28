@@ -87,7 +87,9 @@ func (m *mockHistoricalBackend) TraceTransaction(ctx context.Context, hash commo
 func (m *mockHistoricalBackend) TraceCall(ctx context.Context, args ethapi.TransactionArgs, blockNrOrHash rpc.BlockNumberOrHash, config *TraceCallConfig) (interface{}, error) {
 	num, ok := blockNrOrHash.Number()
 	if ok && num == 777 {
-		return hexutil.Bytes("0x9999"), nil
+		result := make([]*txTraceResult, 1)
+		result[0] = &txTraceResult{Result: "0x9999"}
+		return result, nil
 	}
 	return nil, ethereum.NotFound
 }
@@ -397,6 +399,9 @@ func TestTraceCall(t *testing.T) {
 				continue
 			}
 			var have *logger.ExecutionResult
+			fmt.Println("r", result)
+			// fmt.Println("m", result.(json.RawMessage))
+			fmt.Println("cccccccccc")
 			if err := json.Unmarshal(result.(json.RawMessage), &have); err != nil {
 				t.Errorf("test %d: failed to unmarshal result %v", i, err)
 			}
