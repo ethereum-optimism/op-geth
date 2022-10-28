@@ -24,12 +24,17 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"net"
+	"net/http"
 	"reflect"
 	"sort"
 	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/ethereum/go-ethereum/node"
+
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/consensus"
@@ -53,6 +58,45 @@ var (
 	errTransactionNotFound = errors.New("transaction not found")
 )
 
+type mockHistoricalBackend struct{}
+
+func (m *mockHistoricalBackend) Dummy() {} // dummy RPC method
+
+func newMockHistoricalBackend(t *testing.T) string {
+	s := rpc.NewServer()
+	err := node.RegisterApis([]rpc.API{
+		{
+			Namespace:     "eth",
+			Service:       new(mockHistoricalBackend),
+			Public:        true,
+			Authenticated: false,
+		},
+	}, nil, s)
+	if err != nil {
+		t.Fatalf("error creating mock historical backend: %v", err)
+	}
+
+	hdlr := node.NewHTTPHandlerStack(s, []string{"*"}, []string{"*"}, nil)
+	mux := http.NewServeMux()
+	mux.Handle("/", hdlr)
+
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("error creating mock historical backend listener: %v", err)
+	}
+
+	go func() {
+		httpS := &http.Server{Handler: mux}
+		httpS.Serve(listener)
+
+		t.Cleanup(func() {
+			httpS.Shutdown(context.Background())
+		})
+	}()
+
+	return fmt.Sprintf("http://%s", listener.Addr().String())
+}
+
 type testBackend struct {
 	chainConfig *params.ChainConfig
 	engine      consensus.Engine
@@ -61,15 +105,25 @@ type testBackend struct {
 
 	refHook func() // Hook is invoked when the requested state is referenced
 	relHook func() // Hook is invoked when the requested state is released
+
+	historical *rpc.Client
 }
 
 // testBackend creates a new test backend. OBS: After test is done, teardown must be
 // invoked in order to release associated resources.
 func newTestBackend(t *testing.T, n int, gspec *core.Genesis, generator func(i int, b *core.BlockGen)) *testBackend {
+	historicalAddr := newMockHistoricalBackend(t)
+
+	historicalClient, err := rpc.Dial(historicalAddr)
+	if err != nil {
+		t.Fatalf("error making historical client: %v", err)
+	}
+
 	backend := &testBackend{
 		chainConfig: gspec.Config,
 		engine:      ethash.NewFaker(),
 		chaindb:     rawdb.NewMemoryDatabase(),
+		historical:  historicalClient,
 	}
 	// Generate blocks for testing
 	_, blocks, _ := core.GenerateChainWithGenesis(gspec, backend.engine, n, generator)
@@ -191,6 +245,10 @@ func (b *testBackend) StateAtTransaction(ctx context.Context, block *types.Block
 	return nil, vm.BlockContext{}, nil, nil, fmt.Errorf("transaction index %d out of range for block %#x", txIndex, block.Hash())
 }
 
+func (b *testBackend) HistoricalRPCService() *rpc.Client {
+	return b.historical
+}
+
 func TestTraceCall(t *testing.T) {
 	t.Parallel()
 
@@ -255,7 +313,7 @@ func TestTraceCall(t *testing.T) {
 				Value: (*hexutil.Big)(big.NewInt(1000)),
 			},
 			config:    nil,
-			expectErr: fmt.Errorf("block #%d not found", genBlocks+1),
+			expectErr: fmt.Errorf("block #%d %w", genBlocks+1, ethereum.NotFound),
 			//expect:    nil,
 		},
 		// Standard JSON trace upon the latest block
@@ -303,7 +361,7 @@ func TestTraceCall(t *testing.T) {
 				t.Errorf("test %d: expect error %v, got nothing", i, testspec.expectErr)
 				continue
 			}
-			if !reflect.DeepEqual(err, testspec.expectErr) {
+			if err.Error() != testspec.expectErr.Error() {
 				t.Errorf("test %d: error mismatch, want %v, git %v", i, testspec.expectErr, err)
 			}
 		} else {
@@ -412,7 +470,7 @@ func TestTraceBlock(t *testing.T) {
 		// Trace non-existent block
 		{
 			blockNumber: rpc.BlockNumber(genBlocks + 1),
-			expectErr:   fmt.Errorf("block #%d not found", genBlocks+1),
+			expectErr:   fmt.Errorf("block #%d %w", genBlocks+1, ethereum.NotFound),
 		},
 		// Trace latest block
 		{
@@ -432,7 +490,7 @@ func TestTraceBlock(t *testing.T) {
 				t.Errorf("test %d, want error %v", i, tc.expectErr)
 				continue
 			}
-			if !reflect.DeepEqual(err, tc.expectErr) {
+			if err.Error() != tc.expectErr.Error() {
 				t.Errorf("test %d: error mismatch, want %v, get %v", i, tc.expectErr, err)
 			}
 			continue
