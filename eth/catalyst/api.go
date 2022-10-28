@@ -279,7 +279,10 @@ func (api *ConsensusAPI) ForkchoiceUpdatedV1(update beacon.ForkchoiceStateV1, pa
 	// sealed by the beacon client. The payload will be requested later, and we
 	// might replace it arbitrarily many times in between.
 	if payloadAttributes != nil {
-		// Decode forceTxs. TODO: How to handle tx validity.
+		if api.eth.BlockChain().Config().Optimism != nil && payloadAttributes.GasLimit == nil {
+			return beacon.STATUS_INVALID, beacon.InvalidPayloadAttributes.With(errors.New("gasLimit parameter is required"))
+		}
+		// Decode forceTxs.
 		forceTxs := make(types.Transactions, 0, len(payloadAttributes.Transactions))
 		for i, otx := range payloadAttributes.Transactions {
 			var tx types.Transaction
@@ -289,7 +292,7 @@ func (api *ConsensusAPI) ForkchoiceUpdatedV1(update beacon.ForkchoiceStateV1, pa
 			forceTxs = append(forceTxs, &tx)
 		}
 		// Create an empty block first which can be used as a fallback
-		empty, err := api.eth.Miner().GetSealingBlockSync(update.HeadBlockHash, payloadAttributes.Timestamp, payloadAttributes.SuggestedFeeRecipient, payloadAttributes.Random, true, forceTxs)
+		empty, err := api.eth.Miner().GetSealingBlockSync(update.HeadBlockHash, payloadAttributes.Timestamp, payloadAttributes.SuggestedFeeRecipient, payloadAttributes.Random, true, forceTxs, payloadAttributes.GasLimit)
 		if err != nil {
 			log.Error("Failed to create empty sealing payload", "err", err)
 			return beacon.STATUS_INVALID, beacon.InvalidPayloadAttributes.With(err)
@@ -301,7 +304,7 @@ func (api *ConsensusAPI) ForkchoiceUpdatedV1(update beacon.ForkchoiceStateV1, pa
 		}
 		// Send a request to generate a full block in the background.
 		// The result can be obtained via the returned channel.
-		resCh, err := api.eth.Miner().GetSealingBlockAsync(update.HeadBlockHash, payloadAttributes.Timestamp, payloadAttributes.SuggestedFeeRecipient, payloadAttributes.Random, false, forceTxs)
+		resCh, err := api.eth.Miner().GetSealingBlockAsync(update.HeadBlockHash, payloadAttributes.Timestamp, payloadAttributes.SuggestedFeeRecipient, payloadAttributes.Random, false, forceTxs, payloadAttributes.GasLimit)
 		if err != nil {
 			log.Error("Failed to create async sealing payload", "err", err)
 			return valid(nil), beacon.InvalidPayloadAttributes.With(err)
@@ -455,6 +458,9 @@ func computePayloadId(headBlockHash common.Hash, params *beacon.PayloadAttribute
 			binary.Write(hasher, binary.BigEndian, uint64(len(tx)))
 			hasher.Write(tx)
 		}
+	}
+	if params.GasLimit != nil {
+		binary.Write(hasher, binary.BigEndian, *params.GasLimit)
 	}
 	var out beacon.PayloadID
 	copy(out[:], hasher.Sum(nil)[:8])
