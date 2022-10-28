@@ -49,6 +49,8 @@ import (
 	"github.com/tyler-smith/go-bip39"
 )
 
+var ErrHeaderNotFound = fmt.Errorf("header %w", ethereum.NotFound)
+
 // EthereumAPI provides an API to access Ethereum related information.
 type EthereumAPI struct {
 	b Backend
