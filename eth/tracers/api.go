@@ -28,6 +28,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/consensus"
@@ -132,7 +133,7 @@ func (api *API) blockByNumber(ctx context.Context, number rpc.BlockNumber) (*typ
 		return nil, err
 	}
 	if block == nil {
-		return nil, fmt.Errorf("block #%d not found", number)
+		return nil, fmt.Errorf("block #%d %w", number, ethereum.NotFound)
 	}
 	return block, nil
 }
@@ -145,7 +146,7 @@ func (api *API) blockByHash(ctx context.Context, hash common.Hash) (*types.Block
 		return nil, err
 	}
 	if block == nil {
-		return nil, fmt.Errorf("block %s not found", hash.Hex())
+		return nil, fmt.Errorf("block %s %w", hash.Hex(), ethereum.NotFound)
 	}
 	return block, nil
 }
@@ -438,7 +439,14 @@ func (api *API) traceChain(ctx context.Context, start, end *types.Block, config 
 // EVM and returns them as a JSON object.
 func (api *API) TraceBlockByNumber(ctx context.Context, number rpc.BlockNumber, config *TraceConfig) ([]*txTraceResult, error) {
 	block, err := api.blockByNumber(ctx, number)
-	if err != nil {
+	if errors.Is(err, ethereum.NotFound) && api.backend.HistoricalRPCService() != nil {
+		var histResult []*txTraceResult
+		err = api.backend.HistoricalRPCService().CallContext(ctx, &histResult, "debug_traceBlockByNumber", number, config)
+		if err != nil && err.Error() == "not found" {
+			return nil, fmt.Errorf("block #%d %w", number, ethereum.NotFound)
+		}
+		return histResult, err
+	} else if err != nil {
 		return nil, err
 	}
 	return api.traceBlock(ctx, block, config)
@@ -448,7 +456,14 @@ func (api *API) TraceBlockByNumber(ctx context.Context, number rpc.BlockNumber, 
 // EVM and returns them as a JSON object.
 func (api *API) TraceBlockByHash(ctx context.Context, hash common.Hash, config *TraceConfig) ([]*txTraceResult, error) {
 	block, err := api.blockByHash(ctx, hash)
-	if err != nil {
+	if errors.Is(err, ethereum.NotFound) && api.backend.HistoricalRPCService() != nil {
+		var histResult []*txTraceResult
+		err = api.backend.HistoricalRPCService().CallContext(ctx, &histResult, "debug_traceBlockByHash", hash, config)
+		if err != nil && err.Error() == "not found" {
+			return nil, fmt.Errorf("block #%d %w", hash, ethereum.NotFound)
+		}
+		return histResult, err
+	} else if err != nil {
 		return nil, err
 	}
 	return api.traceBlock(ctx, block, config)
@@ -784,9 +799,18 @@ func containsTx(block *types.Block, hash common.Hash) bool {
 // TraceTransaction returns the structured logs created during the execution of EVM
 // and returns them as a JSON object.
 func (api *API) TraceTransaction(ctx context.Context, hash common.Hash, config *TraceConfig) (interface{}, error) {
-	_, blockHash, blockNumber, index, err := api.backend.GetTransaction(ctx, hash)
+	// GetTransaction returns 0 for the blocknumber if the transaction is not found
+	tx, blockHash, blockNumber, index, err := api.backend.GetTransaction(ctx, hash)
 	if err != nil {
 		return nil, err
+	}
+	if tx == nil {
+		var histResult []*txTraceResult
+		err = api.backend.HistoricalRPCService().CallContext(ctx, &histResult, "debug_traceTransaction", hash, config)
+		if err != nil && err.Error() == "not found" {
+			return nil, fmt.Errorf("transaction %s %w", hash, ethereum.NotFound)
+		}
+		return histResult, err
 	}
 	// It shouldn't happen in practice.
 	if blockNumber == 0 {
