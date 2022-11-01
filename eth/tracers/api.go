@@ -860,6 +860,29 @@ func (api *API) TraceCall(ctx context.Context, args ethapi.TransactionArgs, bloc
 	} else {
 		return nil, errors.New("invalid arguments; neither block nor hash specified")
 	}
+
+	// If block still holds no value, but we have an error, then one of the two previous conditions
+	// was entered, meaning:
+	// 1. blockNrOrHash has either a valid block or hash
+	// 2. we don't have that block locally
+	if block == nil && errors.Is(err, ethereum.NotFound) && api.backend.HistoricalRPCService() != nil {
+		var histResult json.RawMessage
+		err = api.backend.HistoricalRPCService().CallContext(ctx, &histResult, "debug_traceCall", args, blockNrOrHash, config)
+		if err != nil && err.Error() == "not found" {
+			// Not found locally or in history. We need to return different errors based on the input
+			// in order match geth's native behavior
+			if hash, ok := blockNrOrHash.Hash(); ok {
+				return nil, fmt.Errorf("block %s %w", hash, ethereum.NotFound)
+			} else if number, ok := blockNrOrHash.Number(); ok {
+				return nil, fmt.Errorf("block #%d %w", number, ethereum.NotFound)
+			}
+		} else if err != nil {
+			return nil, fmt.Errorf("error querying historical RPC: %w", err)
+		}
+
+		return histResult, nil
+	}
+
 	if err != nil {
 		return nil, err
 	}
