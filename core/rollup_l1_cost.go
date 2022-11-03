@@ -31,10 +31,7 @@ var (
 	ScalarSlot    = common.BigToHash(big.NewInt(6))
 )
 
-var (
-	OVM_GasPriceOracleAddr = common.HexToAddress("0x420000000000000000000000000000000000000F")
-	L1BlockAddr            = common.HexToAddress("0x4200000000000000000000000000000000000015")
-)
+var L1BlockAddr = common.HexToAddress("0x4200000000000000000000000000000000000015")
 
 // NewL1CostFunc returns a function used for calculating L1 fee cost.
 // This depends on the oracles because gas costs can change over time.

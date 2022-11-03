@@ -411,10 +411,10 @@ func (rs Receipts) EncodeIndex(i int, w *bytes.Buffer) {
 
 func L1Cost(rollupDataGas uint64, l1BaseFee, overhead, scalar *big.Int) *big.Int {
 	l1GasUsed := new(big.Int).SetUint64(rollupDataGas)
-	l1GasUsed = l1GasUsed.Add(l1GasUsed, overhead) // overhead = 2100
+	l1GasUsed = l1GasUsed.Add(l1GasUsed, overhead)
 	l1Cost := l1GasUsed.Mul(l1GasUsed, l1BaseFee)
 	l1Cost = l1Cost.Mul(l1Cost, scalar)
-	return l1Cost.Div(l1Cost, big.NewInt(1000_000))
+	return l1Cost.Div(l1Cost, big.NewInt(1_000_000))
 }
 
 // DeriveFields fills the receipts with their computed fields based on consensus
