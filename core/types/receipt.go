@@ -69,6 +69,12 @@ type Receipt struct {
 	BlockHash        common.Hash `json:"blockHash,omitempty"`
 	BlockNumber      *big.Int    `json:"blockNumber,omitempty"`
 	TransactionIndex uint        `json:"transactionIndex"`
+
+	// OVM legacy: extend receipts with their L1 price (if a rollup tx)
+	L1GasPrice *big.Int   `json:"l1GasPrice,omitempty"`
+	L1GasUsed  *big.Int   `json:"l1GasUsed,omitempty"`
+	L1Fee      *big.Int   `json:"l1Fee,omitempty"`
+	FeeScalar  *big.Float `json:"l1FeeScalar,omitempty"`
 }
 
 type receiptMarshaling struct {
@@ -79,6 +85,12 @@ type receiptMarshaling struct {
 	GasUsed           hexutil.Uint64
 	BlockNumber       *hexutil.Big
 	TransactionIndex  hexutil.Uint
+
+	// Optimism: extend receipts with their L1 price (if a rollup tx)
+	L1GasPrice *hexutil.Big
+	L1GasUsed  *hexutil.Big
+	L1Fee      *hexutil.Big
+	FeeScalar  *big.Float
 }
 
 // receiptRLP is the consensus encoding of a receipt.
@@ -438,5 +450,26 @@ func (rs Receipts) DeriveFields(config *params.ChainConfig, hash common.Hash, nu
 			logIndex++
 		}
 	}
+	if config.Optimism != nil && len(txs) >= 2 { // need at least an info tx and a non-info tx
+		if data := txs[0].Data(); len(data) >= 4+32*8 { // function selector + 8 arguments to setL1BlockValues
+			l1Basefee := new(big.Int).SetBytes(data[4+32*2 : 4+32*3]) // arg index 2
+			overhead := new(big.Int).SetBytes(data[4+32*6 : 4+32*7])  // arg index 6
+			scalar := new(big.Int).SetBytes(data[4+32*7 : 4+32*8])    // arg index 7
+			fscalar := new(big.Float).SetInt(scalar)                  // legacy: format fee scalar as big Float
+			fdivisor := new(big.Float).SetUint64(1_000_000)           // 10**6, i.e. 6 decimals
+			feeScalar := new(big.Float).Quo(fscalar, fdivisor)
+			for i := 0; i < len(rs); i++ {
+				if !txs[i].IsDepositTx() {
+					rs[i].L1GasPrice = l1Basefee
+					rs[i].L1GasUsed = new(big.Int).SetUint64(txs[i].RollupDataGas())
+					rs[i].L1Fee = L1Cost(txs[i].RollupDataGas(), l1Basefee, overhead, scalar)
+					rs[i].FeeScalar = feeScalar
+				}
+			}
+		} else {
+			return fmt.Errorf("L1 info tx only has %d bytes, cannot read gas price parameters", len(data))
+		}
+	}
+
 	return nil
 }
