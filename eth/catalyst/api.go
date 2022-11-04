@@ -285,6 +285,9 @@ func (api *ConsensusAPI) ForkchoiceUpdatedV1(update beacon.ForkchoiceStateV1, pa
 	// sealed by the beacon client. The payload will be requested later, and we
 	// will replace it arbitrarily many times in between.
 	if payloadAttributes != nil {
+		if api.eth.BlockChain().Config().Optimism != nil && payloadAttributes.GasLimit == nil {
+			return beacon.STATUS_INVALID, beacon.InvalidPayloadAttributes.With(errors.New("gasLimit parameter is required"))
+		}
 		transactions := make(types.Transactions, 0, len(payloadAttributes.Transactions))
 		for i, otx := range payloadAttributes.Transactions {
 			var tx types.Transaction
@@ -300,6 +303,7 @@ func (api *ConsensusAPI) ForkchoiceUpdatedV1(update beacon.ForkchoiceStateV1, pa
 			Random:       payloadAttributes.Random,
 			NoTxPool:     payloadAttributes.NoTxPool,
 			Transactions: transactions,
+			GasLimit:     payloadAttributes.GasLimit,
 		}
 		payload, err := api.eth.Miner().BuildPayload(args)
 		if err != nil {
@@ -471,6 +475,9 @@ func computePayloadId(headBlockHash common.Hash, params *beacon.PayloadAttribute
 			binary.Write(hasher, binary.BigEndian, uint64(len(tx)))
 			hasher.Write(tx)
 		}
+	}
+	if params.GasLimit != nil {
+		binary.Write(hasher, binary.BigEndian, *params.GasLimit)
 	}
 	var out beacon.PayloadID
 	copy(out[:], hasher.Sum(nil)[:8])

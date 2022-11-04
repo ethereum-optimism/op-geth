@@ -42,6 +42,9 @@ import (
 type Backend interface {
 	BlockChain() *core.BlockChain
 	TxPool() *txpool.TxPool
+}
+
+type BackendWithHistoricalState interface {
 	StateAtBlock(block *types.Block, reexec uint64, base *state.StateDB, readOnly bool, preferDisk bool) (statedb *state.StateDB, release tracers.StateReleaseFunc, err error)
 }
 
