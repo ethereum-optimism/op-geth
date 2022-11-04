@@ -20,13 +20,16 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/params"
 )
 
 type RollupMessage interface {
 	RollupDataGas() uint64
 	IsDepositTx() bool
+}
+
+type StateGetter interface {
+	GetState(common.Address, common.Hash) common.Hash
 }
 
 // L1CostFunc is used in the state transition to determine the cost of a rollup message.
@@ -44,7 +47,7 @@ var L1BlockAddr = common.HexToAddress("0x420000000000000000000000000000000000001
 // NewL1CostFunc returns a function used for calculating L1 fee cost.
 // This depends on the oracles because gas costs can change over time.
 // It returns nil if there is no applicable cost function.
-func NewL1CostFunc(config *params.ChainConfig, statedb vm.StateDB) L1CostFunc {
+func NewL1CostFunc(config *params.ChainConfig, statedb StateGetter) L1CostFunc {
 	cacheBlockNum := ^uint64(0)
 	var l1BaseFee, overhead, scalar *big.Int
 	return func(blockNum uint64, msg RollupMessage) *big.Int {

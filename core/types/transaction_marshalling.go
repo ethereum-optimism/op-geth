@@ -110,7 +110,7 @@ func (tx *Transaction) MarshalJSON() ([]byte, error) {
 		if itx.Mint != nil {
 			enc.Mint = (*hexutil.Big)(itx.Mint)
 		}
-		enc.IsSystemTx = &tx.IsSystemTransaction
+		enc.IsSystemTx = &itx.IsSystemTransaction
 		// other fields will show up as null.
 	}
 	return json.Marshal(&enc)
