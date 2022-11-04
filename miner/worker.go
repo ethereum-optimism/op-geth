@@ -25,6 +25,7 @@ import (
 	"time"
 
 	mapset "github.com/deckarep/golang-set"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/misc"
@@ -965,6 +966,7 @@ type generateParams struct {
 	noTxs      bool           // Flag whether an empty block without any transaction is expected
 
 	forceTxs types.Transactions // Transactions to force-include at the start of the block
+	gasLimit *uint64            // Optional gaslimit override
 }
 
 // prepareWork constructs the sealing task according to the given parameters,
@@ -1014,6 +1016,9 @@ func (w *worker) prepareWork(genParams *generateParams) (*environment, error) {
 			parentGasLimit := parent.GasLimit() * w.chainConfig.ElasticityMultiplier()
 			header.GasLimit = core.CalcGasLimit(parentGasLimit, w.config.GasCeil)
 		}
+	}
+	if genParams.gasLimit != nil { // override gaslimit if specified
+		header.GasLimit = *genParams.gasLimit
 	}
 	// Run the consensus preparation with the default or customized consensus engine.
 	if err := w.engine.Prepare(w.chain, header); err != nil {
@@ -1186,7 +1191,7 @@ func (w *worker) commit(env *environment, interval func(), update bool, start ti
 // getSealingBlock generates the sealing block based on the given parameters.
 // The generation result will be passed back via the given channel no matter
 // the generation itself succeeds or not.
-func (w *worker) getSealingBlock(parent common.Hash, timestamp uint64, coinbase common.Address, random common.Hash, noTxs bool, forceTxs types.Transactions) (chan *types.Block, chan error, error) {
+func (w *worker) getSealingBlock(parent common.Hash, timestamp uint64, coinbase common.Address, random common.Hash, noTxs bool, forceTxs types.Transactions, gasLimit *uint64) (chan *types.Block, chan error, error) {
 	var (
 		resCh = make(chan *types.Block, 1)
 		errCh = make(chan error, 1)
@@ -1202,6 +1207,7 @@ func (w *worker) getSealingBlock(parent common.Hash, timestamp uint64, coinbase 
 			noExtra:    true,
 			noTxs:      noTxs,
 			forceTxs:   forceTxs,
+			gasLimit:   gasLimit,
 		},
 		result: resCh,
 		err:    errCh,
