@@ -118,15 +118,10 @@ func TestTransitiveStorage(t *testing.T) {
 	state.SetCode(address2, code2)
 	state.SetBalance(address2, big.NewInt(1000000))
 
-	ret, _, err := Call(address, nil,
+	_, _, err := Call(address, nil,
 		&Config{Debug: true, GasLimit: params.MaxGasLimit, State: state})
 	if err != nil {
 		t.Fatal("didn't expect error", err)
-	}
-
-	num := new(big.Int).SetBytes(ret)
-	if num.Cmp(big.NewInt(10)) != 0 {
-		t.Error("Expected 10, got", num)
 	}
 }
 
