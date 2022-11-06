@@ -127,6 +127,7 @@ func Execute(code, input []byte, cfg *Config) ([]byte, *state.StateDB, error) {
 	// Call the code with the given configuration.
 	ret, _, err := vmenv.Call(
 		sender,
+		vm.NewTransientStorage(),
 		common.BytesToAddress([]byte("contract")),
 		input,
 		cfg.GasLimit,
@@ -171,10 +172,15 @@ func Create(input []byte, cfg *Config) ([]byte, common.Address, uint64, error) {
 func Call(address common.Address, input []byte, cfg *Config) ([]byte, uint64, error) {
 	setDefaults(cfg)
 
+	cfg.BlockNumber = big.NewInt(10000)
+	cfg.ChainConfig.EIP150Block = big.NewInt(100000)
+
 	vmenv := NewEnv(cfg)
 
 	sender := cfg.State.GetOrNewStateObject(cfg.Origin)
 	statedb := cfg.State
+
+	vmenv.Context.CanTransfer = func(vm.StateDB, common.Address, *big.Int) bool { return true }
 
 	if rules := cfg.ChainConfig.Rules(vmenv.Context.BlockNumber, vmenv.Context.Random != nil); rules.IsBerlin {
 		statedb.PrepareAccessList(cfg.Origin, &address, vm.ActivePrecompiles(rules), nil)
@@ -182,6 +188,7 @@ func Call(address common.Address, input []byte, cfg *Config) ([]byte, uint64, er
 	// Call the code with the given configuration.
 	ret, leftOverGas, err := vmenv.Call(
 		sender,
+		vm.NewTransientStorage(),
 		address,
 		input,
 		cfg.GasLimit,

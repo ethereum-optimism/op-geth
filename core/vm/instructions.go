@@ -532,6 +532,29 @@ func opSstore(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]b
 	return nil, nil
 }
 
+func opTStore(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]byte, error) {
+	if interpreter.readOnly {
+		return nil, ErrWriteProtection
+	}
+
+	loc := scope.Stack.pop()
+	val := scope.Stack.pop()
+	scope.TransientStorage.Set(scope.Contract.Address(), loc.Bytes32(), val.Bytes32())
+
+	return nil, nil
+}
+
+func opTLoad(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]byte, error) {
+
+	loc := scope.Stack.peek()
+	hash := common.Hash(loc.Bytes32())
+	value := scope.TransientStorage.Get(scope.Contract.Address(), hash)
+
+	loc.SetBytes(value.Bytes())
+
+	return nil, nil
+}
+
 func opJump(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]byte, error) {
 	if atomic.LoadInt32(&interpreter.evm.abort) != 0 {
 		return nil, errStopToken
@@ -688,7 +711,8 @@ func opCall(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]byt
 		bigVal = value.ToBig()
 	}
 
-	ret, returnGas, err := interpreter.evm.Call(scope.Contract, toAddr, args, gas, bigVal)
+	println("Callling to ", toAddr.String())
+	ret, returnGas, err := interpreter.evm.Call(scope.Contract, scope.TransientStorage, toAddr, args, gas, bigVal)
 
 	if err != nil {
 		temp.Clear()
@@ -725,7 +749,7 @@ func opCallCode(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([
 		bigVal = value.ToBig()
 	}
 
-	ret, returnGas, err := interpreter.evm.CallCode(scope.Contract, toAddr, args, gas, bigVal)
+	ret, returnGas, err := interpreter.evm.CallCode(scope.Contract, scope.TransientStorage, toAddr, args, gas, bigVal)
 	if err != nil {
 		temp.Clear()
 	} else {
@@ -754,7 +778,7 @@ func opDelegateCall(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext
 	// Get arguments from the memory.
 	args := scope.Memory.GetPtr(int64(inOffset.Uint64()), int64(inSize.Uint64()))
 
-	ret, returnGas, err := interpreter.evm.DelegateCall(scope.Contract, toAddr, args, gas)
+	ret, returnGas, err := interpreter.evm.DelegateCall(scope.Contract, scope.TransientStorage, toAddr, args, gas)
 	if err != nil {
 		temp.Clear()
 	} else {
@@ -783,7 +807,7 @@ func opStaticCall(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) 
 	// Get arguments from the memory.
 	args := scope.Memory.GetPtr(int64(inOffset.Uint64()), int64(inSize.Uint64()))
 
-	ret, returnGas, err := interpreter.evm.StaticCall(scope.Contract, toAddr, args, gas)
+	ret, returnGas, err := interpreter.evm.StaticCall(scope.Contract, scope.TransientStorage, toAddr, args, gas)
 	if err != nil {
 		temp.Clear()
 	} else {

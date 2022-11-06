@@ -540,6 +540,18 @@ func newFrontierInstructionSet() JumpTable {
 			minStack:   minStack(2, 0),
 			maxStack:   maxStack(2, 0),
 		},
+		TLOAD: {
+			execute:     opTLoad,
+			constantGas: params.WarmStorageReadCostEIP2929,
+			minStack:    minStack(1, 1),
+			maxStack:    minStack(1, 1),
+		},
+		TSTORE: {
+			execute:     opTStore,
+			constantGas: params.WarmStorageReadCostEIP2929,
+			minStack:    minStack(2, 0),
+			maxStack:    minStack(2, 0),
+		},
 		JUMP: {
 			execute:     opJump,
 			constantGas: GasMidStep,

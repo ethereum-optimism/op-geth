@@ -113,6 +113,8 @@ const (
 	MSTORE8  OpCode = 0x53
 	SLOAD    OpCode = 0x54
 	SSTORE   OpCode = 0x55
+	TLOAD    OpCode = 0xb3
+	TSTORE   OpCode = 0xb4
 	JUMP     OpCode = 0x56
 	JUMPI    OpCode = 0x57
 	PC       OpCode = 0x58
@@ -459,6 +461,8 @@ var stringToOp = map[string]OpCode{
 	"MSTORE8":        MSTORE8,
 	"SLOAD":          SLOAD,
 	"SSTORE":         SSTORE,
+	"TLOAD":          TLOAD,
+	"TSTORE":         TSTORE,
 	"JUMP":           JUMP,
 	"JUMPI":          JUMPI,
 	"PC":             PC,

@@ -105,6 +105,31 @@ func TestExecute(t *testing.T) {
 	}
 }
 
+func TestTransitiveStorage(t *testing.T) {
+	state, _ := state.New(common.Hash{}, state.NewDatabase(rawdb.NewMemoryDatabase()), nil)
+	address := common.HexToAddress("0x0000000000000000000000000000000000000000000000000000000000000000")
+	address2 := common.HexToAddress("0x000000000000000000000000a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48")
+
+	var code1 = common.Hex2Bytes("7f000000000000000000000000a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48b37f000000000000000000000000a0b86991c6218b36c1d19d4a2e9eb0ce3606eb481460bc577f000000000000000000000000a0b86991c6218b36c1d19d4a2e9eb0ce3606eb487f000000000000000000000000a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48b4611111600060006000600060007f000000000000000000000000a0b86991c6218b36c1d19d4a2e9eb0ce3606eb4861fffff15b60006000f3")
+	var code2 = common.Hex2Bytes("611111600060006000600060007f0000000000000000000000000000000000000000000000000000000000000000610101f16000f3")
+
+	state.SetCode(address, code1)
+	state.SetBalance(address, big.NewInt(1000000))
+	state.SetCode(address2, code2)
+	state.SetBalance(address2, big.NewInt(1000000))
+
+	ret, _, err := Call(address, nil,
+		&Config{Debug: true, GasLimit: params.MaxGasLimit, State: state})
+	if err != nil {
+		t.Fatal("didn't expect error", err)
+	}
+
+	num := new(big.Int).SetBytes(ret)
+	if num.Cmp(big.NewInt(10)) != 0 {
+		t.Error("Expected 10, got", num)
+	}
+}
+
 func TestCall(t *testing.T) {
 	state, _ := state.New(common.Hash{}, state.NewDatabase(rawdb.NewMemoryDatabase()), nil)
 	address := common.HexToAddress("0x0a")
@@ -366,12 +391,12 @@ func benchmarkNonModifyingCode(gas uint64, code []byte, name string, tracerCode 
 	//cfg.State.CreateAccount(cfg.Origin)
 	// set the receiver's (the executing contract) code for execution.
 	cfg.State.SetCode(destination, code)
-	vmenv.Call(sender, destination, nil, gas, cfg.Value)
+	vmenv.Call(sender, vm.NewTransientStorage(), destination, nil, gas, cfg.Value)
 
 	b.Run(name, func(b *testing.B) {
 		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
-			vmenv.Call(sender, destination, nil, gas, cfg.Value)
+			vmenv.Call(sender, vm.NewTransientStorage(), destination, nil, gas, cfg.Value)
 		}
 	})
 }
