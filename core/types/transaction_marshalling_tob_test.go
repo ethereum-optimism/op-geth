@@ -1,12 +1,13 @@
 package types
 
 import (
+	"math/big"
+	"testing"
+
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/tests/fuzzerutils"
 	fuzz "github.com/google/gofuzz"
 	"github.com/stretchr/testify/require"
-	"math/big"
-	"testing"
 )
 
 // FuzzTransactionMarshallingRoundTrip executes a fuzz test which constructs arbitrary transactions of various types
@@ -62,6 +63,8 @@ func FuzzTransactionMarshallingRoundTrip(f *testing.F) {
 
 		// Perform round trip binary encoding
 		binaryTx, err := tx.MarshalBinary()
+		require.NoError(t, err)
+
 		decodedBinaryTx := &Transaction{}
 		err = decodedBinaryTx.UnmarshalBinary(binaryTx)
 		require.NoError(t, err)
@@ -85,10 +88,8 @@ func FuzzTransactionMarshallingRoundTrip(f *testing.F) {
 					require.EqualValues(t, txData.V.Bytes(), decodedTxData.V.Bytes())
 					require.EqualValues(t, txData.R.Bytes(), decodedTxData.R.Bytes())
 					require.EqualValues(t, txData.S.Bytes(), decodedTxData.S.Bytes())
-					break
 				default:
 					require.Fail(t, "decoded tx should have been LegacyTx")
-					break
 				}
 			case *AccessListTx:
 				// Verify our type and cast appropriately.
@@ -105,12 +106,9 @@ func FuzzTransactionMarshallingRoundTrip(f *testing.F) {
 					require.EqualValues(t, txData.V.Bytes(), decodedTxData.V.Bytes())
 					require.EqualValues(t, txData.R.Bytes(), decodedTxData.R.Bytes())
 					require.EqualValues(t, txData.S.Bytes(), decodedTxData.S.Bytes())
-					break
 				default:
 					require.Fail(t, "decoded tx should have been AccessListTx")
-					break
 				}
-				break
 			case *DynamicFeeTx:
 				// Verify our type and cast appropriately.
 				switch decodedTxData := decodedTxDataGeneric.(type) {
@@ -128,12 +126,9 @@ func FuzzTransactionMarshallingRoundTrip(f *testing.F) {
 					require.EqualValues(t, txData.R.Bytes(), decodedTxData.R.Bytes())
 					require.EqualValues(t, txData.S.Bytes(), decodedTxData.S.Bytes())
 					_ = decodedTxData
-					break
 				default:
 					require.Fail(t, "decoded tx should have been DynamicFeeTx")
-					break
 				}
-				break
 			case *DepositTx:
 				// Verify our type and cast appropriately.
 				switch decodedTxData := decodedTxDataGeneric.(type) {
@@ -146,12 +141,9 @@ func FuzzTransactionMarshallingRoundTrip(f *testing.F) {
 					require.EqualValues(t, txData.SourceHash, decodedTxData.SourceHash)
 					require.EqualValues(t, txData.Mint.Bytes(), decodedTxData.Mint.Bytes())
 					require.EqualValues(t, txData.IsSystemTransaction, decodedTxData.IsSystemTransaction)
-					break
 				default:
 					require.Fail(t, "decoded tx should have been DepositTx")
-					break
 				}
-				break
 			default:
 				require.Fail(t, "original tx inner data could not be casted")
 			}
