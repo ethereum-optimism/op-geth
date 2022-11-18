@@ -829,7 +829,7 @@ func (api *API) TraceTransaction(ctx context.Context, hash common.Hash, config *
 	}
 	if tx == nil {
 		if api.backend.HistoricalRPCService() == nil {
-			return nil, fmt.Errorf("transaction %s %w", hash, ethereum.NotFound)
+			return nil, nil
 		}
 		var histResult []*txTraceResult
 		err = api.backend.HistoricalRPCService().CallContext(ctx, &histResult, "debug_traceTransaction", hash, config)
