@@ -873,7 +873,7 @@ func (api *API) TraceTransaction(ctx context.Context, hash common.Hash, config *
 	if err != nil {
 		return nil, err
 	}
-	if tx == nil {
+	if tx == nil && api.backend.HistoricalRPCService() != nil {
 		var histResult []*txTraceResult
 		err = api.backend.HistoricalRPCService().CallContext(ctx, &histResult, "debug_traceTransaction", hash, config)
 		if err != nil && err.Error() == "not found" {
