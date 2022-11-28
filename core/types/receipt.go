@@ -129,6 +129,20 @@ type v3StoredReceiptRLP struct {
 	GasUsed           uint64
 }
 
+// LegacyOptimismStoredReceiptRLP is the pre bedrock storage encoding of a
+// receipt. It will only exist in the database if it was migrated using the
+// migration tool. Nodes that sync using snap-sync will not have any of these
+// entries.
+type LegacyOptimismStoredReceiptRLP struct {
+	PostStateOrStatus []byte
+	CumulativeGasUsed uint64
+	Logs              []*LogForStorage
+	L1GasUsed         *big.Int
+	L1GasPrice        *big.Int
+	L1Fee             *big.Int
+	FeeScalar         string
+}
+
 // NewReceipt creates a barebone transaction receipt, copying the init fields.
 // Deprecated: create receipts using a struct literal instead.
 func NewReceipt(root []byte, failed bool, cumulativeGasUsed uint64) *Receipt {
@@ -315,10 +329,46 @@ func (r *ReceiptForStorage) DecodeRLP(s *rlp.Stream) error {
 	if err := decodeStoredReceiptRLP(r, blob); err == nil {
 		return nil
 	}
+	if err := decodeLegacyOptimismReceiptRLP(r, blob); err == nil {
+		return nil
+	}
 	if err := decodeV3StoredReceiptRLP(r, blob); err == nil {
 		return nil
 	}
+
 	return decodeV4StoredReceiptRLP(r, blob)
+}
+
+func decodeLegacyOptimismReceiptRLP(r *ReceiptForStorage, blob []byte) error {
+	var stored LegacyOptimismStoredReceiptRLP
+	if err := rlp.DecodeBytes(blob, &stored); err != nil {
+		return err
+	}
+	if err := (*Receipt)(r).setStatus(stored.PostStateOrStatus); err != nil {
+		return err
+	}
+	r.CumulativeGasUsed = stored.CumulativeGasUsed
+	r.Logs = make([]*Log, len(stored.Logs))
+	for i, log := range stored.Logs {
+		r.Logs[i] = (*Log)(log)
+	}
+	r.Bloom = CreateBloom(Receipts{(*Receipt)(r)})
+
+	// UsingOVM
+	scalar := new(big.Float)
+	if stored.FeeScalar != "" {
+		var ok bool
+		scalar, ok = scalar.SetString(stored.FeeScalar)
+		if !ok {
+			return errors.New("cannot parse fee scalar")
+		}
+	}
+	r.L1GasUsed = stored.L1GasUsed
+	r.L1GasPrice = stored.L1GasPrice
+	r.L1Fee = stored.L1Fee
+	r.FeeScalar = scalar
+
+	return nil
 }
 
 func decodeStoredReceiptRLP(r *ReceiptForStorage, blob []byte) error {
