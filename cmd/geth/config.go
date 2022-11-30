@@ -161,6 +161,9 @@ func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 	if ctx.IsSet(utils.OverrideTerminalTotalDifficulty.Name) {
 		cfg.Eth.OverrideTerminalTotalDifficulty = flags.GlobalBig(ctx, utils.OverrideTerminalTotalDifficulty.Name)
 	}
+	if ctx.IsSet(utils.OverrideOptimismBedrock.Name) {
+		cfg.Eth.OverrideOptimismBedrock = flags.GlobalBig(ctx, utils.OverrideOptimismBedrock.Name)
+	}
 	if ctx.IsSet(utils.OverrideTerminalTotalDifficultyPassed.Name) {
 		override := ctx.Bool(utils.OverrideTerminalTotalDifficultyPassed.Name)
 		cfg.Eth.OverrideTerminalTotalDifficultyPassed = &override

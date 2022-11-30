@@ -269,6 +269,7 @@ func (e *GenesisMismatchError) Error() string {
 type ChainOverrides struct {
 	OverrideTerminalTotalDifficulty       *big.Int
 	OverrideTerminalTotalDifficultyPassed *bool
+	OverrideOptimismBedrock               *big.Int
 }
 
 // SetupGenesisBlock writes or updates the genesis block in db.
@@ -300,6 +301,9 @@ func SetupGenesisBlockWithOverride(db ethdb.Database, genesis *Genesis, override
 			}
 			if overrides != nil && overrides.OverrideTerminalTotalDifficultyPassed != nil {
 				config.TerminalTotalDifficultyPassed = *overrides.OverrideTerminalTotalDifficultyPassed
+			}
+			if overrides != nil && overrides.OverrideOptimismBedrock != nil {
+				config.BedrockBlock = overrides.OverrideOptimismBedrock
 			}
 		}
 	}

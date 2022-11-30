@@ -213,6 +213,8 @@ type Config struct {
 	// OverrideTerminalTotalDifficultyPassed (TODO: remove after the fork)
 	OverrideTerminalTotalDifficultyPassed *bool `toml:",omitempty"`
 
+	OverrideOptimismBedrock *big.Int
+
 	// SyncTarget defines the target block of sync. It's only used for
 	// development purposes.
 	SyncTarget *types.Block
