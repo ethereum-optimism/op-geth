@@ -223,10 +223,6 @@ var testTx2 = types.MustSignNewTx(testKey, types.LatestSigner(genesis.Config), &
 	To:       &common.Address{2},
 })
 
-func init() {
-	genesisForHistorical.Config.BedrockBlock = big.NewInt(5)
-}
-
 type mockHistoricalBackend struct{}
 
 func (m *mockHistoricalBackend) Call(ctx context.Context, args ethapi.TransactionArgs, blockNrOrHash rpc.BlockNumberOrHash, overrides *ethapi.StateOverride) (hexutil.Bytes, error) {
