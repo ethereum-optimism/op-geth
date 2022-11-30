@@ -28,7 +28,6 @@ import (
 	"github.com/davecgh/go-spew/spew"
 	"github.com/tyler-smith/go-bip39"
 
-	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
@@ -50,8 +49,6 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
 )
-
-var ErrHeaderNotFound = fmt.Errorf("header %w", ethereum.NotFound)
 
 // EthereumAPI provides an API to access Ethereum related information.
 type EthereumAPI struct {
@@ -1051,12 +1048,22 @@ func (e *revertError) ErrorData() interface{} {
 // Note, this function doesn't make and changes in the state/blockchain and is
 // useful to execute and retrieve values.
 func (s *BlockChainAPI) Call(ctx context.Context, args TransactionArgs, blockNrOrHash rpc.BlockNumberOrHash, overrides *StateOverride) (hexutil.Bytes, error) {
+	header, err := s.b.HeaderByNumberOrHash(ctx, blockNrOrHash)
+	if err == nil && header != nil && s.b.ChainConfig().IsOptimismPreBedrock(header.Number) {
+		if s.b.HistoricalRPCService() != nil {
+			var histResult hexutil.Bytes
+			err := s.b.HistoricalRPCService().CallContext(ctx, &histResult, "eth_call", args, blockNrOrHash, overrides)
+			if err != nil {
+				return nil, fmt.Errorf("historical backend error: %w", err)
+			}
+			return histResult, nil
+		} else {
+			return nil, rpc.ErrNoHistoricalFallback
+		}
+	}
+
 	result, err := DoCall(ctx, s.b, args, blockNrOrHash, overrides, s.b.RPCEVMTimeout(), s.b.RPCGasCap())
-	if errors.Is(err, ethereum.NotFound) && s.b.HistoricalRPCService() != nil {
-		var histResult hexutil.Bytes
-		err = s.b.HistoricalRPCService().CallContext(ctx, &histResult, "eth_call", args, blockNrOrHash, overrides)
-		return histResult, err
-	} else if err != nil {
+	if err != nil {
 		return nil, err
 	}
 	// If the result contains a revert reason, try to unpack and return it.
@@ -1194,16 +1201,21 @@ func (s *BlockChainAPI) EstimateGas(ctx context.Context, args TransactionArgs, b
 		bNrOrHash = *blockNrOrHash
 	}
 
-	res, err := DoEstimateGas(ctx, s.b, args, bNrOrHash, s.b.RPCGasCap())
-	if errors.Is(err, ethereum.NotFound) && s.b.HistoricalRPCService() != nil {
-		var result hexutil.Uint64
-		err := s.b.HistoricalRPCService().CallContext(ctx, &result, "eth_estimateGas", args, blockNrOrHash)
-		return result, err
-	} else if err != nil {
-		return 0, err
+	header, err := s.b.HeaderByNumberOrHash(ctx, bNrOrHash)
+	if err == nil && header != nil && s.b.ChainConfig().IsOptimismPreBedrock(header.Number) {
+		if s.b.HistoricalRPCService() != nil {
+			var result hexutil.Uint64
+			err := s.b.HistoricalRPCService().CallContext(ctx, &result, "eth_estimateGas", args, blockNrOrHash)
+			if err != nil {
+				return 0, fmt.Errorf("historical backend error: %w", err)
+			}
+			return result, nil
+		} else {
+			return 0, rpc.ErrNoHistoricalFallback
+		}
 	}
 
-	return res, err
+	return DoEstimateGas(ctx, s.b, args, bNrOrHash, s.b.RPCGasCap())
 }
 
 // RPCMarshalHeader converts the given header to the RPC output .
