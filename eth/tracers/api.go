@@ -840,9 +840,14 @@ func (api *API) TraceTransaction(ctx context.Context, hash common.Hash, config *
 
 	if !api.backend.ChainConfig().IsOptimismBedrock(new(big.Int).SetUint64(blockNumber)) {
 		if api.backend.HistoricalRPCService() != nil {
-			var histResult []*txTraceResult
-			err = api.backend.HistoricalRPCService().CallContext(ctx, &histResult, "debug_traceTransaction", hash, config)
-			return histResult, err
+			var histResult []byte
+			err := api.backend.HistoricalRPCService().CallContext(ctx, &histResult, "debug_traceTransaction", hash, config)
+			if err != nil {
+				return nil, fmt.Errorf("wrapped err: %w", err)
+			}
+			fmt.Println("string hist result", string(histResult))
+			out := json.RawMessage(histResult)
+			return json.Marshal(&out)
 		} else {
 			return nil, rpc.ErrNoHistoricalFallback
 		}
@@ -871,7 +876,9 @@ func (api *API) TraceTransaction(ctx context.Context, hash common.Hash, config *
 		TxIndex:   int(index),
 		TxHash:    hash,
 	}
-	return api.traceTx(ctx, msg, txctx, vmctx, statedb, config)
+	out, err := api.traceTx(ctx, msg, txctx, vmctx, statedb, config)
+	println(string(out.(json.RawMessage)))
+	return out, err
 }
 
 // TraceCall lets you trace a given eth_call. It collects the structured logs
