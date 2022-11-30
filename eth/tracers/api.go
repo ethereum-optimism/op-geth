@@ -461,7 +461,7 @@ func (api *API) TraceBlockByNumber(ctx context.Context, number rpc.BlockNumber, 
 		return nil, err
 	}
 
-	if !api.backend.ChainConfig().IsOptimismBedrock(block.Number()) {
+	if api.backend.ChainConfig().IsOptimismPreBedrock(block.Number()) {
 		if api.backend.HistoricalRPCService() != nil {
 			var histResult []*txTraceResult
 			err = api.backend.HistoricalRPCService().CallContext(ctx, &histResult, "debug_traceBlockByNumber", number, config)
@@ -482,7 +482,7 @@ func (api *API) TraceBlockByHash(ctx context.Context, hash common.Hash, config *
 		return nil, err
 	}
 
-	if !api.backend.ChainConfig().IsOptimismBedrock(block.Number()) {
+	if api.backend.ChainConfig().IsOptimismPreBedrock(block.Number()) {
 		if api.backend.HistoricalRPCService() != nil {
 			var histResult []*txTraceResult
 			err = api.backend.HistoricalRPCService().CallContext(ctx, &histResult, "debug_traceBlockByHash", hash, config)
@@ -838,7 +838,7 @@ func (api *API) TraceTransaction(ctx context.Context, hash common.Hash, config *
 		return nil, err
 	}
 
-	if !api.backend.ChainConfig().IsOptimismBedrock(new(big.Int).SetUint64(blockNumber)) {
+	if api.backend.ChainConfig().IsOptimismPreBedrock(new(big.Int).SetUint64(blockNumber)) {
 		if api.backend.HistoricalRPCService() != nil {
 			var histResult []byte
 			err := api.backend.HistoricalRPCService().CallContext(ctx, &histResult, "debug_traceTransaction", hash, config)
@@ -909,7 +909,7 @@ func (api *API) TraceCall(ctx context.Context, args ethapi.TransactionArgs, bloc
 		return nil, err
 	}
 
-	if !api.backend.ChainConfig().IsOptimismBedrock(block.Number()) {
+	if api.backend.ChainConfig().IsOptimismPreBedrock(block.Number()) {
 		if api.backend.HistoricalRPCService() != nil {
 			var histResult json.RawMessage
 			err = api.backend.HistoricalRPCService().CallContext(ctx, &histResult, "debug_traceCall", args, blockNrOrHash, config)

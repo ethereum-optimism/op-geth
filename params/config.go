@@ -598,9 +598,24 @@ func (c *ChainConfig) IsCancun(num *big.Int) bool {
 	return isForked(c.CancunBlock, num)
 }
 
-// IsOptimismBedrock returns whether num is either equal to the Optimism Bedrock fork block or greater.
-func (c *ChainConfig) IsOptimismBedrock(num *big.Int) bool {
+// IsBedrock returns whether num is either equal to the Bedrock fork block or greater.
+func (c *ChainConfig) IsBedrock(num *big.Int) bool {
 	return isForked(c.BedrockBlock, num)
+}
+
+// IsOptimism returns whether the node is an optimism node or not.
+func (c *ChainConfig) IsOptimism() bool {
+	return c.Optimism != nil
+}
+
+// IsOptimismBedrock returns true iff this is an optimism node & bedrock is active
+func (c *ChainConfig) IsOptimismBedrock(num *big.Int) bool {
+	return c.IsOptimism() && c.IsBedrock(num)
+}
+
+// IsOptimismPreBedrock returns true iff this is an optimism node & bedrock is not yet active
+func (c *ChainConfig) IsOptimismPreBedrock(num *big.Int) bool {
+	return c.IsOptimism() && !c.IsBedrock(num)
 }
 
 // CheckCompatible checks whether scheduled fork transitions have been imported

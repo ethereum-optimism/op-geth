@@ -1043,7 +1043,7 @@ func (e *revertError) ErrorData() interface{} {
 // useful to execute and retrieve values.
 func (s *BlockChainAPI) Call(ctx context.Context, args TransactionArgs, blockNrOrHash rpc.BlockNumberOrHash, overrides *StateOverride) (hexutil.Bytes, error) {
 	header, err := s.b.HeaderByNumberOrHash(ctx, blockNrOrHash)
-	if err == nil && header != nil && !s.b.ChainConfig().IsOptimismBedrock(header.Number) {
+	if err == nil && header != nil && s.b.ChainConfig().IsOptimismPreBedrock(header.Number) {
 		if s.b.HistoricalRPCService() != nil {
 			var histResult hexutil.Bytes
 			err := s.b.HistoricalRPCService().CallContext(ctx, &histResult, "eth_call", args, blockNrOrHash, overrides)
@@ -1193,7 +1193,7 @@ func (s *BlockChainAPI) EstimateGas(ctx context.Context, args TransactionArgs, b
 	}
 
 	header, err := s.b.HeaderByNumberOrHash(ctx, bNrOrHash)
-	if err == nil && header != nil && !s.b.ChainConfig().IsOptimismBedrock(header.Number) {
+	if err == nil && header != nil && s.b.ChainConfig().IsOptimismPreBedrock(header.Number) {
 		if s.b.HistoricalRPCService() != nil {
 			var result hexutil.Uint64
 			err := s.b.HistoricalRPCService().CallContext(ctx, &result, "eth_estimateGas", args, blockNrOrHash)
