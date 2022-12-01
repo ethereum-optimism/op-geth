@@ -385,10 +385,8 @@ func TestTraceCall(t *testing.T) {
 				t.Errorf("test %d: expect error %v, got nothing", i, testspec.expectErr)
 				continue
 			}
-			// Have to introduce this diff to reflect the fact that errors
-			// from the upstream will not preserve pointer equality.
-			if err.Error() != testspec.expectErr.Error() {
-				t.Errorf("test %d: error mismatch, want %v, got %v", i, testspec.expectErr, err)
+			if !reflect.DeepEqual(err, testspec.expectErr) {
+				t.Errorf("test %d: error mismatch, want %v, git %v", i, testspec.expectErr, err)
 			}
 		} else {
 			if err != nil {
