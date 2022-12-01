@@ -639,9 +639,9 @@ func (api *API) traceBlock(ctx context.Context, block *types.Block, config *Trac
 		go func() {
 			blockCtx := core.NewEVMBlockContext(block.Header(), api.chainContext(ctx), nil)
 			defer pend.Done()
-			blockCtx.L1CostFunc = types.NewL1CostFunc(api.backend.ChainConfig(), statedb)
 			// Fetch and execute the next transaction trace tasks
 			for task := range jobs {
+				blockCtx.L1CostFunc = types.NewL1CostFunc(api.backend.ChainConfig(), task.statedb)
 				msg, _ := txs[task.index].AsMessage(signer, block.BaseFee())
 				txctx := &Context{
 					BlockHash: blockHash,
