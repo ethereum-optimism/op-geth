@@ -33,7 +33,6 @@ import (
 	"time"
 
 	"github.com/davecgh/go-spew/spew"
-	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/consensus"
@@ -395,119 +394,6 @@ func TestTraceCall(t *testing.T) {
 			}
 			if !reflect.DeepEqual(err, testspec.expectErr) {
 				t.Errorf("test %d: error mismatch, want %v, git %v", i, testspec.expectErr, err)
-			}
-		} else {
-			if err != nil {
-				t.Errorf("test %d: expect no error, got %v", i, err)
-				continue
-			}
-			var have *logger.ExecutionResult
-			if err := json.Unmarshal(result.(json.RawMessage), &have); err != nil {
-				t.Errorf("test %d: failed to unmarshal result %v", i, err)
-			}
-			var want *logger.ExecutionResult
-			if err := json.Unmarshal([]byte(testspec.expect), &want); err != nil {
-				t.Errorf("test %d: failed to unmarshal result %v", i, err)
-			}
-			if !reflect.DeepEqual(have, want) {
-				t.Errorf("test %d: result mismatch, want %v, got %v", i, testspec.expect, string(result.(json.RawMessage)))
-			}
-		}
-	}
-}
-
-func TestTraceCallHistorical(t *testing.T) {
-	t.Parallel()
-
-	// Initialize test accounts
-	accounts := newAccounts(3)
-	genesis := &core.Genesis{
-		Config: params.AllOptimismProtocolChanges,
-		Alloc: core.GenesisAlloc{
-			accounts[0].addr: {Balance: big.NewInt(params.Ether)},
-			accounts[1].addr: {Balance: big.NewInt(params.Ether)},
-			accounts[2].addr: {Balance: big.NewInt(params.Ether)},
-		},
-	}
-	genBlocks := 10
-	signer := types.HomesteadSigner{}
-	backend := newTestBackend(t, genBlocks, genesis, func(i int, b *core.BlockGen) {
-		// Transfer from account[0] to account[1]
-		//    value: 1000 wei
-		//    fee:   0 wei
-		tx, _ := types.SignTx(types.NewTransaction(uint64(i), accounts[1].addr, big.NewInt(1000), params.TxGas, b.BaseFee(), nil), signer, accounts[0].key)
-		b.AddTx(tx)
-	})
-	defer backend.teardown()
-	api := NewAPI(backend)
-	var testSuite = []struct {
-		blockNumber  rpc.BlockNumber
-		call         ethapi.TransactionArgs
-		config       *TraceCallConfig
-		retErr       error
-		expectErr    error
-		expect       string
-		noDaisyChain bool
-	}{
-		// Optimism: Trace block on the historical chain
-		{
-			blockNumber: rpc.BlockNumber(4),
-			call: ethapi.TransactionArgs{
-				From:  &accounts[0].addr,
-				To:    &accounts[1].addr,
-				Value: (*hexutil.Big)(big.NewInt(1000)),
-			},
-			config:    nil,
-			expectErr: nil,
-			expect:    `{"gas":21000,"failed":false,"returnValue":"777","structLogs":[]}`,
-		},
-		// Optimism: Trace block that doesn't exist anywhere
-		{
-			blockNumber: rpc.BlockNumber(39347856),
-			call: ethapi.TransactionArgs{
-				From:  &accounts[0].addr,
-				To:    &accounts[1].addr,
-				Value: (*hexutil.Big)(big.NewInt(1000)),
-			},
-			config:       nil,
-			expectErr:    fmt.Errorf("block #39347856 %w", ethereum.NotFound),
-			noDaisyChain: true,
-		},
-		// Optimism: Trace block with failing historical upstream
-		{
-			blockNumber: rpc.BlockNumber(3),
-			call: ethapi.TransactionArgs{
-				From:  &accounts[0].addr,
-				To:    &accounts[1].addr,
-				Value: (*hexutil.Big)(big.NewInt(1000)),
-			},
-			config:    nil,
-			expect:    `{}`,
-			retErr:    errors.New("fake error"),
-			expectErr: errors.New("historical backend error: fake error"),
-		},
-	}
-	for i, testspec := range testSuite {
-		defer backend.mockHistorical.AssertExpectations(t)
-		if !testspec.noDaisyChain {
-			backend.mockHistorical.ExpectTraceCall(
-				testspec.call,
-				rpc.BlockNumberOrHash{BlockNumber: &testspec.blockNumber},
-				testspec.config,
-				json.RawMessage(testspec.expect),
-				testspec.retErr,
-			)
-		}
-		result, err := api.TraceCall(context.Background(), testspec.call, rpc.BlockNumberOrHash{BlockNumber: &testspec.blockNumber}, testspec.config)
-		if testspec.expectErr != nil {
-			if err == nil {
-				t.Errorf("test %d: expect error %v, got nothing", i, testspec.expectErr)
-				continue
-			}
-			// Have to introduce this diff to reflect the fact that errors
-			// from the upstream will not preserve pointer equality.
-			if err.Error() != testspec.expectErr.Error() {
-				t.Errorf("test %d: error mismatch, want %v, got %v", i, testspec.expectErr, err)
 			}
 		} else {
 			if err != nil {
