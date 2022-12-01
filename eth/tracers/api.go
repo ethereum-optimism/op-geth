@@ -959,16 +959,7 @@ func (api *API) TraceCall(ctx context.Context, args ethapi.TransactionArgs, bloc
 	}
 
 	if api.backend.ChainConfig().IsOptimismPreBedrock(block.Number()) {
-		if api.backend.HistoricalRPCService() != nil {
-			var histResult json.RawMessage
-			err = api.backend.HistoricalRPCService().CallContext(ctx, &histResult, "debug_traceCall", args, blockNrOrHash, config)
-			if err != nil {
-				return nil, fmt.Errorf("historical backend error: %w", err)
-			}
-			return histResult, err
-		} else {
-			return nil, rpc.ErrNoHistoricalFallback
-		}
+		return nil, errors.New("l2geth does not have a debug_traceCall method")
 	}
 
 	// try to recompute the state
