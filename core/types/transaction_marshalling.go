@@ -19,7 +19,6 @@ package types
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -123,8 +122,6 @@ func (tx *Transaction) UnmarshalJSON(input []byte) error {
 	if err := json.Unmarshal(input, &dec); err != nil {
 		return err
 	}
-
-	fmt.Println(string(input))
 
 	// Decode / verify fields according to transaction type.
 	var inner TxData

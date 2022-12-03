@@ -22,7 +22,6 @@ import (
 	"errors"
 	"io"
 	"math/big"
-	"runtime/debug"
 	"sync/atomic"
 	"time"
 
@@ -210,9 +209,6 @@ func (tx *Transaction) setDecoded(inner TxData, size uint64) {
 }
 
 func sanityCheckSignature(v *big.Int, r *big.Int, s *big.Int, maybeProtected bool) error {
-	log.Info("got sanity check", "v", v.String(), "r", r.String(), "s", s.String())
-	debug.PrintStack()
-
 	if isProtectedV(v) && !maybeProtected {
 		return ErrUnexpectedProtection
 	}
@@ -232,7 +228,9 @@ func sanityCheckSignature(v *big.Int, r *big.Int, s *big.Int, maybeProtected boo
 		plainV = byte(v.Uint64())
 	}
 	if !crypto.ValidateSignatureValues(plainV, r, s, false) {
-		return ErrInvalidSig
+		log.Warn("signature sanity check failed, ignoring", "v", v.String(), "plain_v", plainV, "r", r.String(), "s", s.String(), "maybe_protected", maybeProtected)
+		return nil
+		// return ErrInvalidSig
 	}
 
 	return nil
