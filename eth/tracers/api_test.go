@@ -32,7 +32,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ethereum/go-ethereum"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/consensus"
@@ -49,61 +49,46 @@ import (
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/stretchr/testify/mock"
 )
 
 var (
-	errStateNotFound = errors.New("state not found")
-	errBlockNotFound = errors.New("block not found")
+	errStateNotFound       = errors.New("state not found")
+	errBlockNotFound       = errors.New("block not found")
+	errTransactionNotFound = errors.New("transaction not found")
 )
 
-var errFailingUpstream = errors.New("historical query failed")
-
-type mockHistoricalBackend struct{}
-
-func (m *mockHistoricalBackend) TraceBlockByHash(ctx context.Context, hash common.Hash, config *TraceConfig) ([]*txTraceResult, error) {
-	if hash == common.HexToHash("0xabba") {
-		result := make([]*txTraceResult, 1)
-		result[0] = &txTraceResult{Result: "0xabba"}
-		return result, nil
-	}
-	return nil, ethereum.NotFound
+type mockHistoricalBackend struct {
+	mock.Mock
 }
 
+// mockHistoricalBackend does not have a TraceCall, because pre-bedrock there is no debug_traceCall available
+
 func (m *mockHistoricalBackend) TraceBlockByNumber(ctx context.Context, number rpc.BlockNumber, config *TraceConfig) ([]*txTraceResult, error) {
-	if number == 999 {
-		result := make([]*txTraceResult, 1)
-		result[0] = &txTraceResult{Result: "0xabba"}
-		return result, nil
-	}
-	return nil, ethereum.NotFound
+	ret := m.Mock.MethodCalled("TraceBlockByNumber", number, config)
+	return ret[0].([]*txTraceResult), *ret[1].(*error)
+}
+
+func (m *mockHistoricalBackend) ExpectTraceBlockByNumber(number rpc.BlockNumber, config *TraceConfig, out []*txTraceResult, err error) {
+	m.Mock.On("TraceBlockByNumber", number, config).Once().Return(out, &err)
 }
 
 func (m *mockHistoricalBackend) TraceTransaction(ctx context.Context, hash common.Hash, config *TraceConfig) (interface{}, error) {
-	if hash == common.HexToHash("0xACDC") {
-		result := make([]*txTraceResult, 1)
-		result[0] = &txTraceResult{Result: "0x8888"}
-		return result, nil
-	}
-	return nil, ethereum.NotFound
+	ret := m.Mock.MethodCalled("TraceTransaction", hash, config)
+	return ret[0], *ret[1].(*error)
 }
 
-func (m *mockHistoricalBackend) TraceCall(ctx context.Context, args ethapi.TransactionArgs, blockNrOrHash rpc.BlockNumberOrHash, config *TraceCallConfig) (interface{}, error) {
-	num, ok := blockNrOrHash.Number()
-	if ok && num == 777 {
-		return json.RawMessage(`{"gas":21000,"failed":false,"returnValue":"777","structLogs":[]}`), nil
-	}
-	if ok && num == 12345 {
-		return nil, errFailingUpstream
-	}
-	return nil, ethereum.NotFound
+func (m *mockHistoricalBackend) ExpectTraceTransaction(hash common.Hash, config *TraceConfig, out interface{}, err error) {
+	jsonOut, _ := json.Marshal(out)
+	m.Mock.On("TraceTransaction", hash, config).Once().Return(json.RawMessage(jsonOut), &err)
 }
 
-func newMockHistoricalBackend(t *testing.T) string {
+func newMockHistoricalBackend(t *testing.T, backend *mockHistoricalBackend) string {
 	s := rpc.NewServer()
 	err := node.RegisterApis([]rpc.API{
 		{
 			Namespace:     "debug",
-			Service:       new(mockHistoricalBackend),
+			Service:       backend,
 			Public:        true,
 			Authenticated: false,
 		},
@@ -142,13 +127,15 @@ type testBackend struct {
 	refHook func() // Hook is invoked when the requested state is referenced
 	relHook func() // Hook is invoked when the requested state is released
 
-	historical *rpc.Client
+	historical     *rpc.Client
+	mockHistorical *mockHistoricalBackend
 }
 
 // testBackend creates a new test backend. OBS: After test is done, teardown must be
 // invoked in order to release associated resources.
 func newTestBackend(t *testing.T, n int, gspec *core.Genesis, generator func(i int, b *core.BlockGen)) *testBackend {
-	historicalAddr := newMockHistoricalBackend(t)
+	mock := new(mockHistoricalBackend)
+	historicalAddr := newMockHistoricalBackend(t, mock)
 
 	historicalClient, err := rpc.Dial(historicalAddr)
 	if err != nil {
@@ -156,10 +143,11 @@ func newTestBackend(t *testing.T, n int, gspec *core.Genesis, generator func(i i
 	}
 
 	backend := &testBackend{
-		chainConfig: gspec.Config,
-		engine:      ethash.NewFaker(),
-		chaindb:     rawdb.NewMemoryDatabase(),
-		historical:  historicalClient,
+		chainConfig:    gspec.Config,
+		engine:         ethash.NewFaker(),
+		chaindb:        rawdb.NewMemoryDatabase(),
+		historical:     historicalClient,
+		mockHistorical: mock,
 	}
 	// Generate blocks for testing
 	_, blocks, _ := core.GenerateChainWithGenesis(gspec, backend.engine, n, generator)
@@ -208,7 +196,7 @@ func (b *testBackend) BlockByNumber(ctx context.Context, number rpc.BlockNumber)
 func (b *testBackend) GetTransaction(ctx context.Context, txHash common.Hash) (*types.Transaction, common.Hash, uint64, uint64, error) {
 	tx, hash, blockNumber, index := rawdb.ReadTransaction(b.chaindb, txHash)
 	if tx == nil {
-		return nil, common.Hash{}, 0, 0, nil
+		return nil, common.Hash{}, 0, 0, errTransactionNotFound
 	}
 	return tx, hash, blockNumber, index, nil
 }
@@ -349,42 +337,8 @@ func TestTraceCall(t *testing.T) {
 				Value: (*hexutil.Big)(big.NewInt(1000)),
 			},
 			config:    nil,
-			expectErr: fmt.Errorf("block #%d %w", genBlocks+1, ethereum.NotFound),
+			expectErr: fmt.Errorf("block #%d not found", genBlocks+1),
 			//expect:    nil,
-		},
-		// Optimism: Trace block on the historical chain
-		{
-			blockNumber: rpc.BlockNumber(777),
-			call: ethapi.TransactionArgs{
-				From:  &accounts[0].addr,
-				To:    &accounts[1].addr,
-				Value: (*hexutil.Big)(big.NewInt(1000)),
-			},
-			config:    nil,
-			expectErr: nil,
-			expect:    `{"gas":21000,"failed":false,"returnValue":"777","structLogs":[]}`,
-		},
-		// Optimism: Trace block that doesn't exist anywhere
-		{
-			blockNumber: rpc.BlockNumber(39347856),
-			call: ethapi.TransactionArgs{
-				From:  &accounts[0].addr,
-				To:    &accounts[1].addr,
-				Value: (*hexutil.Big)(big.NewInt(1000)),
-			},
-			config:    nil,
-			expectErr: fmt.Errorf("block #39347856 %w", ethereum.NotFound),
-		},
-		// Optimism: Trace block with failing historical upstream
-		{
-			blockNumber: rpc.BlockNumber(12345),
-			call: ethapi.TransactionArgs{
-				From:  &accounts[0].addr,
-				To:    &accounts[1].addr,
-				Value: (*hexutil.Big)(big.NewInt(1000)),
-			},
-			config:    nil,
-			expectErr: fmt.Errorf("error querying historical RPC: %w", errFailingUpstream),
 		},
 		// Standard JSON trace upon the latest block
 		{
@@ -496,22 +450,58 @@ func TestTraceTransaction(t *testing.T) {
 	}) {
 		t.Error("Transaction tracing result is different")
 	}
+}
+func TestTraceTransactionHistorical(t *testing.T) {
+	t.Parallel()
 
-	// Test non-existent transaction
-	_, err = api.TraceTransaction(context.Background(), common.Hash{42}, nil)
-	if !errors.Is(err, errTxNotFound) {
-		t.Fatalf("want %v, have %v", errTxNotFound, err)
+	// Initialize test accounts
+	accounts := newAccounts(2)
+	genesis := &core.Genesis{
+		Config: params.AllOptimismProtocolChanges,
+		Alloc: core.GenesisAlloc{
+			accounts[0].addr: {Balance: big.NewInt(params.Ether)},
+			accounts[1].addr: {Balance: big.NewInt(params.Ether)},
+		},
 	}
-	// test TraceTransaction for a historical transaction
-	result2, err := api.TraceTransaction(context.Background(), common.HexToHash("0xACDC"), nil)
-	resBytes, _ := json.Marshal(result2)
-	have2 := string(resBytes)
+	target := common.Hash{}
+	signer := types.HomesteadSigner{}
+	backend := newTestBackend(t, 1, genesis, func(i int, b *core.BlockGen) {
+		// Transfer from account[0] to account[1]
+		//    value: 1000 wei
+		//    fee:   0 wei
+		tx, _ := types.SignTx(types.NewTransaction(uint64(i), accounts[1].addr, big.NewInt(1000), params.TxGas, b.BaseFee(), nil), signer, accounts[0].key)
+		b.AddTx(tx)
+		target = tx.Hash()
+	})
+	defer backend.mockHistorical.AssertExpectations(t)
+	defer backend.chain.Stop()
+	backend.mockHistorical.ExpectTraceTransaction(
+		target,
+		nil,
+		logger.ExecutionResult{
+			Gas:         params.TxGas,
+			Failed:      false,
+			ReturnValue: "",
+			StructLogs:  []logger.StructLogRes{},
+		},
+		nil)
+	api := NewAPI(backend)
+	result, err := api.TraceTransaction(context.Background(), target, nil)
 	if err != nil {
-		t.Errorf("want no error, have %v", err)
+		t.Errorf("Failed to trace transaction %v", err)
 	}
-	want2 := `[{"result":"0x8888"}]`
-	if have2 != want2 {
-		t.Errorf("test result mismatch, have\n%v\n, want\n%v\n", have2, want2)
+	var have *logger.ExecutionResult
+	spew.Dump(result)
+	if err := json.Unmarshal(result.(json.RawMessage), &have); err != nil {
+		t.Errorf("failed to unmarshal result %v", err)
+	}
+	if !reflect.DeepEqual(have, &logger.ExecutionResult{
+		Gas:         params.TxGas,
+		Failed:      false,
+		ReturnValue: "",
+		StructLogs:  []logger.StructLogRes{},
+	}) {
+		t.Error("Transaction tracing result is different")
 	}
 }
 
@@ -559,12 +549,7 @@ func TestTraceBlock(t *testing.T) {
 		// Trace non-existent block
 		{
 			blockNumber: rpc.BlockNumber(genBlocks + 1),
-			expectErr:   fmt.Errorf("block #%d %w", genBlocks+1, ethereum.NotFound),
-		},
-		// Optimism: Trace block on the historical chain
-		{
-			blockNumber: rpc.BlockNumber(999),
-			want:        `[{"result":"0xabba"}]`,
+			expectErr:   fmt.Errorf("block #%d not found", genBlocks+1),
 		},
 		// Trace latest block
 		{
@@ -584,7 +569,7 @@ func TestTraceBlock(t *testing.T) {
 				t.Errorf("test %d, want error %v", i, tc.expectErr)
 				continue
 			}
-			if err.Error() != tc.expectErr.Error() {
+			if !reflect.DeepEqual(err, tc.expectErr) {
 				t.Errorf("test %d: error mismatch, want %v, get %v", i, tc.expectErr, err)
 			}
 			continue
@@ -598,6 +583,59 @@ func TestTraceBlock(t *testing.T) {
 		if string(have) != want {
 			t.Errorf("test %d, result mismatch, have\n%v\n, want\n%v\n", i, string(have), want)
 		}
+	}
+}
+
+func TestTraceBlockHistorical(t *testing.T) {
+	t.Parallel()
+
+	// Initialize test accounts
+	accounts := newAccounts(3)
+	genesis := &core.Genesis{
+		Config: params.AllOptimismProtocolChanges,
+		Alloc: core.GenesisAlloc{
+			accounts[0].addr: {Balance: big.NewInt(params.Ether)},
+			accounts[1].addr: {Balance: big.NewInt(params.Ether)},
+			accounts[2].addr: {Balance: big.NewInt(params.Ether)},
+		},
+	}
+	genBlocks := 10
+	signer := types.HomesteadSigner{}
+	backend := newTestBackend(t, genBlocks, genesis, func(i int, b *core.BlockGen) {
+		// Transfer from account[0] to account[1]
+		//    value: 1000 wei
+		//    fee:   0 wei
+		tx, _ := types.SignTx(types.NewTransaction(uint64(i), accounts[1].addr, big.NewInt(1000), params.TxGas, b.BaseFee(), nil), signer, accounts[0].key)
+		b.AddTx(tx)
+	})
+	defer backend.mockHistorical.AssertExpectations(t)
+	defer backend.chain.Stop()
+	api := NewAPI(backend)
+
+	var expectErr error
+	var config *TraceConfig
+	blockNumber := rpc.BlockNumber(3)
+	want := `[{"result":{"failed":false,"gas":21000,"returnValue":"","structLogs":[]}}]`
+	var ret []*txTraceResult
+	_ = json.Unmarshal([]byte(want), &ret)
+
+	backend.mockHistorical.ExpectTraceBlockByNumber(blockNumber, config, ret, nil)
+
+	result, err := api.TraceBlockByNumber(context.Background(), blockNumber, config)
+	if expectErr != nil {
+		if err == nil {
+			t.Errorf("want error %v", expectErr)
+		}
+		if !reflect.DeepEqual(err, expectErr) {
+			t.Errorf("error mismatch, want %v, get %v", expectErr, err)
+		}
+	}
+	if err != nil {
+		t.Errorf("want no error, have %v", err)
+	}
+	have, _ := json.Marshal(result)
+	if string(have) != want {
+		t.Errorf("result mismatch, have\n%v\n, want\n%v\n", string(have), want)
 	}
 }
 
