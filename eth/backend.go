@@ -203,6 +203,12 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 	if config.OverrideTerminalTotalDifficulty != nil {
 		overrides.OverrideTerminalTotalDifficulty = config.OverrideTerminalTotalDifficulty
 	}
+	if config.OverrideOptimismBedrock != nil {
+		overrides.OverrideOptimismBedrock = config.OverrideOptimismBedrock
+	}
+	if config.OverrideOptimism != nil {
+		overrides.OverrideOptimism = config.OverrideOptimism
+	}
 	if config.OverrideTerminalTotalDifficultyPassed != nil {
 		overrides.OverrideTerminalTotalDifficultyPassed = config.OverrideTerminalTotalDifficultyPassed
 	}
