@@ -66,6 +66,8 @@ var (
 		utils.SmartCardDaemonPathFlag,
 		utils.OverrideShanghai,
 		utils.EnablePersonal,
+		utils.OverrideOptimismBedrock,
+		utils.OverrideOptimism,
 		utils.EthashCacheDirFlag,
 		utils.EthashCachesInMemoryFlag,
 		utils.EthashCachesOnDiskFlag,

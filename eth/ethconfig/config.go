@@ -18,6 +18,7 @@
 package ethconfig
 
 import (
+	"math/big"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -207,6 +208,9 @@ type Config struct {
 
 	// OverrideShanghai (TODO: remove after the fork)
 	OverrideShanghai *uint64 `toml:",omitempty"`
+
+	OverrideOptimismBedrock *big.Int
+	OverrideOptimism        *bool
 
 	RollupSequencerHTTP       string
 	RollupHistoricalRPC       string

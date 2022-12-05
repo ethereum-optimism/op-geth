@@ -342,6 +342,15 @@ var (
 		Clique:                        nil,
 	}
 	TestRules = TestChainConfig.Rules(new(big.Int), false, 0)
+
+	// This is an Optimism chain config with bedrock starting a block 5, introduced for historical endpoint testing, largely based on the clique config
+	AllOptimismProtocolChanges = func() *ChainConfig {
+		conf := *AllCliqueProtocolChanges // copy the config
+		conf.Clique = nil
+		conf.BedrockBlock = big.NewInt(5)
+		conf.Optimism = &OptimismConfig{EIP1559Elasticity: 50, EIP1559Denominator: 10}
+		return &conf
+	}()
 )
 
 // NetworkNames are user friendly names to use in the chain spec banner.
@@ -436,6 +445,8 @@ type ChainConfig struct {
 	ShanghaiTime *uint64 `json:"shanghaiTime,omitempty"` // Shanghai switch time (nil = no fork, 0 = already on shanghai)
 	CancunTime   *uint64 `json:"cancunTime,omitempty"`   // Cancun switch time (nil = no fork, 0 = already on cancun)
 	PragueTime   *uint64 `json:"pragueTime,omitempty"`   // Prague switch time (nil = no fork, 0 = already on prague)
+
+	BedrockBlock *big.Int `json:"bedrockBlock,omitempty"` // Bedrock switch block (nil = no fork, 0 = already on optimism bedrock)
 
 	// TerminalTotalDifficulty is the amount of total difficulty reached by
 	// the network that triggers the consensus upgrade.
@@ -668,6 +679,26 @@ func (c *ChainConfig) IsCancun(time uint64) bool {
 // IsPrague returns whether num is either equal to the Prague fork time or greater.
 func (c *ChainConfig) IsPrague(time uint64) bool {
 	return isTimestampForked(c.PragueTime, time)
+}
+
+// IsBedrock returns whether num is either equal to the Bedrock fork block or greater.
+func (c *ChainConfig) IsBedrock(num *big.Int) bool {
+	return isBlockForked(c.BedrockBlock, num)
+}
+
+// IsOptimism returns whether the node is an optimism node or not.
+func (c *ChainConfig) IsOptimism() bool {
+	return c.Optimism != nil
+}
+
+// IsOptimismBedrock returns true iff this is an optimism node & bedrock is active
+func (c *ChainConfig) IsOptimismBedrock(num *big.Int) bool {
+	return c.IsOptimism() && c.IsBedrock(num)
+}
+
+// IsOptimismPreBedrock returns true iff this is an optimism node & bedrock is not yet active
+func (c *ChainConfig) IsOptimismPreBedrock(num *big.Int) bool {
+	return c.IsOptimism() && !c.IsBedrock(num)
 }
 
 // CheckCompatible checks whether scheduled fork transitions have been imported
@@ -978,6 +1009,7 @@ type Rules struct {
 	IsByzantium, IsConstantinople, IsPetersburg, IsIstanbul bool
 	IsBerlin, IsLondon                                      bool
 	IsMerge, IsShanghai, isCancun, isPrague                 bool
+	IsOptimismBedrock                                       bool
 }
 
 // Rules ensures c's ChainID is not nil.
@@ -1002,5 +1034,7 @@ func (c *ChainConfig) Rules(num *big.Int, isMerge bool, timestamp uint64) Rules 
 		IsShanghai:       c.IsShanghai(timestamp),
 		isCancun:         c.IsCancun(timestamp),
 		isPrague:         c.IsPrague(timestamp),
+		// Optimism
+		IsOptimismBedrock: c.IsOptimismBedrock(num),
 	}
 }

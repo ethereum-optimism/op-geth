@@ -203,6 +203,12 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 	if config.OverrideShanghai != nil {
 		overrides.OverrideShanghai = config.OverrideShanghai
 	}
+	if config.OverrideOptimismBedrock != nil {
+		overrides.OverrideOptimismBedrock = config.OverrideOptimismBedrock
+	}
+	if config.OverrideOptimism != nil {
+		overrides.OverrideOptimism = config.OverrideOptimism
+	}
 	eth.blockchain, err = core.NewBlockChain(chainDb, cacheConfig, config.Genesis, &overrides, eth.engine, vmConfig, eth.shouldPreserve, &config.TxLookupLimit)
 	if err != nil {
 		return nil, err

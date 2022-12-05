@@ -162,6 +162,15 @@ func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 		v := ctx.Uint64(utils.OverrideShanghai.Name)
 		cfg.Eth.OverrideShanghai = &v
 	}
+
+	if ctx.IsSet(utils.OverrideOptimismBedrock.Name) {
+		cfg.Eth.OverrideOptimismBedrock = flags.GlobalBig(ctx, utils.OverrideOptimismBedrock.Name)
+	}
+	if ctx.IsSet(utils.OverrideOptimism.Name) {
+		override := ctx.Bool(utils.OverrideOptimism.Name)
+		cfg.Eth.OverrideOptimism = &override
+	}
+
 	backend, eth := utils.RegisterEthService(stack, &cfg.Eth)
 
 	// Configure log filter RPC API.
