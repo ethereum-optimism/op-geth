@@ -208,10 +208,10 @@ func (eth *Ethereum) stateAtTransaction(block *types.Block, txIndex int, reexec 
 		msg, _ := tx.AsMessage(signer, block.BaseFee())
 		txContext := core.NewEVMTxContext(msg)
 		context := core.NewEVMBlockContext(block.Header(), eth.blockchain, nil)
+		context.L1CostFunc = types.NewL1CostFunc(eth.blockchain.Config(), statedb)
 		if idx == txIndex {
 			return msg, context, statedb, release, nil
 		}
-		context.L1CostFunc = types.NewL1CostFunc(eth.blockchain.Config(), statedb)
 		// Not yet the searched for transaction, execute on top of the current state
 		vmenv := vm.NewEVM(context, txContext, statedb, eth.blockchain.Config(), vm.Config{})
 		statedb.Prepare(tx.Hash(), idx)

@@ -66,6 +66,8 @@ var (
 		utils.SmartCardDaemonPathFlag,
 		utils.OverrideTerminalTotalDifficulty,
 		utils.OverrideTerminalTotalDifficultyPassed,
+		utils.OverrideOptimismBedrock,
+		utils.OverrideOptimism,
 		utils.EthashCacheDirFlag,
 		utils.EthashCachesInMemoryFlag,
 		utils.EthashCachesOnDiskFlag,
