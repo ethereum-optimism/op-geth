@@ -179,3 +179,4 @@ ignore:
   - ".circleci/*"
   - "*.sum"
   - "fork.yaml"
+  - ".github/workflows/*"
