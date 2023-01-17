@@ -506,6 +506,8 @@ func (c *ChainConfig) Description() string {
 	}
 	banner += fmt.Sprintf("Chain ID:  %v (%s)\n", c.ChainID, network)
 	switch {
+	case c.Optimism != nil:
+		banner += "Consensus: Optimism\n"
 	case c.Ethash != nil:
 		if c.TerminalTotalDifficulty == nil {
 			banner += "Consensus: Ethash (proof-of-work)\n"
@@ -522,8 +524,6 @@ func (c *ChainConfig) Description() string {
 		} else {
 			banner += "Consensus: Beacon (proof-of-stake), merged from Clique (proof-of-authority)\n"
 		}
-	case c.Optimism != nil:
-		banner += "Consensus: Optimism\n"
 	default:
 		banner += "Consensus: unknown\n"
 	}
