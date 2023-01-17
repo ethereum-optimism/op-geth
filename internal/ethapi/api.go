@@ -631,10 +631,24 @@ func (s *BlockChainAPI) BlockNumber() hexutil.Uint64 {
 // given block number. The rpc.LatestBlockNumber and rpc.PendingBlockNumber meta
 // block numbers are also allowed.
 func (s *BlockChainAPI) GetBalance(ctx context.Context, address common.Address, blockNrOrHash rpc.BlockNumberOrHash) (*hexutil.Big, error) {
-	state, _, err := s.b.StateAndHeaderByNumberOrHash(ctx, blockNrOrHash)
+	state, header, err := s.b.StateAndHeaderByNumberOrHash(ctx, blockNrOrHash)
 	if state == nil || err != nil {
 		return nil, err
 	}
+
+	if header != nil && s.b.ChainConfig().IsOptimismPreBedrock(header.Number) {
+		if s.b.HistoricalRPCService() != nil {
+			var res hexutil.Big
+			err := s.b.HistoricalRPCService().CallContext(ctx, &res, "eth_getBalance", address, blockNrOrHash)
+			if err != nil {
+				return nil, fmt.Errorf("historical backend error: %w", err)
+			}
+			return &res, nil
+		} else {
+			return nil, rpc.ErrNoHistoricalFallback
+		}
+	}
+
 	return (*hexutil.Big)(state.GetBalance(address)), state.Error()
 }
 
@@ -657,9 +671,21 @@ type StorageResult struct {
 
 // GetProof returns the Merkle-proof for a given account and optionally some storage keys.
 func (s *BlockChainAPI) GetProof(ctx context.Context, address common.Address, storageKeys []string, blockNrOrHash rpc.BlockNumberOrHash) (*AccountResult, error) {
-	state, _, err := s.b.StateAndHeaderByNumberOrHash(ctx, blockNrOrHash)
+	state, header, err := s.b.StateAndHeaderByNumberOrHash(ctx, blockNrOrHash)
 	if state == nil || err != nil {
 		return nil, err
+	}
+	if header != nil && s.b.ChainConfig().IsOptimismPreBedrock(header.Number) {
+		if s.b.HistoricalRPCService() != nil {
+			var res AccountResult
+			err := s.b.HistoricalRPCService().CallContext(ctx, &res, "eth_getProof", address, storageKeys, blockNrOrHash)
+			if err != nil {
+				return nil, fmt.Errorf("historical backend error: %w", err)
+			}
+			return &res, nil
+		} else {
+			return nil, rpc.ErrNoHistoricalFallback
+		}
 	}
 	storageTrie, err := state.StorageTrie(address)
 	if err != nil {
@@ -837,10 +863,24 @@ func (s *BlockChainAPI) GetUncleCountByBlockHash(ctx context.Context, blockHash 
 
 // GetCode returns the code stored at the given address in the state for the given block number.
 func (s *BlockChainAPI) GetCode(ctx context.Context, address common.Address, blockNrOrHash rpc.BlockNumberOrHash) (hexutil.Bytes, error) {
-	state, _, err := s.b.StateAndHeaderByNumberOrHash(ctx, blockNrOrHash)
+	state, header, err := s.b.StateAndHeaderByNumberOrHash(ctx, blockNrOrHash)
 	if state == nil || err != nil {
 		return nil, err
 	}
+
+	if header != nil && s.b.ChainConfig().IsOptimismPreBedrock(header.Number) {
+		if s.b.HistoricalRPCService() != nil {
+			var res hexutil.Bytes
+			err := s.b.HistoricalRPCService().CallContext(ctx, &res, "eth_getCode", address, blockNrOrHash)
+			if err != nil {
+				return nil, fmt.Errorf("historical backend error: %w", err)
+			}
+			return res, nil
+		} else {
+			return nil, rpc.ErrNoHistoricalFallback
+		}
+	}
+
 	code := state.GetCode(address)
 	return code, state.Error()
 }
@@ -849,10 +889,24 @@ func (s *BlockChainAPI) GetCode(ctx context.Context, address common.Address, blo
 // block number. The rpc.LatestBlockNumber and rpc.PendingBlockNumber meta block
 // numbers are also allowed.
 func (s *BlockChainAPI) GetStorageAt(ctx context.Context, address common.Address, hexKey string, blockNrOrHash rpc.BlockNumberOrHash) (hexutil.Bytes, error) {
-	state, _, err := s.b.StateAndHeaderByNumberOrHash(ctx, blockNrOrHash)
+	state, header, err := s.b.StateAndHeaderByNumberOrHash(ctx, blockNrOrHash)
 	if state == nil || err != nil {
 		return nil, err
 	}
+
+	if header != nil && s.b.ChainConfig().IsOptimismPreBedrock(header.Number) {
+		if s.b.HistoricalRPCService() != nil {
+			var res hexutil.Bytes
+			err := s.b.HistoricalRPCService().CallContext(ctx, &res, "eth_getStorageAt", address, hexKey, blockNrOrHash)
+			if err != nil {
+				return nil, fmt.Errorf("historical backend error: %w", err)
+			}
+			return res, nil
+		} else {
+			return nil, rpc.ErrNoHistoricalFallback
+		}
+	}
+
 	key, err := decodeHash(hexKey)
 	if err != nil {
 		return nil, fmt.Errorf("unable to decode storage key: %s", err)
@@ -1051,12 +1105,12 @@ func (s *BlockChainAPI) Call(ctx context.Context, args TransactionArgs, blockNrO
 	header, err := s.b.HeaderByNumberOrHash(ctx, blockNrOrHash)
 	if err == nil && header != nil && s.b.ChainConfig().IsOptimismPreBedrock(header.Number) {
 		if s.b.HistoricalRPCService() != nil {
-			var histResult hexutil.Bytes
-			err := s.b.HistoricalRPCService().CallContext(ctx, &histResult, "eth_call", args, blockNrOrHash, overrides)
+			var res hexutil.Bytes
+			err := s.b.HistoricalRPCService().CallContext(ctx, &res, "eth_call", args, blockNrOrHash, overrides)
 			if err != nil {
 				return nil, fmt.Errorf("historical backend error: %w", err)
 			}
-			return histResult, nil
+			return res, nil
 		} else {
 			return nil, rpc.ErrNoHistoricalFallback
 		}
@@ -1204,12 +1258,12 @@ func (s *BlockChainAPI) EstimateGas(ctx context.Context, args TransactionArgs, b
 	header, err := s.b.HeaderByNumberOrHash(ctx, bNrOrHash)
 	if err == nil && header != nil && s.b.ChainConfig().IsOptimismPreBedrock(header.Number) {
 		if s.b.HistoricalRPCService() != nil {
-			var result hexutil.Uint64
-			err := s.b.HistoricalRPCService().CallContext(ctx, &result, "eth_estimateGas", args, blockNrOrHash)
+			var res hexutil.Uint64
+			err := s.b.HistoricalRPCService().CallContext(ctx, &res, "eth_estimateGas", args, blockNrOrHash)
 			if err != nil {
 				return 0, fmt.Errorf("historical backend error: %w", err)
 			}
-			return result, nil
+			return res, nil
 		} else {
 			return 0, rpc.ErrNoHistoricalFallback
 		}
@@ -1469,6 +1523,21 @@ func (s *BlockChainAPI) CreateAccessList(ctx context.Context, args TransactionAr
 	if blockNrOrHash != nil {
 		bNrOrHash = *blockNrOrHash
 	}
+
+	header, err := s.b.HeaderByNumberOrHash(ctx, bNrOrHash)
+	if err == nil && header != nil && s.b.ChainConfig().IsOptimismPreBedrock(header.Number) {
+		if s.b.HistoricalRPCService() != nil {
+			var res accessListResult
+			err := s.b.HistoricalRPCService().CallContext(ctx, &res, "eth_createAccessList", args, blockNrOrHash)
+			if err != nil {
+				return nil, fmt.Errorf("historical backend error: %w", err)
+			}
+			return &res, nil
+		} else {
+			return nil, rpc.ErrNoHistoricalFallback
+		}
+	}
+
 	acl, gasUsed, vmerr, err := AccessList(ctx, s.b, bNrOrHash, args)
 	if err != nil {
 		return nil, err
@@ -1622,10 +1691,24 @@ func (s *TransactionAPI) GetTransactionCount(ctx context.Context, address common
 		return (*hexutil.Uint64)(&nonce), nil
 	}
 	// Resolve block number and use its state to ask for the nonce
-	state, _, err := s.b.StateAndHeaderByNumberOrHash(ctx, blockNrOrHash)
+	state, header, err := s.b.StateAndHeaderByNumberOrHash(ctx, blockNrOrHash)
 	if state == nil || err != nil {
 		return nil, err
 	}
+
+	if header != nil && s.b.ChainConfig().IsOptimismPreBedrock(header.Number) {
+		if s.b.HistoricalRPCService() != nil {
+			var res hexutil.Uint64
+			err := s.b.HistoricalRPCService().CallContext(ctx, &res, "eth_getTransactionCount", address, blockNrOrHash)
+			if err != nil {
+				return nil, fmt.Errorf("historical backend error: %w", err)
+			}
+			return &res, nil
+		} else {
+			return nil, rpc.ErrNoHistoricalFallback
+		}
+	}
+
 	nonce := state.GetNonce(address)
 	return (*hexutil.Uint64)(&nonce), state.Error()
 }
