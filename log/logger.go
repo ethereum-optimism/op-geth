@@ -10,7 +10,7 @@ import (
 
 const timeKey = "t"
 const lvlKey = "lvl"
-const msgKey = "msg"
+const msgKey = "message"
 const ctxKey = "ctx"
 const errorKey = "LOG15_ERROR"
 const skipLevel = 2
