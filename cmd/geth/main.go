@@ -154,6 +154,7 @@ var (
 		utils.IgnoreLegacyReceiptsFlag,
 		utils.RollupSequencerHTTPFlag,
 		utils.RollupHistoricalRPCFlag,
+		utils.RollupHistoricalRPCTimeoutFlag,
 		utils.RollupDisableTxPoolGossipFlag,
 		configFileFlag,
 	}, utils.NetworkFlags, utils.DatabasePathFlags)
