@@ -220,8 +220,9 @@ type Config struct {
 	// development purposes.
 	SyncTarget *types.Block
 
-	RollupSequencerHTTP string
-	RollupHistoricalRPC string
+	RollupSequencerHTTP        string
+	RollupHistoricalRPC        string
+	RollupHistoricalRPCTimeout time.Duration
 
 	RollupDisableTxPoolGossip bool
 }
