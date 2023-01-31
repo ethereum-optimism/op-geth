@@ -212,9 +212,10 @@ type Config struct {
 	OverrideOptimismBedrock *big.Int
 	OverrideOptimism        *bool
 
-	RollupSequencerHTTP       string
-	RollupHistoricalRPC       string
-	RollupDisableTxPoolGossip bool
+	RollupSequencerHTTP        string
+	RollupHistoricalRPC        string
+	RollupHistoricalRPCTimeout time.Duration
+	RollupDisableTxPoolGossip  bool
 }
 
 // CreateConsensusEngine creates a consensus engine for the given chain configuration.

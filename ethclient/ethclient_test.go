@@ -298,6 +298,7 @@ func newTestBackend(t *testing.T, enableHistoricalState bool) (*node.Node, []*ty
 	config.Ethash.PowMode = ethash.ModeFake
 	if enableHistoricalState {
 		config.RollupHistoricalRPC = histAddr
+		config.RollupHistoricalRPCTimeout = time.Second * 5
 	}
 	ethservice, err := eth.New(n, config)
 	if err != nil {

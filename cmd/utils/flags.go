@@ -924,6 +924,13 @@ var (
 		Category: flags.RollupCategory,
 	}
 
+	RollupHistoricalRPCTimeoutFlag = &cli.StringFlag{
+		Name:     "rollup.historicalrpctimeout",
+		Usage:    "Timeout for historical RPC requests.",
+		Value:    "5s",
+		Category: flags.RollupCategory,
+	}
+
 	RollupDisableTxPoolGossipFlag = &cli.BoolFlag{
 		Name:     "rollup.disabletxpoolgossip",
 		Usage:    "Disable transaction pool gossip.",
@@ -1893,6 +1900,9 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 	}
 	if ctx.IsSet(RollupHistoricalRPCFlag.Name) {
 		cfg.RollupHistoricalRPC = ctx.String(RollupHistoricalRPCFlag.Name)
+	}
+	if ctx.IsSet(RollupHistoricalRPCTimeoutFlag.Name) {
+		cfg.RollupHistoricalRPCTimeout = ctx.Duration(RollupHistoricalRPCTimeoutFlag.Name)
 	}
 	cfg.RollupDisableTxPoolGossip = ctx.Bool(RollupDisableTxPoolGossipFlag.Name)
 	// Override any default configs for hard coded networks.
