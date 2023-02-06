@@ -3,6 +3,7 @@ package ethapi
 import (
 	"encoding/json"
 	"math/big"
+	"reflect"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -11,6 +12,39 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/stretchr/testify/require"
 )
+
+func TestNewRPCTransactionDepositTx(t *testing.T) {
+	tx := types.NewTx(&types.DepositTx{
+		SourceHash:          common.HexToHash("0x1234"),
+		IsSystemTransaction: true,
+		Mint:                big.NewInt(34),
+	})
+	got := newRPCTransaction(tx, common.Hash{}, uint64(12), uint64(1), big.NewInt(0), &params.ChainConfig{})
+	// Should provide zero values for unused fields that are required in other transactions
+	if !reflect.DeepEqual(got.GasPrice, (*hexutil.Big)(big.NewInt(0))) {
+		t.Errorf("newRPCTransaction().GasPrice = %v, want 0x0", got.GasPrice)
+	}
+	if !reflect.DeepEqual(got.V, (*hexutil.Big)(big.NewInt(0))) {
+		t.Errorf("newRPCTransaction().V = %v, want 0x0", got.V)
+	}
+	if !reflect.DeepEqual(got.R, (*hexutil.Big)(big.NewInt(0))) {
+		t.Errorf("newRPCTransaction().R = %v, want 0x0", got.R)
+	}
+	if !reflect.DeepEqual(got.S, (*hexutil.Big)(big.NewInt(0))) {
+		t.Errorf("newRPCTransaction().S = %v, want 0x0", got.S)
+	}
+
+	// Should include deposit tx specific fields
+	if *got.SourceHash != tx.SourceHash() {
+		t.Errorf("newRPCTransaction().SourceHash = %v, want %v", got.SourceHash, tx.SourceHash())
+	}
+	if *got.IsSystemTx != tx.IsSystemTx() {
+		t.Errorf("newRPCTransaction().IsSystemTx = %v, want %v", got.IsSystemTx, tx.IsSystemTx())
+	}
+	if !reflect.DeepEqual(got.Mint, (*hexutil.Big)(tx.Mint())) {
+		t.Errorf("newRPCTransaction().Mint = %v, want %v", got.Mint, tx.Mint())
+	}
+}
 
 func TestUnmarshalRpcDepositTx(t *testing.T) {
 	tests := []struct {
@@ -83,7 +117,6 @@ func TestUnmarshalRpcDepositTx(t *testing.T) {
 			test.modifier(rpcTx)
 			json, err := json.Marshal(rpcTx)
 			require.NoError(t, err, "marshalling failed: %w", err)
-			println(string(json))
 			parsed := &types.Transaction{}
 			err = parsed.UnmarshalJSON(json)
 			if test.valid {
