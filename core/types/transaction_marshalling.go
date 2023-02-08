@@ -281,9 +281,17 @@ func (tx *Transaction) UnmarshalJSON(input []byte) error {
 			}
 		}
 	case DepositTxType:
-		if dec.AccessList != nil || dec.V != nil || dec.R != nil || dec.S != nil || dec.MaxFeePerGas != nil ||
-			dec.MaxPriorityFeePerGas != nil || dec.GasPrice != nil || (dec.Nonce != nil && *dec.Nonce != 0) {
+		if dec.AccessList != nil || dec.MaxFeePerGas != nil ||
+			dec.MaxPriorityFeePerGas != nil || (dec.Nonce != nil && *dec.Nonce != 0) {
 			return errors.New("unexpected field(s) in deposit transaction")
+		}
+		if dec.GasPrice != nil && dec.GasPrice.ToInt() != big.NewInt(0) {
+			return errors.New("deposit transaction GasPrice must be 0")
+		}
+		if (dec.V != nil && dec.V.ToInt() != big.NewInt(0)) ||
+			(dec.R != nil && dec.R.ToInt() != big.NewInt(0)) ||
+			(dec.S != nil && dec.S.ToInt() != big.NewInt(0)) {
+			return errors.New("deposit transaction signature must be 0 or unset")
 		}
 		var itx DepositTx
 		inner = &itx
