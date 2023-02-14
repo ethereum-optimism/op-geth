@@ -2,12 +2,29 @@ package types
 
 import (
 	"encoding/json"
+	"math/big"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
 )
 
-func TestTransaction_UnmarshalJSON(t *testing.T) {
+func TestTransactionUnmarshalJsonDeposit(t *testing.T) {
+	tx := NewTx(&DepositTx{
+		SourceHash:          common.HexToHash("0x1234"),
+		IsSystemTransaction: true,
+		Mint:                big.NewInt(34),
+	})
+	json, err := tx.MarshalJSON()
+	require.NoError(t, err, "Failed to marshal tx JSON")
+
+	got := &Transaction{}
+	err = got.UnmarshalJSON(json)
+	require.NoError(t, err, "Failed to unmarshal tx JSON")
+	require.Equal(t, tx.Hash(), got.Hash())
+}
+
+func TestTransactionUnmarshalJSON(t *testing.T) {
 	tests := []struct {
 		name          string
 		json          string
