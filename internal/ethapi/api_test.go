@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func Test_UnmarshalRpcDepositTx(t *testing.T) {
+func TestUnmarshalRpcDepositTx(t *testing.T) {
 	tests := []struct {
 		name     string
 		modifier func(tx *RPCTransaction)

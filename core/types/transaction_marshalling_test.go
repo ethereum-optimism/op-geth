@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func Test_Transaction_UnmarshalJson_Deposit(t *testing.T) {
+func TestTransactionUnmarshalJsonDeposit(t *testing.T) {
 	tx := NewTx(&DepositTx{
 		SourceHash:          common.HexToHash("0x1234"),
 		IsSystemTransaction: true,
@@ -24,7 +24,7 @@ func Test_Transaction_UnmarshalJson_Deposit(t *testing.T) {
 	require.Equal(t, tx.Hash(), got.Hash())
 }
 
-func TestTransaction_UnmarshalJSON(t *testing.T) {
+func TestTransactionUnmarshalJSON(t *testing.T) {
 	tests := []struct {
 		name          string
 		json          string
