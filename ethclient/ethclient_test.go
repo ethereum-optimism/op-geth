@@ -200,7 +200,7 @@ var genesis = &core.Genesis{
 }
 
 var genesisForHistorical = &core.Genesis{
-	Config:    params.AllOptimismProtocolChanges,
+	Config:    params.OptimismTestConfig,
 	Alloc:     core.GenesisAlloc{testAddr: {Balance: testBalance}},
 	ExtraData: []byte("test genesis"),
 	Timestamp: 9000,
