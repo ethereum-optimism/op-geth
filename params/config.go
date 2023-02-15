@@ -344,7 +344,7 @@ var (
 	TestRules = TestChainConfig.Rules(new(big.Int), false, 0)
 
 	// This is an Optimism chain config with bedrock starting a block 5, introduced for historical endpoint testing, largely based on the clique config
-	AllOptimismProtocolChanges = func() *ChainConfig {
+	OptimismTestConfig = func() *ChainConfig {
 		conf := *AllCliqueProtocolChanges // copy the config
 		conf.Clique = nil
 		conf.BedrockBlock = big.NewInt(5)
