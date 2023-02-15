@@ -122,7 +122,7 @@ func applyTransaction(msg types.Message, config *params.ChainConfig, author *com
 		receipt.Status = types.ReceiptStatusSuccessful
 	}
 	receipt.TxHash = tx.Hash()
-	receipt.GasUsed = result.UsedGas
+	receipt.GasUsed = result.ActualUsedGas
 
 	// If the transaction created a contract, store the creation address in the receipt.
 	if msg.To() == nil {

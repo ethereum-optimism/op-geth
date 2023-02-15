@@ -101,8 +101,16 @@ type receiptRLP struct {
 	Logs              []*Log
 }
 
-// storedReceiptRLP is the storage encoding of a receipt.
+// storedReceiptRLP is the storage encoding of a receipt with UsedGas recorded.
 type storedReceiptRLP struct {
+	PostStateOrStatus []byte
+	CumulativeGasUsed uint64
+	GasUsed           uint64
+	Logs              []*LogForStorage
+}
+
+// noUsedGasStoredReceiptRLP is the storage encoding of a receipt normally used by geth with minimal fields
+type noUsedGasStoredReceiptRLP struct {
 	PostStateOrStatus []byte
 	CumulativeGasUsed uint64
 	Logs              []*LogForStorage
@@ -304,6 +312,7 @@ func (r *ReceiptForStorage) EncodeRLP(_w io.Writer) error {
 	outerList := w.List()
 	w.WriteBytes((*Receipt)(r).statusEncoding())
 	w.WriteUint64(r.CumulativeGasUsed)
+	w.WriteUint64(r.GasUsed)
 	logList := w.List()
 	for _, log := range r.Logs {
 		if err := rlp.Encode(w, log); err != nil {
@@ -327,6 +336,9 @@ func (r *ReceiptForStorage) DecodeRLP(s *rlp.Stream) error {
 	// for old nodes that just upgraded. V4 was an intermediate unreleased format so
 	// we do need to decode it, but it's not common (try last).
 	if err := decodeStoredReceiptRLP(r, blob); err == nil {
+		return nil
+	}
+	if err := decodeNoUsedGasStoredReceiptRLP(r, blob); err == nil {
 		return nil
 	}
 	if err := decodeLegacyOptimismReceiptRLP(r, blob); err == nil {
@@ -373,6 +385,25 @@ func decodeLegacyOptimismReceiptRLP(r *ReceiptForStorage, blob []byte) error {
 
 func decodeStoredReceiptRLP(r *ReceiptForStorage, blob []byte) error {
 	var stored storedReceiptRLP
+	if err := rlp.DecodeBytes(blob, &stored); err != nil {
+		return err
+	}
+	if err := (*Receipt)(r).setStatus(stored.PostStateOrStatus); err != nil {
+		return err
+	}
+	r.CumulativeGasUsed = stored.CumulativeGasUsed
+	r.GasUsed = stored.GasUsed
+	r.Logs = make([]*Log, len(stored.Logs))
+	for i, log := range stored.Logs {
+		r.Logs[i] = (*Log)(log)
+	}
+	r.Bloom = CreateBloom(Receipts{(*Receipt)(r)})
+
+	return nil
+}
+
+func decodeNoUsedGasStoredReceiptRLP(r *ReceiptForStorage, blob []byte) error {
+	var stored noUsedGasStoredReceiptRLP
 	if err := rlp.DecodeBytes(blob, &stored); err != nil {
 		return err
 	}
@@ -484,11 +515,13 @@ func (rs Receipts) DeriveFields(config *params.ChainConfig, hash common.Hash, nu
 			from, _ := Sender(signer, txs[i])
 			rs[i].ContractAddress = crypto.CreateAddress(from, txs[i].Nonce())
 		}
-		// The used gas can be calculated based on previous r
-		if i == 0 {
-			rs[i].GasUsed = rs[i].CumulativeGasUsed
-		} else {
-			rs[i].GasUsed = rs[i].CumulativeGasUsed - rs[i-1].CumulativeGasUsed
+		if rs[i].GasUsed == 0 {
+			// The used gas can be calculated based on previous r
+			if i == 0 {
+				rs[i].GasUsed = rs[i].CumulativeGasUsed
+			} else {
+				rs[i].GasUsed = rs[i].CumulativeGasUsed - rs[i-1].CumulativeGasUsed
+			}
 		}
 		// The derived log fields can simply be set from the block and transaction
 		for j := 0; j < len(rs[i].Logs); j++ {

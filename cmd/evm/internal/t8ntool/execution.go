@@ -211,7 +211,7 @@ func (pre *Prestate) Apply(vmConfig vm.Config, chainConfig *params.ChainConfig,
 				receipt.Status = types.ReceiptStatusSuccessful
 			}
 			receipt.TxHash = tx.Hash()
-			receipt.GasUsed = msgResult.UsedGas
+			receipt.GasUsed = msgResult.ActualUsedGas
 
 			// If the transaction created a contract, store the creation address in the receipt.
 			if msg.To() == nil {

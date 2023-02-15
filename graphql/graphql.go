@@ -1080,7 +1080,7 @@ func (b *Block) Call(ctx context.Context, args struct {
 
 	return &CallResult{
 		data:    result.ReturnData,
-		gasUsed: Long(result.UsedGas),
+		gasUsed: Long(result.ActualUsedGas),
 		status:  status,
 	}, nil
 }
@@ -1150,7 +1150,7 @@ func (p *Pending) Call(ctx context.Context, args struct {
 
 	return &CallResult{
 		data:    result.ReturnData,
-		gasUsed: Long(result.UsedGas),
+		gasUsed: Long(result.ActualUsedGas),
 		status:  status,
 	}, nil
 }

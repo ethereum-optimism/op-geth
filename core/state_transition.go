@@ -93,9 +93,10 @@ type Message interface {
 // ExecutionResult includes all output after executing given evm
 // message no matter the execution itself is successful or not.
 type ExecutionResult struct {
-	UsedGas    uint64 // Total used gas but include the refunded gas
-	Err        error  // Any error encountered during the execution(listed in core/vm/errors.go)
-	ReturnData []byte // Returned data from evm(function result or data supplied with revert opcode)
+	UsedGas       uint64 // Total used gas but include the refunded gas (for consensus purposes)
+	ActualUsedGas uint64 // Total used gas but include the refunded gas
+	Err           error  // Any error encountered during the execution(listed in core/vm/errors.go)
+	ReturnData    []byte // Returned data from evm(function result or data supplied with revert opcode)
 }
 
 // Unwrap returns the internal evm error which allows us for further
@@ -322,9 +323,10 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 			gasUsed = 0
 		}
 		result = &ExecutionResult{
-			UsedGas:    gasUsed,
-			Err:        fmt.Errorf("failed deposit: %w", err),
-			ReturnData: nil,
+			UsedGas:       gasUsed,
+			ActualUsedGas: st.gasUsed(),
+			Err:           fmt.Errorf("failed deposit: %w", err),
+			ReturnData:    nil,
 		}
 		err = nil
 	}
@@ -396,14 +398,16 @@ func (st *StateTransition) innerTransitionDb() (*ExecutionResult, error) {
 	if st.msg.IsDepositTx() {
 		// Record deposits as using all their gas (matches the gas pool)
 		// System Transactions are special & are not recorded as using any gas (anywhere)
+		actualGasUsed := st.gasUsed()
 		gasUsed := st.msg.Gas()
 		if st.msg.IsSystemTx() {
 			gasUsed = 0
 		}
 		return &ExecutionResult{
-			UsedGas:    gasUsed,
-			Err:        vmerr,
-			ReturnData: ret,
+			UsedGas:       gasUsed,
+			ActualUsedGas: actualGasUsed,
+			Err:           vmerr,
+			ReturnData:    ret,
 		}, nil
 	}
 	if !rules.IsLondon {
@@ -438,9 +442,10 @@ func (st *StateTransition) innerTransitionDb() (*ExecutionResult, error) {
 	}
 
 	return &ExecutionResult{
-		UsedGas:    st.gasUsed(),
-		Err:        vmerr,
-		ReturnData: ret,
+		UsedGas:       st.gasUsed(),
+		ActualUsedGas: st.gasUsed(),
+		Err:           vmerr,
+		ReturnData:    ret,
 	}, nil
 }
 
