@@ -315,18 +315,30 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 		st.state.RevertToSnapshot(snap)
 		// Even though we revert the state changes, always increment the nonce for the next deposit transaction
 		st.state.SetNonce(st.msg.From(), st.state.GetNonce(st.msg.From())+1)
-		// Record deposits as using all their gas (matches the gas pool)
-		// System Transactions are special & are not recorded as using any gas (anywhere)
-		gasUsed := st.msg.Gas()
-		if st.msg.IsSystemTx() {
-			gasUsed = 0
+
+		if st.evm.ChainConfig().IsPostBedrock(st.evm.Context.BlockNumber) {
+			st.gp.AddGas(st.gas)
+			result = &ExecutionResult{
+				UsedGas:    st.gasUsed(),
+				Err:        fmt.Errorf("failed deposit: %w", err),
+				ReturnData: nil,
+			}
+			err = nil
+		} else {
+			// Record deposits as using all their gas (matches the gas pool)
+			// System Transactions are special & are not recorded as using any gas (anywhere)
+			gasUsed := st.msg.Gas()
+			if st.msg.IsSystemTx() {
+				gasUsed = 0
+			}
+			result = &ExecutionResult{
+				UsedGas:    gasUsed,
+				Err:        fmt.Errorf("failed deposit: %w", err),
+				ReturnData: nil,
+			}
+			err = nil
 		}
-		result = &ExecutionResult{
-			UsedGas:    gasUsed,
-			Err:        fmt.Errorf("failed deposit: %w", err),
-			ReturnData: nil,
-		}
-		err = nil
+
 	}
 	return result, err
 }
@@ -394,17 +406,28 @@ func (st *StateTransition) innerTransitionDb() (*ExecutionResult, error) {
 
 	// if deposit: skip refunds, skip tipping coinbase
 	if st.msg.IsDepositTx() {
-		// Record deposits as using all their gas (matches the gas pool)
-		// System Transactions are special & are not recorded as using any gas (anywhere)
-		gasUsed := st.msg.Gas()
-		if st.msg.IsSystemTx() {
-			gasUsed = 0
+		// Handle deposits like normal transactions
+		if rules.IsPostBedrock {
+			// Return remaining gas to the block gas counter so it is available for the next transaction.
+			st.gp.AddGas(st.gas)
+			return &ExecutionResult{
+				UsedGas:    st.gasUsed(),
+				Err:        vmerr,
+				ReturnData: ret,
+			}, nil
+		} else {
+			// Record deposits as using all their gas (matches the gas pool)
+			// System Transactions are special & are not recorded as using any gas (anywhere)
+			gasUsed := st.msg.Gas()
+			if st.msg.IsSystemTx() {
+				gasUsed = 0
+			}
+			return &ExecutionResult{
+				UsedGas:    gasUsed,
+				Err:        vmerr,
+				ReturnData: ret,
+			}, nil
 		}
-		return &ExecutionResult{
-			UsedGas:    gasUsed,
-			Err:        vmerr,
-			ReturnData: ret,
-		}, nil
 	}
 	if !rules.IsLondon {
 		// Before EIP-3529: refunds were capped to gasUsed / 2
