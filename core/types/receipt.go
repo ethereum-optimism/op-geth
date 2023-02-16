@@ -101,6 +101,12 @@ type receiptRLP struct {
 	Logs              []*Log
 }
 
+// receiptRLP is the consensus encoding of a receipt.
+type depositReceiptRLP struct {
+	ReceiptRLP      receiptRLP
+	ContractAddress common.Address
+}
+
 // storedReceiptRLP is the storage encoding of a receipt.
 type storedReceiptRLP struct {
 	PostStateOrStatus []byte
@@ -178,6 +184,16 @@ func (r *Receipt) EncodeRLP(w io.Writer) error {
 // encodeTyped writes the canonical encoding of a typed receipt to w.
 func (r *Receipt) encodeTyped(data *receiptRLP, w *bytes.Buffer) error {
 	w.WriteByte(r.Type)
+	if r.Type == DepositTxType && r.ContractAddress != (common.Address{}) {
+		depositData := &depositReceiptRLP{*data, r.ContractAddress}
+		return rlp.Encode(w, depositData)
+	}
+	return rlp.Encode(w, data)
+}
+
+// encodeTyped writes the canonical encoding of a typed receipt to w.
+func (r *Receipt) encodeDepositTyped(data *depositReceiptRLP, w *bytes.Buffer) error {
+	w.WriteByte(r.Type)
 	return rlp.Encode(w, data)
 }
 
@@ -240,11 +256,27 @@ func (r *Receipt) decodeTyped(b []byte) error {
 		return errShortTypedReceipt
 	}
 	switch b[0] {
-	case DynamicFeeTxType, AccessListTxType, DepositTxType:
+	case DynamicFeeTxType, AccessListTxType:
 		var data receiptRLP
 		err := rlp.DecodeBytes(b[1:], &data)
 		if err != nil {
 			return err
+		}
+		r.Type = b[0]
+		return r.setFromRLP(data)
+	case DepositTxType:
+		var data receiptRLP
+		err := rlp.DecodeBytes(b[1:], &data)
+		if err != nil {
+			// Try decoding contract creation version
+			var dep depositReceiptRLP
+			err = rlp.DecodeBytes(b[1:], &dep)
+			if err != nil {
+				return err
+			}
+			r.Type = b[0]
+			r.ContractAddress = dep.ContractAddress
+			return r.setFromRLP(dep.ReceiptRLP)
 		}
 		r.Type = b[0]
 		return r.setFromRLP(data)
@@ -479,7 +511,7 @@ func (rs Receipts) DeriveFields(config *params.ChainConfig, hash common.Hash, nu
 		rs[i].TransactionIndex = uint(i)
 
 		// The contract address can be derived from the transaction itself
-		if txs[i].To() == nil {
+		if txs[i].To() == nil && rs[i].ContractAddress != (common.Address{}) {
 			// Deriving the signer is expensive, only do if it's actually needed
 			from, _ := Sender(signer, txs[i])
 			rs[i].ContractAddress = crypto.CreateAddress(from, txs[i].Nonce())
