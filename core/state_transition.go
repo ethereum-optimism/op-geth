@@ -338,7 +338,6 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 			}
 			err = nil
 		}
-
 	}
 	return result, err
 }

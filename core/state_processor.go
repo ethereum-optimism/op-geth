@@ -126,14 +126,15 @@ func applyTransaction(msg types.Message, config *params.ChainConfig, author *com
 
 	// If the transaction created a contract, store the creation address in the receipt.
 	if msg.To() == nil {
-		nonce := tx.Nonce()
 		if msg.IsDepositTx() {
 			if config.IsPostBedrock(blockNumber) {
-				nonce = statedb.GetNonce(msg.From())
+				nonce := statedb.GetNonce(msg.From())
 				receipt.ContractAddress = crypto.CreateAddress(evm.TxContext.Origin, nonce)
 			} else {
 				receipt.ContractAddress = common.Address{}
 			}
+		} else {
+			receipt.ContractAddress = crypto.CreateAddress(evm.TxContext.Origin, tx.Nonce())
 		}
 	}
 
