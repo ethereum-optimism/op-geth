@@ -287,6 +287,11 @@ var (
 		Usage:    "Manually specify OptimsimBedrock, overriding the bundled setting",
 		Category: flags.EthCategory,
 	}
+	OverrideOptimismPostBedrock = &flags.BigFlag{
+		Name:     "override.postbedrock",
+		Usage:    "Manually specify OptimsimPostBedrock, overriding the bundled setting",
+		Category: flags.EthCategory,
+	}
 	OverrideOptimism = &cli.BoolFlag{
 		Name:     "override.optimism",
 		Usage:    "Manually specify optimism",

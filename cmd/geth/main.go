@@ -67,6 +67,7 @@ var (
 		utils.OverrideTerminalTotalDifficulty,
 		utils.OverrideTerminalTotalDifficultyPassed,
 		utils.OverrideOptimismBedrock,
+		utils.OverrideOptimismPostBedrock,
 		utils.OverrideOptimism,
 		utils.EthashCacheDirFlag,
 		utils.EthashCachesInMemoryFlag,

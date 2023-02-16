@@ -270,6 +270,7 @@ type ChainOverrides struct {
 	OverrideTerminalTotalDifficulty       *big.Int
 	OverrideTerminalTotalDifficultyPassed *bool
 	OverrideOptimismBedrock               *big.Int
+	OverrideOptimismPostBedrock           *big.Int
 	OverrideOptimism                      *bool
 }
 
@@ -305,6 +306,9 @@ func SetupGenesisBlockWithOverride(db ethdb.Database, genesis *Genesis, override
 			}
 			if overrides != nil && overrides.OverrideOptimismBedrock != nil {
 				config.BedrockBlock = overrides.OverrideOptimismBedrock
+			}
+			if overrides != nil && overrides.OverrideOptimismPostBedrock != nil {
+				config.PostBedrockBlock = overrides.OverrideOptimismPostBedrock
 			}
 			if overrides != nil && overrides.OverrideOptimism != nil {
 				if *overrides.OverrideOptimism {

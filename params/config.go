@@ -271,20 +271,20 @@ var (
 	//
 	// This configuration is intentionally not using keyed fields to force anyone
 	// adding flags to the config to also have to set these fields.
-	AllEthashProtocolChanges = &ChainConfig{big.NewInt(1337), big.NewInt(0), nil, false, big.NewInt(0), common.Hash{}, big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), nil, nil, nil, big.NewInt(0), nil, false, new(EthashConfig), nil, nil}
+	AllEthashProtocolChanges = &ChainConfig{big.NewInt(1337), big.NewInt(0), nil, false, big.NewInt(0), common.Hash{}, big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), nil, nil, nil, big.NewInt(0), nil, nil, false, new(EthashConfig), nil, nil}
 
 	// AllCliqueProtocolChanges contains every protocol change (EIPs) introduced
 	// and accepted by the Ethereum core developers into the Clique consensus.
 	//
 	// This configuration is intentionally not using keyed fields to force anyone
 	// adding flags to the config to also have to set these fields.
-	AllCliqueProtocolChanges = &ChainConfig{big.NewInt(1337), big.NewInt(0), nil, false, big.NewInt(0), common.Hash{}, big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), nil, nil, nil, nil, nil, big.NewInt(0), nil, false, nil, &CliqueConfig{Period: 0, Epoch: 30000}, nil}
+	AllCliqueProtocolChanges = &ChainConfig{big.NewInt(1337), big.NewInt(0), nil, false, big.NewInt(0), common.Hash{}, big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), nil, nil, nil, nil, nil, big.NewInt(0), nil, nil, false, nil, &CliqueConfig{Period: 0, Epoch: 30000}, nil}
 
 	// This is a optimism config with bedrock starting a block 5
-	AllOptimismProtocolChanges = &ChainConfig{big.NewInt(1337), big.NewInt(0), nil, false, big.NewInt(0), common.Hash{}, big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), nil, nil, nil, big.NewInt(5), nil, false, nil, nil, &OptimismConfig{EIP1559Elasticity: 50, EIP1559Denominator: 10}}
+	AllOptimismProtocolChanges = &ChainConfig{big.NewInt(1337), big.NewInt(0), nil, false, big.NewInt(0), common.Hash{}, big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), nil, nil, nil, big.NewInt(5), nil, nil, false, nil, nil, &OptimismConfig{EIP1559Elasticity: 50, EIP1559Denominator: 10}}
 
-	TestChainConfig    = &ChainConfig{big.NewInt(1), big.NewInt(0), nil, false, big.NewInt(0), common.Hash{}, big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), nil, nil, nil, big.NewInt(0), nil, false, new(EthashConfig), nil, nil}
-	NonActivatedConfig = &ChainConfig{big.NewInt(1), nil, nil, false, nil, common.Hash{}, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, big.NewInt(0), nil, false, new(EthashConfig), nil, nil}
+	TestChainConfig    = &ChainConfig{big.NewInt(1), big.NewInt(0), nil, false, big.NewInt(0), common.Hash{}, big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), nil, nil, nil, big.NewInt(0), nil, nil, false, new(EthashConfig), nil, nil}
+	NonActivatedConfig = &ChainConfig{big.NewInt(1), nil, nil, false, nil, common.Hash{}, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, big.NewInt(0), nil, nil, false, new(EthashConfig), nil, nil}
 	TestRules          = TestChainConfig.Rules(new(big.Int), false)
 )
 
@@ -378,6 +378,7 @@ type ChainConfig struct {
 	ShanghaiBlock       *big.Int `json:"shanghaiBlock,omitempty"`       // Shanghai switch block (nil = no fork, 0 = already on shanghai)
 	CancunBlock         *big.Int `json:"cancunBlock,omitempty"`         // Cancun switch block (nil = no fork, 0 = already on cancun)
 	BedrockBlock        *big.Int `json:"bedrockBlock,omitempty"`        // Bedrock switch block (nil = no fork, 0 = already on optimism bedrock)
+	PostBedrockBlock    *big.Int `json:"postBedrockBlock,omitempty"`    // Post-Bedrock switch block (nil = no fork, 0 = already on optimism post-bedrock)
 
 	// TerminalTotalDifficulty is the amount of total difficulty reached by
 	// the network that triggers the consensus upgrade.
@@ -601,6 +602,11 @@ func (c *ChainConfig) IsCancun(num *big.Int) bool {
 // IsBedrock returns whether num is either equal to the Bedrock fork block or greater.
 func (c *ChainConfig) IsBedrock(num *big.Int) bool {
 	return isForked(c.BedrockBlock, num)
+}
+
+// IsPostBedrock returns whether num is either equal to the PostBedrock fork block or greater.
+func (c *ChainConfig) IsPostBedrock(num *big.Int) bool {
+	return isForked(c.PostBedrockBlock, num)
 }
 
 // IsOptimism returns whether the node is an optimism node or not.
@@ -833,6 +839,7 @@ type Rules struct {
 	IsBerlin, IsLondon                                      bool
 	IsMerge, IsShanghai, isCancun                           bool
 	IsOptimismBedrock                                       bool
+	IsPostBedrock                                           bool
 }
 
 // Rules ensures c's ChainID is not nil.
@@ -857,5 +864,6 @@ func (c *ChainConfig) Rules(num *big.Int, isMerge bool) Rules {
 		IsShanghai:        c.IsShanghai(num),
 		isCancun:          c.IsCancun(num),
 		IsOptimismBedrock: c.IsOptimismBedrock(num),
+		IsPostBedrock:     c.IsPostBedrock(num),
 	}
 }

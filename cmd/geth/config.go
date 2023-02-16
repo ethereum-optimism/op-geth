@@ -164,6 +164,9 @@ func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 	if ctx.IsSet(utils.OverrideOptimismBedrock.Name) {
 		cfg.Eth.OverrideOptimismBedrock = flags.GlobalBig(ctx, utils.OverrideOptimismBedrock.Name)
 	}
+	if ctx.IsSet(utils.OverrideOptimismPostBedrock.Name) {
+		cfg.Eth.OverrideOptimismPostBedrock = flags.GlobalBig(ctx, utils.OverrideOptimismPostBedrock.Name)
+	}
 	if ctx.IsSet(utils.OverrideOptimism.Name) {
 		override := ctx.Bool(utils.OverrideOptimism.Name)
 		cfg.Eth.OverrideOptimism = &override
