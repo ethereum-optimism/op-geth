@@ -27,6 +27,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/stretchr/testify/require"
 )
 
 var (
@@ -79,6 +80,42 @@ var (
 			},
 		},
 		Type: DynamicFeeTxType,
+	}
+	depositReceipt = &Receipt{
+		Status:            ReceiptStatusFailed,
+		CumulativeGasUsed: 1,
+		Logs: []*Log{
+			{
+				Address: common.BytesToAddress([]byte{0x11}),
+				Topics:  []common.Hash{common.HexToHash("dead"), common.HexToHash("beef")},
+				Data:    []byte{0x01, 0x00, 0xff},
+			},
+			{
+				Address: common.BytesToAddress([]byte{0x01, 0x11}),
+				Topics:  []common.Hash{common.HexToHash("dead"), common.HexToHash("beef")},
+				Data:    []byte{0x01, 0x00, 0xff},
+			},
+		},
+		Type: DepositTxType,
+	}
+	deposit2Receipt = &Receipt{
+		Status:            ReceiptStatusFailed,
+		CumulativeGasUsed: 1,
+		// Should be preserved for Deposit2, even after marshalling in consensus format
+		ContractAddress: common.BigToAddress(common.Big2),
+		Logs: []*Log{
+			{
+				Address: common.BytesToAddress([]byte{0x11}),
+				Topics:  []common.Hash{common.HexToHash("dead"), common.HexToHash("beef")},
+				Data:    []byte{0x01, 0x00, 0xff},
+			},
+			{
+				Address: common.BytesToAddress([]byte{0x01, 0x11}),
+				Topics:  []common.Hash{common.HexToHash("dead"), common.HexToHash("beef")},
+				Data:    []byte{0x01, 0x00, 0xff},
+			},
+		},
+		Type: Deposit2TxType,
 	}
 )
 
@@ -509,4 +546,28 @@ func clearComputedFieldsOnLog(t *testing.T, log *Log) {
 	log.TxHash = common.Hash{}
 	log.TxIndex = math.MaxUint32
 	log.Index = math.MaxUint32
+}
+
+func TestRoundTripReceipt(t *testing.T) {
+	tests := []struct {
+		name string
+		rcpt *Receipt
+	}{
+		{name: "Legacy", rcpt: legacyReceipt},
+		{name: "AccessList", rcpt: accessListReceipt},
+		{name: "EIP1559", rcpt: eip1559Receipt},
+		{name: "Deposit", rcpt: depositReceipt},
+		{name: "Deposit2", rcpt: deposit2Receipt},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			data, err := test.rcpt.MarshalBinary()
+			require.NoError(t, err)
+
+			d := &Receipt{}
+			err = d.UnmarshalBinary(data)
+			require.NoError(t, err)
+			require.Equal(t, test.rcpt, d)
+		})
+	}
 }

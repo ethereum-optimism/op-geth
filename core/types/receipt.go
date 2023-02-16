@@ -101,6 +101,14 @@ type receiptRLP struct {
 	Logs              []*Log
 }
 
+type deposit2ReceiptRLP struct {
+	PostStateOrStatus []byte
+	CumulativeGasUsed uint64
+	Bloom             Bloom
+	Logs              []*Log
+	ContractAddress   common.Address
+}
+
 // storedReceiptRLP is the storage encoding of a receipt.
 type storedReceiptRLP struct {
 	PostStateOrStatus []byte
@@ -162,6 +170,16 @@ func NewReceipt(root []byte, failed bool, cumulativeGasUsed uint64) *Receipt {
 // EncodeRLP implements rlp.Encoder, and flattens the consensus fields of a receipt
 // into an RLP stream. If no post state is present, byzantium fork is assumed.
 func (r *Receipt) EncodeRLP(w io.Writer) error {
+	if r.Type == Deposit2TxType {
+		data := &deposit2ReceiptRLP{r.statusEncoding(), r.CumulativeGasUsed, r.Bloom, r.Logs, r.ContractAddress}
+		buf := encodeBufferPool.Get().(*bytes.Buffer)
+		defer encodeBufferPool.Put(buf)
+		buf.Reset()
+		if err := r.encodeDeposit2Typed(data, buf); err != nil {
+			return err
+		}
+		return rlp.Encode(w, buf.Bytes())
+	}
 	data := &receiptRLP{r.statusEncoding(), r.CumulativeGasUsed, r.Bloom, r.Logs}
 	if r.Type == LegacyTxType {
 		return rlp.Encode(w, data)
@@ -181,10 +199,22 @@ func (r *Receipt) encodeTyped(data *receiptRLP, w *bytes.Buffer) error {
 	return rlp.Encode(w, data)
 }
 
+// encodeDeposit2Typed writes the canonical encoding of a typed receipt to w.
+func (r *Receipt) encodeDeposit2Typed(data *deposit2ReceiptRLP, w *bytes.Buffer) error {
+	w.WriteByte(r.Type)
+	return rlp.Encode(w, data)
+}
+
 // MarshalBinary returns the consensus encoding of the receipt.
 func (r *Receipt) MarshalBinary() ([]byte, error) {
 	if r.Type == LegacyTxType {
 		return rlp.EncodeToBytes(r)
+	}
+	if r.Type == Deposit2TxType {
+		data := &deposit2ReceiptRLP{r.statusEncoding(), r.CumulativeGasUsed, r.Bloom, r.Logs, r.ContractAddress}
+		var buf bytes.Buffer
+		err := r.encodeDeposit2Typed(data, &buf)
+		return buf.Bytes(), err
 	}
 	data := &receiptRLP{r.statusEncoding(), r.CumulativeGasUsed, r.Bloom, r.Logs}
 	var buf bytes.Buffer
@@ -240,7 +270,7 @@ func (r *Receipt) decodeTyped(b []byte) error {
 		return errShortTypedReceipt
 	}
 	switch b[0] {
-	case DynamicFeeTxType, AccessListTxType, DepositTxType, Deposit2TxType:
+	case DynamicFeeTxType, AccessListTxType, DepositTxType:
 		var data receiptRLP
 		err := rlp.DecodeBytes(b[1:], &data)
 		if err != nil {
@@ -248,6 +278,14 @@ func (r *Receipt) decodeTyped(b []byte) error {
 		}
 		r.Type = b[0]
 		return r.setFromRLP(data)
+	case Deposit2TxType:
+		var data deposit2ReceiptRLP
+		err := rlp.DecodeBytes(b[1:], &data)
+		if err != nil {
+			return err
+		}
+		r.Type = b[0]
+		return r.setFromDeposit2RLP(data)
 	default:
 		return ErrTxTypeNotSupported
 	}
@@ -255,6 +293,11 @@ func (r *Receipt) decodeTyped(b []byte) error {
 
 func (r *Receipt) setFromRLP(data receiptRLP) error {
 	r.CumulativeGasUsed, r.Bloom, r.Logs = data.CumulativeGasUsed, data.Bloom, data.Logs
+	return r.setStatus(data.PostStateOrStatus)
+}
+
+func (r *Receipt) setFromDeposit2RLP(data deposit2ReceiptRLP) error {
+	r.CumulativeGasUsed, r.Bloom, r.Logs, r.ContractAddress = data.CumulativeGasUsed, data.Bloom, data.Logs, data.ContractAddress
 	return r.setStatus(data.PostStateOrStatus)
 }
 
@@ -482,7 +525,7 @@ func (rs Receipts) DeriveFields(config *params.ChainConfig, hash common.Hash, nu
 		rs[i].TransactionIndex = uint(i)
 
 		// The contract address can be derived from the transaction itself
-		if txs[i].To() == nil {
+		if txs[i].To() == nil && rs[i].ContractAddress == (common.Address{}) {
 			// Deriving the signer is expensive, only do if it's actually needed
 			from, _ := Sender(signer, txs[i])
 			rs[i].ContractAddress = crypto.CreateAddress(from, txs[i].Nonce())
