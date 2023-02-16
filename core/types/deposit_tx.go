@@ -23,8 +23,10 @@ import (
 )
 
 const DepositTxType = 0x7E
+const Deposit2TxType = 0x7D
 
 type DepositTx struct {
+	Type byte
 	// SourceHash uniquely identifies the source of the deposit
 	SourceHash common.Hash
 	// From is exposed through the types.Signer, not through TxData
@@ -46,6 +48,7 @@ type DepositTx struct {
 // copy creates a deep copy of the transaction data and initializes all fields.
 func (tx *DepositTx) copy() TxData {
 	cpy := &DepositTx{
+		Type:                tx.Type,
 		SourceHash:          tx.SourceHash,
 		From:                tx.From,
 		To:                  copyAddressPtr(tx.To),
@@ -65,7 +68,7 @@ func (tx *DepositTx) copy() TxData {
 }
 
 // accessors for innerTx.
-func (tx *DepositTx) txType() byte           { return DepositTxType }
+func (tx *DepositTx) txType() byte           { return tx.Type }
 func (tx *DepositTx) chainID() *big.Int      { return common.Big0 }
 func (tx *DepositTx) accessList() AccessList { return nil }
 func (tx *DepositTx) data() []byte           { return tx.Data }

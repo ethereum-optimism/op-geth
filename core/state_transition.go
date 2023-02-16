@@ -81,6 +81,7 @@ type Message interface {
 
 	IsSystemTx() bool      // IsSystemTx indicates the message, if also a deposit, does not emit gas usage.
 	IsDepositTx() bool     // IsDepositTx indicates the message is force-included and can persist a mint.
+	IsDeposit2Tx() bool    // IsDeposit2Tx indicates the message is force-included and can persist a mint.
 	Mint() *big.Int        // Mint is the amount to mint before EVM processing, or nil if there is no minting.
 	RollupDataGas() uint64 // RollupDataGas indicates the rollup cost of the message, 0 if not a rollup or no cost.
 
@@ -234,7 +235,7 @@ func (st *StateTransition) buyGas() error {
 }
 
 func (st *StateTransition) preCheck() error {
-	if st.msg.IsDepositTx() {
+	if st.msg.IsDepositTx() || st.msg.IsDeposit2Tx() {
 		// No fee fields to check, no nonce to check, and no need to check if EOA (L1 already verified it for us)
 		// Gas is free, but no refunds!
 		st.initialGas = st.msg.Gas()
@@ -311,12 +312,12 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 	result, err := st.innerTransitionDb()
 	// Failed deposits must still be included. Unless we cannot produce the block at all due to the gas limit.
 	// On deposit failure, we rewind any state changes from after the minting, and increment the nonce.
-	if err != nil && err != ErrGasLimitReached && st.msg.IsDepositTx() {
+	if err != nil && err != ErrGasLimitReached && (st.msg.IsDepositTx() || st.msg.IsDeposit2Tx()) {
 		st.state.RevertToSnapshot(snap)
 		// Even though we revert the state changes, always increment the nonce for the next deposit transaction
 		st.state.SetNonce(st.msg.From(), st.state.GetNonce(st.msg.From())+1)
 
-		if st.evm.ChainConfig().IsPostBedrock(st.evm.Context.BlockNumber) {
+		if st.msg.IsDeposit2Tx() {
 			st.gp.AddGas(st.gas)
 			result = &ExecutionResult{
 				UsedGas:    st.gasUsed(),
@@ -405,29 +406,27 @@ func (st *StateTransition) innerTransitionDb() (*ExecutionResult, error) {
 	}
 
 	// if deposit: skip refunds, skip tipping coinbase
-	if st.msg.IsDepositTx() {
-		// Handle deposits like normal transactions
-		if rules.IsPostBedrock {
-			// Return remaining gas to the block gas counter so it is available for the next transaction.
-			st.gp.AddGas(st.gas)
-			return &ExecutionResult{
-				UsedGas:    st.gasUsed(),
-				Err:        vmerr,
-				ReturnData: ret,
-			}, nil
-		} else {
-			// Record deposits as using all their gas (matches the gas pool)
-			// System Transactions are special & are not recorded as using any gas (anywhere)
-			gasUsed := st.msg.Gas()
-			if st.msg.IsSystemTx() {
-				gasUsed = 0
-			}
-			return &ExecutionResult{
-				UsedGas:    gasUsed,
-				Err:        vmerr,
-				ReturnData: ret,
-			}, nil
+	// Handle deposits like normal transactions
+	if st.msg.IsDeposit2Tx() {
+		// Return remaining gas to the block gas counter so it is available for the next transaction.
+		st.gp.AddGas(st.gas)
+		return &ExecutionResult{
+			UsedGas:    st.gasUsed(),
+			Err:        vmerr,
+			ReturnData: ret,
+		}, nil
+	} else if st.msg.IsDepositTx() {
+		// Record deposits as using all their gas (matches the gas pool)
+		// System Transactions are special & are not recorded as using any gas (anywhere)
+		gasUsed := st.msg.Gas()
+		if st.msg.IsSystemTx() {
+			gasUsed = 0
 		}
+		return &ExecutionResult{
+			UsedGas:    gasUsed,
+			Err:        vmerr,
+			ReturnData: ret,
+		}, nil
 	}
 	if !rules.IsLondon {
 		// Before EIP-3529: refunds were capped to gasUsed / 2

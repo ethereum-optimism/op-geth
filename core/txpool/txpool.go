@@ -591,7 +591,7 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 	// No unauthenticated deposits allowed in the transaction pool.
 	// This is for spam protection, not consensus,
 	// as the external engine-API user authenticates deposits.
-	if tx.Type() == types.DepositTxType {
+	if tx.Type() == types.DepositTxType || tx.Type() == types.Deposit2TxType {
 		return core.ErrTxTypeNotSupported
 	}
 	// Accept only legacy transactions until EIP-2718/2930 activates.
@@ -1295,7 +1295,7 @@ func (pool *TxPool) reset(oldHead, newHead *types.Header) {
 				// (validateTx would still catch it if not filtered, but no need to re-inject in the first place).
 				j := 0
 				for _, tx := range discarded {
-					if tx.Type() != types.DepositTxType {
+					if tx.Type() != types.DepositTxType || tx.Type() == types.Deposit2TxType {
 						discarded[j] = tx
 						j++
 					}

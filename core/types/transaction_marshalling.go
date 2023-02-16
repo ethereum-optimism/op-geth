@@ -280,7 +280,7 @@ func (tx *Transaction) UnmarshalJSON(input []byte) error {
 				return err
 			}
 		}
-	case DepositTxType:
+	case DepositTxType, Deposit2TxType:
 		if dec.AccessList != nil || dec.MaxFeePerGas != nil ||
 			dec.MaxPriorityFeePerGas != nil || (dec.Nonce != nil && *dec.Nonce != 0) {
 			return errors.New("unexpected field(s) in deposit transaction")
@@ -294,6 +294,7 @@ func (tx *Transaction) UnmarshalJSON(input []byte) error {
 			return errors.New("deposit transaction signature must be 0 or unset")
 		}
 		var itx DepositTx
+		itx.Type = byte(dec.Type)
 		inner = &itx
 		if dec.To != nil {
 			itx.To = dec.To

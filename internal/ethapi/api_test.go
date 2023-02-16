@@ -75,6 +75,7 @@ func TestUnmarshalRpcDepositTx(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			tx := types.NewTx(&types.DepositTx{
+				Type:                types.Deposit2TxType,
 				SourceHash:          common.HexToHash("0x1234"),
 				IsSystemTransaction: true,
 				Mint:                big.NewInt(34),

@@ -190,8 +190,8 @@ func (tx *Transaction) decodeTyped(b []byte) (TxData, error) {
 		var inner DynamicFeeTx
 		err := rlp.DecodeBytes(b[1:], &inner)
 		return &inner, err
-	case DepositTxType:
-		var inner DepositTx
+	case DepositTxType, Deposit2TxType:
+		inner := DepositTx{Type: b[0]}
 		err := rlp.DecodeBytes(b[1:], &inner)
 		return &inner, err
 	default:
@@ -319,6 +319,11 @@ func (tx *Transaction) IsDepositTx() bool {
 	return tx.Type() == DepositTxType
 }
 
+// IsDeposit2Tx returns true if the transaction is a deposit2 tx type.
+func (tx *Transaction) IsDeposit2Tx() bool {
+	return tx.Type() == Deposit2TxType
+}
+
 // IsSystemTx returns true for deposits that are system transactions. These transactions
 // are executed in an unmetered environment & do not contribute to the block gas limit.
 func (tx *Transaction) IsSystemTx() bool {
@@ -334,7 +339,7 @@ func (tx *Transaction) Cost() *big.Int {
 
 // RollupDataGas is the amount of gas it takes to confirm the tx on L1 as a rollup
 func (tx *Transaction) RollupDataGas() uint64 {
-	if tx.Type() == DepositTxType {
+	if tx.Type() == DepositTxType || tx.Type() == Deposit2TxType {
 		return 0
 	}
 	if v := tx.rollupGas.Load(); v != nil {
@@ -390,7 +395,7 @@ func (tx *Transaction) GasTipCapIntCmp(other *big.Int) int {
 // Note: if the effective gasTipCap is negative, this method returns both error
 // the actual negative value, _and_ ErrGasFeeCapTooLow
 func (tx *Transaction) EffectiveGasTip(baseFee *big.Int) (*big.Int, error) {
-	if tx.Type() == DepositTxType {
+	if tx.Type() == DepositTxType || tx.Type() == Deposit2TxType {
 		return new(big.Int), nil
 	}
 	if baseFee == nil {
@@ -667,10 +672,11 @@ type Message struct {
 	accessList AccessList
 	isFake     bool
 	// Optimism rollup fields
-	isSystemTx  bool
-	isDepositTx bool
-	mint        *big.Int
-	l1CostGas   uint64
+	isSystemTx   bool
+	isDepositTx  bool
+	isDeposit2Tx bool
+	mint         *big.Int
+	l1CostGas    uint64
 }
 
 func NewMessage(from common.Address, to *common.Address, nonce uint64, amount *big.Int, gasLimit uint64, gasPrice, gasFeeCap, gasTipCap *big.Int, data []byte, accessList AccessList, isFake bool) Message {
@@ -687,10 +693,11 @@ func NewMessage(from common.Address, to *common.Address, nonce uint64, amount *b
 		accessList: accessList,
 		isFake:     isFake,
 		// Optimism rollup fields
-		isSystemTx:  false,
-		isDepositTx: false,
-		mint:        nil,
-		l1CostGas:   0,
+		isSystemTx:   false,
+		isDepositTx:  false,
+		isDeposit2Tx: false,
+		mint:         nil,
+		l1CostGas:    0,
 	}
 }
 
@@ -708,10 +715,11 @@ func (tx *Transaction) AsMessage(s Signer, baseFee *big.Int) (Message, error) {
 		accessList: tx.AccessList(),
 		isFake:     false,
 		// Optimism rollup fields
-		isSystemTx:  tx.inner.isSystemTx(),
-		isDepositTx: tx.IsDepositTx(),
-		mint:        tx.Mint(),
-		l1CostGas:   tx.RollupDataGas(),
+		isSystemTx:   tx.inner.isSystemTx(),
+		isDepositTx:  tx.IsDepositTx(),
+		isDeposit2Tx: tx.IsDeposit2Tx(),
+		mint:         tx.Mint(),
+		l1CostGas:    tx.RollupDataGas(),
 	}
 	// If baseFee provided, set gasPrice to effectiveGasPrice.
 	if baseFee != nil {
@@ -735,6 +743,7 @@ func (m Message) AccessList() AccessList { return m.accessList }
 func (m Message) IsFake() bool           { return m.isFake }
 func (m Message) IsSystemTx() bool       { return m.isSystemTx }
 func (m Message) IsDepositTx() bool      { return m.isDepositTx }
+func (m Message) IsDeposit2Tx() bool     { return m.isDeposit2Tx }
 func (m Message) Mint() *big.Int         { return m.mint }
 func (m Message) RollupDataGas() uint64  { return m.l1CostGas }
 

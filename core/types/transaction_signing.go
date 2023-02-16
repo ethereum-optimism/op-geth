@@ -182,7 +182,7 @@ func NewLondonSigner(chainId *big.Int) Signer {
 }
 
 func (s londonSigner) Sender(tx *Transaction) (common.Address, error) {
-	if tx.Type() == DepositTxType {
+	if tx.Type() == DepositTxType || tx.Type() == Deposit2TxType {
 		return tx.inner.(*DepositTx).From, nil
 	}
 	if tx.Type() != DynamicFeeTxType {
@@ -204,7 +204,7 @@ func (s londonSigner) Equal(s2 Signer) bool {
 }
 
 func (s londonSigner) SignatureValues(tx *Transaction, sig []byte) (R, S, V *big.Int, err error) {
-	if tx.Type() == DepositTxType {
+	if tx.Type() == DepositTxType || tx.Type() == Deposit2TxType {
 		return nil, nil, nil, fmt.Errorf("deposits do not have a signature")
 	}
 	txdata, ok := tx.inner.(*DynamicFeeTx)
@@ -224,7 +224,7 @@ func (s londonSigner) SignatureValues(tx *Transaction, sig []byte) (R, S, V *big
 // Hash returns the hash to be signed by the sender.
 // It does not uniquely identify the transaction.
 func (s londonSigner) Hash(tx *Transaction) common.Hash {
-	if tx.Type() == DepositTxType {
+	if tx.Type() == DepositTxType || tx.Type() == Deposit2TxType {
 		panic("deposits cannot be signed and do not have a signing hash")
 	}
 	if tx.Type() != DynamicFeeTxType {

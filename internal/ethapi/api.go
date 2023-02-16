@@ -1429,7 +1429,7 @@ type RPCTransaction struct {
 func newRPCTransaction(tx *types.Transaction, blockHash common.Hash, blockNumber uint64, index uint64, baseFee *big.Int, config *params.ChainConfig) *RPCTransaction {
 	signer := types.MakeSigner(config, new(big.Int).SetUint64(blockNumber))
 	from, _ := types.Sender(signer, tx)
-	if tx.Type() == types.DepositTxType {
+	if tx.Type() == types.DepositTxType || tx.Type() == types.Deposit2TxType {
 		srcHash := tx.SourceHash()
 		isSystemTx := tx.IsSystemTx()
 		result := &RPCTransaction{
@@ -1826,7 +1826,7 @@ func (s *TransactionAPI) GetTransactionReceipt(ctx context.Context, hash common.
 		"logsBloom":         receipt.Bloom,
 		"type":              hexutil.Uint(tx.Type()),
 	}
-	if s.b.ChainConfig().Optimism != nil && !tx.IsDepositTx() {
+	if s.b.ChainConfig().Optimism != nil && !tx.IsDepositTx() && !tx.IsDeposit2Tx() {
 		fields["l1GasPrice"] = (*hexutil.Big)(receipt.L1GasPrice)
 		fields["l1GasUsed"] = (*hexutil.Big)(receipt.L1GasUsed)
 		fields["l1Fee"] = (*hexutil.Big)(receipt.L1Fee)

@@ -11,6 +11,7 @@ import (
 
 func TestTransactionUnmarshalJsonDeposit(t *testing.T) {
 	tx := NewTx(&DepositTx{
+		Type:                Deposit2TxType,
 		SourceHash:          common.HexToHash("0x1234"),
 		IsSystemTransaction: true,
 		Mint:                big.NewInt(34),

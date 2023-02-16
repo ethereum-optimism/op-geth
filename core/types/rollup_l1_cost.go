@@ -26,6 +26,7 @@ import (
 type RollupMessage interface {
 	RollupDataGas() uint64
 	IsDepositTx() bool
+	IsDeposit2Tx() bool
 }
 
 type StateGetter interface {
@@ -52,7 +53,7 @@ func NewL1CostFunc(config *params.ChainConfig, statedb StateGetter) L1CostFunc {
 	var l1BaseFee, overhead, scalar *big.Int
 	return func(blockNum uint64, msg RollupMessage) *big.Int {
 		rollupDataGas := msg.RollupDataGas() // Only fake txs for RPC view-calls are 0.
-		if config.Optimism == nil || msg.IsDepositTx() || rollupDataGas == 0 {
+		if config.Optimism == nil || msg.IsDepositTx() || msg.IsDeposit2Tx() || rollupDataGas == 0 {
 			return nil
 		}
 		if blockNum != cacheBlockNum {

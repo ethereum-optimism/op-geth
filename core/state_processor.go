@@ -17,6 +17,7 @@
 package core
 
 import (
+	"errors"
 	"fmt"
 	"math/big"
 
@@ -94,6 +95,14 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 }
 
 func applyTransaction(msg types.Message, config *params.ChainConfig, author *common.Address, gp *GasPool, statedb *state.StateDB, blockNumber *big.Int, blockHash common.Hash, tx *types.Transaction, usedGas *uint64, evm *vm.EVM) (*types.Receipt, error) {
+	if config.IsPostBedrock(blockNumber) && tx.IsDepositTx() {
+		// Must use Deposit2Tx from PostBedrock fork forwards
+		return nil, errors.New("tx type DepositTx not supported PostBedrock")
+	}
+	if !config.IsPostBedrock(blockNumber) && tx.IsDeposit2Tx() {
+		// Deposit2Tx only allowed from PostBedrock fork forwards
+		return nil, errors.New("tx type Deposit2Tx not supported before PostBedrock")
+	}
 	// Create a new context to be used in the EVM environment.
 	txContext := NewEVMTxContext(msg)
 	evm.Reset(txContext, statedb)
@@ -125,7 +134,7 @@ func applyTransaction(msg types.Message, config *params.ChainConfig, author *com
 	receipt.GasUsed = result.UsedGas
 
 	nonce := tx.Nonce()
-	if config.IsPostBedrock(blockNumber) && msg.IsDepositTx() {
+	if msg.IsDeposit2Tx() {
 		nonce = statedb.GetNonce(msg.From())
 	}
 

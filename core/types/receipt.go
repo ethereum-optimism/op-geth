@@ -240,7 +240,7 @@ func (r *Receipt) decodeTyped(b []byte) error {
 		return errShortTypedReceipt
 	}
 	switch b[0] {
-	case DynamicFeeTxType, AccessListTxType, DepositTxType:
+	case DynamicFeeTxType, AccessListTxType, DepositTxType, Deposit2TxType:
 		var data receiptRLP
 		err := rlp.DecodeBytes(b[1:], &data)
 		if err != nil {
@@ -452,6 +452,9 @@ func (rs Receipts) EncodeIndex(i int, w *bytes.Buffer) {
 	case DepositTxType:
 		w.WriteByte(DepositTxType)
 		rlp.Encode(w, data)
+	case Deposit2TxType:
+		w.WriteByte(Deposit2TxType)
+		rlp.Encode(w, data)
 	default:
 		// For unsupported types, write nothing. Since this is for
 		// DeriveSha, the error will be caught matching the derived hash
@@ -509,7 +512,7 @@ func (rs Receipts) DeriveFields(config *params.ChainConfig, hash common.Hash, nu
 			fdivisor := new(big.Float).SetUint64(1_000_000)           // 10**6, i.e. 6 decimals
 			feeScalar := new(big.Float).Quo(fscalar, fdivisor)
 			for i := 0; i < len(rs); i++ {
-				if !txs[i].IsDepositTx() {
+				if !txs[i].IsDepositTx() && !txs[i].IsDeposit2Tx() {
 					rs[i].L1GasPrice = l1Basefee
 					rs[i].L1GasUsed = new(big.Int).SetUint64(txs[i].RollupDataGas())
 					rs[i].L1Fee = L1Cost(txs[i].RollupDataGas(), l1Basefee, overhead, scalar)

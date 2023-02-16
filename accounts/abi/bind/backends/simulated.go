@@ -905,6 +905,7 @@ func (m callMsg) Data() []byte                 { return m.CallMsg.Data }
 func (m callMsg) AccessList() types.AccessList { return m.CallMsg.AccessList }
 func (m callMsg) IsSystemTx() bool             { return false }
 func (m callMsg) IsDepositTx() bool            { return false }
+func (m callMsg) IsDeposit2Tx() bool           { return false }
 func (m callMsg) Mint() *big.Int               { return nil }
 func (m callMsg) RollupDataGas() uint64        { return 0 }
 
