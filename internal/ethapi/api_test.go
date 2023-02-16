@@ -2,6 +2,7 @@ package ethapi
 
 import (
 	"encoding/json"
+	"fmt"
 	"math/big"
 	"testing"
 
@@ -73,9 +74,27 @@ func TestUnmarshalRpcDepositTx(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
+		t.Run(fmt.Sprintf("DepositTx %s", test.name), func(t *testing.T) {
 			tx := types.NewTx(&types.DepositTx{
-				Type:                types.Deposit2TxType,
+				SourceHash:          common.HexToHash("0x1234"),
+				IsSystemTransaction: true,
+				Mint:                big.NewInt(34),
+			})
+			rpcTx := newRPCTransaction(tx, common.Hash{}, uint64(12), uint64(1), big.NewInt(0), &params.ChainConfig{})
+			test.modifier(rpcTx)
+			json, err := json.Marshal(rpcTx)
+			require.NoError(t, err, "marshalling failed: %w", err)
+			println(string(json))
+			parsed := &types.Transaction{}
+			err = parsed.UnmarshalJSON(json)
+			if test.valid {
+				require.NoError(t, err, "unmarshal failed: %w", err)
+			} else {
+				require.Error(t, err, "unmarshal should have failed but did not")
+			}
+		})
+		t.Run(fmt.Sprintf("Deposit2Tx %s", test.name), func(t *testing.T) {
+			tx := types.NewTx(&types.Deposit2Tx{
 				SourceHash:          common.HexToHash("0x1234"),
 				IsSystemTransaction: true,
 				Mint:                big.NewInt(34),

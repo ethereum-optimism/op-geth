@@ -190,8 +190,12 @@ func (tx *Transaction) decodeTyped(b []byte) (TxData, error) {
 		var inner DynamicFeeTx
 		err := rlp.DecodeBytes(b[1:], &inner)
 		return &inner, err
-	case DepositTxType, Deposit2TxType:
-		inner := DepositTx{Type: b[0]}
+	case DepositTxType:
+		var inner DepositTx
+		err := rlp.DecodeBytes(b[1:], &inner)
+		return &inner, err
+	case Deposit2TxType:
+		var inner Deposit2Tx
 		err := rlp.DecodeBytes(b[1:], &inner)
 		return &inner, err
 	default:
@@ -302,6 +306,9 @@ func (tx *Transaction) SourceHash() common.Hash {
 	if dep, ok := tx.inner.(*DepositTx); ok {
 		return dep.SourceHash
 	}
+	if dep, ok := tx.inner.(*Deposit2Tx); ok {
+		return dep.SourceHash
+	}
 	return common.Hash{}
 }
 
@@ -309,6 +316,9 @@ func (tx *Transaction) SourceHash() common.Hash {
 // This returns nil if there is nothing to mint, or if this is not a deposit tx.
 func (tx *Transaction) Mint() *big.Int {
 	if dep, ok := tx.inner.(*DepositTx); ok {
+		return dep.Mint
+	}
+	if dep, ok := tx.inner.(*Deposit2Tx); ok {
 		return dep.Mint
 	}
 	return nil
