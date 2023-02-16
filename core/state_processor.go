@@ -124,9 +124,14 @@ func applyTransaction(msg types.Message, config *params.ChainConfig, author *com
 	receipt.TxHash = tx.Hash()
 	receipt.GasUsed = result.UsedGas
 
+	nonce := tx.Nonce()
+	if config.IsPostBedrock(blockNumber) && msg.IsDepositTx() {
+		nonce = statedb.GetNonce(msg.From())
+	}
+
 	// If the transaction created a contract, store the creation address in the receipt.
 	if msg.To() == nil {
-		receipt.ContractAddress = crypto.CreateAddress(evm.TxContext.Origin, tx.Nonce())
+		receipt.ContractAddress = crypto.CreateAddress(evm.TxContext.Origin, nonce)
 	}
 
 	// Set the receipt logs and create the bloom filter.
