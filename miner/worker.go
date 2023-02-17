@@ -1023,7 +1023,7 @@ func (w *worker) prepareWork(genParams *generateParams) (*environment, error) {
 		Coinbase:   genParams.coinbase,
 	}
 	// Set the extra field.
-	if len(w.extra) != 0 {
+	if len(w.extra) != 0 && w.chainConfig.Optimism == nil { // Optimism chains must not set any extra data.
 		header.Extra = w.extra
 	}
 	// Set the randomness field from the beacon chain if it's available.
