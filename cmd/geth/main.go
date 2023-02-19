@@ -67,6 +67,7 @@ var (
 		utils.OverrideShanghai,
 		utils.EnablePersonal,
 		utils.OverrideOptimismBedrock,
+		utils.OverrideOptimismRegolith,
 		utils.OverrideOptimism,
 		utils.EthashCacheDirFlag,
 		utils.EthashCachesInMemoryFlag,
