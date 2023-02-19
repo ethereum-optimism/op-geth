@@ -336,7 +336,7 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 		// Record deposits as using all their gas (matches the gas pool)
 		// System Transactions are special & are not recorded as using any gas (anywhere)
 		gasUsed := st.msg.Gas()
-		if st.msg.IsSystemTx() {
+		if st.msg.IsSystemTx() && !st.evm.ChainConfig().IsRegolith(st.evm.Context.Time) {
 			gasUsed = 0
 		}
 		result = &ExecutionResult{
@@ -418,11 +418,14 @@ func (st *StateTransition) innerTransitionDb() (*ExecutionResult, error) {
 
 	// if deposit: skip refunds, skip tipping coinbase
 	if st.msg.IsDepositTx() {
-		// Record deposits as using all their gas (matches the gas pool)
-		// System Transactions are special & are not recorded as using any gas (anywhere)
-		gasUsed := st.msg.Gas()
-		if st.msg.IsSystemTx() {
-			gasUsed = 0
+		gasUsed := st.gasUsed()
+		if !rules.IsOptimismRegolith {
+			// Record deposits as using all their gas (matches the gas pool)
+			// System Transactions are special & are not recorded as using any gas (anywhere)
+			gasUsed = st.msg.Gas()
+			if st.msg.IsSystemTx() {
+				gasUsed = 0
+			}
 		}
 		return &ExecutionResult{
 			UsedGas:    gasUsed,
