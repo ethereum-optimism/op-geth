@@ -131,7 +131,8 @@ func applyTransaction(msg types.Message, config *params.ChainConfig, gp *GasPool
 
 	nonce := tx.Nonce()
 	if msg.IsDepositTx() && config.IsOptimismRegolith(evm.Context.Time) {
-		nonce = statedb.GetNonce(msg.From())
+		// Subtract 1 as the nonce in state has already been incremented from what was used
+		nonce = statedb.GetNonce(msg.From()) - 1
 		receipt.DepositNonce = &nonce
 	}
 
