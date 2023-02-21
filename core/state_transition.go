@@ -418,17 +418,25 @@ func (st *StateTransition) innerTransitionDb() (*ExecutionResult, error) {
 
 	// if deposit: skip refunds, skip tipping coinbase
 	if st.msg.IsDepositTx() {
-		gasUsed := st.gasUsed()
 		if !rules.IsOptimismRegolith {
 			// Record deposits as using all their gas (matches the gas pool)
 			// System Transactions are special & are not recorded as using any gas (anywhere)
-			gasUsed = st.msg.Gas()
+			gasUsed := st.msg.Gas()
 			if st.msg.IsSystemTx() {
 				gasUsed = 0
 			}
+			return &ExecutionResult{
+				UsedGas:    gasUsed,
+				Err:        vmerr,
+				ReturnData: ret,
+			}, nil
 		}
+
+		// Return remaining gas to the block gas counter so it is available for the next transaction.
+		// However no refund is given to the user
+		st.gp.AddGas(st.gas)
 		return &ExecutionResult{
-			UsedGas:    gasUsed,
+			UsedGas:    st.gasUsed(),
 			Err:        vmerr,
 			ReturnData: ret,
 		}, nil
