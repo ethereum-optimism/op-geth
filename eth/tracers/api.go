@@ -69,8 +69,6 @@ const (
 	maximumPendingTraceStates = 128
 )
 
-var errTxNotFound = errors.New("transaction not found")
-
 // StateReleaseFunc is used to deallocate resources held by constructing a
 // historical state for tracing purposes.
 type StateReleaseFunc func()
