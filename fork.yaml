@@ -5,11 +5,11 @@ footer: |
 base:
   name: go-ethereum
   url: https://github.com/ethereum/go-ethereum
-  hash: 6d55908347cac7463dd6a2cb236f30ec26c9a121
+  hash: 73b01f40ceb6bcb6f9f44c2a3d6f963b40452b47
 fork:
   name: op-geth
   url: https://github.com/ethereum-optimism/op-geth
-  ref: refs/heads/optimism-history
+  ref: refs/heads/optimism
 def:
   title: "op-geth"
   description: |
@@ -81,17 +81,25 @@ def:
           description: |
             The rollup functionality is enabled with the `optimism` field in the chain config.
             The EIP-1559 parameters are configurable to adjust for faster more frequent and smaller blocks.
+            The parameters can be overriden for testing.
           globs:
             - "params/config.go"
             - "params/protocol_params.go"
+            - "core/genesis.go"
+        - title: "Chain config cleanup"
+          description: |
+            The optimism Goerli testnet used clique-config data to make geth internals accept blocks.
+            Post-bedrock the beacon-consensus (i.e. follow Engine API) is now used, and the clique config is removed.
+          globs:
+            - "core/rawdb/accessors_metadata.go"
         - title: "Engine API modifications"
           description: |
             The Engine API is extended to insert transactions into the block and optionally exclude the tx-pool,
             to reproduce the exact block of the sequencer from just the inputs, as derived from L1 by the rollup-node.
             See [L2 execution engine specs](https://github.com/ethereum-optimism/optimism/blob/develop/specs/exec-engine.md).
           globs:
-            - "core/beacon/types.go"
-            - "core/beacon/gen_blockparams.go"
+            - "beacon/engine/types.go"
+            - "beacon/engine/gen_blockparams.go"
             - "eth/catalyst/api.go"
         - title: "Block-building modifications"
           description: |
@@ -111,13 +119,16 @@ def:
           sub:
             - title: "Flags"
               description: |
-                Transactions can be forwarded to an RPC for sequencing,
-                historical calls can be forwarded to a legacy node,
-                and the tx pool propagation can be enabled/disabled.
+                Flag changes:
+                  - Transactions can be forwarded to an RPC for sequencing.
+                  - Historical calls can be forwarded to a legacy node.
+                  - The tx pool propagation can be enabled/disabled.
+                  - The Optimism bedrock fork activation can be changed for testing.
               globs:
                 - "cmd/utils/flags.go"
                 - "cmd/geth/main.go"
                 - "internal/flags/categories.go"
+                - "cmd/geth/config.go"
             - title: "Versioning"
               description: List the op-geth and upstream go-ethereum versions.
               globs:
@@ -155,6 +166,7 @@ def:
           description: Format deposit and L1-cost data in transaction responses.
           globs:
             - "internal/ethapi/api.go"
+            - "rpc/errors.go"
         - title: Tracer RPC daisy-chain
           description: Forward pre-bedrock tracing calls to legacy node.
           globs:
@@ -174,9 +186,18 @@ def:
         - title: Simulated Backend
           globs:
             - "accounts/abi/bind/backends/simulated.go"
+        - title: diff-included testing testing
+          description: |
+            Most of the op-geth changes are tested in the Optimism Monorepo and not part of the geth diff,
+            but some testing like the Deposit TX encoding and API interactions are embedded in the op-geth diff instead.
+          globs:
+            - "core/types/transaction_marshalling_test.go"
+            - "internal/ethapi/api_test.go"
+
 # ignored globally, does not count towards line count
 ignore:
   - ".circleci/*"
   - "*.sum"
+  - "go.mod"
   - "fork.yaml"
   - ".github/workflows/*"
