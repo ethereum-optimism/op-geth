@@ -433,7 +433,7 @@ func (st *StateTransition) innerTransitionDb() (*ExecutionResult, error) {
 		}
 
 		// Return remaining gas to the block gas counter so it is available for the next transaction.
-		// However no refund is given to the user
+		// No refund is given to the user
 		st.gp.AddGas(st.gas)
 		return &ExecutionResult{
 			UsedGas:    st.gasUsed(),
