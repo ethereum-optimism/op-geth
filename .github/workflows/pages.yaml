@@ -4,7 +4,7 @@ permissions:
 on:
   push:
     branches:
-      - optimism-history
+      - optimism
 jobs:
   deploy:
     concurrency: ci-${{ github.ref }}
