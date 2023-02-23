@@ -100,4 +100,7 @@ var (
 
 	// ErrSenderNoEOA is returned if the sender of a transaction is a contract.
 	ErrSenderNoEOA = errors.New("sender not an eoa")
+
+	// ErrSystemTxNotSupported is returned for any deposit tx with IsSystemTx=true after the Regolith fork
+	ErrSystemTxNotSupported = errors.New("system tx not supported")
 )

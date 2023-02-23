@@ -259,6 +259,10 @@ func (st *StateTransition) preCheck() error {
 		st.gas += st.msg.Gas() // Add gas here in order to be able to execute calls.
 		// Don't touch the gas pool for system transactions
 		if st.msg.IsSystemTx() {
+			if st.evm.ChainConfig().IsOptimismRegolith(st.evm.Context.Time) {
+				return fmt.Errorf("%w: address %v", ErrSystemTxNotSupported,
+					st.msg.From().Hex())
+			}
 			return nil
 		}
 		return st.gp.SubGas(st.msg.Gas()) // gas used by deposits may not be used by other txs
