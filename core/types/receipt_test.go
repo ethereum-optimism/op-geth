@@ -18,6 +18,7 @@ package types
 
 import (
 	"bytes"
+	"fmt"
 	"math"
 	"math/big"
 	"reflect"
@@ -27,6 +28,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/stretchr/testify/require"
 )
 
 var (
@@ -80,6 +82,42 @@ var (
 		},
 		Type: DynamicFeeTxType,
 	}
+	depositReceiptNoNonce = &Receipt{
+		Status:            ReceiptStatusFailed,
+		CumulativeGasUsed: 1,
+		Logs: []*Log{
+			{
+				Address: common.BytesToAddress([]byte{0x11}),
+				Topics:  []common.Hash{common.HexToHash("dead"), common.HexToHash("beef")},
+				Data:    []byte{0x01, 0x00, 0xff},
+			},
+			{
+				Address: common.BytesToAddress([]byte{0x01, 0x11}),
+				Topics:  []common.Hash{common.HexToHash("dead"), common.HexToHash("beef")},
+				Data:    []byte{0x01, 0x00, 0xff},
+			},
+		},
+		Type: DepositTxType,
+	}
+	nonce                   = uint64(1234)
+	depositReceiptWithNonce = &Receipt{
+		Status:            ReceiptStatusFailed,
+		CumulativeGasUsed: 1,
+		DepositNonce:      &nonce,
+		Logs: []*Log{
+			{
+				Address: common.BytesToAddress([]byte{0x11}),
+				Topics:  []common.Hash{common.HexToHash("dead"), common.HexToHash("beef")},
+				Data:    []byte{0x01, 0x00, 0xff},
+			},
+			{
+				Address: common.BytesToAddress([]byte{0x01, 0x11}),
+				Topics:  []common.Hash{common.HexToHash("dead"), common.HexToHash("beef")},
+				Data:    []byte{0x01, 0x00, 0xff},
+			},
+		},
+		Type: DepositTxType,
+	}
 )
 
 func TestDecodeEmptyTypedReceipt(t *testing.T) {
@@ -117,7 +155,12 @@ func TestDeriveFields(t *testing.T) {
 			Gas:      3,
 			GasPrice: big.NewInt(3),
 		}),
+		NewTx(&DepositTx{
+			Value: big.NewInt(3),
+			Gas:   4,
+		}),
 	}
+	depNonce := uint64(7)
 	// Create the corresponding receipts
 	receipts := Receipts{
 		&Receipt{
@@ -154,6 +197,26 @@ func TestDeriveFields(t *testing.T) {
 			ContractAddress: common.BytesToAddress([]byte{0x03, 0x33, 0x33}),
 			GasUsed:         3,
 		},
+		&Receipt{
+			Type:              DepositTxType,
+			PostState:         common.Hash{3}.Bytes(),
+			CumulativeGasUsed: 10,
+			Logs: []*Log{
+				{Address: common.BytesToAddress([]byte{0x33})},
+				{Address: common.BytesToAddress([]byte{0x03, 0x33})},
+			},
+			TxHash:          txs[3].Hash(),
+			ContractAddress: common.BytesToAddress([]byte{0x03, 0x33, 0x33}),
+			GasUsed:         4,
+			DepositNonce:    &depNonce,
+		},
+	}
+
+	nonces := []uint64{
+		txs[0].Nonce(),
+		txs[1].Nonce(),
+		txs[2].Nonce(),
+		*receipts[3].DepositNonce, // Deposit tx should use deposit nonce
 	}
 	// Clear all the computed fields and re-derive them
 	number := big.NewInt(1)
@@ -190,7 +253,7 @@ func TestDeriveFields(t *testing.T) {
 			t.Errorf("receipts[%d].ContractAddress = %s, want %s", i, receipts[i].ContractAddress.String(), (common.Address{}).String())
 		}
 		from, _ := Sender(signer, txs[i])
-		contractAddress := crypto.CreateAddress(from, txs[i].Nonce())
+		contractAddress := crypto.CreateAddress(from, nonces[i])
 		if txs[i].To() == nil && receipts[i].ContractAddress != contractAddress {
 			t.Errorf("receipts[%d].ContractAddress = %s, want %s", i, receipts[i].ContractAddress.String(), contractAddress.String())
 		}
@@ -342,6 +405,38 @@ func TestReceiptUnmarshalBinary(t *testing.T) {
 	}
 }
 
+func TestBedrockDepositReceiptUnchanged(t *testing.T) {
+	expectedRlp := common.FromHex("7EF90156A003000000000000000000000000000000000000000000000000000000000000000AB9010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000F0D7940000000000000000000000000000000000000033C001D7940000000000000000000000000000000000000333C002")
+	// Deposit receipt with no nonce
+	receipt := &Receipt{
+		Type:              DepositTxType,
+		PostState:         common.Hash{3}.Bytes(),
+		CumulativeGasUsed: 10,
+		Logs: []*Log{
+			{Address: common.BytesToAddress([]byte{0x33}), Data: []byte{1}, Topics: []common.Hash{}},
+			{Address: common.BytesToAddress([]byte{0x03, 0x33}), Data: []byte{2}, Topics: []common.Hash{}},
+		},
+		TxHash:          common.Hash{},
+		ContractAddress: common.BytesToAddress([]byte{0x03, 0x33, 0x33}),
+		GasUsed:         4,
+	}
+
+	rlp, err := receipt.MarshalBinary()
+	require.NoError(t, err)
+	require.Equal(t, expectedRlp, rlp)
+
+	// Consensus values should be unchanged after reparsing
+	parsed := new(Receipt)
+	err = parsed.UnmarshalBinary(rlp)
+	require.NoError(t, err)
+	require.Equal(t, receipt.Status, parsed.Status)
+	require.Equal(t, receipt.CumulativeGasUsed, parsed.CumulativeGasUsed)
+	require.Equal(t, receipt.Bloom, parsed.Bloom)
+	require.EqualValues(t, receipt.Logs, parsed.Logs)
+	// And still shouldn't have a nonce
+	require.Nil(t, parsed.DepositNonce)
+}
+
 func clearComputedFieldsOnReceipts(t *testing.T, receipts Receipts) {
 	t.Helper()
 
@@ -379,4 +474,65 @@ func clearComputedFieldsOnLog(t *testing.T, log *Log) {
 	log.TxHash = common.Hash{}
 	log.TxIndex = math.MaxUint32
 	log.Index = math.MaxUint32
+}
+
+func TestRoundTripReceipt(t *testing.T) {
+	tests := []struct {
+		name string
+		rcpt *Receipt
+	}{
+		{name: "Legacy", rcpt: legacyReceipt},
+		{name: "AccessList", rcpt: accessListReceipt},
+		{name: "EIP1559", rcpt: eip1559Receipt},
+		{name: "DepositNoNonce", rcpt: depositReceiptNoNonce},
+		{name: "DepositWithNonce", rcpt: depositReceiptWithNonce},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			data, err := test.rcpt.MarshalBinary()
+			require.NoError(t, err)
+
+			d := &Receipt{}
+			err = d.UnmarshalBinary(data)
+			require.NoError(t, err)
+			require.Equal(t, test.rcpt, d)
+		})
+
+		t.Run(fmt.Sprintf("%sRejectExtraData", test.name), func(t *testing.T) {
+			data, err := test.rcpt.MarshalBinary()
+			require.NoError(t, err)
+			data = append(data, 1, 2, 3, 4)
+			d := &Receipt{}
+			err = d.UnmarshalBinary(data)
+			require.Error(t, err)
+		})
+	}
+}
+
+func TestRoundTripReceiptForStorage(t *testing.T) {
+	tests := []struct {
+		name string
+		rcpt *Receipt
+	}{
+		{name: "Legacy", rcpt: legacyReceipt},
+		{name: "AccessList", rcpt: accessListReceipt},
+		{name: "EIP1559", rcpt: eip1559Receipt},
+		{name: "DepositNoNonce", rcpt: depositReceiptNoNonce},
+		{name: "DepositWithNonce", rcpt: depositReceiptWithNonce},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			data, err := rlp.EncodeToBytes((*ReceiptForStorage)(test.rcpt))
+			require.NoError(t, err)
+
+			d := &ReceiptForStorage{}
+			err = rlp.DecodeBytes(data, d)
+			require.NoError(t, err)
+			// Only check the stored fields - the others are derived later
+			require.Equal(t, test.rcpt.Status, d.Status)
+			require.Equal(t, test.rcpt.CumulativeGasUsed, d.CumulativeGasUsed)
+			require.Equal(t, test.rcpt.Logs, d.Logs)
+			require.Equal(t, test.rcpt.DepositNonce, d.DepositNonce)
+		})
+	}
 }

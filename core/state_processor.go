@@ -103,6 +103,11 @@ func applyTransaction(msg types.Message, config *params.ChainConfig, gp *GasPool
 	txContext := NewEVMTxContext(msg)
 	evm.Reset(txContext, statedb)
 
+	nonce := tx.Nonce()
+	if msg.IsDepositTx() && config.IsOptimismRegolith(evm.Context.Time) {
+		nonce = statedb.GetNonce(msg.From())
+	}
+
 	// Apply the transaction to the current state (included in the env).
 	result, err := ApplyMessage(evm, msg, gp)
 	if err != nil {
@@ -129,9 +134,15 @@ func applyTransaction(msg types.Message, config *params.ChainConfig, gp *GasPool
 	receipt.TxHash = tx.Hash()
 	receipt.GasUsed = result.UsedGas
 
+	if msg.IsDepositTx() && config.IsOptimismRegolith(evm.Context.Time) {
+		// The actual nonce for deposit transactions is only recorded from Regolith onwards.
+		// Before the Regolith fork the DepositNonce must remain nil
+		receipt.DepositNonce = &nonce
+	}
+
 	// If the transaction created a contract, store the creation address in the receipt.
 	if msg.To() == nil {
-		receipt.ContractAddress = crypto.CreateAddress(evm.TxContext.Origin, tx.Nonce())
+		receipt.ContractAddress = crypto.CreateAddress(evm.TxContext.Origin, nonce)
 	}
 
 	// Set the receipt logs and create the bloom filter.
