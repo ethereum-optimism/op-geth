@@ -1438,28 +1438,6 @@ type RPCTransaction struct {
 func newRPCTransaction(tx *types.Transaction, blockHash common.Hash, blockNumber uint64, index uint64, baseFee *big.Int, config *params.ChainConfig) *RPCTransaction {
 	signer := types.MakeSigner(config, new(big.Int).SetUint64(blockNumber))
 	from, _ := types.Sender(signer, tx)
-	if tx.Type() == types.DepositTxType {
-		srcHash := tx.SourceHash()
-		isSystemTx := tx.IsSystemTx()
-		result := &RPCTransaction{
-			Type:       hexutil.Uint64(tx.Type()),
-			From:       from,
-			Gas:        hexutil.Uint64(tx.Gas()),
-			Hash:       tx.Hash(),
-			Input:      hexutil.Bytes(tx.Data()),
-			To:         tx.To(),
-			Value:      (*hexutil.Big)(tx.Value()),
-			Mint:       (*hexutil.Big)(tx.Mint()),
-			SourceHash: &srcHash,
-			IsSystemTx: &isSystemTx,
-		}
-		if blockHash != (common.Hash{}) {
-			result.BlockHash = &blockHash
-			result.BlockNumber = (*hexutil.Big)(new(big.Int).SetUint64(blockNumber))
-			result.TransactionIndex = (*hexutil.Uint64)(&index)
-		}
-		return result
-	}
 	v, r, s := tx.RawSignatureValues()
 	result := &RPCTransaction{
 		Type:     hexutil.Uint64(tx.Type()),
@@ -1480,7 +1458,14 @@ func newRPCTransaction(tx *types.Transaction, blockHash common.Hash, blockNumber
 		result.BlockNumber = (*hexutil.Big)(new(big.Int).SetUint64(blockNumber))
 		result.TransactionIndex = (*hexutil.Uint64)(&index)
 	}
+
 	switch tx.Type() {
+	case types.DepositTxType:
+		srcHash := tx.SourceHash()
+		isSystemTx := tx.IsSystemTx()
+		result.SourceHash = &srcHash
+		result.IsSystemTx = &isSystemTx
+		result.Mint = (*hexutil.Big)(tx.Mint())
 	case types.LegacyTxType:
 		// if a legacy transaction has an EIP-155 chain id, include it explicitly
 		if id := tx.ChainId(); id.Sign() != 0 {
