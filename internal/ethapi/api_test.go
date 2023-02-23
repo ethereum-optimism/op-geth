@@ -98,7 +98,7 @@ func TestUnmarshalRpcDepositTx(t *testing.T) {
 				IsSystemTransaction: true,
 				Mint:                big.NewInt(34),
 			})
-			rpcTx := newRPCTransaction(tx, common.Hash{}, uint64(12), uint64(1), big.NewInt(0), &params.ChainConfig{})
+			rpcTx := newRPCTransaction(tx, common.Hash{}, uint64(12), uint64(1), big.NewInt(0), &params.ChainConfig{}, nil)
 			test.modifier(rpcTx)
 			json, err := json.Marshal(rpcTx)
 			require.NoError(t, err, "marshalling failed: %w", err)

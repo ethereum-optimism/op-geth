@@ -253,7 +253,13 @@ func (st *StateTransition) buyGas() error {
 
 func (st *StateTransition) preCheck() error {
 	if st.msg.IsDepositTx() {
-		// No fee fields to check, no nonce to check, and no need to check if EOA (L1 already verified it for us)
+		// No fee fields to check, and no need to check if EOA (L1 already verified it for us)
+		if st.msg.Nonce() != 0 {
+			// DepositTx always has a 0 nonce, but when deserializing JSON it may be a wrapper that holds the "real"
+			// nonce that was actually used. We must ensure nonce is 0 for any tx that are being exeucted
+			return fmt.Errorf("%w: address %v, tx: %d", ErrNonceTooHigh,
+				st.msg.From(), st.msg.Nonce())
+		}
 		// Gas is free, but no refunds!
 		st.initialGas = st.msg.Gas()
 		st.gas += st.msg.Gas() // Add gas here in order to be able to execute calls.
