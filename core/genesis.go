@@ -269,8 +269,9 @@ func (e *GenesisMismatchError) Error() string {
 type ChainOverrides struct {
 	OverrideShanghai *uint64
 	// optimism
-	OverrideOptimismBedrock *big.Int
-	OverrideOptimism        *bool
+	OverrideOptimismBedrock  *big.Int
+	OverrideOptimismRegolith *uint64
+	OverrideOptimism         *bool
 }
 
 // SetupGenesisBlock writes or updates the genesis block in db.
@@ -301,6 +302,9 @@ func SetupGenesisBlockWithOverride(db ethdb.Database, triedb *trie.Database, gen
 			}
 			if overrides != nil && overrides.OverrideOptimismBedrock != nil {
 				config.BedrockBlock = overrides.OverrideOptimismBedrock
+			}
+			if overrides != nil && overrides.OverrideOptimismRegolith != nil {
+				config.RegolithTime = overrides.OverrideOptimismRegolith
 			}
 			if overrides != nil && overrides.OverrideOptimism != nil {
 				if *overrides.OverrideOptimism {

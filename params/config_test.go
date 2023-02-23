@@ -136,3 +136,22 @@ func TestConfigRules(t *testing.T) {
 		t.Errorf("expected %v to be shanghai", stamp)
 	}
 }
+
+func TestConfigRulesReglith(t *testing.T) {
+	c := &ChainConfig{
+		RegolithTime: newUint64(500),
+		Optimism:     &OptimismConfig{},
+	}
+	var stamp uint64
+	if r := c.Rules(big.NewInt(0), true, stamp); r.IsOptimismRegolith {
+		t.Errorf("expected %v to not be regolith", stamp)
+	}
+	stamp = 500
+	if r := c.Rules(big.NewInt(0), true, stamp); !r.IsOptimismRegolith {
+		t.Errorf("expected %v to be regolith", stamp)
+	}
+	stamp = math.MaxInt64
+	if r := c.Rules(big.NewInt(0), true, stamp); !r.IsOptimismRegolith {
+		t.Errorf("expected %v to be regolith", stamp)
+	}
+}
