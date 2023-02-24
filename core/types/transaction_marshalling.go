@@ -328,8 +328,7 @@ func (tx *Transaction) UnmarshalJSON(input []byte) error {
 		}
 
 		if dec.Nonce != nil {
-			// TODO: this works but feels pretty ick...
-			itxNonce := depositTxWithNonce{DepositTx: itx, Nonce: uint64(*dec.Nonce)}
+			itxNonce := depositTxWithNonce{DepositTx: itx, EffectiveNonce: uint64(*dec.Nonce)}
 			inner = &itxNonce
 		}
 	default:
@@ -345,7 +344,7 @@ func (tx *Transaction) UnmarshalJSON(input []byte) error {
 
 type depositTxWithNonce struct {
 	DepositTx
-	Nonce uint64
+	EffectiveNonce uint64
 }
 
 // EncodeRLP ensures that RLP encoding this transaction excludes the nonce. Otherwise, the tx Hash would change
@@ -353,4 +352,4 @@ func (tx *depositTxWithNonce) EncodeRLP(w io.Writer) error {
 	return rlp.Encode(w, tx.DepositTx)
 }
 
-func (tx *depositTxWithNonce) nonce() uint64 { return tx.Nonce }
+func (tx *depositTxWithNonce) effectiveNonce() *uint64 { return &tx.EffectiveNonce }
