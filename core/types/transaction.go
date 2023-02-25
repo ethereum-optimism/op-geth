@@ -86,9 +86,6 @@ type TxData interface {
 	gasFeeCap() *big.Int
 	value() *big.Int
 	nonce() uint64
-	// effectiveNonce returns the nonce that was actually used as part of transaction execution
-	// Returns nil if the effective nonce is not known
-	effectiveNonce() *uint64
 	to() *common.Address
 	isSystemTx() bool
 
@@ -294,7 +291,17 @@ func (tx *Transaction) Nonce() uint64 { return tx.inner.nonce() }
 
 // EffectiveNonce returns the nonce that was actually used as part of transaction execution
 // Returns nil if the effective nonce is not known
-func (tx *Transaction) EffectiveNonce() *uint64 { return tx.inner.effectiveNonce() }
+func (tx *Transaction) EffectiveNonce() *uint64 {
+	type txWithEffectiveNonce interface {
+		effectiveNonce() *uint64
+	}
+
+	if itx, ok := tx.inner.(txWithEffectiveNonce); ok {
+		return itx.effectiveNonce()
+	}
+	nonce := tx.inner.nonce()
+	return &nonce
+}
 
 // To returns the recipient address of the transaction.
 // For contract-creation transactions, To returns nil.
