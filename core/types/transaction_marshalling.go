@@ -19,10 +19,12 @@ package types
 import (
 	"encoding/json"
 	"errors"
+	"io"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/rlp"
 )
 
 // txJSON is the JSON representation of transactions.
@@ -282,7 +284,7 @@ func (tx *Transaction) UnmarshalJSON(input []byte) error {
 		}
 	case DepositTxType:
 		if dec.AccessList != nil || dec.MaxFeePerGas != nil ||
-			dec.MaxPriorityFeePerGas != nil || (dec.Nonce != nil && *dec.Nonce != 0) {
+			dec.MaxPriorityFeePerGas != nil {
 			return errors.New("unexpected field(s) in deposit transaction")
 		}
 		if dec.GasPrice != nil && dec.GasPrice.ToInt().Cmp(common.Big0) != 0 {
@@ -324,6 +326,10 @@ func (tx *Transaction) UnmarshalJSON(input []byte) error {
 		if dec.IsSystemTx != nil {
 			itx.IsSystemTransaction = *dec.IsSystemTx
 		}
+
+		if dec.Nonce != nil {
+			inner = &depositTxWithNonce{DepositTx: itx, EffectiveNonce: uint64(*dec.Nonce)}
+		}
 	default:
 		return ErrTxTypeNotSupported
 	}
@@ -334,3 +340,15 @@ func (tx *Transaction) UnmarshalJSON(input []byte) error {
 	// TODO: check hash here?
 	return nil
 }
+
+type depositTxWithNonce struct {
+	DepositTx
+	EffectiveNonce uint64
+}
+
+// EncodeRLP ensures that RLP encoding this transaction excludes the nonce. Otherwise, the tx Hash would change
+func (tx *depositTxWithNonce) EncodeRLP(w io.Writer) error {
+	return rlp.Encode(w, tx.DepositTx)
+}
+
+func (tx *depositTxWithNonce) effectiveNonce() *uint64 { return &tx.EffectiveNonce }

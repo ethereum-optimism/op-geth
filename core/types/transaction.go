@@ -289,6 +289,20 @@ func (tx *Transaction) Value() *big.Int { return new(big.Int).Set(tx.inner.value
 // Nonce returns the sender account nonce of the transaction.
 func (tx *Transaction) Nonce() uint64 { return tx.inner.nonce() }
 
+// EffectiveNonce returns the nonce that was actually used as part of transaction execution
+// Returns nil if the effective nonce is not known
+func (tx *Transaction) EffectiveNonce() *uint64 {
+	type txWithEffectiveNonce interface {
+		effectiveNonce() *uint64
+	}
+
+	if itx, ok := tx.inner.(txWithEffectiveNonce); ok {
+		return itx.effectiveNonce()
+	}
+	nonce := tx.inner.nonce()
+	return &nonce
+}
+
 // To returns the recipient address of the transaction.
 // For contract-creation transactions, To returns nil.
 func (tx *Transaction) To() *common.Address {
