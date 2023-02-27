@@ -137,7 +137,7 @@ func TestConfigRules(t *testing.T) {
 	}
 }
 
-func TestConfigRulesReglith(t *testing.T) {
+func TestConfigRulesRegolith(t *testing.T) {
 	c := &ChainConfig{
 		RegolithTime: newUint64(500),
 		Optimism:     &OptimismConfig{},
