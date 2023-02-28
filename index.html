@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-rbsA2VBKQhggwzxH7pPCaAqO46MgnOM80zW1RWuH61DGLwZJEdK2Kadq2F9CUG65" crossorigin="anonymous">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-GLhlTQ8iRABdZLl6O3oVMWSktQOp6b7In1Zl3/Jr59b6EGGoI1aFkw7cmDA6j6gD" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.2/font/bootstrap-icons.css">
 
     <title>op-geth - go-ethereum fork diff overview</title>
@@ -18,6 +18,7 @@
             width: 50%;
         }
     </style>
+
     
 <style>
     .term-container {
@@ -323,9 +324,20 @@
 </head>
 <body>
     <div class="col-xl-10 col-xxl-8 mx-auto px-3 py-1 py-md-3">
-        <main>
-            <div class="ps-1 py-2 my-1"><div class="row border-bottom border-1" data-bs-toggle="collapse" data-bs-target="#id-6fead42edbdd53d463481436" role="button"
-         aria-expanded="true" aria-controls="id-6fead42edbdd53d463481436">
+        <main class="container-fluid">
+            <div class="row">
+                <div>
+                    <div class="float-end">
+                        <div class="form-check form-switch">
+                            <i class="bi bi-brightness-low" id="dark-mode-icon"></i>
+                            <input class="form-check-input" type="checkbox" role="switch" id="dark-mode-toggle" data-bs-toggle="tooltip"
+                                   data-bs-placement="bottom" data-bs-title="Toggle Dark Mode"/>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="ps-1 py-2 my-1"><div class="row border-bottom border-1"role="button" aria-expanded="true" aria-controls="id-95e1205072c4ca042fa0d7eb">
         
             <div class="col-12 col-sm-9 text-start"><h1>op-geth</h1></div>
         
@@ -337,7 +349,7 @@
         </div>
     </div>
 
-    <div class="row forkdef-content collapse show border-1 ps-3 my-3" id="id-6fead42edbdd53d463481436">
+    <div class="row forkdef-content collapse show border-1 ps-3 my-3" id="id-95e1205072c4ca042fa0d7eb">
         <div><p>This is an overview of the changes in <a href="https://github.com/ethereum-optimism/op-geth"><code>op-geth</code></a>,
 a fork of <a href="https://github.com/ethereum/go-ethereum"><code>go-ethereum</code></a>, part of the OP-stack.</p>
 
@@ -360,8 +372,7 @@ a fork of <a href="https://github.com/ethereum/go-ethereum"><code>go-ethereum</c
         </div>
         <div>
             
-                <div class="ps-1 py-2 my-1"><div class="row border-bottom border-1" data-bs-toggle="collapse" data-bs-target="#id-084b0fafe261aef423f8e027" role="button"
-         aria-expanded="false" aria-controls="id-084b0fafe261aef423f8e027">
+                <div class="ps-1 py-2 my-1"><div class="row border-bottom border-1"data-bs-toggle="collapse" data-bs-target="#id-4225e9a7daca6b9b1da011a7"role="button" aria-expanded="false" aria-controls="id-4225e9a7daca6b9b1da011a7">
         
             <div class="col-12 col-sm-9 text-start"><h2>Core modifications</h2></div>
         
@@ -373,15 +384,14 @@ a fork of <a href="https://github.com/ethereum/go-ethereum"><code>go-ethereum</c
         </div>
     </div>
 
-    <div class="row forkdef-content collapse  border-1 ps-3 my-3" id="id-084b0fafe261aef423f8e027">
+    <div class="row forkdef-content collapse  border-1 ps-3 my-3" id="id-4225e9a7daca6b9b1da011a7">
         <div></div>
         <div>
             
         </div>
         <div>
             
-                <div class="ps-1 py-2 my-1"><div class="row border-bottom border-1" data-bs-toggle="collapse" data-bs-target="#id-f97d26c7f5b0ca901a6e3bd1" role="button"
-         aria-expanded="false" aria-controls="id-f97d26c7f5b0ca901a6e3bd1">
+                <div class="ps-1 py-2 my-1"><div class="row border-bottom border-1"data-bs-toggle="collapse" data-bs-target="#id-bfbf4ecb014f3d5391cc91e3"role="button" aria-expanded="false" aria-controls="id-bfbf4ecb014f3d5391cc91e3">
         
             <div class="col-12 col-sm-9 text-start"><h3>State-transition modifications</h3></div>
         
@@ -393,15 +403,14 @@ a fork of <a href="https://github.com/ethereum/go-ethereum"><code>go-ethereum</c
         </div>
     </div>
 
-    <div class="row forkdef-content collapse  border-1 ps-3 my-3" id="id-f97d26c7f5b0ca901a6e3bd1">
+    <div class="row forkdef-content collapse  border-1 ps-3 my-3" id="id-bfbf4ecb014f3d5391cc91e3">
         <div></div>
         <div>
             
         </div>
         <div>
             
-                <div class="ps-1 py-2 my-1"><div class="row border-bottom border-1" data-bs-toggle="collapse" data-bs-target="#id-2066352a921ad4b121e98cd2" role="button"
-         aria-expanded="false" aria-controls="id-2066352a921ad4b121e98cd2">
+                <div class="ps-1 py-2 my-1"><div class="row border-bottom border-1"data-bs-toggle="collapse" data-bs-target="#id-5d823a86f3ab2f151d140665"role="button" aria-expanded="false" aria-controls="id-5d823a86f3ab2f151d140665">
         
             <div class="col-12 col-sm-9 text-start"><h4>Deposit Transaction type</h4></div>
         
@@ -413,7 +422,7 @@ a fork of <a href="https://github.com/ethereum/go-ethereum"><code>go-ethereum</c
         </div>
     </div>
 
-    <div class="row forkdef-content collapse  border-1 ps-3 my-3" id="id-2066352a921ad4b121e98cd2">
+    <div class="row forkdef-content collapse  border-1 ps-3 my-3" id="id-5d823a86f3ab2f151d140665">
         <div><p>The Bedrock upgrade introduces a <code>Deposit</code> transaction-type (<code>0x7E</code>) to enable both users and the
 rollup system itself to change the L2 state based on L1 events and system rules as
 <a href="https://github.com/ethereum-optimism/optimism/blob/develop/specs/deposits.md">specified</a>.</p>
@@ -422,8 +431,8 @@ rollup system itself to change the L2 state based on L1 events and system rules 
             
                 <div class="border-bottom"><div class="row">
             <div class="col-12 col-md-4 text-start pe-2">
-                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-32bbdf85cac7a50c9adae492" role="button"
-                   aria-expanded="false" aria-controls="id-32bbdf85cac7a50c9adae492">
+                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-e203670fc5f9ccd3f5a1dd7b" role="button"
+                   aria-expanded="false" aria-controls="id-e203670fc5f9ccd3f5a1dd7b">
                     <code>core/types/deposit_tx.go</code>
                 </a>
             </div>
@@ -453,7 +462,7 @@ rollup system itself to change the L2 state based on L1 events and system rules 
                 
             </div>
         </div>
-        <div class="collapse patch-content term-container" id="id-32bbdf85cac7a50c9adae492"><span class="term-fg1">diff --git go-ethereum&#47;core&#47;types&#47;deposit_tx.go op-geth&#47;core&#47;types&#47;deposit_tx.go</span>
+        <div class="collapse patch-content term-container" id="id-e203670fc5f9ccd3f5a1dd7b"><span class="term-fg1">diff --git go-ethereum&#47;core&#47;types&#47;deposit_tx.go op-geth&#47;core&#47;types&#47;deposit_tx.go</span>
 <span class="term-fg1">new file mode 100644</span>
 <span class="term-fg1">index 0000000000000000000000000000000000000000..5e1c447718a8d5a6923215391a9f6ed097ce019f</span>
 <span class="term-fg1">--- &#47;dev&#47;null</span>
@@ -553,8 +562,8 @@ rollup system itself to change the L2 state based on L1 events and system rules 
             
                 <div class="border-bottom"><div class="row">
             <div class="col-12 col-md-4 text-start pe-2">
-                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-a4e0fc729c2c9716f6fec928" role="button"
-                   aria-expanded="false" aria-controls="id-a4e0fc729c2c9716f6fec928">
+                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-8635b34da1ea799cdf138a21" role="button"
+                   aria-expanded="false" aria-controls="id-8635b34da1ea799cdf138a21">
                     <code>core/types/transaction_marshalling.go</code>
                 </a>
             </div>
@@ -584,7 +593,7 @@ rollup system itself to change the L2 state based on L1 events and system rules 
                 
             </div>
         </div>
-        <div class="collapse patch-content term-container" id="id-a4e0fc729c2c9716f6fec928"><span class="term-fg1">diff --git go-ethereum&#47;core&#47;types&#47;transaction_marshalling.go op-geth&#47;core&#47;types&#47;transaction_marshalling.go</span>
+        <div class="collapse patch-content term-container" id="id-8635b34da1ea799cdf138a21"><span class="term-fg1">diff --git go-ethereum&#47;core&#47;types&#47;transaction_marshalling.go op-geth&#47;core&#47;types&#47;transaction_marshalling.go</span>
 <span class="term-fg1">index 2566d0b8d6566aa2953cb0456ede19af069e7d4c..dccb54ffcad6e5565a463bc911fc16824ca5e4f6 100644</span>
 <span class="term-fg1">--- go-ethereum&#47;core&#47;types&#47;transaction_marshalling.go</span>
 <span class="term-fg1">+++ op-geth&#47;core&#47;types&#47;transaction_marshalling.go</span>
@@ -709,8 +718,8 @@ rollup system itself to change the L2 state based on L1 events and system rules 
             
                 <div class="border-bottom"><div class="row">
             <div class="col-12 col-md-4 text-start pe-2">
-                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-e838f14b9d53d0aec61f0e64" role="button"
-                   aria-expanded="false" aria-controls="id-e838f14b9d53d0aec61f0e64">
+                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-a7761d5905d5e50e470d24e0" role="button"
+                   aria-expanded="false" aria-controls="id-a7761d5905d5e50e470d24e0">
                     <code>core/types/transaction_signing.go</code>
                 </a>
             </div>
@@ -740,7 +749,7 @@ rollup system itself to change the L2 state based on L1 events and system rules 
                 
             </div>
         </div>
-        <div class="collapse patch-content term-container" id="id-e838f14b9d53d0aec61f0e64"><span class="term-fg1">diff --git go-ethereum&#47;core&#47;types&#47;transaction_signing.go op-geth&#47;core&#47;types&#47;transaction_signing.go</span>
+        <div class="collapse patch-content term-container" id="id-a7761d5905d5e50e470d24e0"><span class="term-fg1">diff --git go-ethereum&#47;core&#47;types&#47;transaction_signing.go op-geth&#47;core&#47;types&#47;transaction_signing.go</span>
 <span class="term-fg1">index 87f0390a6f9ce448873688ef214fc02753856342..70a10eb1c1ed086a4421914f940555e406040c55 100644</span>
 <span class="term-fg1">--- go-ethereum&#47;core&#47;types&#47;transaction_signing.go</span>
 <span class="term-fg1">+++ op-geth&#47;core&#47;types&#47;transaction_signing.go</span>
@@ -785,8 +794,7 @@ rollup system itself to change the L2 state based on L1 events and system rules 
 </div>
 
             
-                <div class="ps-1 py-2 my-1"><div class="row border-bottom border-1" data-bs-toggle="collapse" data-bs-target="#id-c488b8e8363d47f0abedd640" role="button"
-         aria-expanded="false" aria-controls="id-c488b8e8363d47f0abedd640">
+                <div class="ps-1 py-2 my-1"><div class="row border-bottom border-1"data-bs-toggle="collapse" data-bs-target="#id-f665366e382440851cefa6c8"role="button" aria-expanded="false" aria-controls="id-f665366e382440851cefa6c8">
         
             <div class="col-12 col-sm-9 text-start"><h4>Transaction properties</h4></div>
         
@@ -798,15 +806,15 @@ rollup system itself to change the L2 state based on L1 events and system rules 
         </div>
     </div>
 
-    <div class="row forkdef-content collapse  border-1 ps-3 my-3" id="id-c488b8e8363d47f0abedd640">
+    <div class="row forkdef-content collapse  border-1 ps-3 my-3" id="id-f665366e382440851cefa6c8">
         <div><p>The <code>Transaction</code> type now exposes the deposit-transaction and L1-cost properties required for the rollup.</p>
 </div>
         <div>
             
                 <div class="border-bottom"><div class="row">
             <div class="col-12 col-md-4 text-start pe-2">
-                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-f8b299e489319f1491ccb1ca" role="button"
-                   aria-expanded="false" aria-controls="id-f8b299e489319f1491ccb1ca">
+                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-4d2e0cec1d0f6eb8f4be5fdc" role="button"
+                   aria-expanded="false" aria-controls="id-4d2e0cec1d0f6eb8f4be5fdc">
                     <code>core/types/transaction.go</code>
                 </a>
             </div>
@@ -836,7 +844,7 @@ rollup system itself to change the L2 state based on L1 events and system rules 
                 
             </div>
         </div>
-        <div class="collapse patch-content term-container" id="id-f8b299e489319f1491ccb1ca"><span class="term-fg1">diff --git go-ethereum&#47;core&#47;types&#47;transaction.go op-geth&#47;core&#47;types&#47;transaction.go</span>
+        <div class="collapse patch-content term-container" id="id-4d2e0cec1d0f6eb8f4be5fdc"><span class="term-fg1">diff --git go-ethereum&#47;core&#47;types&#47;transaction.go op-geth&#47;core&#47;types&#47;transaction.go</span>
 <span class="term-fg1">index 353e0e599c681b00c75d43578e604f7cb1928ae7..8f8f14cfb4c315022c9374b180cf21c65f9b333d 100644</span>
 <span class="term-fg1">--- go-ethereum&#47;core&#47;types&#47;transaction.go</span>
 <span class="term-fg1">+++ op-geth&#47;core&#47;types&#47;transaction.go</span>
@@ -1032,8 +1040,8 @@ rollup system itself to change the L2 state based on L1 events and system rules 
             
                 <div class="border-bottom"><div class="row">
             <div class="col-12 col-md-4 text-start pe-2">
-                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-46c903110af4f4733e4ece52" role="button"
-                   aria-expanded="false" aria-controls="id-46c903110af4f4733e4ece52">
+                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-8948740b70cfcd68bc786f22" role="button"
+                   aria-expanded="false" aria-controls="id-8948740b70cfcd68bc786f22">
                     <code>core/types/tx_access_list.go</code>
                 </a>
             </div>
@@ -1063,7 +1071,7 @@ rollup system itself to change the L2 state based on L1 events and system rules 
                 
             </div>
         </div>
-        <div class="collapse patch-content term-container" id="id-46c903110af4f4733e4ece52"><span class="term-fg1">diff --git go-ethereum&#47;core&#47;types&#47;tx_access_list.go op-geth&#47;core&#47;types&#47;tx_access_list.go</span>
+        <div class="collapse patch-content term-container" id="id-8948740b70cfcd68bc786f22"><span class="term-fg1">diff --git go-ethereum&#47;core&#47;types&#47;tx_access_list.go op-geth&#47;core&#47;types&#47;tx_access_list.go</span>
 <span class="term-fg1">index 620848fe624a30d4ebaa86932da53da4a6f99490..2ed0295cd3f8c75a2b52c1a98dd05107dada6bb9 100644</span>
 <span class="term-fg1">--- go-ethereum&#47;core&#47;types&#47;tx_access_list.go</span>
 <span class="term-fg1">+++ op-geth&#47;core&#47;types&#47;tx_access_list.go</span>
@@ -1080,8 +1088,8 @@ rollup system itself to change the L2 state based on L1 events and system rules 
             
                 <div class="border-bottom"><div class="row">
             <div class="col-12 col-md-4 text-start pe-2">
-                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-66efb47cdcbefdfed32c3ab7" role="button"
-                   aria-expanded="false" aria-controls="id-66efb47cdcbefdfed32c3ab7">
+                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-08e474be6546dd0a44c5cd99" role="button"
+                   aria-expanded="false" aria-controls="id-08e474be6546dd0a44c5cd99">
                     <code>core/types/tx_dynamic_fee.go</code>
                 </a>
             </div>
@@ -1111,7 +1119,7 @@ rollup system itself to change the L2 state based on L1 events and system rules 
                 
             </div>
         </div>
-        <div class="collapse patch-content term-container" id="id-66efb47cdcbefdfed32c3ab7"><span class="term-fg1">diff --git go-ethereum&#47;core&#47;types&#47;tx_dynamic_fee.go op-geth&#47;core&#47;types&#47;tx_dynamic_fee.go</span>
+        <div class="collapse patch-content term-container" id="id-08e474be6546dd0a44c5cd99"><span class="term-fg1">diff --git go-ethereum&#47;core&#47;types&#47;tx_dynamic_fee.go op-geth&#47;core&#47;types&#47;tx_dynamic_fee.go</span>
 <span class="term-fg1">index 53f246ea1fadc9dedeae876063819e08a3eb49ac..697da1ffd0a87edb479e4b8c4e0d730b21efc2c3 100644</span>
 <span class="term-fg1">--- go-ethereum&#47;core&#47;types&#47;tx_dynamic_fee.go</span>
 <span class="term-fg1">+++ op-geth&#47;core&#47;types&#47;tx_dynamic_fee.go</span>
@@ -1128,8 +1136,8 @@ rollup system itself to change the L2 state based on L1 events and system rules 
             
                 <div class="border-bottom"><div class="row">
             <div class="col-12 col-md-4 text-start pe-2">
-                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-fedcea9587617d69ccaf8006" role="button"
-                   aria-expanded="false" aria-controls="id-fedcea9587617d69ccaf8006">
+                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-2f1876daa61137dfb1a3f65b" role="button"
+                   aria-expanded="false" aria-controls="id-2f1876daa61137dfb1a3f65b">
                     <code>core/types/tx_legacy.go</code>
                 </a>
             </div>
@@ -1159,7 +1167,7 @@ rollup system itself to change the L2 state based on L1 events and system rules 
                 
             </div>
         </div>
-        <div class="collapse patch-content term-container" id="id-fedcea9587617d69ccaf8006"><span class="term-fg1">diff --git go-ethereum&#47;core&#47;types&#47;tx_legacy.go op-geth&#47;core&#47;types&#47;tx_legacy.go</span>
+        <div class="collapse patch-content term-container" id="id-2f1876daa61137dfb1a3f65b"><span class="term-fg1">diff --git go-ethereum&#47;core&#47;types&#47;tx_legacy.go op-geth&#47;core&#47;types&#47;tx_legacy.go</span>
 <span class="term-fg1">index 14d307829cc92be9910e78ddde6d65ca8c2c9b03..978e69f2dca7d4db6e5163878714d7199e01a96e 100644</span>
 <span class="term-fg1">--- go-ethereum&#47;core&#47;types&#47;tx_legacy.go</span>
 <span class="term-fg1">+++ op-geth&#47;core&#47;types&#47;tx_legacy.go</span>
@@ -1182,8 +1190,7 @@ rollup system itself to change the L2 state based on L1 events and system rules 
 </div>
 
             
-                <div class="ps-1 py-2 my-1"><div class="row border-bottom border-1" data-bs-toggle="collapse" data-bs-target="#id-363632fa076bd6e240c65639" role="button"
-         aria-expanded="false" aria-controls="id-363632fa076bd6e240c65639">
+                <div class="ps-1 py-2 my-1"><div class="row border-bottom border-1"data-bs-toggle="collapse" data-bs-target="#id-2675a73f95e3ca0222ad65ff"role="button" aria-expanded="false" aria-controls="id-2675a73f95e3ca0222ad65ff">
         
             <div class="col-12 col-sm-9 text-start"><h4>L1 cost computation</h4></div>
         
@@ -1195,7 +1202,7 @@ rollup system itself to change the L2 state based on L1 events and system rules 
         </div>
     </div>
 
-    <div class="row forkdef-content collapse  border-1 ps-3 my-3" id="id-363632fa076bd6e240c65639">
+    <div class="row forkdef-content collapse  border-1 ps-3 my-3" id="id-2675a73f95e3ca0222ad65ff">
         <div><p>Transactions must pay an additional L1 cost based on the amount of rollup-data-gas they consume,
 estimated based on gas-price-oracle information and encoded tx size.&rdquo;</p>
 </div>
@@ -1203,8 +1210,8 @@ estimated based on gas-price-oracle information and encoded tx size.&rdquo;</p>
             
                 <div class="border-bottom"><div class="row">
             <div class="col-12 col-md-4 text-start pe-2">
-                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-b30b77381a4910c079c815a6" role="button"
-                   aria-expanded="false" aria-controls="id-b30b77381a4910c079c815a6">
+                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-53f36858407125287aae4025" role="button"
+                   aria-expanded="false" aria-controls="id-53f36858407125287aae4025">
                     <code>core/vm/evm.go</code>
                 </a>
             </div>
@@ -1234,7 +1241,7 @@ estimated based on gas-price-oracle information and encoded tx size.&rdquo;</p>
                 
             </div>
         </div>
-        <div class="collapse patch-content term-container" id="id-b30b77381a4910c079c815a6"><span class="term-fg1">diff --git go-ethereum&#47;core&#47;vm&#47;evm.go op-geth&#47;core&#47;vm&#47;evm.go</span>
+        <div class="collapse patch-content term-container" id="id-53f36858407125287aae4025"><span class="term-fg1">diff --git go-ethereum&#47;core&#47;vm&#47;evm.go op-geth&#47;core&#47;vm&#47;evm.go</span>
 <span class="term-fg1">index d78ea07926641a08a6ccda5b552fa4f851eadd4e..9ab030dbabd8fb5b961f88365ec8505afd4ad9d5 100644</span>
 <span class="term-fg1">--- go-ethereum&#47;core&#47;vm&#47;evm.go</span>
 <span class="term-fg1">+++ op-geth&#47;core&#47;vm&#47;evm.go</span>
@@ -1266,8 +1273,8 @@ estimated based on gas-price-oracle information and encoded tx size.&rdquo;</p>
             
                 <div class="border-bottom"><div class="row">
             <div class="col-12 col-md-4 text-start pe-2">
-                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-ff5beb6f1238ead96e6d235e" role="button"
-                   aria-expanded="false" aria-controls="id-ff5beb6f1238ead96e6d235e">
+                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-e40fb5eba47b94e305bc9267" role="button"
+                   aria-expanded="false" aria-controls="id-e40fb5eba47b94e305bc9267">
                     <code>core/types/rollup_l1_cost.go</code>
                 </a>
             </div>
@@ -1297,7 +1304,7 @@ estimated based on gas-price-oracle information and encoded tx size.&rdquo;</p>
                 
             </div>
         </div>
-        <div class="collapse patch-content term-container" id="id-ff5beb6f1238ead96e6d235e"><span class="term-fg1">diff --git go-ethereum&#47;core&#47;types&#47;rollup_l1_cost.go op-geth&#47;core&#47;types&#47;rollup_l1_cost.go</span>
+        <div class="collapse patch-content term-container" id="id-e40fb5eba47b94e305bc9267"><span class="term-fg1">diff --git go-ethereum&#47;core&#47;types&#47;rollup_l1_cost.go op-geth&#47;core&#47;types&#47;rollup_l1_cost.go</span>
 <span class="term-fg1">new file mode 100644</span>
 <span class="term-fg1">index 0000000000000000000000000000000000000000..edb2138881dca05e25e046a99bb0eba6e30a3da8</span>
 <span class="term-fg1">--- &#47;dev&#47;null</span>
@@ -1382,8 +1389,8 @@ estimated based on gas-price-oracle information and encoded tx size.&rdquo;</p>
             
                 <div class="border-bottom"><div class="row">
             <div class="col-12 col-md-4 text-start pe-2">
-                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-b015fb16ee5d80c5e20e9092" role="button"
-                   aria-expanded="false" aria-controls="id-b015fb16ee5d80c5e20e9092">
+                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-8834e9db965ae466876a0786" role="button"
+                   aria-expanded="false" aria-controls="id-8834e9db965ae466876a0786">
                     <code>core/state_processor.go</code>
                 </a>
             </div>
@@ -1413,7 +1420,7 @@ estimated based on gas-price-oracle information and encoded tx size.&rdquo;</p>
                 
             </div>
         </div>
-        <div class="collapse patch-content term-container" id="id-b015fb16ee5d80c5e20e9092"><span class="term-fg1">diff --git go-ethereum&#47;core&#47;state_processor.go op-geth&#47;core&#47;state_processor.go</span>
+        <div class="collapse patch-content term-container" id="id-8834e9db965ae466876a0786"><span class="term-fg1">diff --git go-ethereum&#47;core&#47;state_processor.go op-geth&#47;core&#47;state_processor.go</span>
 <span class="term-fg1">index 163ea0a0200af06c11723a333a291e9ca9ec80c2..b0134fb705d9dbe88c7a7b0de7a92822e707111c 100644</span>
 <span class="term-fg1">--- go-ethereum&#47;core&#47;state_processor.go</span>
 <span class="term-fg1">+++ op-geth&#47;core&#47;state_processor.go</span>
@@ -1467,8 +1474,8 @@ estimated based on gas-price-oracle information and encoded tx size.&rdquo;</p>
             
                 <div class="border-bottom"><div class="row">
             <div class="col-12 col-md-4 text-start pe-2">
-                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-cfea6bd246cfd6acd8b3865f" role="button"
-                   aria-expanded="false" aria-controls="id-cfea6bd246cfd6acd8b3865f">
+                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-41b13df9507907c1a2fb87bb" role="button"
+                   aria-expanded="false" aria-controls="id-41b13df9507907c1a2fb87bb">
                     <code>core/state_prefetcher.go</code>
                 </a>
             </div>
@@ -1498,7 +1505,7 @@ estimated based on gas-price-oracle information and encoded tx size.&rdquo;</p>
                 
             </div>
         </div>
-        <div class="collapse patch-content term-container" id="id-cfea6bd246cfd6acd8b3865f"><span class="term-fg1">diff --git go-ethereum&#47;core&#47;state_prefetcher.go op-geth&#47;core&#47;state_prefetcher.go</span>
+        <div class="collapse patch-content term-container" id="id-41b13df9507907c1a2fb87bb"><span class="term-fg1">diff --git go-ethereum&#47;core&#47;state_prefetcher.go op-geth&#47;core&#47;state_prefetcher.go</span>
 <span class="term-fg1">index 867b47db5319da828079046ad0f6fadb58c4feff..4c0a782c10d3cb6b5e382d58e0eab1487547d854 100644</span>
 <span class="term-fg1">--- go-ethereum&#47;core&#47;state_prefetcher.go</span>
 <span class="term-fg1">+++ op-geth&#47;core&#47;state_prefetcher.go</span>
@@ -1521,8 +1528,7 @@ estimated based on gas-price-oracle information and encoded tx size.&rdquo;</p>
 </div>
 
             
-                <div class="ps-1 py-2 my-1"><div class="row border-bottom border-1" data-bs-toggle="collapse" data-bs-target="#id-99ce5a2745823b8e84c5ce12" role="button"
-         aria-expanded="false" aria-controls="id-99ce5a2745823b8e84c5ce12">
+                <div class="ps-1 py-2 my-1"><div class="row border-bottom border-1"data-bs-toggle="collapse" data-bs-target="#id-58251ecbdaf28d6519bc24ad"role="button" aria-expanded="false" aria-controls="id-58251ecbdaf28d6519bc24ad">
         
             <div class="col-12 col-sm-9 text-start"><h4>Transaction processing</h4></div>
         
@@ -1534,7 +1540,7 @@ estimated based on gas-price-oracle information and encoded tx size.&rdquo;</p>
         </div>
     </div>
 
-    <div class="row forkdef-content collapse  border-1 ps-3 my-3" id="id-99ce5a2745823b8e84c5ce12">
+    <div class="row forkdef-content collapse  border-1 ps-3 my-3" id="id-58251ecbdaf28d6519bc24ad">
         <div><p>Deposit transactions have special processing rules: gas is pre-paid on L1,
 and deposits with EVM-failure are included with rolled back changes (except mint).
 For regular transactions, at the end of the transition, the 1559 burn and L1 cost are routed to vaults.</p>
@@ -1543,8 +1549,8 @@ For regular transactions, at the end of the transition, the 1559 burn and L1 cos
             
                 <div class="border-bottom"><div class="row">
             <div class="col-12 col-md-4 text-start pe-2">
-                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-7f995215d416555d99742258" role="button"
-                   aria-expanded="false" aria-controls="id-7f995215d416555d99742258">
+                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-9161fb674604cf1118aba9e8" role="button"
+                   aria-expanded="false" aria-controls="id-9161fb674604cf1118aba9e8">
                     <code>core/state_transition.go</code>
                 </a>
             </div>
@@ -1574,7 +1580,7 @@ For regular transactions, at the end of the transition, the 1559 burn and L1 cos
                 
             </div>
         </div>
-        <div class="collapse patch-content term-container" id="id-7f995215d416555d99742258"><span class="term-fg1">diff --git go-ethereum&#47;core&#47;state_transition.go op-geth&#47;core&#47;state_transition.go</span>
+        <div class="collapse patch-content term-container" id="id-9161fb674604cf1118aba9e8"><span class="term-fg1">diff --git go-ethereum&#47;core&#47;state_transition.go op-geth&#47;core&#47;state_transition.go</span>
 <span class="term-fg1">index 653c6b1836187b7cfed5f04d2b7f2e5d0564dbfb..4f1853a094c5a4472d9ce62f8860a25aa17b390c 100644</span>
 <span class="term-fg1">--- go-ethereum&#47;core&#47;state_transition.go</span>
 <span class="term-fg1">+++ op-geth&#47;core&#47;state_transition.go</span>
@@ -1755,8 +1761,7 @@ For regular transactions, at the end of the transition, the 1559 burn and L1 cos
 </div>
 
             
-                <div class="ps-1 py-2 my-1"><div class="row border-bottom border-1" data-bs-toggle="collapse" data-bs-target="#id-028aad4f2e37a40e2211a9cf" role="button"
-         aria-expanded="false" aria-controls="id-028aad4f2e37a40e2211a9cf">
+                <div class="ps-1 py-2 my-1"><div class="row border-bottom border-1"data-bs-toggle="collapse" data-bs-target="#id-aff28c30e8326a74e891daa2"role="button" aria-expanded="false" aria-controls="id-aff28c30e8326a74e891daa2">
         
             <div class="col-12 col-sm-9 text-start"><h4>Gaslimit</h4></div>
         
@@ -1768,7 +1773,7 @@ For regular transactions, at the end of the transition, the 1559 burn and L1 cos
         </div>
     </div>
 
-    <div class="row forkdef-content collapse  border-1 ps-3 my-3" id="id-028aad4f2e37a40e2211a9cf">
+    <div class="row forkdef-content collapse  border-1 ps-3 my-3" id="id-aff28c30e8326a74e891daa2">
         <div><p>The gaslimit is free to be set by the Engine API caller, instead of enforcing adjustments of the
 gaslimit in increments of <sup>1</sup>&frasl;<sub>1024</sub> of the previous gaslimit.
 The gaslimit is changed (and limited) through the <code>SystemConfig</code> contract.</p>
@@ -1777,8 +1782,8 @@ The gaslimit is changed (and limited) through the <code>SystemConfig</code> cont
             
                 <div class="border-bottom"><div class="row">
             <div class="col-12 col-md-4 text-start pe-2">
-                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-7f12dd0847b46b9c8b56b224" role="button"
-                   aria-expanded="false" aria-controls="id-7f12dd0847b46b9c8b56b224">
+                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-0279b250c4caa359abf24ce9" role="button"
+                   aria-expanded="false" aria-controls="id-0279b250c4caa359abf24ce9">
                     <code>consensus/misc/eip1559.go</code>
                 </a>
             </div>
@@ -1808,7 +1813,7 @@ The gaslimit is changed (and limited) through the <code>SystemConfig</code> cont
                 
             </div>
         </div>
-        <div class="collapse patch-content term-container" id="id-7f12dd0847b46b9c8b56b224"><span class="term-fg1">diff --git go-ethereum&#47;consensus&#47;misc&#47;eip1559.go op-geth&#47;consensus&#47;misc&#47;eip1559.go</span>
+        <div class="collapse patch-content term-container" id="id-0279b250c4caa359abf24ce9"><span class="term-fg1">diff --git go-ethereum&#47;consensus&#47;misc&#47;eip1559.go op-geth&#47;consensus&#47;misc&#47;eip1559.go</span>
 <span class="term-fg1">index 4521b47b36e6b4d6fe0aa1c9895383f1be2f3ec1..0b6c8532ac01995cc73a161889a29612b63615e1 100644</span>
 <span class="term-fg1">--- go-ethereum&#47;consensus&#47;misc&#47;eip1559.go</span>
 <span class="term-fg1">+++ op-geth&#47;consensus&#47;misc&#47;eip1559.go</span>
@@ -1836,8 +1841,7 @@ The gaslimit is changed (and limited) through the <code>SystemConfig</code> cont
 </div>
 
             
-                <div class="ps-1 py-2 my-1"><div class="row border-bottom border-1" data-bs-toggle="collapse" data-bs-target="#id-a3a47fed35a943c3358ec78f" role="button"
-         aria-expanded="false" aria-controls="id-a3a47fed35a943c3358ec78f">
+                <div class="ps-1 py-2 my-1"><div class="row border-bottom border-1"data-bs-toggle="collapse" data-bs-target="#id-d406755610fd4750eeecdd31"role="button" aria-expanded="false" aria-controls="id-d406755610fd4750eeecdd31">
         
             <div class="col-12 col-sm-9 text-start"><h4>Consensus tweaks</h4></div>
         
@@ -1849,7 +1853,7 @@ The gaslimit is changed (and limited) through the <code>SystemConfig</code> cont
         </div>
     </div>
 
-    <div class="row forkdef-content collapse  border-1 ps-3 my-3" id="id-a3a47fed35a943c3358ec78f">
+    <div class="row forkdef-content collapse  border-1 ps-3 my-3" id="id-d406755610fd4750eeecdd31">
         <div><p>The Engine API is activated at the Merge transition, with a Total Terminal Difficulty (TTD).
 The rollup starts post-merge, and thus sets the TTD to 0.</p>
 </div>
@@ -1857,8 +1861,8 @@ The rollup starts post-merge, and thus sets the TTD to 0.</p>
             
                 <div class="border-bottom"><div class="row">
             <div class="col-12 col-md-4 text-start pe-2">
-                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-187739e4e5acbd64b7403284" role="button"
-                   aria-expanded="false" aria-controls="id-187739e4e5acbd64b7403284">
+                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-c7b518702e202949fa3b08ec" role="button"
+                   aria-expanded="false" aria-controls="id-c7b518702e202949fa3b08ec">
                     <code>consensus/beacon/consensus.go</code>
                 </a>
             </div>
@@ -1888,7 +1892,7 @@ The rollup starts post-merge, and thus sets the TTD to 0.</p>
                 
             </div>
         </div>
-        <div class="collapse patch-content term-container" id="id-187739e4e5acbd64b7403284"><span class="term-fg1">diff --git go-ethereum&#47;consensus&#47;beacon&#47;consensus.go op-geth&#47;consensus&#47;beacon&#47;consensus.go</span>
+        <div class="collapse patch-content term-container" id="id-c7b518702e202949fa3b08ec"><span class="term-fg1">diff --git go-ethereum&#47;consensus&#47;beacon&#47;consensus.go op-geth&#47;consensus&#47;beacon&#47;consensus.go</span>
 <span class="term-fg1">index eb5aa58ca8879b6eb1f73b631954a97a283e129d..dca750339ad5c311d2243ea48bccd3d010d9103d 100644</span>
 <span class="term-fg1">--- go-ethereum&#47;consensus&#47;beacon&#47;consensus.go</span>
 <span class="term-fg1">+++ op-geth&#47;consensus&#47;beacon&#47;consensus.go</span>
@@ -1918,8 +1922,7 @@ The rollup starts post-merge, and thus sets the TTD to 0.</p>
 </div>
 
             
-                <div class="ps-1 py-2 my-1"><div class="row border-bottom border-1" data-bs-toggle="collapse" data-bs-target="#id-f321a33db68c7a47e9fa1a96" role="button"
-         aria-expanded="false" aria-controls="id-f321a33db68c7a47e9fa1a96">
+                <div class="ps-1 py-2 my-1"><div class="row border-bottom border-1"data-bs-toggle="collapse" data-bs-target="#id-73cbd511d049fef30ac3569a"role="button" aria-expanded="false" aria-controls="id-73cbd511d049fef30ac3569a">
         
             <div class="col-12 col-sm-9 text-start"><h3>Chain config</h3></div>
         
@@ -1931,7 +1934,7 @@ The rollup starts post-merge, and thus sets the TTD to 0.</p>
         </div>
     </div>
 
-    <div class="row forkdef-content collapse  border-1 ps-3 my-3" id="id-f321a33db68c7a47e9fa1a96">
+    <div class="row forkdef-content collapse  border-1 ps-3 my-3" id="id-73cbd511d049fef30ac3569a">
         <div><p>The rollup functionality is enabled with the <code>optimism</code> field in the chain config.
 The EIP-1559 parameters are configurable to adjust for faster more frequent and smaller blocks.
 The parameters can be overriden for testing.</p>
@@ -1940,8 +1943,8 @@ The parameters can be overriden for testing.</p>
             
                 <div class="border-bottom"><div class="row">
             <div class="col-12 col-md-4 text-start pe-2">
-                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-f98dc008a524c8df0e419eed" role="button"
-                   aria-expanded="false" aria-controls="id-f98dc008a524c8df0e419eed">
+                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-617071784782f1a31dd33679" role="button"
+                   aria-expanded="false" aria-controls="id-617071784782f1a31dd33679">
                     <code>params/config.go</code>
                 </a>
             </div>
@@ -1971,7 +1974,7 @@ The parameters can be overriden for testing.</p>
                 
             </div>
         </div>
-        <div class="collapse patch-content term-container" id="id-f98dc008a524c8df0e419eed"><span class="term-fg1">diff --git go-ethereum&#47;params&#47;config.go op-geth&#47;params&#47;config.go</span>
+        <div class="collapse patch-content term-container" id="id-617071784782f1a31dd33679"><span class="term-fg1">diff --git go-ethereum&#47;params&#47;config.go op-geth&#47;params&#47;config.go</span>
 <span class="term-fg1">index 816577a5479540268016d32a10f42701b45e578e..b3bdf87ecae1f89db5229bcf08e0107bcf8f9016 100644</span>
 <span class="term-fg1">--- go-ethereum&#47;params&#47;config.go</span>
 <span class="term-fg1">+++ op-geth&#47;params&#47;config.go</span>
@@ -2134,8 +2137,8 @@ The parameters can be overriden for testing.</p>
             
                 <div class="border-bottom"><div class="row">
             <div class="col-12 col-md-4 text-start pe-2">
-                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-4e1ab790f9e1c999fb47af08" role="button"
-                   aria-expanded="false" aria-controls="id-4e1ab790f9e1c999fb47af08">
+                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-0c94789cb90200685316be34" role="button"
+                   aria-expanded="false" aria-controls="id-0c94789cb90200685316be34">
                     <code>params/protocol_params.go</code>
                 </a>
             </div>
@@ -2165,7 +2168,7 @@ The parameters can be overriden for testing.</p>
                 
             </div>
         </div>
-        <div class="collapse patch-content term-container" id="id-4e1ab790f9e1c999fb47af08"><span class="term-fg1">diff --git go-ethereum&#47;params&#47;protocol_params.go op-geth&#47;params&#47;protocol_params.go</span>
+        <div class="collapse patch-content term-container" id="id-0c94789cb90200685316be34"><span class="term-fg1">diff --git go-ethereum&#47;params&#47;protocol_params.go op-geth&#47;params&#47;protocol_params.go</span>
 <span class="term-fg1">index bb703d0b74dce80d4f90c83f428eb54a0aedd780..e5a5b7f669951fa74cf635f0fec87bf717aa526c 100644</span>
 <span class="term-fg1">--- go-ethereum&#47;params&#47;protocol_params.go</span>
 <span class="term-fg1">+++ op-geth&#47;params&#47;protocol_params.go</span>
@@ -2194,8 +2197,8 @@ The parameters can be overriden for testing.</p>
             
                 <div class="border-bottom"><div class="row">
             <div class="col-12 col-md-4 text-start pe-2">
-                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-32f20460b1c8af89e74ed090" role="button"
-                   aria-expanded="false" aria-controls="id-32f20460b1c8af89e74ed090">
+                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-e3d6598d2a8f6d70ce08f55d" role="button"
+                   aria-expanded="false" aria-controls="id-e3d6598d2a8f6d70ce08f55d">
                     <code>core/genesis.go</code>
                 </a>
             </div>
@@ -2225,7 +2228,7 @@ The parameters can be overriden for testing.</p>
                 
             </div>
         </div>
-        <div class="collapse patch-content term-container" id="id-32f20460b1c8af89e74ed090"><span class="term-fg1">diff --git go-ethereum&#47;core&#47;genesis.go op-geth&#47;core&#47;genesis.go</span>
+        <div class="collapse patch-content term-container" id="id-e3d6598d2a8f6d70ce08f55d"><span class="term-fg1">diff --git go-ethereum&#47;core&#47;genesis.go op-geth&#47;core&#47;genesis.go</span>
 <span class="term-fg1">index 269c1486d31d824f238bfb9180b960aad137ef91..fa43dd74faff1040607b82019d13a8d75d506c37 100644</span>
 <span class="term-fg1">--- go-ethereum&#47;core&#47;genesis.go</span>
 <span class="term-fg1">+++ op-geth&#47;core&#47;genesis.go</span>
@@ -2272,8 +2275,7 @@ The parameters can be overriden for testing.</p>
 </div>
 
             
-                <div class="ps-1 py-2 my-1"><div class="row border-bottom border-1" data-bs-toggle="collapse" data-bs-target="#id-6828679c2c665c0bb3f320aa" role="button"
-         aria-expanded="false" aria-controls="id-6828679c2c665c0bb3f320aa">
+                <div class="ps-1 py-2 my-1"><div class="row border-bottom border-1"data-bs-toggle="collapse" data-bs-target="#id-8b61e6fd48cae7553b8e666b"role="button" aria-expanded="false" aria-controls="id-8b61e6fd48cae7553b8e666b">
         
             <div class="col-12 col-sm-9 text-start"><h3>Chain config cleanup</h3></div>
         
@@ -2285,7 +2287,7 @@ The parameters can be overriden for testing.</p>
         </div>
     </div>
 
-    <div class="row forkdef-content collapse  border-1 ps-3 my-3" id="id-6828679c2c665c0bb3f320aa">
+    <div class="row forkdef-content collapse  border-1 ps-3 my-3" id="id-8b61e6fd48cae7553b8e666b">
         <div><p>The optimism Goerli testnet used clique-config data to make geth internals accept blocks.
 Post-bedrock the beacon-consensus (i.e. follow Engine API) is now used, and the clique config is removed.</p>
 </div>
@@ -2293,8 +2295,8 @@ Post-bedrock the beacon-consensus (i.e. follow Engine API) is now used, and the 
             
                 <div class="border-bottom"><div class="row">
             <div class="col-12 col-md-4 text-start pe-2">
-                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-3c35c55aeef1b791df3a4b8a" role="button"
-                   aria-expanded="false" aria-controls="id-3c35c55aeef1b791df3a4b8a">
+                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-eb020a07a1b124f8236794a1" role="button"
+                   aria-expanded="false" aria-controls="id-eb020a07a1b124f8236794a1">
                     <code>core/rawdb/accessors_metadata.go</code>
                 </a>
             </div>
@@ -2324,7 +2326,7 @@ Post-bedrock the beacon-consensus (i.e. follow Engine API) is now used, and the 
                 
             </div>
         </div>
-        <div class="collapse patch-content term-container" id="id-3c35c55aeef1b791df3a4b8a"><span class="term-fg1">diff --git go-ethereum&#47;core&#47;rawdb&#47;accessors_metadata.go op-geth&#47;core&#47;rawdb&#47;accessors_metadata.go</span>
+        <div class="collapse patch-content term-container" id="id-eb020a07a1b124f8236794a1"><span class="term-fg1">diff --git go-ethereum&#47;core&#47;rawdb&#47;accessors_metadata.go op-geth&#47;core&#47;rawdb&#47;accessors_metadata.go</span>
 <span class="term-fg1">index 2ff29d1add93938a5f76f621ce6b47af179d9aca..45ced36a4fd400cc84f60a9a9dffedd19cb7e1cf 100644</span>
 <span class="term-fg1">--- go-ethereum&#47;core&#47;rawdb&#47;accessors_metadata.go</span>
 <span class="term-fg1">+++ op-geth&#47;core&#47;rawdb&#47;accessors_metadata.go</span>
@@ -2349,8 +2351,7 @@ Post-bedrock the beacon-consensus (i.e. follow Engine API) is now used, and the 
 </div>
 
             
-                <div class="ps-1 py-2 my-1"><div class="row border-bottom border-1" data-bs-toggle="collapse" data-bs-target="#id-8112187fa3f05b56fae1a749" role="button"
-         aria-expanded="false" aria-controls="id-8112187fa3f05b56fae1a749">
+                <div class="ps-1 py-2 my-1"><div class="row border-bottom border-1"data-bs-toggle="collapse" data-bs-target="#id-1a0a5a6dfe2abe63dabe556c"role="button" aria-expanded="false" aria-controls="id-1a0a5a6dfe2abe63dabe556c">
         
             <div class="col-12 col-sm-9 text-start"><h3>Engine API modifications</h3></div>
         
@@ -2362,7 +2363,7 @@ Post-bedrock the beacon-consensus (i.e. follow Engine API) is now used, and the 
         </div>
     </div>
 
-    <div class="row forkdef-content collapse  border-1 ps-3 my-3" id="id-8112187fa3f05b56fae1a749">
+    <div class="row forkdef-content collapse  border-1 ps-3 my-3" id="id-1a0a5a6dfe2abe63dabe556c">
         <div><p>The Engine API is extended to insert transactions into the block and optionally exclude the tx-pool,
 to reproduce the exact block of the sequencer from just the inputs, as derived from L1 by the rollup-node.
 See <a href="https://github.com/ethereum-optimism/optimism/blob/develop/specs/exec-engine.md">L2 execution engine specs</a>.</p>
@@ -2371,8 +2372,8 @@ See <a href="https://github.com/ethereum-optimism/optimism/blob/develop/specs/ex
             
                 <div class="border-bottom"><div class="row">
             <div class="col-12 col-md-4 text-start pe-2">
-                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-071cda5fd887a76cc297bce2" role="button"
-                   aria-expanded="false" aria-controls="id-071cda5fd887a76cc297bce2">
+                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-dbe2d6d66496f127c7ea28e3" role="button"
+                   aria-expanded="false" aria-controls="id-dbe2d6d66496f127c7ea28e3">
                     <code>beacon/engine/types.go</code>
                 </a>
             </div>
@@ -2402,7 +2403,7 @@ See <a href="https://github.com/ethereum-optimism/optimism/blob/develop/specs/ex
                 
             </div>
         </div>
-        <div class="collapse patch-content term-container" id="id-071cda5fd887a76cc297bce2"><span class="term-fg1">diff --git go-ethereum&#47;beacon&#47;engine&#47;types.go op-geth&#47;beacon&#47;engine&#47;types.go</span>
+        <div class="collapse patch-content term-container" id="id-dbe2d6d66496f127c7ea28e3"><span class="term-fg1">diff --git go-ethereum&#47;beacon&#47;engine&#47;types.go op-geth&#47;beacon&#47;engine&#47;types.go</span>
 <span class="term-fg1">index 58f72631194fab274e5bed2ebf5414546cadc260..4cc8af5e06ced99080bc6f28965455ca23583fdd 100644</span>
 <span class="term-fg1">--- go-ethereum&#47;beacon&#47;engine&#47;types.go</span>
 <span class="term-fg1">+++ op-geth&#47;beacon&#47;engine&#47;types.go</span>
@@ -2436,8 +2437,8 @@ See <a href="https://github.com/ethereum-optimism/optimism/blob/develop/specs/ex
             
                 <div class="border-bottom"><div class="row">
             <div class="col-12 col-md-4 text-start pe-2">
-                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-c9dd94b0514b5a9f71e356d0" role="button"
-                   aria-expanded="false" aria-controls="id-c9dd94b0514b5a9f71e356d0">
+                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-177bd94385baa6a6663e876e" role="button"
+                   aria-expanded="false" aria-controls="id-177bd94385baa6a6663e876e">
                     <code>beacon/engine/gen_blockparams.go</code>
                 </a>
             </div>
@@ -2467,7 +2468,7 @@ See <a href="https://github.com/ethereum-optimism/optimism/blob/develop/specs/ex
                 
             </div>
         </div>
-        <div class="collapse patch-content term-container" id="id-c9dd94b0514b5a9f71e356d0"><span class="term-fg1">diff --git go-ethereum&#47;beacon&#47;engine&#47;gen_blockparams.go op-geth&#47;beacon&#47;engine&#47;gen_blockparams.go</span>
+        <div class="collapse patch-content term-container" id="id-177bd94385baa6a6663e876e"><span class="term-fg1">diff --git go-ethereum&#47;beacon&#47;engine&#47;gen_blockparams.go op-geth&#47;beacon&#47;engine&#47;gen_blockparams.go</span>
 <span class="term-fg1">index 0dd2b52597ad5ddc7fc46d97c6c8878edf29d471..0a76475841a12886ef2f9eaadba0172f2708d2b4 100644</span>
 <span class="term-fg1">--- go-ethereum&#47;beacon&#47;engine&#47;gen_blockparams.go</span>
 <span class="term-fg1">+++ op-geth&#47;beacon&#47;engine&#47;gen_blockparams.go</span>
@@ -2533,8 +2534,8 @@ See <a href="https://github.com/ethereum-optimism/optimism/blob/develop/specs/ex
             
                 <div class="border-bottom"><div class="row">
             <div class="col-12 col-md-4 text-start pe-2">
-                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-fb289fc4937f76db8b21c4c5" role="button"
-                   aria-expanded="false" aria-controls="id-fb289fc4937f76db8b21c4c5">
+                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-818918525ec94ed57b861d1f" role="button"
+                   aria-expanded="false" aria-controls="id-818918525ec94ed57b861d1f">
                     <code>eth/catalyst/api.go</code>
                 </a>
             </div>
@@ -2564,7 +2565,7 @@ See <a href="https://github.com/ethereum-optimism/optimism/blob/develop/specs/ex
                 
             </div>
         </div>
-        <div class="collapse patch-content term-container" id="id-fb289fc4937f76db8b21c4c5"><span class="term-fg1">diff --git go-ethereum&#47;eth&#47;catalyst&#47;api.go op-geth&#47;eth&#47;catalyst&#47;api.go</span>
+        <div class="collapse patch-content term-container" id="id-818918525ec94ed57b861d1f"><span class="term-fg1">diff --git go-ethereum&#47;eth&#47;catalyst&#47;api.go op-geth&#47;eth&#47;catalyst&#47;api.go</span>
 <span class="term-fg1">index 95eed408f0310a72e13d6265bd7c9cfb63a541c1..789cf048178267631db722c8b490df74ff7f2ffe 100644</span>
 <span class="term-fg1">--- go-ethereum&#47;eth&#47;catalyst&#47;api.go</span>
 <span class="term-fg1">+++ op-geth&#47;eth&#47;catalyst&#47;api.go</span>
@@ -2625,8 +2626,7 @@ See <a href="https://github.com/ethereum-optimism/optimism/blob/develop/specs/ex
 </div>
 
             
-                <div class="ps-1 py-2 my-1"><div class="row border-bottom border-1" data-bs-toggle="collapse" data-bs-target="#id-2450133ff096c55202f0275a" role="button"
-         aria-expanded="false" aria-controls="id-2450133ff096c55202f0275a">
+                <div class="ps-1 py-2 my-1"><div class="row border-bottom border-1"data-bs-toggle="collapse" data-bs-target="#id-78222e97f0970cbc5d60022c"role="button" aria-expanded="false" aria-controls="id-78222e97f0970cbc5d60022c">
         
             <div class="col-12 col-sm-9 text-start"><h3>Block-building modifications</h3></div>
         
@@ -2638,7 +2638,7 @@ See <a href="https://github.com/ethereum-optimism/optimism/blob/develop/specs/ex
         </div>
     </div>
 
-    <div class="row forkdef-content collapse  border-1 ps-3 my-3" id="id-2450133ff096c55202f0275a">
+    <div class="row forkdef-content collapse  border-1 ps-3 my-3" id="id-78222e97f0970cbc5d60022c">
         <div><p>The block-building code (in the &ldquo;miner&rdquo; package because of Proof-Of-Work legacy of ethereum) implements the
 changes to support the transaction-inclusion, tx-pool toggle and gaslimit parameters of the Engine API.</p>
 </div>
@@ -2646,8 +2646,105 @@ changes to support the transaction-inclusion, tx-pool toggle and gaslimit parame
             
                 <div class="border-bottom"><div class="row">
             <div class="col-12 col-md-4 text-start pe-2">
-                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-8e52fff74d7eed99413ce0d5" role="button"
-                   aria-expanded="false" aria-controls="id-8e52fff74d7eed99413ce0d5">
+                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-e3da408f595370330cae51e1" role="button"
+                   aria-expanded="false" aria-controls="id-e3da408f595370330cae51e1">
+                    <code>miner/payload_building.go</code>
+                </a>
+            </div>
+
+            <div class="col-12 col-sm-8 col-md-4 text-start px-2">
+                <div class="row">
+                    <div class="col-6">
+                        
+                            <a href="https://github.com/ethereum/go-ethereum/blob/73b01f40ceb6bcb6f9f44c2a3d6f963b40452b47/miner/payload_building.go" target="_blank">go-ethereum <i class="bi bi-github"></i></a>
+                        
+                    </div>
+
+                    <div class="col-6">
+                        
+                            <a href="https://github.com/ethereum-optimism/op-geth/blob/88e99a84819787108bd5fd674d73f1839e4f10bd/miner/payload_building.go" target="_blank">op-geth <i class="bi bi-github"></i></a>
+                        
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 col-sm-4 ms-auto ps-2">
+                
+                    <div class="row line-stat">
+                        <div class="text-end"><span class="text-success">+22</span></div>
+                        <div class="text-start"><span class="text-danger">-2</span></div>
+                    </div>
+                
+            </div>
+        </div>
+        <div class="collapse patch-content term-container" id="id-e3da408f595370330cae51e1"><span class="term-fg1">diff --git go-ethereum&#47;miner&#47;payload_building.go op-geth&#47;miner&#47;payload_building.go</span>
+<span class="term-fg1">index f84d908e86d68dbb132e2cd75ba5e21887fc018c..26e89eef31cab52754e0a41bb540639b4f58067f 100644</span>
+<span class="term-fg1">--- go-ethereum&#47;miner&#47;payload_building.go</span>
+<span class="term-fg1">+++ op-geth&#47;miner&#47;payload_building.go</span>
+<span class="term-fg36">@@ -40,6 +40,10 @@</span> 	Timestamp    uint64            &#47;&#47; The provided timestamp of generated payload
+ 	FeeRecipient common.Address    &#47;&#47; The provided recipient address for collecting transaction fee
+ 	Random       common.Hash       &#47;&#47; The provided randomness value
+ 	Withdrawals  types.Withdrawals &#47;&#47; The provided withdrawals
+<span class="term-fg32">+</span>
+<span class="term-fg32">+	NoTxPool     bool                 &#47;&#47; Optimism addition: option to disable tx pool contents from being included</span>
+<span class="term-fg32">+	Transactions []*types.Transaction &#47;&#47; Optimism addition: txs forced into the block via engine API</span>
+<span class="term-fg32">+	GasLimit     *uint64              &#47;&#47; Optimism addition: override gas limit of the block to build</span>
+ }
+&nbsp;
+ &#47;&#47; Id computes an 8-byte identifier by hashing the components of the payload arguments.
+<span class="term-fg36">@@ -51,6 +55,19 @@</span> 	binary.Write(hasher, binary.BigEndian, args.Timestamp)
+ 	hasher.Write(args.Random[:])
+ 	hasher.Write(args.FeeRecipient[:])
+ 	rlp.Encode(hasher, args.Withdrawals)
+<span class="term-fg32">+</span>
+<span class="term-fg32">+	if args.NoTxPool || len(args.Transactions) &gt; 0 { &#47;&#47; extend if extra payload attributes are used</span>
+<span class="term-fg32">+		binary.Write(hasher, binary.BigEndian, args.NoTxPool)</span>
+<span class="term-fg32">+		binary.Write(hasher, binary.BigEndian, uint64(len(args.Transactions)))</span>
+<span class="term-fg32">+		for _, tx := range args.Transactions {</span>
+<span class="term-fg32">+			h := tx.Hash()</span>
+<span class="term-fg32">+			hasher.Write(h[:])</span>
+<span class="term-fg32">+		}</span>
+<span class="term-fg32">+	}</span>
+<span class="term-fg32">+	if args.GasLimit != nil {</span>
+<span class="term-fg32">+		binary.Write(hasher, binary.BigEndian, *args.GasLimit)</span>
+<span class="term-fg32">+	}</span>
+<span class="term-fg32">+</span>
+ 	var out engine.PayloadID
+ 	copy(out[:], hasher.Sum(nil)[:8])
+ 	return out
+<span class="term-fg36">@@ -156,12 +173,15 @@</span> func (w *worker) buildPayload(args *BuildPayloadArgs) (*Payload, error) {
+ 	&#47;&#47; Build the initial version with no transaction included. It should be fast
+ 	&#47;&#47; enough to run. The empty payload can at least make sure there is something
+ 	&#47;&#47; to deliver for not missing slot.
+<span class="term-fg31">-	empty, _, err := w.getSealingBlock(args.Parent, args.Timestamp, args.FeeRecipient, args.Random, args.Withdrawals, true)</span>
+<span class="term-fg32">+	empty, _, err := w.getSealingBlock(args.Parent, args.Timestamp, args.FeeRecipient, args.Random, args.Withdrawals, true, args.Transactions, args.GasLimit)</span>
+ 	if err != nil {
+ 		return nil, err
+ 	}
+ 	&#47;&#47; Construct a payload object for return.
+ 	payload := newPayload(empty, args.Id())
+<span class="term-fg32">+	if args.NoTxPool { &#47;&#47; don&#39;t start the background payload updating job if there is no tx pool to pull from</span>
+<span class="term-fg32">+		return payload, nil</span>
+<span class="term-fg32">+	}</span>
+&nbsp;
+ 	&#47;&#47; Spin up a routine for updating the payload in background. This strategy
+ 	&#47;&#47; can maximum the revenue for including transactions with highest fee.
+<span class="term-fg36">@@ -180,7 +200,7 @@</span> 		for {
+ 			select {
+ 			case &lt;-timer.C:
+ 				start := time.Now()
+<span class="term-fg31">-				block, fees, err := w.getSealingBlock(args.Parent, args.Timestamp, args.FeeRecipient, args.Random, args.Withdrawals, false)</span>
+<span class="term-fg32">+				block, fees, err := w.getSealingBlock(args.Parent, args.Timestamp, args.FeeRecipient, args.Random, args.Withdrawals, false, args.Transactions, args.GasLimit)</span>
+ 				if err == nil {
+ 					payload.update(block, fees, time.Since(start))
+ 				}</div>
+    </div>
+
+            
+                <div class="border-bottom"><div class="row">
+            <div class="col-12 col-md-4 text-start pe-2">
+                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-ab6440f6906589cb41e6e416" role="button"
+                   aria-expanded="false" aria-controls="id-ab6440f6906589cb41e6e416">
                     <code>miner/worker.go</code>
                 </a>
             </div>
@@ -2677,7 +2774,7 @@ changes to support the transaction-inclusion, tx-pool toggle and gaslimit parame
                 
             </div>
         </div>
-        <div class="collapse patch-content term-container" id="id-8e52fff74d7eed99413ce0d5"><span class="term-fg1">diff --git go-ethereum&#47;miner&#47;worker.go op-geth&#47;miner&#47;worker.go</span>
+        <div class="collapse patch-content term-container" id="id-ab6440f6906589cb41e6e416"><span class="term-fg1">diff --git go-ethereum&#47;miner&#47;worker.go op-geth&#47;miner&#47;worker.go</span>
 <span class="term-fg1">index 49204f71a0766774b09a78434a9b025f11742d32..477befcbcfffe256df54cebe3581e892b9f63939 100644</span>
 <span class="term-fg1">--- go-ethereum&#47;miner&#47;worker.go</span>
 <span class="term-fg1">+++ op-geth&#47;miner&#47;worker.go</span>
@@ -2800,67 +2897,8 @@ changes to support the transaction-inclusion, tx-pool toggle and gaslimit parame
             
                 <div class="border-bottom"><div class="row">
             <div class="col-12 col-md-4 text-start pe-2">
-                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-ae0214f02bb31872cc9dec25" role="button"
-                   aria-expanded="false" aria-controls="id-ae0214f02bb31872cc9dec25">
-                    <code>miner/miner.go</code>
-                </a>
-            </div>
-
-            <div class="col-12 col-sm-8 col-md-4 text-start px-2">
-                <div class="row">
-                    <div class="col-6">
-                        
-                            <a href="https://github.com/ethereum/go-ethereum/blob/73b01f40ceb6bcb6f9f44c2a3d6f963b40452b47/miner/miner.go" target="_blank">go-ethereum <i class="bi bi-github"></i></a>
-                        
-                    </div>
-
-                    <div class="col-6">
-                        
-                            <a href="https://github.com/ethereum-optimism/op-geth/blob/88e99a84819787108bd5fd674d73f1839e4f10bd/miner/miner.go" target="_blank">op-geth <i class="bi bi-github"></i></a>
-                        
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-12 col-sm-4 ms-auto ps-2">
-                
-                    <div class="row line-stat">
-                        <div class="text-end"><span class="text-success">+5</span></div>
-                        <div class="text-start"><span class="text-danger">-0</span></div>
-                    </div>
-                
-            </div>
-        </div>
-        <div class="collapse patch-content term-container" id="id-ae0214f02bb31872cc9dec25"><span class="term-fg1">diff --git go-ethereum&#47;miner&#47;miner.go op-geth&#47;miner&#47;miner.go</span>
-<span class="term-fg1">index c969aec735469405966e7676eb0d44d169155541..9578c8842393a08b2d87189760b19a2e7ba1cc7d 100644</span>
-<span class="term-fg1">--- go-ethereum&#47;miner&#47;miner.go</span>
-<span class="term-fg1">+++ op-geth&#47;miner&#47;miner.go</span>
-<span class="term-fg36">@@ -31,6 +31,7 @@</span> 	&quot;github.com&#47;ethereum&#47;go-ethereum&#47;core&#47;state&quot;
- 	&quot;github.com&#47;ethereum&#47;go-ethereum&#47;core&#47;txpool&quot;
- 	&quot;github.com&#47;ethereum&#47;go-ethereum&#47;core&#47;types&quot;
- 	&quot;github.com&#47;ethereum&#47;go-ethereum&#47;eth&#47;downloader&quot;
-<span class="term-fg32">+	&quot;github.com&#47;ethereum&#47;go-ethereum&#47;eth&#47;tracers&quot;</span>
- 	&quot;github.com&#47;ethereum&#47;go-ethereum&#47;event&quot;
- 	&quot;github.com&#47;ethereum&#47;go-ethereum&#47;log&quot;
- 	&quot;github.com&#47;ethereum&#47;go-ethereum&#47;params&quot;
-<span class="term-fg36">@@ -41,6 +42,10 @@</span> &#47;&#47; to offer all the functions here.
- type Backend interface {
- 	BlockChain() *core.BlockChain
- 	TxPool() *txpool.TxPool
-<span class="term-fg32">+}</span>
-<span class="term-fg32">+</span>
-<span class="term-fg32">+type BackendWithHistoricalState interface {</span>
-<span class="term-fg32">+	StateAtBlock(block *types.Block, reexec uint64, base *state.StateDB, readOnly bool, preferDisk bool) (statedb *state.StateDB, release tracers.StateReleaseFunc, err error)</span>
- }
-&nbsp;
- &#47;&#47; Config is the configuration parameters of mining.</div>
-    </div>
-
-            
-                <div class="border-bottom"><div class="row">
-            <div class="col-12 col-md-4 text-start pe-2">
-                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-873d06093939ee1ac72decef" role="button"
-                   aria-expanded="false" aria-controls="id-873d06093939ee1ac72decef">
+                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-2d36e3957f217f0e2f7a501e" role="button"
+                   aria-expanded="false" aria-controls="id-2d36e3957f217f0e2f7a501e">
                     <code>miner/worker_test.go</code>
                 </a>
             </div>
@@ -2890,7 +2928,7 @@ changes to support the transaction-inclusion, tx-pool toggle and gaslimit parame
                 
             </div>
         </div>
-        <div class="collapse patch-content term-container" id="id-873d06093939ee1ac72decef"><span class="term-fg1">diff --git go-ethereum&#47;miner&#47;worker_test.go op-geth&#47;miner&#47;worker_test.go</span>
+        <div class="collapse patch-content term-container" id="id-2d36e3957f217f0e2f7a501e"><span class="term-fg1">diff --git go-ethereum&#47;miner&#47;worker_test.go op-geth&#47;miner&#47;worker_test.go</span>
 <span class="term-fg1">index ba929d293d8a08e6ccca983ceca2817192ede86a..724563515fe348433cfedb9e411814a7bb91b2b8 100644</span>
 <span class="term-fg1">--- go-ethereum&#47;miner&#47;worker_test.go</span>
 <span class="term-fg1">+++ op-geth&#47;miner&#47;worker_test.go</span>
@@ -2917,9 +2955,9 @@ changes to support the transaction-inclusion, tx-pool toggle and gaslimit parame
             
                 <div class="border-bottom"><div class="row">
             <div class="col-12 col-md-4 text-start pe-2">
-                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-a481cdb9c006dd37c3c9a683" role="button"
-                   aria-expanded="false" aria-controls="id-a481cdb9c006dd37c3c9a683">
-                    <code>miner/payload_building.go</code>
+                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-6bad93599736a8e7816d759d" role="button"
+                   aria-expanded="false" aria-controls="id-6bad93599736a8e7816d759d">
+                    <code>miner/miner.go</code>
                 </a>
             </div>
 
@@ -2927,13 +2965,13 @@ changes to support the transaction-inclusion, tx-pool toggle and gaslimit parame
                 <div class="row">
                     <div class="col-6">
                         
-                            <a href="https://github.com/ethereum/go-ethereum/blob/73b01f40ceb6bcb6f9f44c2a3d6f963b40452b47/miner/payload_building.go" target="_blank">go-ethereum <i class="bi bi-github"></i></a>
+                            <a href="https://github.com/ethereum/go-ethereum/blob/73b01f40ceb6bcb6f9f44c2a3d6f963b40452b47/miner/miner.go" target="_blank">go-ethereum <i class="bi bi-github"></i></a>
                         
                     </div>
 
                     <div class="col-6">
                         
-                            <a href="https://github.com/ethereum-optimism/op-geth/blob/88e99a84819787108bd5fd674d73f1839e4f10bd/miner/payload_building.go" target="_blank">op-geth <i class="bi bi-github"></i></a>
+                            <a href="https://github.com/ethereum-optimism/op-geth/blob/88e99a84819787108bd5fd674d73f1839e4f10bd/miner/miner.go" target="_blank">op-geth <i class="bi bi-github"></i></a>
                         
                     </div>
                 </div>
@@ -2942,73 +2980,35 @@ changes to support the transaction-inclusion, tx-pool toggle and gaslimit parame
             <div class="col-12 col-sm-4 ms-auto ps-2">
                 
                     <div class="row line-stat">
-                        <div class="text-end"><span class="text-success">+22</span></div>
-                        <div class="text-start"><span class="text-danger">-2</span></div>
+                        <div class="text-end"><span class="text-success">+5</span></div>
+                        <div class="text-start"><span class="text-danger">-0</span></div>
                     </div>
                 
             </div>
         </div>
-        <div class="collapse patch-content term-container" id="id-a481cdb9c006dd37c3c9a683"><span class="term-fg1">diff --git go-ethereum&#47;miner&#47;payload_building.go op-geth&#47;miner&#47;payload_building.go</span>
-<span class="term-fg1">index f84d908e86d68dbb132e2cd75ba5e21887fc018c..26e89eef31cab52754e0a41bb540639b4f58067f 100644</span>
-<span class="term-fg1">--- go-ethereum&#47;miner&#47;payload_building.go</span>
-<span class="term-fg1">+++ op-geth&#47;miner&#47;payload_building.go</span>
-<span class="term-fg36">@@ -40,6 +40,10 @@</span> 	Timestamp    uint64            &#47;&#47; The provided timestamp of generated payload
- 	FeeRecipient common.Address    &#47;&#47; The provided recipient address for collecting transaction fee
- 	Random       common.Hash       &#47;&#47; The provided randomness value
- 	Withdrawals  types.Withdrawals &#47;&#47; The provided withdrawals
+        <div class="collapse patch-content term-container" id="id-6bad93599736a8e7816d759d"><span class="term-fg1">diff --git go-ethereum&#47;miner&#47;miner.go op-geth&#47;miner&#47;miner.go</span>
+<span class="term-fg1">index c969aec735469405966e7676eb0d44d169155541..9578c8842393a08b2d87189760b19a2e7ba1cc7d 100644</span>
+<span class="term-fg1">--- go-ethereum&#47;miner&#47;miner.go</span>
+<span class="term-fg1">+++ op-geth&#47;miner&#47;miner.go</span>
+<span class="term-fg36">@@ -31,6 +31,7 @@</span> 	&quot;github.com&#47;ethereum&#47;go-ethereum&#47;core&#47;state&quot;
+ 	&quot;github.com&#47;ethereum&#47;go-ethereum&#47;core&#47;txpool&quot;
+ 	&quot;github.com&#47;ethereum&#47;go-ethereum&#47;core&#47;types&quot;
+ 	&quot;github.com&#47;ethereum&#47;go-ethereum&#47;eth&#47;downloader&quot;
+<span class="term-fg32">+	&quot;github.com&#47;ethereum&#47;go-ethereum&#47;eth&#47;tracers&quot;</span>
+ 	&quot;github.com&#47;ethereum&#47;go-ethereum&#47;event&quot;
+ 	&quot;github.com&#47;ethereum&#47;go-ethereum&#47;log&quot;
+ 	&quot;github.com&#47;ethereum&#47;go-ethereum&#47;params&quot;
+<span class="term-fg36">@@ -41,6 +42,10 @@</span> &#47;&#47; to offer all the functions here.
+ type Backend interface {
+ 	BlockChain() *core.BlockChain
+ 	TxPool() *txpool.TxPool
+<span class="term-fg32">+}</span>
 <span class="term-fg32">+</span>
-<span class="term-fg32">+	NoTxPool     bool                 &#47;&#47; Optimism addition: option to disable tx pool contents from being included</span>
-<span class="term-fg32">+	Transactions []*types.Transaction &#47;&#47; Optimism addition: txs forced into the block via engine API</span>
-<span class="term-fg32">+	GasLimit     *uint64              &#47;&#47; Optimism addition: override gas limit of the block to build</span>
+<span class="term-fg32">+type BackendWithHistoricalState interface {</span>
+<span class="term-fg32">+	StateAtBlock(block *types.Block, reexec uint64, base *state.StateDB, readOnly bool, preferDisk bool) (statedb *state.StateDB, release tracers.StateReleaseFunc, err error)</span>
  }
 &nbsp;
- &#47;&#47; Id computes an 8-byte identifier by hashing the components of the payload arguments.
-<span class="term-fg36">@@ -51,6 +55,19 @@</span> 	binary.Write(hasher, binary.BigEndian, args.Timestamp)
- 	hasher.Write(args.Random[:])
- 	hasher.Write(args.FeeRecipient[:])
- 	rlp.Encode(hasher, args.Withdrawals)
-<span class="term-fg32">+</span>
-<span class="term-fg32">+	if args.NoTxPool || len(args.Transactions) &gt; 0 { &#47;&#47; extend if extra payload attributes are used</span>
-<span class="term-fg32">+		binary.Write(hasher, binary.BigEndian, args.NoTxPool)</span>
-<span class="term-fg32">+		binary.Write(hasher, binary.BigEndian, uint64(len(args.Transactions)))</span>
-<span class="term-fg32">+		for _, tx := range args.Transactions {</span>
-<span class="term-fg32">+			h := tx.Hash()</span>
-<span class="term-fg32">+			hasher.Write(h[:])</span>
-<span class="term-fg32">+		}</span>
-<span class="term-fg32">+	}</span>
-<span class="term-fg32">+	if args.GasLimit != nil {</span>
-<span class="term-fg32">+		binary.Write(hasher, binary.BigEndian, *args.GasLimit)</span>
-<span class="term-fg32">+	}</span>
-<span class="term-fg32">+</span>
- 	var out engine.PayloadID
- 	copy(out[:], hasher.Sum(nil)[:8])
- 	return out
-<span class="term-fg36">@@ -156,12 +173,15 @@</span> func (w *worker) buildPayload(args *BuildPayloadArgs) (*Payload, error) {
- 	&#47;&#47; Build the initial version with no transaction included. It should be fast
- 	&#47;&#47; enough to run. The empty payload can at least make sure there is something
- 	&#47;&#47; to deliver for not missing slot.
-<span class="term-fg31">-	empty, _, err := w.getSealingBlock(args.Parent, args.Timestamp, args.FeeRecipient, args.Random, args.Withdrawals, true)</span>
-<span class="term-fg32">+	empty, _, err := w.getSealingBlock(args.Parent, args.Timestamp, args.FeeRecipient, args.Random, args.Withdrawals, true, args.Transactions, args.GasLimit)</span>
- 	if err != nil {
- 		return nil, err
- 	}
- 	&#47;&#47; Construct a payload object for return.
- 	payload := newPayload(empty, args.Id())
-<span class="term-fg32">+	if args.NoTxPool { &#47;&#47; don&#39;t start the background payload updating job if there is no tx pool to pull from</span>
-<span class="term-fg32">+		return payload, nil</span>
-<span class="term-fg32">+	}</span>
-&nbsp;
- 	&#47;&#47; Spin up a routine for updating the payload in background. This strategy
- 	&#47;&#47; can maximum the revenue for including transactions with highest fee.
-<span class="term-fg36">@@ -180,7 +200,7 @@</span> 		for {
- 			select {
- 			case &lt;-timer.C:
- 				start := time.Now()
-<span class="term-fg31">-				block, fees, err := w.getSealingBlock(args.Parent, args.Timestamp, args.FeeRecipient, args.Random, args.Withdrawals, false)</span>
-<span class="term-fg32">+				block, fees, err := w.getSealingBlock(args.Parent, args.Timestamp, args.FeeRecipient, args.Random, args.Withdrawals, false, args.Transactions, args.GasLimit)</span>
- 				if err == nil {
- 					payload.update(block, fees, time.Since(start))
- 				}</div>
+ &#47;&#47; Config is the configuration parameters of mining.</div>
     </div>
 
             
@@ -3020,8 +3020,7 @@ changes to support the transaction-inclusion, tx-pool toggle and gaslimit parame
 </div>
 
             
-                <div class="ps-1 py-2 my-1"><div class="row border-bottom border-1" data-bs-toggle="collapse" data-bs-target="#id-40349598b4b6ca4aa7806fe0" role="button"
-         aria-expanded="false" aria-controls="id-40349598b4b6ca4aa7806fe0">
+                <div class="ps-1 py-2 my-1"><div class="row border-bottom border-1"data-bs-toggle="collapse" data-bs-target="#id-d4b8240b43c63964c32e438d"role="button" aria-expanded="false" aria-controls="id-d4b8240b43c63964c32e438d">
         
             <div class="col-12 col-sm-9 text-start"><h3>Tx-pool tx cost updates</h3></div>
         
@@ -3033,15 +3032,71 @@ changes to support the transaction-inclusion, tx-pool toggle and gaslimit parame
         </div>
     </div>
 
-    <div class="row forkdef-content collapse  border-1 ps-3 my-3" id="id-40349598b4b6ca4aa7806fe0">
+    <div class="row forkdef-content collapse  border-1 ps-3 my-3" id="id-d4b8240b43c63964c32e438d">
         <div><p>Transaction queueing and inclusion needs to account for the L1 cost component.</p>
 </div>
         <div>
             
                 <div class="border-bottom"><div class="row">
             <div class="col-12 col-md-4 text-start pe-2">
-                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-b27addd243da443720d325bd" role="button"
-                   aria-expanded="false" aria-controls="id-b27addd243da443720d325bd">
+                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-5ca5547096ce37a98b737cc0" role="button"
+                   aria-expanded="false" aria-controls="id-5ca5547096ce37a98b737cc0">
+                    <code>core/txpool/list.go</code>
+                </a>
+            </div>
+
+            <div class="col-12 col-sm-8 col-md-4 text-start px-2">
+                <div class="row">
+                    <div class="col-6">
+                        
+                            <a href="https://github.com/ethereum/go-ethereum/blob/73b01f40ceb6bcb6f9f44c2a3d6f963b40452b47/core/txpool/list.go" target="_blank">go-ethereum <i class="bi bi-github"></i></a>
+                        
+                    </div>
+
+                    <div class="col-6">
+                        
+                            <a href="https://github.com/ethereum-optimism/op-geth/blob/88e99a84819787108bd5fd674d73f1839e4f10bd/core/txpool/list.go" target="_blank">op-geth <i class="bi bi-github"></i></a>
+                        
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 col-sm-4 ms-auto ps-2">
+                
+                    <div class="row line-stat">
+                        <div class="text-end"><span class="text-success">+9</span></div>
+                        <div class="text-start"><span class="text-danger">-0</span></div>
+                    </div>
+                
+            </div>
+        </div>
+        <div class="collapse patch-content term-container" id="id-5ca5547096ce37a98b737cc0"><span class="term-fg1">diff --git go-ethereum&#47;core&#47;txpool&#47;list.go op-geth&#47;core&#47;txpool&#47;list.go</span>
+<span class="term-fg1">index 062cbbf63e6a546b43ae1ecf3ad6c5237d856cd6..4318bfb254d4925e4faa56ff4b3693cf01c83d41 100644</span>
+<span class="term-fg1">--- go-ethereum&#47;core&#47;txpool&#47;list.go</span>
+<span class="term-fg1">+++ op-geth&#47;core&#47;txpool&#47;list.go</span>
+<span class="term-fg36">@@ -246,6 +246,15 @@</span> 	cache := m.flatten()
+ 	return cache[len(cache)-1]
+ }
+&nbsp;
+<span class="term-fg32">+&#47;&#47; FirstElement returns the first element from the heap (guaranteed to be lowest), thus, the</span>
+<span class="term-fg32">+&#47;&#47; transaction with the lowest nonce. Returns nil if there are no elements.</span>
+<span class="term-fg32">+func (m *sortedMap) FirstElement() *types.Transaction {</span>
+<span class="term-fg32">+	if m.Len() == 0 {</span>
+<span class="term-fg32">+		return nil</span>
+<span class="term-fg32">+	}</span>
+<span class="term-fg32">+	return m.Get((*m.index)[0])</span>
+<span class="term-fg32">+}</span>
+<span class="term-fg32">+</span>
+ &#47;&#47; list is a &quot;list&quot; of transactions belonging to an account, sorted by account
+ &#47;&#47; nonce. The same type can be used both for storing contiguous transactions for
+ &#47;&#47; the executable&#47;pending queue; and for storing gapped transactions for the non-</div>
+    </div>
+
+            
+                <div class="border-bottom"><div class="row">
+            <div class="col-12 col-md-4 text-start pe-2">
+                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-d1b866e4b691cbb017d8aea2" role="button"
+                   aria-expanded="false" aria-controls="id-d1b866e4b691cbb017d8aea2">
                     <code>core/txpool/txpool.go</code>
                 </a>
             </div>
@@ -3071,7 +3126,7 @@ changes to support the transaction-inclusion, tx-pool toggle and gaslimit parame
                 
             </div>
         </div>
-        <div class="collapse patch-content term-container" id="id-b27addd243da443720d325bd"><span class="term-fg1">diff --git go-ethereum&#47;core&#47;txpool&#47;txpool.go op-geth&#47;core&#47;txpool&#47;txpool.go</span>
+        <div class="collapse patch-content term-container" id="id-d1b866e4b691cbb017d8aea2"><span class="term-fg1">diff --git go-ethereum&#47;core&#47;txpool&#47;txpool.go op-geth&#47;core&#47;txpool&#47;txpool.go</span>
 <span class="term-fg1">index c80520186627954456fd8d17183d8d2ba0f9074a..5c6fffa2d4d61e77d54268da07e387612601a191 100644</span>
 <span class="term-fg1">--- go-ethereum&#47;core&#47;txpool&#47;txpool.go</span>
 <span class="term-fg1">+++ op-geth&#47;core&#47;txpool&#47;txpool.go</span>
@@ -3176,62 +3231,6 @@ changes to support the transaction-inclusion, tx-pool toggle and gaslimit parame
     </div>
 
             
-                <div class="border-bottom"><div class="row">
-            <div class="col-12 col-md-4 text-start pe-2">
-                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-c93f1e4952ce293c7476874e" role="button"
-                   aria-expanded="false" aria-controls="id-c93f1e4952ce293c7476874e">
-                    <code>core/txpool/list.go</code>
-                </a>
-            </div>
-
-            <div class="col-12 col-sm-8 col-md-4 text-start px-2">
-                <div class="row">
-                    <div class="col-6">
-                        
-                            <a href="https://github.com/ethereum/go-ethereum/blob/73b01f40ceb6bcb6f9f44c2a3d6f963b40452b47/core/txpool/list.go" target="_blank">go-ethereum <i class="bi bi-github"></i></a>
-                        
-                    </div>
-
-                    <div class="col-6">
-                        
-                            <a href="https://github.com/ethereum-optimism/op-geth/blob/88e99a84819787108bd5fd674d73f1839e4f10bd/core/txpool/list.go" target="_blank">op-geth <i class="bi bi-github"></i></a>
-                        
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-12 col-sm-4 ms-auto ps-2">
-                
-                    <div class="row line-stat">
-                        <div class="text-end"><span class="text-success">+9</span></div>
-                        <div class="text-start"><span class="text-danger">-0</span></div>
-                    </div>
-                
-            </div>
-        </div>
-        <div class="collapse patch-content term-container" id="id-c93f1e4952ce293c7476874e"><span class="term-fg1">diff --git go-ethereum&#47;core&#47;txpool&#47;list.go op-geth&#47;core&#47;txpool&#47;list.go</span>
-<span class="term-fg1">index 062cbbf63e6a546b43ae1ecf3ad6c5237d856cd6..4318bfb254d4925e4faa56ff4b3693cf01c83d41 100644</span>
-<span class="term-fg1">--- go-ethereum&#47;core&#47;txpool&#47;list.go</span>
-<span class="term-fg1">+++ op-geth&#47;core&#47;txpool&#47;list.go</span>
-<span class="term-fg36">@@ -246,6 +246,15 @@</span> 	cache := m.flatten()
- 	return cache[len(cache)-1]
- }
-&nbsp;
-<span class="term-fg32">+&#47;&#47; FirstElement returns the first element from the heap (guaranteed to be lowest), thus, the</span>
-<span class="term-fg32">+&#47;&#47; transaction with the lowest nonce. Returns nil if there are no elements.</span>
-<span class="term-fg32">+func (m *sortedMap) FirstElement() *types.Transaction {</span>
-<span class="term-fg32">+	if m.Len() == 0 {</span>
-<span class="term-fg32">+		return nil</span>
-<span class="term-fg32">+	}</span>
-<span class="term-fg32">+	return m.Get((*m.index)[0])</span>
-<span class="term-fg32">+}</span>
-<span class="term-fg32">+</span>
- &#47;&#47; list is a &quot;list&quot; of transactions belonging to an account, sorted by account
- &#47;&#47; nonce. The same type can be used both for storing contiguous transactions for
- &#47;&#47; the executable&#47;pending queue; and for storing gapped transactions for the non-</div>
-    </div>
-
-            
         </div>
         <div>
             
@@ -3245,8 +3244,7 @@ changes to support the transaction-inclusion, tx-pool toggle and gaslimit parame
 </div>
 
             
-                <div class="ps-1 py-2 my-1"><div class="row border-bottom border-1" data-bs-toggle="collapse" data-bs-target="#id-31395d1327e7739c530b2e6e" role="button"
-         aria-expanded="false" aria-controls="id-31395d1327e7739c530b2e6e">
+                <div class="ps-1 py-2 my-1"><div class="row border-bottom border-1"data-bs-toggle="collapse" data-bs-target="#id-f6d0d968b9985fceb1293b5f"role="button" aria-expanded="false" aria-controls="id-f6d0d968b9985fceb1293b5f">
         
             <div class="col-12 col-sm-9 text-start"><h2>Node modifications</h2></div>
         
@@ -3258,7 +3256,7 @@ changes to support the transaction-inclusion, tx-pool toggle and gaslimit parame
         </div>
     </div>
 
-    <div class="row forkdef-content collapse  border-1 ps-3 my-3" id="id-31395d1327e7739c530b2e6e">
+    <div class="row forkdef-content collapse  border-1 ps-3 my-3" id="id-f6d0d968b9985fceb1293b5f">
         <div><p>Changes to the node configuration and services.</p>
 </div>
         <div>
@@ -3266,8 +3264,7 @@ changes to support the transaction-inclusion, tx-pool toggle and gaslimit parame
         </div>
         <div>
             
-                <div class="ps-1 py-2 my-1"><div class="row border-bottom border-1" data-bs-toggle="collapse" data-bs-target="#id-4a513c261a1d4b42ded95cd8" role="button"
-         aria-expanded="false" aria-controls="id-4a513c261a1d4b42ded95cd8">
+                <div class="ps-1 py-2 my-1"><div class="row border-bottom border-1"data-bs-toggle="collapse" data-bs-target="#id-31e52fd172ebac02ab8bc121"role="button" aria-expanded="false" aria-controls="id-31e52fd172ebac02ab8bc121">
         
             <div class="col-12 col-sm-9 text-start"><h3>CLI</h3></div>
         
@@ -3279,15 +3276,14 @@ changes to support the transaction-inclusion, tx-pool toggle and gaslimit parame
         </div>
     </div>
 
-    <div class="row forkdef-content collapse  border-1 ps-3 my-3" id="id-4a513c261a1d4b42ded95cd8">
+    <div class="row forkdef-content collapse  border-1 ps-3 my-3" id="id-31e52fd172ebac02ab8bc121">
         <div></div>
         <div>
             
         </div>
         <div>
             
-                <div class="ps-1 py-2 my-1"><div class="row border-bottom border-1" data-bs-toggle="collapse" data-bs-target="#id-b215fd014ad7869f3ebde93b" role="button"
-         aria-expanded="false" aria-controls="id-b215fd014ad7869f3ebde93b">
+                <div class="ps-1 py-2 my-1"><div class="row border-bottom border-1"data-bs-toggle="collapse" data-bs-target="#id-4f6d3429a14111800191c56f"role="button" aria-expanded="false" aria-controls="id-4f6d3429a14111800191c56f">
         
             <div class="col-12 col-sm-9 text-start"><h4>Flags</h4></div>
         
@@ -3299,7 +3295,7 @@ changes to support the transaction-inclusion, tx-pool toggle and gaslimit parame
         </div>
     </div>
 
-    <div class="row forkdef-content collapse  border-1 ps-3 my-3" id="id-b215fd014ad7869f3ebde93b">
+    <div class="row forkdef-content collapse  border-1 ps-3 my-3" id="id-4f6d3429a14111800191c56f">
         <div><p>Flag changes:
   - Transactions can be forwarded to an RPC for sequencing.
   - Historical calls can be forwarded to a legacy node.
@@ -3310,8 +3306,8 @@ changes to support the transaction-inclusion, tx-pool toggle and gaslimit parame
             
                 <div class="border-bottom"><div class="row">
             <div class="col-12 col-md-4 text-start pe-2">
-                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-df0d6c673ee0428b108278a2" role="button"
-                   aria-expanded="false" aria-controls="id-df0d6c673ee0428b108278a2">
+                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-01dbb8007ca8d5927d4d1513" role="button"
+                   aria-expanded="false" aria-controls="id-01dbb8007ca8d5927d4d1513">
                     <code>cmd/utils/flags.go</code>
                 </a>
             </div>
@@ -3341,7 +3337,7 @@ changes to support the transaction-inclusion, tx-pool toggle and gaslimit parame
                 
             </div>
         </div>
-        <div class="collapse patch-content term-container" id="id-df0d6c673ee0428b108278a2"><span class="term-fg1">diff --git go-ethereum&#47;cmd&#47;utils&#47;flags.go op-geth&#47;cmd&#47;utils&#47;flags.go</span>
+        <div class="collapse patch-content term-container" id="id-01dbb8007ca8d5927d4d1513"><span class="term-fg1">diff --git go-ethereum&#47;cmd&#47;utils&#47;flags.go op-geth&#47;cmd&#47;utils&#47;flags.go</span>
 <span class="term-fg1">index 08de71ee831bfb9e29441c76226842e748108702..7b17390d97dff41d3cfe9b57bd0bc8e24b75bcf1 100644</span>
 <span class="term-fg1">--- go-ethereum&#47;cmd&#47;utils&#47;flags.go</span>
 <span class="term-fg1">+++ op-geth&#47;cmd&#47;utils&#47;flags.go</span>
@@ -3445,8 +3441,8 @@ changes to support the transaction-inclusion, tx-pool toggle and gaslimit parame
             
                 <div class="border-bottom"><div class="row">
             <div class="col-12 col-md-4 text-start pe-2">
-                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-b7ea39fa35cf3a1e463f1e6b" role="button"
-                   aria-expanded="false" aria-controls="id-b7ea39fa35cf3a1e463f1e6b">
+                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-67e357bd78b7ac90e2fbfd8e" role="button"
+                   aria-expanded="false" aria-controls="id-67e357bd78b7ac90e2fbfd8e">
                     <code>cmd/geth/main.go</code>
                 </a>
             </div>
@@ -3476,7 +3472,7 @@ changes to support the transaction-inclusion, tx-pool toggle and gaslimit parame
                 
             </div>
         </div>
-        <div class="collapse patch-content term-container" id="id-b7ea39fa35cf3a1e463f1e6b"><span class="term-fg1">diff --git go-ethereum&#47;cmd&#47;geth&#47;main.go op-geth&#47;cmd&#47;geth&#47;main.go</span>
+        <div class="collapse patch-content term-container" id="id-67e357bd78b7ac90e2fbfd8e"><span class="term-fg1">diff --git go-ethereum&#47;cmd&#47;geth&#47;main.go op-geth&#47;cmd&#47;geth&#47;main.go</span>
 <span class="term-fg1">index 5ba07024989706783e48353498a37e0016552f2b..e70e4da37babebde502aa83d38206d3749534de7 100644</span>
 <span class="term-fg1">--- go-ethereum&#47;cmd&#47;geth&#47;main.go</span>
 <span class="term-fg1">+++ op-geth&#47;cmd&#47;geth&#47;main.go</span>
@@ -3506,8 +3502,8 @@ changes to support the transaction-inclusion, tx-pool toggle and gaslimit parame
             
                 <div class="border-bottom"><div class="row">
             <div class="col-12 col-md-4 text-start pe-2">
-                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-31448fcefebd72d0e91ca971" role="button"
-                   aria-expanded="false" aria-controls="id-31448fcefebd72d0e91ca971">
+                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-41bbf698b4a49ff475419113" role="button"
+                   aria-expanded="false" aria-controls="id-41bbf698b4a49ff475419113">
                     <code>internal/flags/categories.go</code>
                 </a>
             </div>
@@ -3537,7 +3533,7 @@ changes to support the transaction-inclusion, tx-pool toggle and gaslimit parame
                 
             </div>
         </div>
-        <div class="collapse patch-content term-container" id="id-31448fcefebd72d0e91ca971"><span class="term-fg1">diff --git go-ethereum&#47;internal&#47;flags&#47;categories.go op-geth&#47;internal&#47;flags&#47;categories.go</span>
+        <div class="collapse patch-content term-container" id="id-41bbf698b4a49ff475419113"><span class="term-fg1">diff --git go-ethereum&#47;internal&#47;flags&#47;categories.go op-geth&#47;internal&#47;flags&#47;categories.go</span>
 <span class="term-fg1">index c2db6c6c1d25c115c77c8a829d481133a932faa7..f2b368775867174abef2e16d6c64d10b890ca9ff 100644</span>
 <span class="term-fg1">--- go-ethereum&#47;internal&#47;flags&#47;categories.go</span>
 <span class="term-fg1">+++ op-geth&#47;internal&#47;flags&#47;categories.go</span>
@@ -3554,8 +3550,8 @@ changes to support the transaction-inclusion, tx-pool toggle and gaslimit parame
             
                 <div class="border-bottom"><div class="row">
             <div class="col-12 col-md-4 text-start pe-2">
-                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-282c793c3eb14a44adc91b8b" role="button"
-                   aria-expanded="false" aria-controls="id-282c793c3eb14a44adc91b8b">
+                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-c49d77f54c7d5c4b6b0b3b4c" role="button"
+                   aria-expanded="false" aria-controls="id-c49d77f54c7d5c4b6b0b3b4c">
                     <code>cmd/geth/config.go</code>
                 </a>
             </div>
@@ -3585,7 +3581,7 @@ changes to support the transaction-inclusion, tx-pool toggle and gaslimit parame
                 
             </div>
         </div>
-        <div class="collapse patch-content term-container" id="id-282c793c3eb14a44adc91b8b"><span class="term-fg1">diff --git go-ethereum&#47;cmd&#47;geth&#47;config.go op-geth&#47;cmd&#47;geth&#47;config.go</span>
+        <div class="collapse patch-content term-container" id="id-c49d77f54c7d5c4b6b0b3b4c"><span class="term-fg1">diff --git go-ethereum&#47;cmd&#47;geth&#47;config.go op-geth&#47;cmd&#47;geth&#47;config.go</span>
 <span class="term-fg1">index 0b856d1c1b7a9c25a29c0b467a3f88487ef09ebb..10a519c2cbcd859a59abde028660a5b8e7df37a2 100644</span>
 <span class="term-fg1">--- go-ethereum&#47;cmd&#47;geth&#47;config.go</span>
 <span class="term-fg1">+++ op-geth&#47;cmd&#47;geth&#47;config.go</span>
@@ -3620,8 +3616,7 @@ changes to support the transaction-inclusion, tx-pool toggle and gaslimit parame
 </div>
 
             
-                <div class="ps-1 py-2 my-1"><div class="row border-bottom border-1" data-bs-toggle="collapse" data-bs-target="#id-7c42843cbf389e17440b210f" role="button"
-         aria-expanded="false" aria-controls="id-7c42843cbf389e17440b210f">
+                <div class="ps-1 py-2 my-1"><div class="row border-bottom border-1"data-bs-toggle="collapse" data-bs-target="#id-8423726034a2cb6bd16b6097"role="button" aria-expanded="false" aria-controls="id-8423726034a2cb6bd16b6097">
         
             <div class="col-12 col-sm-9 text-start"><h4>Versioning</h4></div>
         
@@ -3633,15 +3628,15 @@ changes to support the transaction-inclusion, tx-pool toggle and gaslimit parame
         </div>
     </div>
 
-    <div class="row forkdef-content collapse  border-1 ps-3 my-3" id="id-7c42843cbf389e17440b210f">
+    <div class="row forkdef-content collapse  border-1 ps-3 my-3" id="id-8423726034a2cb6bd16b6097">
         <div><p>List the op-geth and upstream go-ethereum versions.</p>
 </div>
         <div>
             
                 <div class="border-bottom"><div class="row">
             <div class="col-12 col-md-4 text-start pe-2">
-                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-73ae5e524670a807f8ec6710" role="button"
-                   aria-expanded="false" aria-controls="id-73ae5e524670a807f8ec6710">
+                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-02121b469b7650ad4cd4dff6" role="button"
+                   aria-expanded="false" aria-controls="id-02121b469b7650ad4cd4dff6">
                     <code>cmd/geth/misccmd.go</code>
                 </a>
             </div>
@@ -3671,7 +3666,7 @@ changes to support the transaction-inclusion, tx-pool toggle and gaslimit parame
                 
             </div>
         </div>
-        <div class="collapse patch-content term-container" id="id-73ae5e524670a807f8ec6710"><span class="term-fg1">diff --git go-ethereum&#47;cmd&#47;geth&#47;misccmd.go op-geth&#47;cmd&#47;geth&#47;misccmd.go</span>
+        <div class="collapse patch-content term-container" id="id-02121b469b7650ad4cd4dff6"><span class="term-fg1">diff --git go-ethereum&#47;cmd&#47;geth&#47;misccmd.go op-geth&#47;cmd&#47;geth&#47;misccmd.go</span>
 <span class="term-fg1">index d8a523c6322168c5c532e81a05b8fb5a4933d642..5ca1732e07ade07abae15ce53e042f97e1be8634 100644</span>
 <span class="term-fg1">--- go-ethereum&#47;cmd&#47;geth&#47;misccmd.go</span>
 <span class="term-fg1">+++ op-geth&#47;cmd&#47;geth&#47;misccmd.go</span>
@@ -3688,8 +3683,8 @@ changes to support the transaction-inclusion, tx-pool toggle and gaslimit parame
             
                 <div class="border-bottom"><div class="row">
             <div class="col-12 col-md-4 text-start pe-2">
-                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-16a5e47805806fd01ff65e9d" role="button"
-                   aria-expanded="false" aria-controls="id-16a5e47805806fd01ff65e9d">
+                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-c70a6d5bcc18ac5116eb3d6d" role="button"
+                   aria-expanded="false" aria-controls="id-c70a6d5bcc18ac5116eb3d6d">
                     <code>params/version.go</code>
                 </a>
             </div>
@@ -3719,7 +3714,7 @@ changes to support the transaction-inclusion, tx-pool toggle and gaslimit parame
                 
             </div>
         </div>
-        <div class="collapse patch-content term-container" id="id-16a5e47805806fd01ff65e9d"><span class="term-fg1">diff --git go-ethereum&#47;params&#47;version.go op-geth&#47;params&#47;version.go</span>
+        <div class="collapse patch-content term-container" id="id-c70a6d5bcc18ac5116eb3d6d"><span class="term-fg1">diff --git go-ethereum&#47;params&#47;version.go op-geth&#47;params&#47;version.go</span>
 <span class="term-fg1">index 8bbf0b99be53f4bb2f50c1acf7e48e55e657203b..771d0482f12305805947e125011334d94b5c6d7d 100644</span>
 <span class="term-fg1">--- go-ethereum&#47;params&#47;version.go</span>
 <span class="term-fg1">+++ op-geth&#47;params&#47;version.go</span>
@@ -3794,8 +3789,8 @@ changes to support the transaction-inclusion, tx-pool toggle and gaslimit parame
             
                 <div class="border-bottom"><div class="row">
             <div class="col-12 col-md-4 text-start pe-2">
-                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-7bbafeaaffdfc43efe700085" role="button"
-                   aria-expanded="false" aria-controls="id-7bbafeaaffdfc43efe700085">
+                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-cdc5294a7842d2921f22a8d7" role="button"
+                   aria-expanded="false" aria-controls="id-cdc5294a7842d2921f22a8d7">
                     <code>build/ci.go</code>
                 </a>
             </div>
@@ -3825,7 +3820,7 @@ changes to support the transaction-inclusion, tx-pool toggle and gaslimit parame
                 
             </div>
         </div>
-        <div class="collapse patch-content term-container" id="id-7bbafeaaffdfc43efe700085"><span class="term-fg1">diff --git go-ethereum&#47;build&#47;ci.go op-geth&#47;build&#47;ci.go</span>
+        <div class="collapse patch-content term-container" id="id-cdc5294a7842d2921f22a8d7"><span class="term-fg1">diff --git go-ethereum&#47;build&#47;ci.go op-geth&#47;build&#47;ci.go</span>
 <span class="term-fg1">index 2aad2ac52b330ec6aeafcc14dfae2cf9a9647f34..1e7bc345faecaa59aa05429d4e9922f5875bed9a 100644</span>
 <span class="term-fg1">--- go-ethereum&#47;build&#47;ci.go</span>
 <span class="term-fg1">+++ op-geth&#47;build&#47;ci.go</span>
@@ -3854,8 +3849,7 @@ changes to support the transaction-inclusion, tx-pool toggle and gaslimit parame
 </div>
 
             
-                <div class="ps-1 py-2 my-1"><div class="row border-bottom border-1" data-bs-toggle="collapse" data-bs-target="#id-7029290e487f9f4c1d6e1e96" role="button"
-         aria-expanded="false" aria-controls="id-7029290e487f9f4c1d6e1e96">
+                <div class="ps-1 py-2 my-1"><div class="row border-bottom border-1"data-bs-toggle="collapse" data-bs-target="#id-4ad46ae6f203ae990a0cc717"role="button" aria-expanded="false" aria-controls="id-4ad46ae6f203ae990a0cc717">
         
             <div class="col-12 col-sm-9 text-start"><h3>Node config</h3></div>
         
@@ -3867,14 +3861,14 @@ changes to support the transaction-inclusion, tx-pool toggle and gaslimit parame
         </div>
     </div>
 
-    <div class="row forkdef-content collapse  border-1 ps-3 my-3" id="id-7029290e487f9f4c1d6e1e96">
+    <div class="row forkdef-content collapse  border-1 ps-3 my-3" id="id-4ad46ae6f203ae990a0cc717">
         <div></div>
         <div>
             
                 <div class="border-bottom"><div class="row">
             <div class="col-12 col-md-4 text-start pe-2">
-                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-ffdb46475dadb19b20a8b120" role="button"
-                   aria-expanded="false" aria-controls="id-ffdb46475dadb19b20a8b120">
+                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-95c408d4c8e8b62a785bcafd" role="button"
+                   aria-expanded="false" aria-controls="id-95c408d4c8e8b62a785bcafd">
                     <code>eth/ethconfig/config.go</code>
                 </a>
             </div>
@@ -3904,7 +3898,7 @@ changes to support the transaction-inclusion, tx-pool toggle and gaslimit parame
                 
             </div>
         </div>
-        <div class="collapse patch-content term-container" id="id-ffdb46475dadb19b20a8b120"><span class="term-fg1">diff --git go-ethereum&#47;eth&#47;ethconfig&#47;config.go op-geth&#47;eth&#47;ethconfig&#47;config.go</span>
+        <div class="collapse patch-content term-container" id="id-95c408d4c8e8b62a785bcafd"><span class="term-fg1">diff --git go-ethereum&#47;eth&#47;ethconfig&#47;config.go op-geth&#47;eth&#47;ethconfig&#47;config.go</span>
 <span class="term-fg1">index db686c5d0875f43f099e401865558f7ccf2b9224..272433cd278c2e58b7064ec141bba9611cc2c6cd 100644</span>
 <span class="term-fg1">--- go-ethereum&#47;eth&#47;ethconfig&#47;config.go</span>
 <span class="term-fg1">+++ op-geth&#47;eth&#47;ethconfig&#47;config.go</span>
@@ -3943,8 +3937,7 @@ changes to support the transaction-inclusion, tx-pool toggle and gaslimit parame
 </div>
 
             
-                <div class="ps-1 py-2 my-1"><div class="row border-bottom border-1" data-bs-toggle="collapse" data-bs-target="#id-1e4c5678f36a73439eed9ece" role="button"
-         aria-expanded="false" aria-controls="id-1e4c5678f36a73439eed9ece">
+                <div class="ps-1 py-2 my-1"><div class="row border-bottom border-1"data-bs-toggle="collapse" data-bs-target="#id-8237b8e5aed870980e069641"role="button" aria-expanded="false" aria-controls="id-8237b8e5aed870980e069641">
         
             <div class="col-12 col-sm-9 text-start"><h3>Tx gossip disable option</h3></div>
         
@@ -3956,14 +3949,14 @@ changes to support the transaction-inclusion, tx-pool toggle and gaslimit parame
         </div>
     </div>
 
-    <div class="row forkdef-content collapse  border-1 ps-3 my-3" id="id-1e4c5678f36a73439eed9ece">
+    <div class="row forkdef-content collapse  border-1 ps-3 my-3" id="id-8237b8e5aed870980e069641">
         <div></div>
         <div>
             
                 <div class="border-bottom"><div class="row">
             <div class="col-12 col-md-4 text-start pe-2">
-                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-5346376849274d615c5e16bf" role="button"
-                   aria-expanded="false" aria-controls="id-5346376849274d615c5e16bf">
+                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-3a06a8858c5e9d762aaaccc5" role="button"
+                   aria-expanded="false" aria-controls="id-3a06a8858c5e9d762aaaccc5">
                     <code>eth/handler.go</code>
                 </a>
             </div>
@@ -3993,7 +3986,7 @@ changes to support the transaction-inclusion, tx-pool toggle and gaslimit parame
                 
             </div>
         </div>
-        <div class="collapse patch-content term-container" id="id-5346376849274d615c5e16bf"><span class="term-fg1">diff --git go-ethereum&#47;eth&#47;handler.go op-geth&#47;eth&#47;handler.go</span>
+        <div class="collapse patch-content term-container" id="id-3a06a8858c5e9d762aaaccc5"><span class="term-fg1">diff --git go-ethereum&#47;eth&#47;handler.go op-geth&#47;eth&#47;handler.go</span>
 <span class="term-fg1">index 078133f059f2e3899176d40afb107c330dd8bd28..42b5d371d0f58931a451e537c913d260c93c6539 100644</span>
 <span class="term-fg1">--- go-ethereum&#47;eth&#47;handler.go</span>
 <span class="term-fg1">+++ op-geth&#47;eth&#47;handler.go</span>
@@ -4027,8 +4020,8 @@ changes to support the transaction-inclusion, tx-pool toggle and gaslimit parame
             
                 <div class="border-bottom"><div class="row">
             <div class="col-12 col-md-4 text-start pe-2">
-                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-3aa35609928eb00d56ec7b6f" role="button"
-                   aria-expanded="false" aria-controls="id-3aa35609928eb00d56ec7b6f">
+                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-ffe7d154104e8409aed34804" role="button"
+                   aria-expanded="false" aria-controls="id-ffe7d154104e8409aed34804">
                     <code>eth/handler_eth.go</code>
                 </a>
             </div>
@@ -4058,7 +4051,7 @@ changes to support the transaction-inclusion, tx-pool toggle and gaslimit parame
                 
             </div>
         </div>
-        <div class="collapse patch-content term-container" id="id-3aa35609928eb00d56ec7b6f"><span class="term-fg1">diff --git go-ethereum&#47;eth&#47;handler_eth.go op-geth&#47;eth&#47;handler_eth.go</span>
+        <div class="collapse patch-content term-container" id="id-ffe7d154104e8409aed34804"><span class="term-fg1">diff --git go-ethereum&#47;eth&#47;handler_eth.go op-geth&#47;eth&#47;handler_eth.go</span>
 <span class="term-fg1">index 4ed6335769cf9c32017c19c3037df91e7fabed48..6f573cc3e9a98861531f976b59a8ab67d5d33e51 100644</span>
 <span class="term-fg1">--- go-ethereum&#47;eth&#47;handler_eth.go</span>
 <span class="term-fg1">+++ op-geth&#47;eth&#47;handler_eth.go</span>
@@ -4110,8 +4103,7 @@ changes to support the transaction-inclusion, tx-pool toggle and gaslimit parame
 </div>
 
             
-                <div class="ps-1 py-2 my-1"><div class="row border-bottom border-1" data-bs-toggle="collapse" data-bs-target="#id-1a0fbf5ff5d7321b42debf9e" role="button"
-         aria-expanded="false" aria-controls="id-1a0fbf5ff5d7321b42debf9e">
+                <div class="ps-1 py-2 my-1"><div class="row border-bottom border-1"data-bs-toggle="collapse" data-bs-target="#id-d3aa7e570ef592f259cf4984"role="button" aria-expanded="false" aria-controls="id-d3aa7e570ef592f259cf4984">
         
             <div class="col-12 col-sm-9 text-start"><h2>User API enhancements</h2></div>
         
@@ -4123,7 +4115,7 @@ changes to support the transaction-inclusion, tx-pool toggle and gaslimit parame
         </div>
     </div>
 
-    <div class="row forkdef-content collapse  border-1 ps-3 my-3" id="id-1a0fbf5ff5d7321b42debf9e">
+    <div class="row forkdef-content collapse  border-1 ps-3 my-3" id="id-d3aa7e570ef592f259cf4984">
         <div><p>Encode the Deposit Tx properties, the L1 costs, and daisy-chain RPC-calls for pre-Bedrock historical data</p>
 </div>
         <div>
@@ -4131,8 +4123,7 @@ changes to support the transaction-inclusion, tx-pool toggle and gaslimit parame
         </div>
         <div>
             
-                <div class="ps-1 py-2 my-1"><div class="row border-bottom border-1" data-bs-toggle="collapse" data-bs-target="#id-bec6542ff624ff8a6b308e28" role="button"
-         aria-expanded="false" aria-controls="id-bec6542ff624ff8a6b308e28">
+                <div class="ps-1 py-2 my-1"><div class="row border-bottom border-1"data-bs-toggle="collapse" data-bs-target="#id-282417fd3ff89788401f6637"role="button" aria-expanded="false" aria-controls="id-282417fd3ff89788401f6637">
         
             <div class="col-12 col-sm-9 text-start"><h3>Receipts metadata</h3></div>
         
@@ -4144,7 +4135,7 @@ changes to support the transaction-inclusion, tx-pool toggle and gaslimit parame
         </div>
     </div>
 
-    <div class="row forkdef-content collapse  border-1 ps-3 my-3" id="id-bec6542ff624ff8a6b308e28">
+    <div class="row forkdef-content collapse  border-1 ps-3 my-3" id="id-282417fd3ff89788401f6637">
         <div><p>Pre-Bedrock L1-cost receipt data is loaded from the database if available, and post-Bedrock the L1-cost
 metadata is hydrated on-the-fly based on the L1 fee information in the corresponding block.</p>
 </div>
@@ -4152,8 +4143,8 @@ metadata is hydrated on-the-fly based on the L1 fee information in the correspon
             
                 <div class="border-bottom"><div class="row">
             <div class="col-12 col-md-4 text-start pe-2">
-                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-fc6a8900fad7173feb4aa41b" role="button"
-                   aria-expanded="false" aria-controls="id-fc6a8900fad7173feb4aa41b">
+                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-401836c8dd431e21dcb62a73" role="button"
+                   aria-expanded="false" aria-controls="id-401836c8dd431e21dcb62a73">
                     <code>core/types/receipt.go</code>
                 </a>
             </div>
@@ -4183,7 +4174,7 @@ metadata is hydrated on-the-fly based on the L1 fee information in the correspon
                 
             </div>
         </div>
-        <div class="collapse patch-content term-container" id="id-fc6a8900fad7173feb4aa41b"><span class="term-fg1">diff --git go-ethereum&#47;core&#47;types&#47;receipt.go op-geth&#47;core&#47;types&#47;receipt.go</span>
+        <div class="collapse patch-content term-container" id="id-401836c8dd431e21dcb62a73"><span class="term-fg1">diff --git go-ethereum&#47;core&#47;types&#47;receipt.go op-geth&#47;core&#47;types&#47;receipt.go</span>
 <span class="term-fg1">index 4404b278891ff08f2b5d916340fa1441ed8a13cf..832b246c30a8a5e3f845524437c9c215df3952b5 100644</span>
 <span class="term-fg1">--- go-ethereum&#47;core&#47;types&#47;receipt.go</span>
 <span class="term-fg1">+++ op-geth&#47;core&#47;types&#47;receipt.go</span>
@@ -4475,8 +4466,8 @@ metadata is hydrated on-the-fly based on the L1 fee information in the correspon
             
                 <div class="border-bottom"><div class="row">
             <div class="col-12 col-md-4 text-start pe-2">
-                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-f7e74cc0b10e255790588627" role="button"
-                   aria-expanded="false" aria-controls="id-f7e74cc0b10e255790588627">
+                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-182ccc42f8d619507bb86188" role="button"
+                   aria-expanded="false" aria-controls="id-182ccc42f8d619507bb86188">
                     <code>core/types/gen_receipt_json.go</code>
                 </a>
             </div>
@@ -4506,7 +4497,7 @@ metadata is hydrated on-the-fly based on the L1 fee information in the correspon
                 
             </div>
         </div>
-        <div class="collapse patch-content term-container" id="id-f7e74cc0b10e255790588627"><span class="term-fg1">diff --git go-ethereum&#47;core&#47;types&#47;gen_receipt_json.go op-geth&#47;core&#47;types&#47;gen_receipt_json.go</span>
+        <div class="collapse patch-content term-container" id="id-182ccc42f8d619507bb86188"><span class="term-fg1">diff --git go-ethereum&#47;core&#47;types&#47;gen_receipt_json.go op-geth&#47;core&#47;types&#47;gen_receipt_json.go</span>
 <span class="term-fg1">index bb892f85bec8cbfe34d3896a8075990bc6c51d61..e476e5ab5e7c3201234bb33b7555e9c92f4afb98 100644</span>
 <span class="term-fg1">--- go-ethereum&#47;core&#47;types&#47;gen_receipt_json.go</span>
 <span class="term-fg1">+++ op-geth&#47;core&#47;types&#47;gen_receipt_json.go</span>
@@ -4577,8 +4568,7 @@ metadata is hydrated on-the-fly based on the L1 fee information in the correspon
 </div>
 
             
-                <div class="ps-1 py-2 my-1"><div class="row border-bottom border-1" data-bs-toggle="collapse" data-bs-target="#id-db43835b9f127b31e308e61b" role="button"
-         aria-expanded="false" aria-controls="id-db43835b9f127b31e308e61b">
+                <div class="ps-1 py-2 my-1"><div class="row border-bottom border-1"data-bs-toggle="collapse" data-bs-target="#id-a5c0c02ee3d2df7c5d5896bb"role="button" aria-expanded="false" aria-controls="id-a5c0c02ee3d2df7c5d5896bb">
         
             <div class="col-12 col-sm-9 text-start"><h3>API Backend</h3></div>
         
@@ -4590,15 +4580,15 @@ metadata is hydrated on-the-fly based on the L1 fee information in the correspon
         </div>
     </div>
 
-    <div class="row forkdef-content collapse  border-1 ps-3 my-3" id="id-db43835b9f127b31e308e61b">
+    <div class="row forkdef-content collapse  border-1 ps-3 my-3" id="id-a5c0c02ee3d2df7c5d5896bb">
         <div><p>Forward transactions to the sequencer if configured.</p>
 </div>
         <div>
             
                 <div class="border-bottom"><div class="row">
             <div class="col-12 col-md-4 text-start pe-2">
-                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-e2d1294ac239e36e7329846c" role="button"
-                   aria-expanded="false" aria-controls="id-e2d1294ac239e36e7329846c">
+                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-a19836cc80fa803505d54a23" role="button"
+                   aria-expanded="false" aria-controls="id-a19836cc80fa803505d54a23">
                     <code>eth/api_backend.go</code>
                 </a>
             </div>
@@ -4628,7 +4618,7 @@ metadata is hydrated on-the-fly based on the L1 fee information in the correspon
                 
             </div>
         </div>
-        <div class="collapse patch-content term-container" id="id-e2d1294ac239e36e7329846c"><span class="term-fg1">diff --git go-ethereum&#47;eth&#47;api_backend.go op-geth&#47;eth&#47;api_backend.go</span>
+        <div class="collapse patch-content term-container" id="id-a19836cc80fa803505d54a23"><span class="term-fg1">diff --git go-ethereum&#47;eth&#47;api_backend.go op-geth&#47;eth&#47;api_backend.go</span>
 <span class="term-fg1">index 8fd3e43300d32f0da988f49e721055d2c799deb8..f68532557c90b302ddb3396a0ec6882343db2d4f 100644</span>
 <span class="term-fg1">--- go-ethereum&#47;eth&#47;api_backend.go</span>
 <span class="term-fg1">+++ op-geth&#47;eth&#47;api_backend.go</span>
@@ -4710,8 +4700,8 @@ metadata is hydrated on-the-fly based on the L1 fee information in the correspon
             
                 <div class="border-bottom"><div class="row">
             <div class="col-12 col-md-4 text-start pe-2">
-                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-dfa916ec935abe603a564348" role="button"
-                   aria-expanded="false" aria-controls="id-dfa916ec935abe603a564348">
+                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-1bf6c850dda91c0c83a35649" role="button"
+                   aria-expanded="false" aria-controls="id-1bf6c850dda91c0c83a35649">
                     <code>eth/backend.go</code>
                 </a>
             </div>
@@ -4741,7 +4731,7 @@ metadata is hydrated on-the-fly based on the L1 fee information in the correspon
                 
             </div>
         </div>
-        <div class="collapse patch-content term-container" id="id-dfa916ec935abe603a564348"><span class="term-fg1">diff --git go-ethereum&#47;eth&#47;backend.go op-geth&#47;eth&#47;backend.go</span>
+        <div class="collapse patch-content term-container" id="id-1bf6c850dda91c0c83a35649"><span class="term-fg1">diff --git go-ethereum&#47;eth&#47;backend.go op-geth&#47;eth&#47;backend.go</span>
 <span class="term-fg1">index 6368c0e03c564cdc5e457883b7f81e0d8d9c7431..89055016103f4be6461ae7d9638dba9fe2aee9e2 100644</span>
 <span class="term-fg1">--- go-ethereum&#47;eth&#47;backend.go</span>
 <span class="term-fg1">+++ op-geth&#47;eth&#47;backend.go</span>
@@ -4866,8 +4856,8 @@ metadata is hydrated on-the-fly based on the L1 fee information in the correspon
             
                 <div class="border-bottom"><div class="row">
             <div class="col-12 col-md-4 text-start pe-2">
-                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-2c9c8c4ee64981d1bc4ef376" role="button"
-                   aria-expanded="false" aria-controls="id-2c9c8c4ee64981d1bc4ef376">
+                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-089fce90b07e93ff66c6403e" role="button"
+                   aria-expanded="false" aria-controls="id-089fce90b07e93ff66c6403e">
                     <code>internal/ethapi/backend.go</code>
                 </a>
             </div>
@@ -4897,7 +4887,7 @@ metadata is hydrated on-the-fly based on the L1 fee information in the correspon
                 
             </div>
         </div>
-        <div class="collapse patch-content term-container" id="id-2c9c8c4ee64981d1bc4ef376"><span class="term-fg1">diff --git go-ethereum&#47;internal&#47;ethapi&#47;backend.go op-geth&#47;internal&#47;ethapi&#47;backend.go</span>
+        <div class="collapse patch-content term-container" id="id-089fce90b07e93ff66c6403e"><span class="term-fg1">diff --git go-ethereum&#47;internal&#47;ethapi&#47;backend.go op-geth&#47;internal&#47;ethapi&#47;backend.go</span>
 <span class="term-fg1">index 0c1763472f2de2caeaa79e01ace1010d5a0c39e8..3a58ec5f6c7ea31dc5322a317514c7dcb0145a89 100644</span>
 <span class="term-fg1">--- go-ethereum&#47;internal&#47;ethapi&#47;backend.go</span>
 <span class="term-fg1">+++ op-geth&#47;internal&#47;ethapi&#47;backend.go</span>
@@ -4921,8 +4911,7 @@ metadata is hydrated on-the-fly based on the L1 fee information in the correspon
 </div>
 
             
-                <div class="ps-1 py-2 my-1"><div class="row border-bottom border-1" data-bs-toggle="collapse" data-bs-target="#id-56a1de7ffbc752d99b107254" role="button"
-         aria-expanded="false" aria-controls="id-56a1de7ffbc752d99b107254">
+                <div class="ps-1 py-2 my-1"><div class="row border-bottom border-1"data-bs-toggle="collapse" data-bs-target="#id-32241b9c97efb3fae259f7ca"role="button" aria-expanded="false" aria-controls="id-32241b9c97efb3fae259f7ca">
         
             <div class="col-12 col-sm-9 text-start"><h3>Apply L1 cost in API responses</h3></div>
         
@@ -4934,14 +4923,14 @@ metadata is hydrated on-the-fly based on the L1 fee information in the correspon
         </div>
     </div>
 
-    <div class="row forkdef-content collapse  border-1 ps-3 my-3" id="id-56a1de7ffbc752d99b107254">
+    <div class="row forkdef-content collapse  border-1 ps-3 my-3" id="id-32241b9c97efb3fae259f7ca">
         <div></div>
         <div>
             
                 <div class="border-bottom"><div class="row">
             <div class="col-12 col-md-4 text-start pe-2">
-                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-4994d9cfc005814c4e8e6832" role="button"
-                   aria-expanded="false" aria-controls="id-4994d9cfc005814c4e8e6832">
+                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-2842dbcbe06436b142041555" role="button"
+                   aria-expanded="false" aria-controls="id-2842dbcbe06436b142041555">
                     <code>eth/state_accessor.go</code>
                 </a>
             </div>
@@ -4971,7 +4960,7 @@ metadata is hydrated on-the-fly based on the L1 fee information in the correspon
                 
             </div>
         </div>
-        <div class="collapse patch-content term-container" id="id-4994d9cfc005814c4e8e6832"><span class="term-fg1">diff --git go-ethereum&#47;eth&#47;state_accessor.go op-geth&#47;eth&#47;state_accessor.go</span>
+        <div class="collapse patch-content term-container" id="id-2842dbcbe06436b142041555"><span class="term-fg1">diff --git go-ethereum&#47;eth&#47;state_accessor.go op-geth&#47;eth&#47;state_accessor.go</span>
 <span class="term-fg1">index 3bb1464952a0c07026e987b4b5e4fda7bdccaa46..8540393059f8ac518e2163b729d8f6ee8f55dbf8 100644</span>
 <span class="term-fg1">--- go-ethereum&#47;eth&#47;state_accessor.go</span>
 <span class="term-fg1">+++ op-geth&#47;eth&#47;state_accessor.go</span>
@@ -4994,8 +4983,7 @@ metadata is hydrated on-the-fly based on the L1 fee information in the correspon
 </div>
 
             
-                <div class="ps-1 py-2 my-1"><div class="row border-bottom border-1" data-bs-toggle="collapse" data-bs-target="#id-7da2469e44e9dc6d64a64b82" role="button"
-         aria-expanded="false" aria-controls="id-7da2469e44e9dc6d64a64b82">
+                <div class="ps-1 py-2 my-1"><div class="row border-bottom border-1"data-bs-toggle="collapse" data-bs-target="#id-0b6f07a26c1d1197e294d5fe"role="button" aria-expanded="false" aria-controls="id-0b6f07a26c1d1197e294d5fe">
         
             <div class="col-12 col-sm-9 text-start"><h3>API frontend</h3></div>
         
@@ -5007,15 +4995,15 @@ metadata is hydrated on-the-fly based on the L1 fee information in the correspon
         </div>
     </div>
 
-    <div class="row forkdef-content collapse  border-1 ps-3 my-3" id="id-7da2469e44e9dc6d64a64b82">
+    <div class="row forkdef-content collapse  border-1 ps-3 my-3" id="id-0b6f07a26c1d1197e294d5fe">
         <div><p>Format deposit and L1-cost data in transaction responses.</p>
 </div>
         <div>
             
                 <div class="border-bottom"><div class="row">
             <div class="col-12 col-md-4 text-start pe-2">
-                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-8d9ec1d93201e0dca11c42bb" role="button"
-                   aria-expanded="false" aria-controls="id-8d9ec1d93201e0dca11c42bb">
+                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-c24cdff9efc79dd5c81cd099" role="button"
+                   aria-expanded="false" aria-controls="id-c24cdff9efc79dd5c81cd099">
                     <code>internal/ethapi/api.go</code>
                 </a>
             </div>
@@ -5045,7 +5033,7 @@ metadata is hydrated on-the-fly based on the L1 fee information in the correspon
                 
             </div>
         </div>
-        <div class="collapse patch-content term-container" id="id-8d9ec1d93201e0dca11c42bb"><span class="term-fg1">diff --git go-ethereum&#47;internal&#47;ethapi&#47;api.go op-geth&#47;internal&#47;ethapi&#47;api.go</span>
+        <div class="collapse patch-content term-container" id="id-c24cdff9efc79dd5c81cd099"><span class="term-fg1">diff --git go-ethereum&#47;internal&#47;ethapi&#47;api.go op-geth&#47;internal&#47;ethapi&#47;api.go</span>
 <span class="term-fg1">index 58f65f86d794d3e20e12f21a6b3e4774940086fc..fca60003be3fb37d7bf27918f2d69b295eb9b62a 100644</span>
 <span class="term-fg1">--- go-ethereum&#47;internal&#47;ethapi&#47;api.go</span>
 <span class="term-fg1">+++ op-geth&#47;internal&#47;ethapi&#47;api.go</span>
@@ -5465,8 +5453,8 @@ metadata is hydrated on-the-fly based on the L1 fee information in the correspon
             
                 <div class="border-bottom"><div class="row">
             <div class="col-12 col-md-4 text-start pe-2">
-                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-74acdec5198d13cbf4d7288e" role="button"
-                   aria-expanded="false" aria-controls="id-74acdec5198d13cbf4d7288e">
+                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-ab22c1fba12d587e00466c6c" role="button"
+                   aria-expanded="false" aria-controls="id-ab22c1fba12d587e00466c6c">
                     <code>rpc/errors.go</code>
                 </a>
             </div>
@@ -5496,7 +5484,7 @@ metadata is hydrated on-the-fly based on the L1 fee information in the correspon
                 
             </div>
         </div>
-        <div class="collapse patch-content term-container" id="id-74acdec5198d13cbf4d7288e"><span class="term-fg1">diff --git go-ethereum&#47;rpc&#47;errors.go op-geth&#47;rpc&#47;errors.go</span>
+        <div class="collapse patch-content term-container" id="id-ab22c1fba12d587e00466c6c"><span class="term-fg1">diff --git go-ethereum&#47;rpc&#47;errors.go op-geth&#47;rpc&#47;errors.go</span>
 <span class="term-fg1">index 7188332d551ebdcd541438d7a58daad996b5c70f..4a2dab3d9836494a8618d56bfa204e2339a12491 100644</span>
 <span class="term-fg1">--- go-ethereum&#47;rpc&#47;errors.go</span>
 <span class="term-fg1">+++ op-geth&#47;rpc&#47;errors.go</span>
@@ -5528,8 +5516,7 @@ metadata is hydrated on-the-fly based on the L1 fee information in the correspon
 </div>
 
             
-                <div class="ps-1 py-2 my-1"><div class="row border-bottom border-1" data-bs-toggle="collapse" data-bs-target="#id-f83fac5f70d46fa8db43fbd3" role="button"
-         aria-expanded="false" aria-controls="id-f83fac5f70d46fa8db43fbd3">
+                <div class="ps-1 py-2 my-1"><div class="row border-bottom border-1"data-bs-toggle="collapse" data-bs-target="#id-f7d72d248c809c5a388c0fcf"role="button" aria-expanded="false" aria-controls="id-f7d72d248c809c5a388c0fcf">
         
             <div class="col-12 col-sm-9 text-start"><h3>Tracer RPC daisy-chain</h3></div>
         
@@ -5541,15 +5528,15 @@ metadata is hydrated on-the-fly based on the L1 fee information in the correspon
         </div>
     </div>
 
-    <div class="row forkdef-content collapse  border-1 ps-3 my-3" id="id-f83fac5f70d46fa8db43fbd3">
+    <div class="row forkdef-content collapse  border-1 ps-3 my-3" id="id-f7d72d248c809c5a388c0fcf">
         <div><p>Forward pre-bedrock tracing calls to legacy node.</p>
 </div>
         <div>
             
                 <div class="border-bottom"><div class="row">
             <div class="col-12 col-md-4 text-start pe-2">
-                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-e0cc2c9474aa5c8c6e9fa191" role="button"
-                   aria-expanded="false" aria-controls="id-e0cc2c9474aa5c8c6e9fa191">
+                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-d99d337959dc2683f77457fc" role="button"
+                   aria-expanded="false" aria-controls="id-d99d337959dc2683f77457fc">
                     <code>eth/tracers/api.go</code>
                 </a>
             </div>
@@ -5579,7 +5566,7 @@ metadata is hydrated on-the-fly based on the L1 fee information in the correspon
                 
             </div>
         </div>
-        <div class="collapse patch-content term-container" id="id-e0cc2c9474aa5c8c6e9fa191"><span class="term-fg1">diff --git go-ethereum&#47;eth&#47;tracers&#47;api.go op-geth&#47;eth&#47;tracers&#47;api.go</span>
+        <div class="collapse patch-content term-container" id="id-d99d337959dc2683f77457fc"><span class="term-fg1">diff --git go-ethereum&#47;eth&#47;tracers&#47;api.go op-geth&#47;eth&#47;tracers&#47;api.go</span>
 <span class="term-fg1">index 55c56b40c9f12f7e268126dbb1e3be945bdd94dc..951acf3fb12f43f1d6ce9cffb1ef2a6ed2da050c 100644</span>
 <span class="term-fg1">--- go-ethereum&#47;eth&#47;tracers&#47;api.go</span>
 <span class="term-fg1">+++ op-geth&#47;eth&#47;tracers&#47;api.go</span>
@@ -5777,8 +5764,7 @@ metadata is hydrated on-the-fly based on the L1 fee information in the correspon
 </div>
 
             
-                <div class="ps-1 py-2 my-1"><div class="row border-bottom border-1" data-bs-toggle="collapse" data-bs-target="#id-ef91e7a09503908f291af04f" role="button"
-         aria-expanded="false" aria-controls="id-ef91e7a09503908f291af04f">
+                <div class="ps-1 py-2 my-1"><div class="row border-bottom border-1"data-bs-toggle="collapse" data-bs-target="#id-423208c6bb409af34f854bd2"role="button" aria-expanded="false" aria-controls="id-423208c6bb409af34f854bd2">
         
             <div class="col-12 col-sm-9 text-start"><h3>Light Ethereum Subprotocol (LES) RPC</h3></div>
         
@@ -5790,15 +5776,63 @@ metadata is hydrated on-the-fly based on the L1 fee information in the correspon
         </div>
     </div>
 
-    <div class="row forkdef-content collapse  border-1 ps-3 my-3" id="id-ef91e7a09503908f291af04f">
+    <div class="row forkdef-content collapse  border-1 ps-3 my-3" id="id-423208c6bb409af34f854bd2">
         <div><p>Match the RPC changes in the LES RPC</p>
 </div>
         <div>
             
                 <div class="border-bottom"><div class="row">
             <div class="col-12 col-md-4 text-start pe-2">
-                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-a69e795cc7b001603b9e0756" role="button"
-                   aria-expanded="false" aria-controls="id-a69e795cc7b001603b9e0756">
+                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-74d6124f40c6019842368ae3" role="button"
+                   aria-expanded="false" aria-controls="id-74d6124f40c6019842368ae3">
+                    <code>les/state_accessor.go</code>
+                </a>
+            </div>
+
+            <div class="col-12 col-sm-8 col-md-4 text-start px-2">
+                <div class="row">
+                    <div class="col-6">
+                        
+                            <a href="https://github.com/ethereum/go-ethereum/blob/73b01f40ceb6bcb6f9f44c2a3d6f963b40452b47/les/state_accessor.go" target="_blank">go-ethereum <i class="bi bi-github"></i></a>
+                        
+                    </div>
+
+                    <div class="col-6">
+                        
+                            <a href="https://github.com/ethereum-optimism/op-geth/blob/88e99a84819787108bd5fd674d73f1839e4f10bd/les/state_accessor.go" target="_blank">op-geth <i class="bi bi-github"></i></a>
+                        
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 col-sm-4 ms-auto ps-2">
+                
+                    <div class="row line-stat">
+                        <div class="text-end"><span class="text-success">+1</span></div>
+                        <div class="text-start"><span class="text-danger">-0</span></div>
+                    </div>
+                
+            </div>
+        </div>
+        <div class="collapse patch-content term-container" id="id-74d6124f40c6019842368ae3"><span class="term-fg1">diff --git go-ethereum&#47;les&#47;state_accessor.go op-geth&#47;les&#47;state_accessor.go</span>
+<span class="term-fg1">index 091ec8871eeeb17e2535435c2e3aa89736fdb05c..841b6b755341f01c4f7ef84043e8c194dd48ff79 100644</span>
+<span class="term-fg1">--- go-ethereum&#47;les&#47;state_accessor.go</span>
+<span class="term-fg1">+++ op-geth&#47;les&#47;state_accessor.go</span>
+<span class="term-fg36">@@ -67,6 +67,7 @@</span> 		statedb.SetTxContext(tx.Hash(), idx)
+ 		if idx == txIndex {
+ 			return msg, context, statedb, release, nil
+ 		}
+<span class="term-fg32">+		context.L1CostFunc = types.NewL1CostFunc(leth.blockchain.Config(), statedb)</span>
+ 		&#47;&#47; Not yet the searched for transaction, execute on top of the current state
+ 		vmenv := vm.NewEVM(context, txContext, statedb, leth.blockchain.Config(), vm.Config{})
+ 		if _, err := core.ApplyMessage(vmenv, msg, new(core.GasPool).AddGas(tx.Gas())); err != nil {</div>
+    </div>
+
+            
+                <div class="border-bottom"><div class="row">
+            <div class="col-12 col-md-4 text-start pe-2">
+                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-3ff4981f4e2e62d625cdf82c" role="button"
+                   aria-expanded="false" aria-controls="id-3ff4981f4e2e62d625cdf82c">
                     <code>les/api_backend.go</code>
                 </a>
             </div>
@@ -5828,7 +5862,7 @@ metadata is hydrated on-the-fly based on the L1 fee information in the correspon
                 
             </div>
         </div>
-        <div class="collapse patch-content term-container" id="id-a69e795cc7b001603b9e0756"><span class="term-fg1">diff --git go-ethereum&#47;les&#47;api_backend.go op-geth&#47;les&#47;api_backend.go</span>
+        <div class="collapse patch-content term-container" id="id-3ff4981f4e2e62d625cdf82c"><span class="term-fg1">diff --git go-ethereum&#47;les&#47;api_backend.go op-geth&#47;les&#47;api_backend.go</span>
 <span class="term-fg1">index 422ac74b8668177bc161eff50607b8640afb4460..b292f401146ce04ee20f599138d9595f1d5507b1 100644</span>
 <span class="term-fg1">--- go-ethereum&#47;les&#47;api_backend.go</span>
 <span class="term-fg1">+++ op-geth&#47;les&#47;api_backend.go</span>
@@ -5857,8 +5891,8 @@ metadata is hydrated on-the-fly based on the L1 fee information in the correspon
             
                 <div class="border-bottom"><div class="row">
             <div class="col-12 col-md-4 text-start pe-2">
-                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-aa5a4f207ff88b762a9cfdea" role="button"
-                   aria-expanded="false" aria-controls="id-aa5a4f207ff88b762a9cfdea">
+                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-4e8eca4fe20962d242a0fb1a" role="button"
+                   aria-expanded="false" aria-controls="id-4e8eca4fe20962d242a0fb1a">
                     <code>les/client.go</code>
                 </a>
             </div>
@@ -5888,7 +5922,7 @@ metadata is hydrated on-the-fly based on the L1 fee information in the correspon
                 
             </div>
         </div>
-        <div class="collapse patch-content term-container" id="id-aa5a4f207ff88b762a9cfdea"><span class="term-fg1">diff --git go-ethereum&#47;les&#47;client.go op-geth&#47;les&#47;client.go</span>
+        <div class="collapse patch-content term-container" id="id-4e8eca4fe20962d242a0fb1a"><span class="term-fg1">diff --git go-ethereum&#47;les&#47;client.go op-geth&#47;les&#47;client.go</span>
 <span class="term-fg1">index 9ac85ecdac6fb5d2f41c88f13ad9e5fd37ae09c2..b40f1372bc1594fffb1ae84ed5fd804052b934d1 100644</span>
 <span class="term-fg1">--- go-ethereum&#47;les&#47;client.go</span>
 <span class="term-fg1">+++ op-geth&#47;les&#47;client.go</span>
@@ -5940,54 +5974,6 @@ metadata is hydrated on-the-fly based on the L1 fee information in the correspon
     </div>
 
             
-                <div class="border-bottom"><div class="row">
-            <div class="col-12 col-md-4 text-start pe-2">
-                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-dad72982a0a41fbbe7cb9d17" role="button"
-                   aria-expanded="false" aria-controls="id-dad72982a0a41fbbe7cb9d17">
-                    <code>les/state_accessor.go</code>
-                </a>
-            </div>
-
-            <div class="col-12 col-sm-8 col-md-4 text-start px-2">
-                <div class="row">
-                    <div class="col-6">
-                        
-                            <a href="https://github.com/ethereum/go-ethereum/blob/73b01f40ceb6bcb6f9f44c2a3d6f963b40452b47/les/state_accessor.go" target="_blank">go-ethereum <i class="bi bi-github"></i></a>
-                        
-                    </div>
-
-                    <div class="col-6">
-                        
-                            <a href="https://github.com/ethereum-optimism/op-geth/blob/88e99a84819787108bd5fd674d73f1839e4f10bd/les/state_accessor.go" target="_blank">op-geth <i class="bi bi-github"></i></a>
-                        
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-12 col-sm-4 ms-auto ps-2">
-                
-                    <div class="row line-stat">
-                        <div class="text-end"><span class="text-success">+1</span></div>
-                        <div class="text-start"><span class="text-danger">-0</span></div>
-                    </div>
-                
-            </div>
-        </div>
-        <div class="collapse patch-content term-container" id="id-dad72982a0a41fbbe7cb9d17"><span class="term-fg1">diff --git go-ethereum&#47;les&#47;state_accessor.go op-geth&#47;les&#47;state_accessor.go</span>
-<span class="term-fg1">index 091ec8871eeeb17e2535435c2e3aa89736fdb05c..841b6b755341f01c4f7ef84043e8c194dd48ff79 100644</span>
-<span class="term-fg1">--- go-ethereum&#47;les&#47;state_accessor.go</span>
-<span class="term-fg1">+++ op-geth&#47;les&#47;state_accessor.go</span>
-<span class="term-fg36">@@ -67,6 +67,7 @@</span> 		statedb.SetTxContext(tx.Hash(), idx)
- 		if idx == txIndex {
- 			return msg, context, statedb, release, nil
- 		}
-<span class="term-fg32">+		context.L1CostFunc = types.NewL1CostFunc(leth.blockchain.Config(), statedb)</span>
- 		&#47;&#47; Not yet the searched for transaction, execute on top of the current state
- 		vmenv := vm.NewEVM(context, txContext, statedb, leth.blockchain.Config(), vm.Config{})
- 		if _, err := core.ApplyMessage(vmenv, msg, new(core.GasPool).AddGas(tx.Gas())); err != nil {</div>
-    </div>
-
-            
         </div>
         <div>
             
@@ -5996,8 +5982,7 @@ metadata is hydrated on-the-fly based on the L1 fee information in the correspon
 </div>
 
             
-                <div class="ps-1 py-2 my-1"><div class="row border-bottom border-1" data-bs-toggle="collapse" data-bs-target="#id-a7a5e1547fb303b12b927696" role="button"
-         aria-expanded="false" aria-controls="id-a7a5e1547fb303b12b927696">
+                <div class="ps-1 py-2 my-1"><div class="row border-bottom border-1"data-bs-toggle="collapse" data-bs-target="#id-08f4d4b3eb6fdc6a2b771c98"role="button" aria-expanded="false" aria-controls="id-08f4d4b3eb6fdc6a2b771c98">
         
             <div class="col-12 col-sm-9 text-start"><h3>Daisy Chain tests</h3></div>
         
@@ -6009,14 +5994,14 @@ metadata is hydrated on-the-fly based on the L1 fee information in the correspon
         </div>
     </div>
 
-    <div class="row forkdef-content collapse  border-1 ps-3 my-3" id="id-a7a5e1547fb303b12b927696">
+    <div class="row forkdef-content collapse  border-1 ps-3 my-3" id="id-08f4d4b3eb6fdc6a2b771c98">
         <div></div>
         <div>
             
                 <div class="border-bottom"><div class="row">
             <div class="col-12 col-md-4 text-start pe-2">
-                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-22b5e93c3a080eb3ad362ba5" role="button"
-                   aria-expanded="false" aria-controls="id-22b5e93c3a080eb3ad362ba5">
+                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-11adc314e60e750d0df6112f" role="button"
+                   aria-expanded="false" aria-controls="id-11adc314e60e750d0df6112f">
                     <code>internal/ethapi/transaction_args_test.go</code>
                 </a>
             </div>
@@ -6046,7 +6031,7 @@ metadata is hydrated on-the-fly based on the L1 fee information in the correspon
                 
             </div>
         </div>
-        <div class="collapse patch-content term-container" id="id-22b5e93c3a080eb3ad362ba5"><span class="term-fg1">diff --git go-ethereum&#47;internal&#47;ethapi&#47;transaction_args_test.go op-geth&#47;internal&#47;ethapi&#47;transaction_args_test.go</span>
+        <div class="collapse patch-content term-container" id="id-11adc314e60e750d0df6112f"><span class="term-fg1">diff --git go-ethereum&#47;internal&#47;ethapi&#47;transaction_args_test.go op-geth&#47;internal&#47;ethapi&#47;transaction_args_test.go</span>
 <span class="term-fg1">index a8f2d5214889ee187d4bbd2c3af82236acd8a871..48f38e24295c2462b92341978fcb9c38c520aa1e 100644</span>
 <span class="term-fg1">--- go-ethereum&#47;internal&#47;ethapi&#47;transaction_args_test.go</span>
 <span class="term-fg1">+++ op-geth&#47;internal&#47;ethapi&#47;transaction_args_test.go</span>
@@ -6063,8 +6048,8 @@ metadata is hydrated on-the-fly based on the L1 fee information in the correspon
             
                 <div class="border-bottom"><div class="row">
             <div class="col-12 col-md-4 text-start pe-2">
-                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-bcc8183a5dfb69001619be65" role="button"
-                   aria-expanded="false" aria-controls="id-bcc8183a5dfb69001619be65">
+                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-3d0b6605ecc9cb2bda6a0c09" role="button"
+                   aria-expanded="false" aria-controls="id-3d0b6605ecc9cb2bda6a0c09">
                     <code>ethclient/ethclient_test.go</code>
                 </a>
             </div>
@@ -6094,7 +6079,7 @@ metadata is hydrated on-the-fly based on the L1 fee information in the correspon
                 
             </div>
         </div>
-        <div class="collapse patch-content term-container" id="id-bcc8183a5dfb69001619be65"><span class="term-fg1">diff --git go-ethereum&#47;ethclient&#47;ethclient_test.go op-geth&#47;ethclient&#47;ethclient_test.go</span>
+        <div class="collapse patch-content term-container" id="id-3d0b6605ecc9cb2bda6a0c09"><span class="term-fg1">diff --git go-ethereum&#47;ethclient&#47;ethclient_test.go op-geth&#47;ethclient&#47;ethclient_test.go</span>
 <span class="term-fg1">index 8bd8b0614c2d6f0fe37b5dd9c0a2da86f57d1892..c22446f6f3bd9a262957877ba2caa54ca1d80cb6 100644</span>
 <span class="term-fg1">--- go-ethereum&#47;ethclient&#47;ethclient_test.go</span>
 <span class="term-fg1">+++ op-geth&#47;ethclient&#47;ethclient_test.go</span>
@@ -6325,8 +6310,8 @@ metadata is hydrated on-the-fly based on the L1 fee information in the correspon
             
                 <div class="border-bottom"><div class="row">
             <div class="col-12 col-md-4 text-start pe-2">
-                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-b064a0f5674d36dc1b93206d" role="button"
-                   aria-expanded="false" aria-controls="id-b064a0f5674d36dc1b93206d">
+                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-f017ea230bc2196f435c25c9" role="button"
+                   aria-expanded="false" aria-controls="id-f017ea230bc2196f435c25c9">
                     <code>eth/tracers/api_test.go</code>
                 </a>
             </div>
@@ -6356,7 +6341,7 @@ metadata is hydrated on-the-fly based on the L1 fee information in the correspon
                 
             </div>
         </div>
-        <div class="collapse patch-content term-container" id="id-b064a0f5674d36dc1b93206d"><span class="term-fg1">diff --git go-ethereum&#47;eth&#47;tracers&#47;api_test.go op-geth&#47;eth&#47;tracers&#47;api_test.go</span>
+        <div class="collapse patch-content term-container" id="id-f017ea230bc2196f435c25c9"><span class="term-fg1">diff --git go-ethereum&#47;eth&#47;tracers&#47;api_test.go op-geth&#47;eth&#47;tracers&#47;api_test.go</span>
 <span class="term-fg1">index 29ec80868579a3ae78c2de0c28571b2c16a03ea8..87e3001f6e1eb20e003d039c862e1168167056b2 100644</span>
 <span class="term-fg1">--- go-ethereum&#47;eth&#47;tracers&#47;api_test.go</span>
 <span class="term-fg1">+++ op-geth&#47;eth&#47;tracers&#47;api_test.go</span>
@@ -6657,8 +6642,7 @@ metadata is hydrated on-the-fly based on the L1 fee information in the correspon
 </div>
 
             
-                <div class="ps-1 py-2 my-1"><div class="row border-bottom border-1" data-bs-toggle="collapse" data-bs-target="#id-36b6c76d5c9be36248facbde" role="button"
-         aria-expanded="false" aria-controls="id-36b6c76d5c9be36248facbde">
+                <div class="ps-1 py-2 my-1"><div class="row border-bottom border-1"data-bs-toggle="collapse" data-bs-target="#id-409ba1d2a474843f15870156"role="button" aria-expanded="false" aria-controls="id-409ba1d2a474843f15870156">
         
             <div class="col-12 col-sm-9 text-start"><h2>Geth extras</h2></div>
         
@@ -6670,7 +6654,7 @@ metadata is hydrated on-the-fly based on the L1 fee information in the correspon
         </div>
     </div>
 
-    <div class="row forkdef-content collapse  border-1 ps-3 my-3" id="id-36b6c76d5c9be36248facbde">
+    <div class="row forkdef-content collapse  border-1 ps-3 my-3" id="id-409ba1d2a474843f15870156">
         <div><p>Extend the tools available in geth to improve external testing and tooling.</p>
 </div>
         <div>
@@ -6678,8 +6662,7 @@ metadata is hydrated on-the-fly based on the L1 fee information in the correspon
         </div>
         <div>
             
-                <div class="ps-1 py-2 my-1"><div class="row border-bottom border-1" data-bs-toggle="collapse" data-bs-target="#id-bf76eacbe1732b9329e82a14" role="button"
-         aria-expanded="false" aria-controls="id-bf76eacbe1732b9329e82a14">
+                <div class="ps-1 py-2 my-1"><div class="row border-bottom border-1"data-bs-toggle="collapse" data-bs-target="#id-3d378cfac4620f0b5c65d166"role="button" aria-expanded="false" aria-controls="id-3d378cfac4620f0b5c65d166">
         
             <div class="col-12 col-sm-9 text-start"><h3>Simulated Backend</h3></div>
         
@@ -6691,14 +6674,14 @@ metadata is hydrated on-the-fly based on the L1 fee information in the correspon
         </div>
     </div>
 
-    <div class="row forkdef-content collapse  border-1 ps-3 my-3" id="id-bf76eacbe1732b9329e82a14">
+    <div class="row forkdef-content collapse  border-1 ps-3 my-3" id="id-3d378cfac4620f0b5c65d166">
         <div></div>
         <div>
             
                 <div class="border-bottom"><div class="row">
             <div class="col-12 col-md-4 text-start pe-2">
-                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-f1f58259960910c47ec1a69e" role="button"
-                   aria-expanded="false" aria-controls="id-f1f58259960910c47ec1a69e">
+                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-234fd0eac7a374d291025077" role="button"
+                   aria-expanded="false" aria-controls="id-234fd0eac7a374d291025077">
                     <code>accounts/abi/bind/backends/simulated.go</code>
                 </a>
             </div>
@@ -6728,7 +6711,7 @@ metadata is hydrated on-the-fly based on the L1 fee information in the correspon
                 
             </div>
         </div>
-        <div class="collapse patch-content term-container" id="id-f1f58259960910c47ec1a69e"><span class="term-fg1">diff --git go-ethereum&#47;accounts&#47;abi&#47;bind&#47;backends&#47;simulated.go op-geth&#47;accounts&#47;abi&#47;bind&#47;backends&#47;simulated.go</span>
+        <div class="collapse patch-content term-container" id="id-234fd0eac7a374d291025077"><span class="term-fg1">diff --git go-ethereum&#47;accounts&#47;abi&#47;bind&#47;backends&#47;simulated.go op-geth&#47;accounts&#47;abi&#47;bind&#47;backends&#47;simulated.go</span>
 <span class="term-fg1">index 008c71feaa7a232398212a6c366d71a7b739181b..c83eb18d0547bacef15906c726a9a0ac69a69d84 100644</span>
 <span class="term-fg1">--- go-ethereum&#47;accounts&#47;abi&#47;bind&#47;backends&#47;simulated.go</span>
 <span class="term-fg1">+++ op-geth&#47;accounts&#47;abi&#47;bind&#47;backends&#47;simulated.go</span>
@@ -6931,8 +6914,7 @@ metadata is hydrated on-the-fly based on the L1 fee information in the correspon
 </div>
 
             
-                <div class="ps-1 py-2 my-1"><div class="row border-bottom border-1" data-bs-toggle="collapse" data-bs-target="#id-067546d891c97b621c1e107e" role="button"
-         aria-expanded="false" aria-controls="id-067546d891c97b621c1e107e">
+                <div class="ps-1 py-2 my-1"><div class="row border-bottom border-1"data-bs-toggle="collapse" data-bs-target="#id-34bd09a9718f5d01ce8d23df"role="button" aria-expanded="false" aria-controls="id-34bd09a9718f5d01ce8d23df">
         
             <div class="col-12 col-sm-9 text-start"><h3>diff-included testing testing</h3></div>
         
@@ -6944,7 +6926,7 @@ metadata is hydrated on-the-fly based on the L1 fee information in the correspon
         </div>
     </div>
 
-    <div class="row forkdef-content collapse  border-1 ps-3 my-3" id="id-067546d891c97b621c1e107e">
+    <div class="row forkdef-content collapse  border-1 ps-3 my-3" id="id-34bd09a9718f5d01ce8d23df">
         <div><p>Most of the op-geth changes are tested in the Optimism Monorepo and not part of the geth diff,
 but some testing like the Deposit TX encoding and API interactions are embedded in the op-geth diff instead.</p>
 </div>
@@ -6952,8 +6934,8 @@ but some testing like the Deposit TX encoding and API interactions are embedded 
             
                 <div class="border-bottom"><div class="row">
             <div class="col-12 col-md-4 text-start pe-2">
-                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-2aed47bbeeeabfc75b8722fb" role="button"
-                   aria-expanded="false" aria-controls="id-2aed47bbeeeabfc75b8722fb">
+                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-dfaa733f5aaf45be2cb61a49" role="button"
+                   aria-expanded="false" aria-controls="id-dfaa733f5aaf45be2cb61a49">
                     <code>core/types/transaction_marshalling_test.go</code>
                 </a>
             </div>
@@ -6983,7 +6965,7 @@ but some testing like the Deposit TX encoding and API interactions are embedded 
                 
             </div>
         </div>
-        <div class="collapse patch-content term-container" id="id-2aed47bbeeeabfc75b8722fb"><span class="term-fg1">diff --git go-ethereum&#47;core&#47;types&#47;transaction_marshalling_test.go op-geth&#47;core&#47;types&#47;transaction_marshalling_test.go</span>
+        <div class="collapse patch-content term-container" id="id-dfaa733f5aaf45be2cb61a49"><span class="term-fg1">diff --git go-ethereum&#47;core&#47;types&#47;transaction_marshalling_test.go op-geth&#47;core&#47;types&#47;transaction_marshalling_test.go</span>
 <span class="term-fg1">new file mode 100644</span>
 <span class="term-fg1">index 0000000000000000000000000000000000000000..497dd8b0207c35db1c7d1bff22a9404966050222</span>
 <span class="term-fg1">--- &#47;dev&#47;null</span>
@@ -7074,8 +7056,8 @@ but some testing like the Deposit TX encoding and API interactions are embedded 
             
                 <div class="border-bottom"><div class="row">
             <div class="col-12 col-md-4 text-start pe-2">
-                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-5b861fe2e58e7f016a2cbbc1" role="button"
-                   aria-expanded="false" aria-controls="id-5b861fe2e58e7f016a2cbbc1">
+                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-937a8fcbf7a55f806eeeefdc" role="button"
+                   aria-expanded="false" aria-controls="id-937a8fcbf7a55f806eeeefdc">
                     <code>internal/ethapi/api_test.go</code>
                 </a>
             </div>
@@ -7105,7 +7087,7 @@ but some testing like the Deposit TX encoding and API interactions are embedded 
                 
             </div>
         </div>
-        <div class="collapse patch-content term-container" id="id-5b861fe2e58e7f016a2cbbc1"><span class="term-fg1">diff --git go-ethereum&#47;internal&#47;ethapi&#47;api_test.go op-geth&#47;internal&#47;ethapi&#47;api_test.go</span>
+        <div class="collapse patch-content term-container" id="id-937a8fcbf7a55f806eeeefdc"><span class="term-fg1">diff --git go-ethereum&#47;internal&#47;ethapi&#47;api_test.go op-geth&#47;internal&#47;ethapi&#47;api_test.go</span>
 <span class="term-fg1">new file mode 100644</span>
 <span class="term-fg1">index 0000000000000000000000000000000000000000..0c939e61902d2b67228b3890b7975e2ec7575dbc</span>
 <span class="term-fg1">--- &#47;dev&#47;null</span>
@@ -7246,8 +7228,7 @@ but some testing like the Deposit TX encoding and API interactions are embedded 
 </div>
 
             
-                <div class="ps-1 py-2 my-1"><div class="row border-bottom border-1" data-bs-toggle="collapse" data-bs-target="#id-c44fb394d7aa433f28cdefa9" role="button"
-         aria-expanded="false" aria-controls="id-c44fb394d7aa433f28cdefa9">
+                <div class="ps-1 py-2 my-1"><div class="row border-bottom border-1"data-bs-toggle="collapse" data-bs-target="#id-2250dd0f3bb1344cb5b7f17b"role="button" aria-expanded="false" aria-controls="id-2250dd0f3bb1344cb5b7f17b">
         
             <div class="col-12 col-sm-9 text-start"><h2>Other changes</h2></div>
         
@@ -7259,14 +7240,14 @@ but some testing like the Deposit TX encoding and API interactions are embedded 
         </div>
     </div>
 
-    <div class="row forkdef-content collapse  border-1 ps-3 my-3" id="id-c44fb394d7aa433f28cdefa9">
+    <div class="row forkdef-content collapse  border-1 ps-3 my-3" id="id-2250dd0f3bb1344cb5b7f17b">
         <div></div>
         <div>
             
                 <div class="border-bottom"><div class="row">
             <div class="col-12 col-md-4 text-start pe-2">
-                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-22a487a631557a7aa7335060" role="button"
-                   aria-expanded="false" aria-controls="id-22a487a631557a7aa7335060">
+                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-e6e2dc8f80c8760aff3fc468" role="button"
+                   aria-expanded="false" aria-controls="id-e6e2dc8f80c8760aff3fc468">
                     <code>core/blockchain.go</code>
                 </a>
             </div>
@@ -7296,7 +7277,7 @@ but some testing like the Deposit TX encoding and API interactions are embedded 
                 
             </div>
         </div>
-        <div class="collapse patch-content term-container" id="id-22a487a631557a7aa7335060"><span class="term-fg1">diff --git go-ethereum&#47;core&#47;blockchain.go op-geth&#47;core&#47;blockchain.go</span>
+        <div class="collapse patch-content term-container" id="id-e6e2dc8f80c8760aff3fc468"><span class="term-fg1">diff --git go-ethereum&#47;core&#47;blockchain.go op-geth&#47;core&#47;blockchain.go</span>
 <span class="term-fg1">index 38a129d4eec569624d4c231754148a34b5389f87..99a110f4f980b6785dad53858d6b8695070a3136 100644</span>
 <span class="term-fg1">--- go-ethereum&#47;core&#47;blockchain.go</span>
 <span class="term-fg1">+++ op-geth&#47;core&#47;blockchain.go</span>
@@ -7316,8 +7297,8 @@ but some testing like the Deposit TX encoding and API interactions are embedded 
             
                 <div class="border-bottom"><div class="row">
             <div class="col-12 col-md-4 text-start pe-2">
-                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-59cc4ea6a06d37ee029fc521" role="button"
-                   aria-expanded="false" aria-controls="id-59cc4ea6a06d37ee029fc521">
+                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-66775ececd5e35ee912db3eb" role="button"
+                   aria-expanded="false" aria-controls="id-66775ececd5e35ee912db3eb">
                     <code>core/error.go</code>
                 </a>
             </div>
@@ -7347,7 +7328,7 @@ but some testing like the Deposit TX encoding and API interactions are embedded 
                 
             </div>
         </div>
-        <div class="collapse patch-content term-container" id="id-59cc4ea6a06d37ee029fc521"><span class="term-fg1">diff --git go-ethereum&#47;core&#47;error.go op-geth&#47;core&#47;error.go</span>
+        <div class="collapse patch-content term-container" id="id-66775ececd5e35ee912db3eb"><span class="term-fg1">diff --git go-ethereum&#47;core&#47;error.go op-geth&#47;core&#47;error.go</span>
 <span class="term-fg1">index 872ba8d365d8c152641f2dcd32b39343a285bd4d..d99b85e2490725b35c5797c93060ac7009b909d8 100644</span>
 <span class="term-fg1">--- go-ethereum&#47;core&#47;error.go</span>
 <span class="term-fg1">+++ op-geth&#47;core&#47;error.go</span>
@@ -7364,8 +7345,8 @@ but some testing like the Deposit TX encoding and API interactions are embedded 
             
                 <div class="border-bottom"><div class="row">
             <div class="col-12 col-md-4 text-start pe-2">
-                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-7a18174ee56c3d0ee1550ce7" role="button"
-                   aria-expanded="false" aria-controls="id-7a18174ee56c3d0ee1550ce7">
+                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-b3ff66abffb0c7fd7f2993ec" role="button"
+                   aria-expanded="false" aria-controls="id-b3ff66abffb0c7fd7f2993ec">
                     <code>core/types/receipt_test.go</code>
                 </a>
             </div>
@@ -7395,7 +7376,7 @@ but some testing like the Deposit TX encoding and API interactions are embedded 
                 
             </div>
         </div>
-        <div class="collapse patch-content term-container" id="id-7a18174ee56c3d0ee1550ce7"><span class="term-fg1">diff --git go-ethereum&#47;core&#47;types&#47;receipt_test.go op-geth&#47;core&#47;types&#47;receipt_test.go</span>
+        <div class="collapse patch-content term-container" id="id-b3ff66abffb0c7fd7f2993ec"><span class="term-fg1">diff --git go-ethereum&#47;core&#47;types&#47;receipt_test.go op-geth&#47;core&#47;types&#47;receipt_test.go</span>
 <span class="term-fg1">index f44bb80b04b4dafc00cf42869b32ffa71a9bac0c..c8f71f55f55fafe1a06cf445f414b7aeaa47d87d 100644</span>
 <span class="term-fg1">--- go-ethereum&#47;core&#47;types&#47;receipt_test.go</span>
 <span class="term-fg1">+++ op-geth&#47;core&#47;types&#47;receipt_test.go</span>
@@ -7616,8 +7597,8 @@ but some testing like the Deposit TX encoding and API interactions are embedded 
             
                 <div class="border-bottom"><div class="row">
             <div class="col-12 col-md-4 text-start pe-2">
-                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-7006aa16057161e7fbbf596a" role="button"
-                   aria-expanded="false" aria-controls="id-7006aa16057161e7fbbf596a">
+                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-473c7db07dd0d0683b11c399" role="button"
+                   aria-expanded="false" aria-controls="id-473c7db07dd0d0683b11c399">
                     <code>eth/api.go</code>
                 </a>
             </div>
@@ -7647,7 +7628,7 @@ but some testing like the Deposit TX encoding and API interactions are embedded 
                 
             </div>
         </div>
-        <div class="collapse patch-content term-container" id="id-7006aa16057161e7fbbf596a"><span class="term-fg1">diff --git go-ethereum&#47;eth&#47;api.go op-geth&#47;eth&#47;api.go</span>
+        <div class="collapse patch-content term-container" id="id-473c7db07dd0d0683b11c399"><span class="term-fg1">diff --git go-ethereum&#47;eth&#47;api.go op-geth&#47;eth&#47;api.go</span>
 <span class="term-fg1">index ceed85ef576b318d9d1d32c66e44a1f90322fe40..2fc1cab2b3a1c440a70d10f364ac0b09a10c0974 100644</span>
 <span class="term-fg1">--- go-ethereum&#47;eth&#47;api.go</span>
 <span class="term-fg1">+++ op-geth&#47;eth&#47;api.go</span>
@@ -7665,8 +7646,8 @@ but some testing like the Deposit TX encoding and API interactions are embedded 
             
                 <div class="border-bottom"><div class="row">
             <div class="col-12 col-md-4 text-start pe-2">
-                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-94e73745ce5151ad559cc229" role="button"
-                   aria-expanded="false" aria-controls="id-94e73745ce5151ad559cc229">
+                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-2f43d68e0ea19f74e886de08" role="button"
+                   aria-expanded="false" aria-controls="id-2f43d68e0ea19f74e886de08">
                     <code>params/config_test.go</code>
                 </a>
             </div>
@@ -7696,7 +7677,7 @@ but some testing like the Deposit TX encoding and API interactions are embedded 
                 
             </div>
         </div>
-        <div class="collapse patch-content term-container" id="id-94e73745ce5151ad559cc229"><span class="term-fg1">diff --git go-ethereum&#47;params&#47;config_test.go op-geth&#47;params&#47;config_test.go</span>
+        <div class="collapse patch-content term-container" id="id-2f43d68e0ea19f74e886de08"><span class="term-fg1">diff --git go-ethereum&#47;params&#47;config_test.go op-geth&#47;params&#47;config_test.go</span>
 <span class="term-fg1">index 5634569e29f09891985c442d87ad51a0d053268f..bf9181d00afa04eb9d1ed8c2ee7b22797260be70 100644</span>
 <span class="term-fg1">--- go-ethereum&#47;params&#47;config_test.go</span>
 <span class="term-fg1">+++ op-geth&#47;params&#47;config_test.go</span>
@@ -7738,10 +7719,9 @@ but some testing like the Deposit TX encoding and API interactions are embedded 
     </div>
 </div>
 
-            
-                <div class="text-muted">
-                    <div class="ps-1 py-2 my-1"><div class="row border-bottom border-1" data-bs-toggle="collapse" data-bs-target="#id-94f2e4f1cbc836a86f84d231" role="button"
-         aria-expanded="false" aria-controls="id-94f2e4f1cbc836a86f84d231">
+                
+                    <div class="text-muted">
+                        <div class="ps-1 py-2 my-1"><div class="row border-bottom border-1"data-bs-toggle="collapse" data-bs-target="#id-d2939249bb59a3cc606a06f0"role="button" aria-expanded="false" aria-controls="id-d2939249bb59a3cc606a06f0">
         
             <div class="col-12 col-sm-9 text-start"><h4>Ignored changes</h4></div>
         
@@ -7753,14 +7733,14 @@ but some testing like the Deposit TX encoding and API interactions are embedded 
         </div>
     </div>
 
-    <div class="row forkdef-content collapse  border-1 ps-3 my-3" id="id-94f2e4f1cbc836a86f84d231">
+    <div class="row forkdef-content collapse  border-1 ps-3 my-3" id="id-d2939249bb59a3cc606a06f0">
         <div></div>
         <div>
             
                 <div class="border-bottom"><div class="row">
             <div class="col-12 col-md-4 text-start pe-2">
-                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-933e6f5d9a1f8a3d331e51a6" role="button"
-                   aria-expanded="false" aria-controls="id-933e6f5d9a1f8a3d331e51a6">
+                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-c77167136c62db1ae13deddb" role="button"
+                   aria-expanded="false" aria-controls="id-c77167136c62db1ae13deddb">
                     <code>.circleci/config.yml</code>
                 </a>
             </div>
@@ -7790,7 +7770,7 @@ but some testing like the Deposit TX encoding and API interactions are embedded 
                 
             </div>
         </div>
-        <div class="collapse patch-content term-container" id="id-933e6f5d9a1f8a3d331e51a6"><span class="term-fg1">diff --git go-ethereum&#47;.circleci&#47;config.yml op-geth&#47;.circleci&#47;config.yml</span>
+        <div class="collapse patch-content term-container" id="id-c77167136c62db1ae13deddb"><span class="term-fg1">diff --git go-ethereum&#47;.circleci&#47;config.yml op-geth&#47;.circleci&#47;config.yml</span>
 <span class="term-fg1">new file mode 100644</span>
 <span class="term-fg1">index 0000000000000000000000000000000000000000..1e98f5c3952ea8f42a08bc56ee6d2951e347e244</span>
 <span class="term-fg1">--- &#47;dev&#47;null</span>
@@ -7872,8 +7852,8 @@ but some testing like the Deposit TX encoding and API interactions are embedded 
             
                 <div class="border-bottom"><div class="row">
             <div class="col-12 col-md-4 text-start pe-2">
-                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-1f9af92293be1b0c46260c15" role="button"
-                   aria-expanded="false" aria-controls="id-1f9af92293be1b0c46260c15">
+                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-e50d45bc350e19007d732b6b" role="button"
+                   aria-expanded="false" aria-controls="id-e50d45bc350e19007d732b6b">
                     <code>.github/workflows/pages.yaml</code>
                 </a>
             </div>
@@ -7903,7 +7883,7 @@ but some testing like the Deposit TX encoding and API interactions are embedded 
                 
             </div>
         </div>
-        <div class="collapse patch-content term-container" id="id-1f9af92293be1b0c46260c15"><span class="term-fg1">diff --git go-ethereum&#47;.github&#47;workflows&#47;pages.yaml op-geth&#47;.github&#47;workflows&#47;pages.yaml</span>
+        <div class="collapse patch-content term-container" id="id-e50d45bc350e19007d732b6b"><span class="term-fg1">diff --git go-ethereum&#47;.github&#47;workflows&#47;pages.yaml op-geth&#47;.github&#47;workflows&#47;pages.yaml</span>
 <span class="term-fg1">new file mode 100644</span>
 <span class="term-fg1">index 0000000000000000000000000000000000000000..6973b227ce779be6138ee2084e71bb5a5cdd57de</span>
 <span class="term-fg1">--- &#47;dev&#47;null</span>
@@ -7950,8 +7930,8 @@ but some testing like the Deposit TX encoding and API interactions are embedded 
             
                 <div class="border-bottom"><div class="row">
             <div class="col-12 col-md-4 text-start pe-2">
-                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-bb7d0ec82cc5127fd1fbac14" role="button"
-                   aria-expanded="false" aria-controls="id-bb7d0ec82cc5127fd1fbac14">
+                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-b667a4dabbe8c30d41da789d" role="button"
+                   aria-expanded="false" aria-controls="id-b667a4dabbe8c30d41da789d">
                     <code>fork.yaml</code>
                 </a>
             </div>
@@ -7981,7 +7961,7 @@ but some testing like the Deposit TX encoding and API interactions are embedded 
                 
             </div>
         </div>
-        <div class="collapse patch-content term-container" id="id-bb7d0ec82cc5127fd1fbac14"><span class="term-fg1">diff --git go-ethereum&#47;fork.yaml op-geth&#47;fork.yaml</span>
+        <div class="collapse patch-content term-container" id="id-b667a4dabbe8c30d41da789d"><span class="term-fg1">diff --git go-ethereum&#47;fork.yaml op-geth&#47;fork.yaml</span>
 <span class="term-fg1">new file mode 100644</span>
 <span class="term-fg1">index 0000000000000000000000000000000000000000..0e14630d19a287a70ee2096daf4a12eb9803f79e</span>
 <span class="term-fg1">--- &#47;dev&#47;null</span>
@@ -8195,8 +8175,8 @@ but some testing like the Deposit TX encoding and API interactions are embedded 
             
                 <div class="border-bottom"><div class="row">
             <div class="col-12 col-md-4 text-start pe-2">
-                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-77ef3109329ed0151cc60446" role="button"
-                   aria-expanded="false" aria-controls="id-77ef3109329ed0151cc60446">
+                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-ad61c10e4c57e310c6124e78" role="button"
+                   aria-expanded="false" aria-controls="id-ad61c10e4c57e310c6124e78">
                     <code>go.mod</code>
                 </a>
             </div>
@@ -8226,7 +8206,7 @@ but some testing like the Deposit TX encoding and API interactions are embedded 
                 
             </div>
         </div>
-        <div class="collapse patch-content term-container" id="id-77ef3109329ed0151cc60446"><span class="term-fg1">diff --git go-ethereum&#47;go.mod op-geth&#47;go.mod</span>
+        <div class="collapse patch-content term-container" id="id-ad61c10e4c57e310c6124e78"><span class="term-fg1">diff --git go-ethereum&#47;go.mod op-geth&#47;go.mod</span>
 <span class="term-fg1">index fbac3e4d67ad2d1b3b747068ce57a0e9b7ca15aa..09eda47df90b8f2517e171b29343d9eae94371fa 100644</span>
 <span class="term-fg1">--- go-ethereum&#47;go.mod</span>
 <span class="term-fg1">+++ op-geth&#47;go.mod</span>
@@ -8252,8 +8232,8 @@ but some testing like the Deposit TX encoding and API interactions are embedded 
             
                 <div class="border-bottom"><div class="row">
             <div class="col-12 col-md-4 text-start pe-2">
-                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-6f3caf027ea4bdf378397ee9" role="button"
-                   aria-expanded="false" aria-controls="id-6f3caf027ea4bdf378397ee9">
+                <a class="text-decoration-none" data-bs-toggle="collapse" href="#id-be50003a1a2652c715eb5b87" role="button"
+                   aria-expanded="false" aria-controls="id-be50003a1a2652c715eb5b87">
                     <code>go.sum</code>
                 </a>
             </div>
@@ -8283,7 +8263,7 @@ but some testing like the Deposit TX encoding and API interactions are embedded 
                 
             </div>
         </div>
-        <div class="collapse patch-content term-container" id="id-6f3caf027ea4bdf378397ee9"><span class="term-fg1">diff --git go-ethereum&#47;go.sum op-geth&#47;go.sum</span>
+        <div class="collapse patch-content term-container" id="id-be50003a1a2652c715eb5b87"><span class="term-fg1">diff --git go-ethereum&#47;go.sum op-geth&#47;go.sum</span>
 <span class="term-fg1">index bf28cd2e24e53f6d5cddbc0b3e2a2c8c4fc077d9..11a115adfe66d679b5d18076d47a87c8e818ba74 100644</span>
 <span class="term-fg1">--- go-ethereum&#47;go.sum</span>
 <span class="term-fg1">+++ op-geth&#47;go.sum</span>
@@ -8317,8 +8297,9 @@ but some testing like the Deposit TX encoding and API interactions are embedded 
     </div>
 </div>
 
-                </div>
-            
+                    </div>
+                
+            </div>
         </main>
     </div>
 
@@ -8328,6 +8309,61 @@ and execution-engine of the <a href="https://github.com/ethereum-optimism/optimi
 
     </footer>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.min.js" integrity="sha384-cuYeSxntonz0PPNlHhBs68uyIAVpIIOZZ5JqeqvYYIcEL727kskC66kF92t6Xl2V" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js" integrity="sha384-oBqDVmMz9ATKxIep9tiCxS/Z9fNfEXiDAYTujMAeBAsjFuCZSmKbSSUnQlmh/jp3" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.min.js" integrity="sha384-mQ93GR66B00ZXjt0YO5KlohRA5SY2XofN4zfuZxLkoj1gXtW8ANNCe9d5Y3eG5eD" crossorigin="anonymous"></script>
+    <script type="text/javascript">
+        const storedTheme = localStorage.getItem('theme')
+
+        // Get the preferred theme from the user's OS
+        const getPreferredTheme = () => {
+            if (storedTheme) {
+                return storedTheme
+            }
+
+            return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+        }
+
+        // Set the bootstrap theme
+        const setTheme = function (theme) {
+            document.documentElement.setAttribute('data-bs-theme', theme)
+            if (theme === 'dark') {
+                document.getElementById('dark-mode-toggle').setAttribute('checked', true)
+                document.getElementById('dark-mode-icon').classList.replace('bi-brightness-high-fill', 'bi-brightness-low')
+            } else {
+                document.getElementById('dark-mode-toggle').setAttribute('checked', false)
+                document.getElementById('dark-mode-icon').classList.replace('bi-brightness-low', 'bi-brightness-high-fill')
+            }
+        }
+
+        // Returns true if the current theme is dark
+        const isDark = () => {
+            return document.documentElement.getAttribute('data-bs-theme') === 'dark'
+        }
+
+        // Toggles dark mode
+        const toggleDarkMode = () => {
+            const newTheme = isDark() ? 'light' : 'dark'
+            setTheme(newTheme)
+            localStorage.setItem('theme', newTheme)
+        }
+
+        // Set the preferred theme on page load
+        window.onload = () => {
+            // Set preferred theme
+            setTheme(getPreferredTheme());
+            // Initialize tooltips
+            const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]')
+            const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl))
+        }
+
+        // Toggle dark mode when the toggle button is clicked
+        addEventListener("click", (event) => {
+            if (event.target.id === 'dark-mode-toggle') {
+                toggleDarkMode();
+                // De-focus the toggle
+                document.activeElement.blur()
+            }
+        });
+    </script>
 </body>
 </html>
