@@ -46,7 +46,7 @@ jobs:
                   docker buildx build --push \
                     --tag "ethereumoptimism/op-geth:$CIRCLE_SHA1" \
                     --tag "ethereumoptimism/op-geth:$CIRCLE_BRANCH" \
-                    --tag "ethereumoptimism/op-geth:latest \
+                    --tag "ethereumoptimism/op-geth:latest" \
                     --platform=linux/arm64,linux/amd64 \
                     -f Dockerfile .
       # Below step is required to prevent CircleCI from barfing on a
