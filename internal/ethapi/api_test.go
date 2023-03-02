@@ -36,6 +36,15 @@ func TestNewRPCTransactionDepositTx(t *testing.T) {
 	require.Equal(t, got.Nonce, (hexutil.Uint64)(nonce), "newRPCTransaction().Mint = %v, want %v", got.Nonce, nonce)
 }
 
+func TestNewRPCTransactionOmitIsSystemTxFalse(t *testing.T) {
+	tx := types.NewTx(&types.DepositTx{
+		IsSystemTransaction: false,
+	})
+	got := newRPCTransaction(tx, common.Hash{}, uint64(12), uint64(1), big.NewInt(0), &params.ChainConfig{}, nil)
+
+	require.Nil(t, got.IsSystemTx, "should omit IsSystemTx when false")
+}
+
 func TestUnmarshalRpcDepositTx(t *testing.T) {
 	tests := []struct {
 		name     string
