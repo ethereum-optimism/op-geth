@@ -1326,7 +1326,7 @@ func (pool *TxPool) reset(oldHead, newHead *types.Header) {
 
 	costFn := types.NewL1CostFunc(pool.chainconfig, statedb)
 	pool.l1CostFn = func(message types.RollupMessage) *big.Int {
-		return costFn(newHead.Number.Uint64(), message)
+		return costFn(newHead.Number.Uint64(), newHead.Time, message)
 	}
 
 	// Inject any transactions discarded due to reorgs
