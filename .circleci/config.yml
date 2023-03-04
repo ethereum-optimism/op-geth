@@ -137,14 +137,14 @@ workflows:
           type: approval
           filters:
             tags:
-              only: /^op-geth\/v.*/
+              only: /^v.*/
             branches:
               ignore: /.*/
       - docker-release:
           name: Push to Docker
           filters:
             tags:
-              only: /^op-geth\/v.*/
+              only: /^v.*/
             branches:
               ignore: /.*/
           docker_tags: <<pipeline.git.revision>>,<<pipeline.git.tag>>
