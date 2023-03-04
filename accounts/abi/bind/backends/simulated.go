@@ -903,10 +903,11 @@ func (m callMsg) Gas() uint64                  { return m.CallMsg.Gas }
 func (m callMsg) Value() *big.Int              { return m.CallMsg.Value }
 func (m callMsg) Data() []byte                 { return m.CallMsg.Data }
 func (m callMsg) AccessList() types.AccessList { return m.CallMsg.AccessList }
-func (m callMsg) IsSystemTx() bool             { return false }
-func (m callMsg) IsDepositTx() bool            { return false }
-func (m callMsg) Mint() *big.Int               { return nil }
-func (m callMsg) RollupDataGas() uint64        { return 0 }
+
+func (m callMsg) IsSystemTx() bool                   { return false }
+func (m callMsg) IsDepositTx() bool                  { return false }
+func (m callMsg) Mint() *big.Int                     { return nil }
+func (m callMsg) RollupDataGas() types.RollupGasData { return types.RollupGasData{} }
 
 // filterBackend implements filters.Backend to support filtering for logs without
 // taking bloom-bits acceleration structures into account.
