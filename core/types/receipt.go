@@ -473,7 +473,7 @@ func (rs Receipts) EncodeIndex(i int, w *bytes.Buffer) {
 
 // DeriveFields fills the receipts with their computed fields based on consensus
 // data and contextual infos like containing block and transactions.
-func (rs Receipts) DeriveFields(config *params.ChainConfig, hash common.Hash, number uint64, txs Transactions) error {
+func (rs Receipts) DeriveFields(config *params.ChainConfig, hash common.Hash, number uint64, time uint64, txs Transactions) error {
 	signer := MakeSigner(config, new(big.Int).SetUint64(number))
 
 	logIndex := uint(0)
@@ -526,9 +526,10 @@ func (rs Receipts) DeriveFields(config *params.ChainConfig, hash common.Hash, nu
 			feeScalar := new(big.Float).Quo(fscalar, fdivisor)
 			for i := 0; i < len(rs); i++ {
 				if !txs[i].IsDepositTx() {
+					gas := txs[i].RollupDataGas().DataGas(time, config)
 					rs[i].L1GasPrice = l1Basefee
-					rs[i].L1GasUsed = new(big.Int).SetUint64(txs[i].RollupDataGas())
-					rs[i].L1Fee = L1Cost(txs[i].RollupDataGas(), l1Basefee, overhead, scalar)
+					rs[i].L1GasUsed = new(big.Int).SetUint64(gas)
+					rs[i].L1Fee = L1Cost(gas, l1Basefee, overhead, scalar)
 					rs[i].FeeScalar = feeScalar
 				}
 			}

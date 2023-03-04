@@ -29,7 +29,6 @@ import (
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
@@ -59,7 +58,7 @@ type Transaction struct {
 	size atomic.Value
 	from atomic.Value
 
-	// cache how much gas the tx takes on L1 for its share of rollup data
+	// cache of RollupGasData details to compute the gas the tx takes on L1 for its share of rollup data
 	rollupGas atomic.Value
 }
 
@@ -347,31 +346,27 @@ func (tx *Transaction) Cost() *big.Int {
 }
 
 // RollupDataGas is the amount of gas it takes to confirm the tx on L1 as a rollup
-func (tx *Transaction) RollupDataGas() uint64 {
+func (tx *Transaction) RollupDataGas() RollupGasData {
 	if tx.Type() == DepositTxType {
-		return 0
+		return RollupGasData{}
 	}
 	if v := tx.rollupGas.Load(); v != nil {
-		return v.(uint64)
+		return v.(RollupGasData)
 	}
 	data, err := tx.MarshalBinary()
 	if err != nil { // Silent error, invalid txs will not be marshalled/unmarshalled for batch submission anyway.
 		log.Error("failed to encode tx for L1 cost computation", "err", err)
 	}
-	var zeroes uint64
-	var ones uint64
+	var out RollupGasData
 	for _, byt := range data {
 		if byt == 0 {
-			zeroes++
+			out.Zeroes++
 		} else {
-			ones++
+			out.Ones++
 		}
 	}
-	zeroesGas := zeroes * params.TxDataZeroGas
-	onesGas := (ones + 68) * params.TxDataNonZeroGasEIP2028
-	total := zeroesGas + onesGas
-	tx.rollupGas.Store(total)
-	return total
+	tx.rollupGas.Store(out)
+	return out
 }
 
 // RawSignatureValues returns the V, R, S signature values of the transaction.
@@ -685,7 +680,7 @@ type Message struct {
 	isSystemTx  bool
 	isDepositTx bool
 	mint        *big.Int
-	l1CostGas   uint64
+	l1CostGas   RollupGasData
 }
 
 func NewMessage(from common.Address, to *common.Address, nonce uint64, amount *big.Int, gasLimit uint64, gasPrice, gasFeeCap, gasTipCap *big.Int, data []byte, accessList AccessList, isFake bool) Message {
@@ -705,7 +700,7 @@ func NewMessage(from common.Address, to *common.Address, nonce uint64, amount *b
 		isSystemTx:  false,
 		isDepositTx: false,
 		mint:        nil,
-		l1CostGas:   0,
+		l1CostGas:   RollupGasData{},
 	}
 }
 
@@ -748,10 +743,11 @@ func (m Message) Nonce() uint64          { return m.nonce }
 func (m Message) Data() []byte           { return m.data }
 func (m Message) AccessList() AccessList { return m.accessList }
 func (m Message) IsFake() bool           { return m.isFake }
-func (m Message) IsSystemTx() bool       { return m.isSystemTx }
-func (m Message) IsDepositTx() bool      { return m.isDepositTx }
-func (m Message) Mint() *big.Int         { return m.mint }
-func (m Message) RollupDataGas() uint64  { return m.l1CostGas }
+
+func (m Message) IsSystemTx() bool             { return m.isSystemTx }
+func (m Message) IsDepositTx() bool            { return m.isDepositTx }
+func (m Message) Mint() *big.Int               { return m.mint }
+func (m Message) RollupDataGas() RollupGasData { return m.l1CostGas }
 
 // copyAddressPtr copies an address.
 func copyAddressPtr(a *common.Address) *common.Address {

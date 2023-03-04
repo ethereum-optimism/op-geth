@@ -79,10 +79,10 @@ type Message interface {
 	Gas() uint64
 	Value() *big.Int
 
-	IsSystemTx() bool      // IsSystemTx indicates the message, if also a deposit, does not emit gas usage.
-	IsDepositTx() bool     // IsDepositTx indicates the message is force-included and can persist a mint.
-	Mint() *big.Int        // Mint is the amount to mint before EVM processing, or nil if there is no minting.
-	RollupDataGas() uint64 // RollupDataGas indicates the rollup cost of the message, 0 if not a rollup or no cost.
+	IsSystemTx() bool                   // IsSystemTx indicates the message, if also a deposit, does not emit gas usage.
+	IsDepositTx() bool                  // IsDepositTx indicates the message is force-included and can persist a mint.
+	Mint() *big.Int                     // Mint is the amount to mint before EVM processing, or nil if there is no minting.
+	RollupDataGas() types.RollupGasData // RollupDataGas indicates the rollup cost of the message, 0 if not a rollup or no cost.
 
 	Nonce() uint64
 	IsFake() bool
@@ -224,7 +224,7 @@ func (st *StateTransition) buyGas() error {
 	mgval = mgval.Mul(mgval, st.gasPrice)
 	var l1Cost *big.Int
 	if st.evm.Context.L1CostFunc != nil {
-		l1Cost = st.evm.Context.L1CostFunc(st.evm.Context.BlockNumber.Uint64(), st.msg)
+		l1Cost = st.evm.Context.L1CostFunc(st.evm.Context.BlockNumber.Uint64(), st.evm.Context.Time, st.msg)
 	}
 	if l1Cost != nil {
 		mgval = mgval.Add(mgval, l1Cost)
@@ -474,7 +474,7 @@ func (st *StateTransition) innerTransitionDb() (*ExecutionResult, error) {
 	// Note optimismConfig will not be nil if rules.IsOptimismBedrock is true
 	if optimismConfig := st.evm.ChainConfig().Optimism; optimismConfig != nil && rules.IsOptimismBedrock {
 		st.state.AddBalance(params.OptimismBaseFeeRecipient, new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), st.evm.Context.BaseFee))
-		if cost := st.evm.Context.L1CostFunc(st.evm.Context.BlockNumber.Uint64(), st.msg); cost != nil {
+		if cost := st.evm.Context.L1CostFunc(st.evm.Context.BlockNumber.Uint64(), st.evm.Context.Time, st.msg); cost != nil {
 			st.state.AddBalance(params.OptimismL1FeeRecipient, cost)
 		}
 	}
