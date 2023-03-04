@@ -1464,7 +1464,10 @@ func newRPCTransaction(tx *types.Transaction, blockHash common.Hash, blockNumber
 		srcHash := tx.SourceHash()
 		isSystemTx := tx.IsSystemTx()
 		result.SourceHash = &srcHash
-		result.IsSystemTx = &isSystemTx
+		if isSystemTx {
+			// Only include IsSystemTx when true
+			result.IsSystemTx = &isSystemTx
+		}
 		result.Mint = (*hexutil.Big)(tx.Mint())
 		if receipt != nil && receipt.DepositNonce != nil {
 			result.Nonce = hexutil.Uint64(*receipt.DepositNonce)
