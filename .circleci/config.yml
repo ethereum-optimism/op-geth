@@ -80,7 +80,7 @@ jobs:
           name: Build and push
           command: |
             IMAGE_BASE="<<parameters.registry>>/<<parameters.repo>>/<<parameters.docker_name>>"
-            DOCKER_TAGS=$(echo -ne <<parameters.docker_tags>> | sed "s/,/\n/g" | sed "s/[^a-zA-Z0-9\n]/-/g" | sed -e "s|^|-t ${IMAGE_BASE}:|")
+            DOCKER_TAGS=$(echo -ne <<parameters.docker_tags>> | sed "s/,/\n/g" | sed "s/[^a-zA-Z0-9\n.]/-/g" | sed -e "s|^|-t ${IMAGE_BASE}:|")
             docker context create buildx-build
             docker buildx create --use buildx-build
             docker buildx build --push \
