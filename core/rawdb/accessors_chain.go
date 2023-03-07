@@ -693,9 +693,22 @@ type receiptLogs struct {
 
 // DecodeRLP implements rlp.Decoder.
 func (r *receiptLogs) DecodeRLP(s *rlp.Stream) error {
-	var stored storedReceiptRLP
-	if err := s.Decode(&stored); err != nil {
+	blob, err := s.Raw()
+	if err != nil {
 		return err
+	}
+	var stored storedReceiptRLP
+	if err := rlp.DecodeBytes(blob, &stored); err != nil {
+		// Try to decode as a legacy receipt instead
+		var legacy types.LegacyOptimismStoredReceiptRLP
+		if err := rlp.DecodeBytes(blob, &legacy); err != nil {
+			return err
+		}
+		r.Logs = make([]*types.Log, len(stored.Logs))
+		for i, log := range legacy.Logs {
+			r.Logs[i] = (*types.Log)(log)
+		}
+		return nil
 	}
 	r.Logs = stored.Logs
 	return nil
