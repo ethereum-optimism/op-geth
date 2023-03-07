@@ -223,7 +223,7 @@ func (st *StateTransition) buyGas() error {
 	mgval := new(big.Int).SetUint64(st.msg.Gas())
 	mgval = mgval.Mul(mgval, st.gasPrice)
 	var l1Cost *big.Int
-	if st.evm.Context.L1CostFunc != nil {
+	if st.evm.Context.L1CostFunc != nil && !st.msg.IsFake() {
 		l1Cost = st.evm.Context.L1CostFunc(st.evm.Context.BlockNumber.Uint64(), st.evm.Context.Time, st.msg)
 	}
 	if l1Cost != nil {
