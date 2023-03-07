@@ -79,8 +79,12 @@ jobs:
       - run:
           name: Build and push
           command: |
+            RAW_TAGS="<<parameters.docker_tags>>"
+            if [ "$CIRCLE_BRANCH" = "optimism" ]; then
+              RAW_TAGS="$RAW_TAGS,optimism"
+            fi
             IMAGE_BASE="<<parameters.registry>>/<<parameters.repo>>/<<parameters.docker_name>>"
-            DOCKER_TAGS=$(echo -ne <<parameters.docker_tags>> | sed "s/,/\n/g" | sed "s/[^a-zA-Z0-9\n.]/-/g" | sed -e "s|^|-t ${IMAGE_BASE}:|")
+            DOCKER_TAGS=$(echo -ne "$RAW_TAGS" | sed "s/,/\n/g" | sed "s/[^a-zA-Z0-9\n.]/-/g" | sed -e "s|^|-t ${IMAGE_BASE}:|")
             docker context create buildx-build
             docker buildx create --use buildx-build
             docker buildx build --push \
