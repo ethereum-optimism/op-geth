@@ -119,7 +119,7 @@ func (b *testBackend) teardown() {
 
 // newTestBackend creates a test backend. OBS: don't forget to invoke tearDown
 // after use, otherwise the blockchain instance will mem-leak via goroutines.
-func newTestBackend(t *testing.T, londonBlock *big.Int, pending bool) *testBackend {
+func newTestBackend(t *testing.T, londonBlock *big.Int, pending bool, fullBlocks bool) *testBackend {
 	var (
 		key, _ = crypto.HexToECDSA("b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291")
 		addr   = crypto.PubkeyToAddress(key.PublicKey)
@@ -130,6 +130,10 @@ func newTestBackend(t *testing.T, londonBlock *big.Int, pending bool) *testBacke
 		}
 		signer = types.LatestSigner(gspec.Config)
 	)
+	if fullBlocks {
+		// this prevents blocks from seeming empty to test fee estimation
+		gspec.GasLimit = 30000
+	}
 	config.LondonBlock = londonBlock
 	config.ArrowGlacierBlock = londonBlock
 	config.GrayGlacierBlock = londonBlock
@@ -199,7 +203,7 @@ func TestSuggestTipCap(t *testing.T) {
 		{big.NewInt(33), big.NewInt(params.GWei * int64(30))}, // Fork point in the future
 	}
 	for _, c := range cases {
-		backend := newTestBackend(t, c.fork, false)
+		backend := newTestBackend(t, c.fork, false, true)
 		oracle := NewOracle(backend, config)
 
 		// The gas price sampled is: 32G, 31G, 30G, 29G, 28G, 27G
@@ -210,6 +214,22 @@ func TestSuggestTipCap(t *testing.T) {
 		}
 		if got.Cmp(c.expect) != 0 {
 			t.Fatalf("Gas price mismatch, want %d, got %d", c.expect, got)
+		}
+	}
+
+	// Run the tests again, only configured for mostly empty blocks
+	for _, c := range cases {
+		backend := newTestBackend(t, c.fork, false, false)
+		oracle := NewOracle(backend, config)
+
+		// The gas prices sampled will all be DefaultIgnorePrice when blocks are mostly empty
+		got, err := oracle.SuggestTipCap(context.Background())
+		backend.teardown()
+		if err != nil {
+			t.Fatalf("Failed to retrieve recommended gas price: %v", err)
+		}
+		if got.Cmp(DefaultIgnorePrice) != 0 {
+			t.Fatalf("Gas price mismatch, want %d, got %d", DefaultIgnorePrice, got)
 		}
 	}
 }

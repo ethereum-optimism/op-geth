@@ -188,10 +188,9 @@ func (oracle *Oracle) SuggestTipCap(ctx context.Context) (*big.Int, error) {
 			return new(big.Int).Set(lastPrice), res.err
 		}
 		exp--
-		// Nothing returned. There are two special cases here:
-		// - The block is empty
-		// - All the transactions included are sent by the miner itself.
-		// In these cases, use the latest calculated price for sampling.
+		// Nothing returned, which means all the transactions included are sent
+		// by the miner itself. In this case, use the latest calculated price
+		// for sampling.
 		if len(res.values) == 0 {
 			res.values = []*big.Int{lastPrice}
 		}
@@ -244,17 +243,19 @@ func (s *txSorter) Swap(i, j int) {
 	s.txs[i], s.txs[j] = s.txs[j], s.txs[i]
 }
 func (s *txSorter) Less(i, j int) bool {
-	// It's okay to discard the error because a tx would never be
-	// accepted into a block with an invalid effective tip.
-	tip1, _ := s.txs[i].EffectiveGasTip(s.baseFee)
-	tip2, _ := s.txs[j].EffectiveGasTip(s.baseFee)
+	tip1 := s.txs[i].EffectiveGasTipValue(s.baseFee)
+	tip2 := s.txs[j].EffectiveGasTipValue(s.baseFee)
 	return tip1.Cmp(tip2) < 0
 }
 
-// getBlockPrices calculates the lowest transaction gas price in a given block
-// and sends it to the result channel. If the block is empty or all transactions
-// are sent by the miner itself(it doesn't make any sense to include this kind of
-// transaction prices for sampling), nil gasprice is returned.
+// getBlockValues calculates the lowest 'limit' transaction gas prices in a
+// given block and sends it to the result channel. If all transactions are sent
+// by the miner itself(it doesn't make any sense to include this kind of
+// transaction prices for sampling), nil gasprice is returned. If the block is
+// mostly empty (defined as using less than half the gas target), then the
+// returned array is padded with ignoreUnder values up to the requested limit
+// instead of returning prices from the transactions, since in these cases the
+// tx tip is not predictive of inclusion.
 func (oracle *Oracle) getBlockValues(ctx context.Context, signer types.Signer, blockNum uint64, limit int, ignoreUnder *big.Int, result chan results, quit chan struct{}) {
 	block, err := oracle.backend.BlockByNumber(ctx, rpc.BlockNumber(blockNum))
 	if block == nil {
@@ -264,23 +265,37 @@ func (oracle *Oracle) getBlockValues(ctx context.Context, signer types.Signer, b
 		}
 		return
 	}
-	// Sort the transaction by effective tip in ascending sort.
-	txs := make([]*types.Transaction, len(block.Transactions()))
-	copy(txs, block.Transactions())
-	sorter := newSorter(txs, block.BaseFee())
-	sort.Sort(sorter)
 
+	gasTarget := block.GasLimit()
+	if oracle.backend.ChainConfig().IsLondon(block.Number()) {
+		gasTarget /= oracle.backend.ChainConfig().ElasticityMultiplier()
+	}
 	var prices []*big.Int
-	for _, tx := range sorter.txs {
-		tip, _ := tx.EffectiveGasTip(block.BaseFee())
-		if ignoreUnder != nil && tip.Cmp(ignoreUnder) == -1 {
-			continue
+	if block.GasUsed() < gasTarget/2 {
+		// If the block uses less gas than half the target, we consider it
+		// "mostly empty" and return only the minimum allowed estimate.
+		prices = make([]*big.Int, limit)
+		for i := range prices {
+			prices[i] = ignoreUnder
 		}
-		sender, err := types.Sender(signer, tx)
-		if err == nil && sender != block.Coinbase() {
-			prices = append(prices, tip)
-			if len(prices) >= limit {
-				break
+	} else {
+		// Sort the transaction by effective tip in ascending sort.
+		txs := make([]*types.Transaction, len(block.Transactions()))
+		copy(txs, block.Transactions())
+		sorter := newSorter(txs, block.BaseFee())
+		sort.Sort(sorter)
+
+		for _, tx := range sorter.txs {
+			tip := tx.EffectiveGasTipValue(block.BaseFee())
+			if ignoreUnder != nil && tip.Cmp(ignoreUnder) == -1 {
+				continue
+			}
+			sender, err := types.Sender(signer, tx)
+			if err == nil && sender != block.Coinbase() {
+				prices = append(prices, tip)
+				if len(prices) >= limit {
+					break
+				}
 			}
 		}
 	}

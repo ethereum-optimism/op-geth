@@ -39,6 +39,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/eth/ethconfig"
+	"github.com/ethereum/go-ethereum/eth/gasprice"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
@@ -582,24 +583,6 @@ func testStatusFunctions(t *testing.T, client *rpc.Client) {
 		t.Fatalf("unexpected networkID: %v", networkID)
 	}
 
-	// SuggestGasPrice
-	gasPrice, err := ec.SuggestGasPrice(context.Background())
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if gasPrice.Cmp(big.NewInt(1000000000)) != 0 {
-		t.Fatalf("unexpected gas price: %v", gasPrice)
-	}
-
-	// SuggestGasTipCap
-	gasTipCap, err := ec.SuggestGasTipCap(context.Background())
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if gasTipCap.Cmp(big.NewInt(234375000)) != 0 {
-		t.Fatalf("unexpected gas tip cap: %v", gasTipCap)
-	}
-
 	// FeeHistory
 	history, err := ec.FeeHistory(context.Background(), 1, big.NewInt(2), []float64{95, 99})
 	if err != nil {
@@ -622,6 +605,27 @@ func testStatusFunctions(t *testing.T, client *rpc.Client) {
 	if !reflect.DeepEqual(history, want) {
 		t.Fatalf("FeeHistory result doesn't match expected: (got: %v, want: %v)", history, want)
 	}
+
+	// SuggestGasTipCap
+	gasTipCap, err := ec.SuggestGasTipCap(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// Since these blocks are mostly empty, the suggested tip should be the minimum value
+	if gasTipCap.Cmp(gasprice.DefaultIgnorePrice) != 0 {
+		t.Fatalf("unexpected gas tip cap: %v", gasTipCap)
+	}
+
+	// SuggestGasPrice
+	gasPrice, err := ec.SuggestGasPrice(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// Suggested gas price should be the base fee plus suggested tip cap
+	if gasPrice.Cmp(gasTipCap.Add(gasTipCap, history.BaseFee[0])) != 0 {
+		t.Fatalf("unexpected gas price: %v", gasPrice)
+	}
+
 }
 
 func testCallContractAtHash(t *testing.T, client *rpc.Client) {
