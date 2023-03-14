@@ -657,6 +657,7 @@ func (api *API) traceBlock(ctx context.Context, block *types.Block, config *Trac
 		signer    = types.MakeSigner(api.backend.ChainConfig(), block.Number())
 		results   = make([]*txTraceResult, len(txs))
 	)
+	blockCtx.L1CostFunc = types.NewL1CostFunc(api.backend.ChainConfig(), statedb)
 	for i, tx := range txs {
 		// Generate the next state snapshot fast without tracing
 		msg, _ := tx.AsMessage(signer, block.BaseFee())
