@@ -23,6 +23,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/ethereum/go-ethereum/params"
 )
 
 // ChainContext supports retrieving headers and consensus parameters from the
@@ -36,7 +37,7 @@ type ChainContext interface {
 }
 
 // NewEVMBlockContext creates a new context for use in the EVM.
-func NewEVMBlockContext(header *types.Header, chain ChainContext, author *common.Address) vm.BlockContext {
+func NewEVMBlockContext(header *types.Header, chain ChainContext, author *common.Address, config *params.ChainConfig, statedb types.StateGetter) vm.BlockContext {
 	var (
 		beneficiary common.Address
 		baseFee     *big.Int
@@ -66,6 +67,7 @@ func NewEVMBlockContext(header *types.Header, chain ChainContext, author *common
 		BaseFee:     baseFee,
 		GasLimit:    header.GasLimit,
 		Random:      random,
+		L1CostFunc:  types.NewL1CostFunc(config, statedb),
 	}
 }
 

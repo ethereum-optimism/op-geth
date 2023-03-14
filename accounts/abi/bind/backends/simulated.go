@@ -716,8 +716,7 @@ func (b *SimulatedBackend) callContract(ctx context.Context, call ethereum.CallM
 	msg := callMsg{call}
 
 	txContext := core.NewEVMTxContext(msg)
-	evmContext := core.NewEVMBlockContext(block.Header(), b.blockchain, nil)
-	evmContext.L1CostFunc = types.NewL1CostFunc(b.config, stateDB)
+	evmContext := core.NewEVMBlockContext(block.Header(), b.blockchain, nil, b.config, stateDB)
 	// Create a new environment which holds all relevant information
 	// about the transaction and calling mechanisms.
 	vmEnv := vm.NewEVM(evmContext, txContext, stateDB, b.config, vm.Config{NoBaseFee: true})
