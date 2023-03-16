@@ -214,8 +214,7 @@ func (eth *Ethereum) stateAtTransaction(ctx context.Context, block *types.Block,
 		// Assemble the transaction call message and return if the requested offset
 		msg, _ := tx.AsMessage(signer, block.BaseFee())
 		txContext := core.NewEVMTxContext(msg)
-		context := core.NewEVMBlockContext(block.Header(), eth.blockchain, nil)
-		context.L1CostFunc = types.NewL1CostFunc(eth.blockchain.Config(), statedb)
+		context := core.NewEVMBlockContext(block.Header(), eth.blockchain, nil, eth.blockchain.Config(), statedb)
 		if idx == txIndex {
 			return msg, context, statedb, release, nil
 		}
