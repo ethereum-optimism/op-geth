@@ -98,7 +98,7 @@ jobs:
 
   build-geth:
     docker:
-      - image: cimg/go:1.18
+      - image: cimg/go:1.19
     resource_class: medium
     steps:
       - checkout
@@ -107,7 +107,7 @@ jobs:
   unit-test:
     resource_class: medium
     docker:
-      - image: cimg/go:1.18
+      - image: cimg/go:1.19
     steps:
       - checkout
       - run:
@@ -115,7 +115,7 @@ jobs:
   lint-geth:
     resource_class: medium
     docker:
-      - image: cimg/go:1.18
+      - image: cimg/go:1.19
     steps:
       - checkout
       - run:
