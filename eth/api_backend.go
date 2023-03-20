@@ -127,10 +127,16 @@ func (b *EthAPIBackend) BlockByNumber(ctx context.Context, number rpc.BlockNumbe
 	}
 	if number == rpc.FinalizedBlockNumber {
 		header := b.eth.blockchain.CurrentFinalBlock()
+		if header == nil {
+			return nil, nil
+		}
 		return b.eth.blockchain.GetBlock(header.Hash(), header.Number.Uint64()), nil
 	}
 	if number == rpc.SafeBlockNumber {
 		header := b.eth.blockchain.CurrentSafeBlock()
+		if header == nil {
+			return nil, nil
+		}
 		return b.eth.blockchain.GetBlock(header.Hash(), header.Number.Uint64()), nil
 	}
 	return b.eth.blockchain.GetBlockByNumber(uint64(number)), nil

@@ -720,7 +720,6 @@ func (b *SimulatedBackend) callContract(ctx context.Context, call ethereum.CallM
 	from := stateDB.GetOrNewStateObject(call.From)
 	from.SetBalance(math.MaxBig256)
 
-
 	// Execute the call.
 	msg := &core.Message{
 		From:              call.From,
