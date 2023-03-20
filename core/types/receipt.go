@@ -503,7 +503,6 @@ func (rs Receipts) DeriveFields(config *params.ChainConfig, hash common.Hash, nu
 				nonce = *rs[i].DepositNonce
 			}
 			rs[i].ContractAddress = crypto.CreateAddress(from, nonce)
-			rs[i].ContractAddress = crypto.CreateAddress(from, txs[i].Nonce())
 		} else {
 			rs[i].ContractAddress = common.Address{}
 		}

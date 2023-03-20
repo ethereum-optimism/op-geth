@@ -314,7 +314,7 @@ func TestDeriveFields(t *testing.T) {
 				},
 			},
 			TxHash:            txs[5].Hash(),
-			ContractAddress:   common.HexToAddress("0xbd770416a3345f91e4b34576cb804a576fa48eb1"),
+			ContractAddress:   common.HexToAddress("0x3bb898b4bbe24f68a4e9be46cfe72d1787fd74f4"),
 			GasUsed:           50,
 			EffectiveGasPrice: big.NewInt(0),
 			BlockHash:         blockHash,
