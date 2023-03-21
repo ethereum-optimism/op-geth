@@ -78,6 +78,10 @@ func (tx *DepositTx) nonce() uint64          { return 0 }
 func (tx *DepositTx) to() *common.Address    { return tx.To }
 func (tx *DepositTx) isSystemTx() bool       { return tx.IsSystemTransaction }
 
+func (tx *DepositTx) effectiveGasPrice(dst *big.Int, baseFee *big.Int) *big.Int {
+	return dst.Set(new(big.Int))
+}
+
 func (tx *DepositTx) effectiveNonce() *uint64 { return nil }
 
 func (tx *DepositTx) rawSignatureValues() (v, r, s *big.Int) {
