@@ -221,6 +221,10 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 	}
 	log.Info("Initialising Ethereum protocol", "network", config.NetworkId, "dbversion", dbVer)
 
+	if eth.blockchain.Config().Optimism != nil { // Optimism Bedrock depends on Merge functionality
+		eth.merger.FinalizePoS()
+	}
+
 	eth.bloomIndexer.Start(eth.blockchain)
 
 	if config.TxPool.Journal != "" {
