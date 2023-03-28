@@ -57,7 +57,7 @@ var noopReleaser = tracers.StateReleaseFunc(func() {})
 //   - preferDisk: this arg can be used by the caller to signal that even though the 'base' is
 //     provided, it would be preferable to start from a fresh state, if we have it
 //     on disk.
-func (eth *Ethereum) StateAtBlock(ctx context.Context, block *types.Block, reexec uint64, base *state.StateDB, readOnly bool, preferDisk bool) (statedb *state.StateDB, release tracers.StateReleaseFunc, err error) {
+func (eth *Ethereum) StateAtBlock(ctx context.Context, block *types.Block, reexec uint64, base *state.StateDB, readOnly bool, preferDisk bool, liveDb bool) (statedb *state.StateDB, release tracers.StateReleaseFunc, err error) {
 	var (
 		current  *types.Block
 		database state.Database
@@ -82,9 +82,21 @@ func (eth *Ethereum) StateAtBlock(ctx context.Context, block *types.Block, reexe
 	// isolating the live one.
 	if base != nil {
 		if preferDisk {
-			// Create an ephemeral trie.Database for isolating the live one. Otherwise
-			// the internal junks created by tracing will be persisted into the disk.
-			database = state.NewDatabaseWithConfig(eth.chainDb, &trie.Config{Cache: 16})
+			if liveDb {
+				// Grab the live database. Because we want to persist intermediate trie nodes to the
+				// database, we need to use the live database, not an ephemeral one. This is to help
+				// with syncing after a deep reorg, as persisting the state will allow for this function
+				// to pick up where it last left off.
+				// TODO: Instead of adding the arg to StateAtBlock, define a new function on the backend that
+				// returns the correct database to use.
+				database = state.NewDatabase(eth.chainDb)
+				log.Info("moose - live db - base present")
+			} else {
+				// Create an ephemeral trie.Database for isolating the live one. Otherwise
+				// the internal junks created by tracing will be persisted into the disk.
+				database = state.NewDatabaseWithConfig(eth.chainDb, &trie.Config{Cache: 16})
+			}
+
 			if statedb, err = state.New(block.Root(), database, nil); err == nil {
 				log.Info("Found disk backend for state trie", "root", block.Root(), "number", block.Number())
 				return statedb, noopReleaser, nil
@@ -97,9 +109,18 @@ func (eth *Ethereum) StateAtBlock(ctx context.Context, block *types.Block, reexe
 		// Otherwise, try to reexec blocks until we find a state or reach our limit
 		current = block
 
-		// Create an ephemeral trie.Database for isolating the live one. Otherwise
-		// the internal junks created by tracing will be persisted into the disk.
-		database = state.NewDatabaseWithConfig(eth.chainDb, &trie.Config{Cache: 16})
+		if liveDb {
+			// Grab the live database. Because we want to persist intermediate trie nodes to the
+			// database, we need to use the live database, not an ephemeral one. This is to help
+			// with syncing after a deep reorg, as persisting the state will allow for this function
+			// to pick up where it last left off.
+			database = state.NewDatabase(eth.chainDb)
+			log.Info("moose - live db - no base")
+		} else {
+			// Create an ephemeral trie.Database for isolating the live one. Otherwise
+			// the internal junks created by tracing will be persisted into the disk.
+			database = state.NewDatabaseWithConfig(eth.chainDb, &trie.Config{Cache: 16})
+		}
 
 		// If we didn't check the live database, do check state over ephemeral database,
 		// otherwise we would rewind past a persisted block (specific corner case is
@@ -176,6 +197,7 @@ func (eth *Ethereum) StateAtBlock(ctx context.Context, block *types.Block, reexe
 		// Hold the state reference and also drop the parent state
 		// to prevent accumulating too many nodes in memory.
 		database.TrieDB().Reference(root, common.Hash{})
+		// TODO: If we're writing to the live DB, should we be dereferencing the parent?
 		if parent != (common.Hash{}) {
 			database.TrieDB().Dereference(parent)
 		}
@@ -201,7 +223,7 @@ func (eth *Ethereum) stateAtTransaction(ctx context.Context, block *types.Block,
 	}
 	// Lookup the statedb of parent block from the live database,
 	// otherwise regenerate it on the flight.
-	statedb, release, err := eth.StateAtBlock(ctx, parent, reexec, nil, true, false)
+	statedb, release, err := eth.StateAtBlock(ctx, parent, reexec, nil, true, false, false)
 	if err != nil {
 		return nil, vm.BlockContext{}, nil, nil, err
 	}

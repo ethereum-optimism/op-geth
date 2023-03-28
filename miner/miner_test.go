@@ -56,7 +56,7 @@ func (m *mockBackend) TxPool() *txpool.TxPool {
 	return m.txPool
 }
 
-func (m *mockBackend) StateAtBlock(block *types.Block, reexec uint64, base *state.StateDB, checkLive bool, preferDisk bool) (statedb *state.StateDB, err error) {
+func (m *mockBackend) StateAtBlock(block *types.Block, reexec uint64, base *state.StateDB, checkLive bool, preferDisk bool, liveDb bool) (statedb *state.StateDB, err error) {
 	return nil, errors.New("not supported")
 }
 

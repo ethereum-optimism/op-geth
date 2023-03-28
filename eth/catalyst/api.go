@@ -226,6 +226,18 @@ func (api *ConsensusAPI) forkchoiceUpdated(update engine.ForkchoiceStateV1, payl
 	// need to either trigger a sync, or to reject this forkchoice update for a
 	// reason.
 	block := api.eth.BlockChain().GetBlockByHash(update.HeadBlockHash)
+
+	// TODO: We want the block here to be nil if it's very old compared to the head block
+	// Old is defined as > 128 blocks
+	// Check if we have the state for the block already.
+	// state, err := api.eth.BlockChain().StateAt(block.Hash())
+	// if block != nil && (err == nil && state == nil) {
+	// 	// Add block to remote headers before setting it to nil so that we can detect whether
+	// 	// or not we should sync towards it.
+	// 	api.remoteBlocks.put(block.Hash(), block.Header())
+	// 	block = nil
+	// }
+
 	if block == nil {
 		// If this block was previously invalidated, keep rejecting it here too
 		if res := api.checkInvalidAncestor(update.HeadBlockHash, update.HeadBlockHash); res != nil {

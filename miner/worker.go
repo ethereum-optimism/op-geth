@@ -796,11 +796,17 @@ func (w *worker) makeEnv(parent *types.Header, header *types.Header, coinbase co
 	// Retrieve the parent state to execute on top and start a prefetcher for
 	// the miner to speed block sealing up a bit.
 	state, err := w.chain.StateAt(parent.Root)
+	log.Info("moose - in miner.makeEnv")
+	if w.chainConfig.Optimism != nil && err == nil {
+		log.Info("moose - have op chain config, err is nil")
+	}
 	if err != nil && w.chainConfig.Optimism != nil { // Allow the miner to reorg its own chain arbitrarily deep
+		log.Info("moose - have op chain config")
 		if historicalBackend, ok := w.eth.(BackendWithHistoricalState); ok {
+			log.Info("moose - miner.makeEnv - using backend w/ historical state")
 			var release tracers.StateReleaseFunc
 			parentBlock := w.eth.BlockChain().GetBlockByHash(parent.Hash())
-			state, release, err = historicalBackend.StateAtBlock(context.Background(), parentBlock, ^uint64(0), nil, false, false)
+			state, release, err = historicalBackend.StateAtBlock(context.Background(), parentBlock, ^uint64(0), nil, false, false, true)
 			state = state.Copy()
 			release()
 		}

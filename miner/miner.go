@@ -46,7 +46,7 @@ type Backend interface {
 }
 
 type BackendWithHistoricalState interface {
-	StateAtBlock(ctx context.Context, block *types.Block, reexec uint64, base *state.StateDB, readOnly bool, preferDisk bool) (*state.StateDB, tracers.StateReleaseFunc, error)
+	StateAtBlock(ctx context.Context, block *types.Block, reexec uint64, base *state.StateDB, readOnly bool, preferDisk bool, liveDb bool) (*state.StateDB, tracers.StateReleaseFunc, error)
 }
 
 // Config is the configuration parameters of mining.
