@@ -168,6 +168,11 @@ func (oracle *Oracle) SuggestTipCap(ctx context.Context) (*big.Int, error) {
 	if headHash == lastHead {
 		return new(big.Int).Set(lastPrice), nil
 	}
+
+	if oracle.backend.ChainConfig().IsOptimism() {
+		return oracle.SuggestOptimismPriorityFee(ctx, head, headHash), nil
+	}
+
 	var (
 		sent, exp int
 		number    = head.Number.Uint64()
