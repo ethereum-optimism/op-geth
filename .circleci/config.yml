@@ -66,6 +66,10 @@ jobs:
         description: Docker repo
         type: string
         default: "oplabs-tools-artifacts/images"
+      push_tags:
+        description: Push release push tags
+        type: boolean
+        default: false
     machine:
       image: ubuntu-2204:2022.07.1
       resource_class: xlarge
@@ -96,6 +100,15 @@ jobs:
               --build-arg BUILDNUM=$CIRCLE_BUILD_NUM \
               --progress plain \
               -f Dockerfile .
+      - when:
+          condition:
+            equal: [ true, <<parameters.push_tags>> ]
+          steps:
+            - run:
+                name: Tag
+                command: |
+                  ./.circleci/ci-docker-tag-op-geth-release.sh <<parameters.registry>>/<<parameters.repo>> $CIRCLE_TAG $CIRCLE_SHA1
+
 
   build-geth:
     docker:
@@ -159,13 +172,14 @@ workflows:
             branches:
               ignore: /.*/
       - docker-release:
-          name: Push to Docker
+          name: Push to Docker (release)
           filters:
             tags:
               only: /^v.*/
             branches:
               ignore: /.*/
           docker_tags: <<pipeline.git.revision>>,<<pipeline.git.tag>>
+          push_tags: true
           context:
             - oplabs-gcr-release
           requires:
