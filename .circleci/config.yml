@@ -113,7 +113,7 @@ jobs:
   build-geth:
     docker:
       - image: cimg/go:1.19
-    resource_class: medium
+    resource_class: xlarge
     steps:
       - checkout
       - run:
