@@ -62,6 +62,8 @@ type Config struct {
 	Noverify   bool           // Disable remote mining solution verification(only useful in ethash).
 
 	NewPayloadTimeout time.Duration // The maximum time allowance for creating a new payload
+
+	RollupComputePendingBlock bool // Compute the pending block from tx-pool, instead of copying the latest-block
 }
 
 // DefaultConfig contains default settings for miner.
