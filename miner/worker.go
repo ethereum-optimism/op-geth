@@ -620,6 +620,9 @@ func (w *worker) mainLoop() {
 			}
 
 		case ev := <-w.txsCh:
+			if w.chainConfig.Optimism != nil && !w.config.RollupAllowPendingTxs {
+				break // pending blocks may have to stay empty
+			}
 			// Apply transactions to the pending state if we're not sealing
 			//
 			// Note all transactions received may not be continuous with transactions
@@ -1046,9 +1049,13 @@ func (w *worker) prepareWork(genParams *generateParams) (*environment, error) {
 	}
 	if genParams.gasLimit != nil { // override gas limit if specified
 		header.GasLimit = *genParams.gasLimit
-	} else if w.chain.Config().Optimism != nil && w.config.GasCeil != 0 {
-		// configure the gas limit of pending blocks with the miner gas limit config when using optimism
-		header.GasLimit = w.config.GasCeil
+	} else if w.chain.Config().Optimism != nil {
+		// when the gas limit is not explicitly set already, we are building a pending block.
+		if w.config.GasCeil != 0 {
+			// configure the gas limit of pending blocks with the miner gas limit config when using optimism
+			header.GasLimit = w.config.GasCeil
+		}
+		genParams.noTxs = !w.config.RollupAllowPendingTxs
 	}
 	// Run the consensus preparation with the default or customized consensus engine.
 	if err := w.engine.Prepare(w.chain, header); err != nil {
@@ -1181,7 +1188,9 @@ func (w *worker) commitWork(interrupt *int32, noempty bool, timestamp int64) {
 		w.commit(work.copy(), nil, false, start)
 	}
 	// Fill pending transactions from the txpool into the block.
-	err = w.fillTransactions(interrupt, work)
+	if w.chainConfig.Optimism == nil || w.config.RollupAllowPendingTxs { // pending block may have to be empty
+		err = w.fillTransactions(interrupt, work)
+	}
 	switch {
 	case err == nil:
 		// The entire block is filled, decrease resubmit interval in case

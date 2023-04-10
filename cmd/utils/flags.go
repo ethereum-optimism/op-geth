@@ -941,6 +941,11 @@ var (
 		Usage:    "Disable transaction pool gossip.",
 		Category: flags.RollupCategory,
 	}
+	RollupEnablePendingTxs = &cli.BoolFlag{
+		Name:     "rollup.enablependingtxs",
+		Usage:    "Enable the pending block building to include txs from the tx-pool",
+		Category: flags.RollupCategory,
+	}
 
 	// Metrics flags
 	MetricsEnabledFlag = &cli.BoolFlag{
@@ -1695,6 +1700,9 @@ func setMiner(ctx *cli.Context, cfg *miner.Config) {
 	}
 	if ctx.IsSet(MinerNewPayloadTimeout.Name) {
 		cfg.NewPayloadTimeout = ctx.Duration(MinerNewPayloadTimeout.Name)
+	}
+	if ctx.IsSet(RollupEnablePendingTxs.Name) {
+		cfg.RollupAllowPendingTxs = ctx.Bool(RollupEnablePendingTxs.Name)
 	}
 }
 
