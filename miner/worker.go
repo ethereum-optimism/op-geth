@@ -384,6 +384,9 @@ func (w *worker) enablePreseal() {
 
 // pending returns the pending state and corresponding block.
 func (w *worker) pending() (*types.Block, *state.StateDB) {
+	if w.chainConfig.Optimism != nil && !w.config.RollupComputePendingBlock {
+		return nil, nil // when not computing the pending block, there is never a pending state
+	}
 	// return a snapshot to avoid contention on currentMu mutex
 	w.snapshotMu.RLock()
 	defer w.snapshotMu.RUnlock()
@@ -395,6 +398,12 @@ func (w *worker) pending() (*types.Block, *state.StateDB) {
 
 // pendingBlock returns pending block.
 func (w *worker) pendingBlock() *types.Block {
+	if w.chainConfig.Optimism != nil && !w.config.RollupComputePendingBlock {
+		// For compatibility when not computing a pending block, we serve the latest block as "pending"
+		headHeader := w.eth.BlockChain().CurrentHeader()
+		headBlock := w.eth.BlockChain().GetBlock(headHeader.Hash(), headHeader.Number.Uint64())
+		return headBlock
+	}
 	// return a snapshot to avoid contention on currentMu mutex
 	w.snapshotMu.RLock()
 	defer w.snapshotMu.RUnlock()
@@ -403,6 +412,9 @@ func (w *worker) pendingBlock() *types.Block {
 
 // pendingBlockAndReceipts returns pending block and corresponding receipts.
 func (w *worker) pendingBlockAndReceipts() (*types.Block, types.Receipts) {
+	if w.chainConfig.Optimism != nil && !w.config.RollupComputePendingBlock {
+		return nil, nil // when not computing the pending block, there are no pending receipts, and thus no pending logs
+	}
 	// return a snapshot to avoid contention on currentMu mutex
 	w.snapshotMu.RLock()
 	defer w.snapshotMu.RUnlock()
@@ -458,6 +470,19 @@ func recalcRecommit(minRecommit, prev time.Duration, target float64, inc bool) t
 // newWorkLoop is a standalone goroutine to submit new sealing work upon received events.
 func (w *worker) newWorkLoop(recommit time.Duration) {
 	defer w.wg.Done()
+	if w.chainConfig.Optimism != nil && !w.config.RollupComputePendingBlock {
+		for { // do not update the pending-block, instead drain work without doing it, to keep producers from blocking.
+			select {
+			case <-w.startCh:
+			case <-w.chainHeadCh:
+			case <-w.resubmitIntervalCh:
+			case <-w.resubmitAdjustCh:
+			case <-w.exitCh:
+				return
+			}
+		}
+	}
+
 	var (
 		interrupt   *atomic.Int32
 		minRecommit = recommit // minimal resubmit interval specified by user.
@@ -620,6 +645,9 @@ func (w *worker) mainLoop() {
 			}
 
 		case ev := <-w.txsCh:
+			if w.chainConfig.Optimism != nil && !w.config.RollupComputePendingBlock {
+				continue // don't update the pending-block snapshot if we are not computing the pending block
+			}
 			// Apply transactions to the pending state if we're not sealing
 			//
 			// Note all transactions received may not be continuous with transactions
