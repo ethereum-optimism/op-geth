@@ -39,7 +39,7 @@ var (
 	OptimismGoerliChainId = big.NewInt(420)
 	// March 17, 2023 @ 7:00:00 pm UTC
 	OptimismGoerliRegolithTime = uint64(1679079600)
-	BaseGoerliChainId = big.NewInt(84531)
+	BaseGoerliChainId          = big.NewInt(84531)
 	// April 27, 2023 @ 5:00:00 pm UTC
 	BaseGoerliRegolithTime = uint64(1682614800)
 )
