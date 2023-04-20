@@ -99,6 +99,11 @@ var (
 var (
 	evictionInterval    = time.Minute     // Time interval to check for evictable transactions
 	statsReportInterval = 8 * time.Second // Time interval to report transaction pool stats
+
+	// L1 Info Gas Overhead is the amount of gas the the L1 info deposit consumes.
+	// It is removed from the tx pool max gas to better indicate that L2 transactions
+	// are not able to consume all of the gas in a L2 block as the L1 info deposit is always present.
+	l1InfoGasOverhead = uint64(70_000)
 )
 
 var (
@@ -1391,6 +1396,9 @@ func (pool *TxPool) reset(oldHead, newHead *types.Header) {
 	pool.currentState = statedb
 	pool.pendingNonces = newNoncer(statedb)
 	pool.currentMaxGas = newHead.GasLimit
+	if pool.chainconfig.IsOptimism() {
+		pool.currentMaxGas -= l1InfoGasOverhead
+	}
 
 	costFn := types.NewL1CostFunc(pool.chainconfig, statedb)
 	pool.l1CostFn = func(dataGas types.RollupGasData, isDepositTx bool) *big.Int {
