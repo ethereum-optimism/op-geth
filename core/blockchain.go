@@ -507,14 +507,23 @@ func (bc *BlockChain) loadLastState() error {
 	if head := rawdb.ReadFinalizedBlockHash(bc.db); head != (common.Hash{}) {
 		if block := bc.GetBlockByHash(head); block != nil {
 			// Base regolith activation fix:
-			// reset the finalized block to the parent pre-regolith block,
-			// if the block at the fork height does not match the pre-regolith
-			// 0x747... block-hash of the sequencer.
-			prev := bc.GetBlockByNumber(0x389e80)
-			if bc.chainConfig.ChainID.Cmp(params.BaseGoerliChainId) == 0 &&
-				prev != nil &&
-				prev.Hash() != common.HexToHash("0x747b820bf5cf3776d88eb542dbedd3c51042971c898a96808e7a647e552b4189") {
-				block = bc.GetBlockByHash(prev.ParentHash())
+			if bc.chainConfig.ChainID.Cmp(params.BaseGoerliChainId) == 0 {
+				// Reset the finalized block to the parent pre-regolith block:
+				// 1) to covers stuck nodes synced up to the block after the fork-boundary,
+				//    including those that might have multiple blocks after the fork boundary,
+				//    we check if the chain at the first post-boundary block does not match the good hash
+				//    and revert it to the pre-fork block (parent of this) if so.
+				// 2) to cover nodes that have reverted their canonical chain to pre-fork blocks,
+				//    we cannot fetch the block by height, but we can reset the finalization marker
+				//    to match the head, which should be valid (since it was reverted).
+				prev := bc.GetBlockByNumber(0x389e80)
+				good := common.HexToHash("0x747b820bf5cf3776d88eb542dbedd3c51042971c898a96808e7a647e552b4189")
+				bad := common.HexToHash("0x6b46b1ada3465df628b382b74c22295eeb069ae5d7d5fed2297f1f44285f4ce6")
+				if prev != nil && prev.Hash() != good {
+					block = bc.GetBlockByHash(prev.ParentHash())
+				} else if block.NumberU64() == 0x389e80 && block.Hash() == bad {
+					block = headBlock
+				}
 			}
 			bc.currentFinalBlock.Store(block.Header())
 			headFinalizedBlockGauge.Update(int64(block.NumberU64()))
