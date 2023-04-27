@@ -65,6 +65,12 @@ const (
 // 0x20 range - crypto.
 const (
 	KECCAK256 OpCode = 0x20
+	DBCREATE  OpCode = 0x21
+	DBQUERY   OpCode = 0x22
+	DBDELETE  OpCode = 0x23
+	DBUPDATE  OpCode = 0x24
+	DBVALLEN  OpCode = 0x25
+	DBTEST    OpCode = 0x2f
 )
 
 // 0x30 range - closure state.

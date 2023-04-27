@@ -419,7 +419,12 @@ func (st *StateTransition) innerTransitionDb() (*ExecutionResult, error) {
 	} else {
 		// Increment the nonce for the next transaction
 		st.state.SetNonce(msg.From(), st.state.GetNonce(sender.Address())+1)
+		// lock tx
+		st.evm.LockTx()
+		// evm contract call
 		ret, st.gas, vmerr = st.evm.Call(sender, st.to(), st.data, st.gas, st.value)
+		// unlock tx
+		st.evm.UnlockTx()
 	}
 
 	// if deposit: skip refunds, skip tipping coinbase

@@ -87,6 +87,10 @@ type TxContext struct {
 	// Message information
 	Origin   common.Address // Provides information for ORIGIN
 	GasPrice *big.Int       // Provides information for GASPRICE
+
+	TxHash          common.Hash
+	ChainId         *big.Int
+	ContractAddress common.Address
 }
 
 // EVM is the Ethereum Virtual Machine base object and provides
@@ -104,6 +108,8 @@ type EVM struct {
 	TxContext
 	// StateDB gives access to the underlying state
 	StateDB StateDB
+	// SimpleKVDB is a simple key-value database used for the EVM
+	Topia *TopiaDB
 	// Depth is the current call stack
 	depth int
 
@@ -133,6 +139,7 @@ func NewEVM(blockCtx BlockContext, txCtx TxContext, statedb StateDB, chainConfig
 		Context:     blockCtx,
 		TxContext:   txCtx,
 		StateDB:     statedb,
+		Topia:       NewTopiaDB("http://localhost:50021"),
 		Config:      config,
 		chainConfig: chainConfig,
 		chainRules:  chainConfig.Rules(blockCtx.BlockNumber, blockCtx.Random != nil, blockCtx.Time),
@@ -526,3 +533,11 @@ func (evm *EVM) Create2(caller ContractRef, code []byte, gas uint64, endowment *
 
 // ChainConfig returns the environment's chain configuration
 func (evm *EVM) ChainConfig() *params.ChainConfig { return evm.chainConfig }
+
+func (evm *EVM) LockTx() {
+	evm.Topia.Lock()
+}
+
+func (evm *EVM) UnlockTx() {
+	evm.Topia.Unlock()
+}
