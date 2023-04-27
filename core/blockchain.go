@@ -506,6 +506,16 @@ func (bc *BlockChain) loadLastState() error {
 	// known finalized block on startup
 	if head := rawdb.ReadFinalizedBlockHash(bc.db); head != (common.Hash{}) {
 		if block := bc.GetBlockByHash(head); block != nil {
+			// Base regolith activation fix:
+			// reset the finalized block to the parent pre-regolith block,
+			// if the block at the fork height does not match the pre-regolith
+			// 0x747... block-hash of the sequencer.
+			prev := bc.GetBlockByNumber(0x389e80)
+			if bc.chainConfig.ChainID.Cmp(params.BaseGoerliChainId) == 0 &&
+				prev != nil &&
+				prev.Hash() != common.HexToHash("0x747b820bf5cf3776d88eb542dbedd3c51042971c898a96808e7a647e552b4189") {
+				block = bc.GetBlockByHash(prev.ParentHash())
+			}
 			bc.currentFinalBlock.Store(block.Header())
 			headFinalizedBlockGauge.Update(int64(block.NumberU64()))
 			bc.currentSafeBlock.Store(block.Header())
