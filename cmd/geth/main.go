@@ -156,6 +156,7 @@ var (
 		utils.RollupHistoricalRPCFlag,
 		utils.RollupHistoricalRPCTimeoutFlag,
 		utils.RollupDisableTxPoolGossipFlag,
+		utils.RollupComputePendingBlock,
 		configFileFlag,
 	}, utils.NetworkFlags, utils.DatabasePathFlags)
 
