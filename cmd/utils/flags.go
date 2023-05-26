@@ -941,6 +941,11 @@ var (
 		Usage:    "Disable transaction pool gossip.",
 		Category: flags.RollupCategory,
 	}
+	RollupComputePendingBlock = &cli.BoolFlag{
+		Name:     "rollup.computependingblock",
+		Usage:    "By default the pending block equals the latest block to save resources and not leak txs from the tx-pool, this flag enables computing of the pending block from the tx-pool instead.",
+		Category: flags.RollupCategory,
+	}
 
 	// Metrics flags
 	MetricsEnabledFlag = &cli.BoolFlag{
@@ -1695,6 +1700,9 @@ func setMiner(ctx *cli.Context, cfg *miner.Config) {
 	}
 	if ctx.IsSet(MinerNewPayloadTimeout.Name) {
 		cfg.NewPayloadTimeout = ctx.Duration(MinerNewPayloadTimeout.Name)
+	}
+	if ctx.IsSet(RollupComputePendingBlock.Name) {
+		cfg.RollupComputePendingBlock = ctx.Bool(RollupComputePendingBlock.Name)
 	}
 }
 
