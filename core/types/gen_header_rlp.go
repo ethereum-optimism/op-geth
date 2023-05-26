@@ -42,8 +42,8 @@ func (obj *Header) EncodeRLP(_w io.Writer) error {
 	w.WriteBytes(obj.Nonce[:])
 	_tmp1 := obj.BaseFee != nil
 	_tmp2 := obj.WithdrawalsHash != nil
-	_tmp3 := obj.ExcessDataGas != nil
-	_tmp4 := obj.DataGasUsed != nil
+	_tmp3 := obj.DataGasUsed != nil
+	_tmp4 := obj.ExcessDataGas != nil
 	if _tmp1 || _tmp2 || _tmp3 || _tmp4 {
 		if obj.BaseFee == nil {
 			w.Write(rlp.EmptyString)
@@ -62,17 +62,17 @@ func (obj *Header) EncodeRLP(_w io.Writer) error {
 		}
 	}
 	if _tmp3 || _tmp4 {
-		if obj.ExcessDataGas == nil {
-			w.Write([]byte{0x80})
-		} else {
-			w.WriteUint64((*obj.ExcessDataGas))
-		}
-	}
-	if _tmp4 {
 		if obj.DataGasUsed == nil {
 			w.Write([]byte{0x80})
 		} else {
 			w.WriteUint64((*obj.DataGasUsed))
+		}
+	}
+	if _tmp4 {
+		if obj.ExcessDataGas == nil {
+			w.Write([]byte{0x80})
+		} else {
+			w.WriteUint64((*obj.ExcessDataGas))
 		}
 	}
 	w.ListEnd(_tmp0)

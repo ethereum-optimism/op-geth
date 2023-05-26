@@ -27,7 +27,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/holiman/uint256"
 	"github.com/kylelemons/godebug/diff"
 )
 
@@ -132,20 +131,20 @@ var (
 		NewTx(&BlobTx{
 			To:         to6,
 			Nonce:      6,
-			Value:      uint256.NewInt(6),
+			Value:      big.NewInt(6),
 			Gas:        6,
-			GasTipCap:  uint256.NewInt(66),
-			GasFeeCap:  uint256.NewInt(1066),
-			BlobFeeCap: uint256.NewInt(100066),
+			GasTipCap:  big.NewInt(66),
+			GasFeeCap:  big.NewInt(1066),
+			BlobFeeCap: big.NewInt(100066),
 		}),
 		NewTx(&BlobTx{
 			To:         to7,
 			Nonce:      7,
-			Value:      uint256.NewInt(7),
+			Value:      big.NewInt(7),
 			Gas:        7,
-			GasTipCap:  uint256.NewInt(77),
-			GasFeeCap:  uint256.NewInt(1077),
-			BlobFeeCap: uint256.NewInt(100077),
+			GasTipCap:  big.NewInt(77),
+			GasFeeCap:  big.NewInt(1077),
+			BlobFeeCap: big.NewInt(100077),
 		}),
 	}
 

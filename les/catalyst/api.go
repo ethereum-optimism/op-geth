@@ -106,7 +106,7 @@ func (api *ConsensusAPI) GetPayloadV1(payloadID engine.PayloadID) (*engine.Execu
 
 // ExecutePayloadV1 creates an Eth1 block, inserts it in the chain, and returns the status of the chain.
 func (api *ConsensusAPI) ExecutePayloadV1(params engine.ExecutableData) (engine.PayloadStatusV1, error) {
-	block, err := engine.ExecutableDataToBlock(params)
+	block, err := engine.ExecutableDataToBlock(params, nil)
 	if err != nil {
 		return api.invalid(), err
 	}

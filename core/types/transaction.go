@@ -98,6 +98,10 @@ type TxData interface {
 	effectiveGasPrice(dst *big.Int, baseFee *big.Int) *big.Int
 }
 
+func (tx *Transaction) Inner() TxData {
+	return tx.inner
+}
+
 // EncodeRLP implements rlp.Encoder
 func (tx *Transaction) EncodeRLP(w io.Writer) error {
 	if tx.Type() == LegacyTxType {
@@ -196,9 +200,14 @@ func (tx *Transaction) decodeTyped(b []byte) (TxData, error) {
 		err := rlp.DecodeBytes(b[1:], &inner)
 		return &inner, err
 	case BlobTxType:
-		var inner BlobTx
-		err := rlp.DecodeBytes(b[1:], &inner)
-		return &inner, err
+		var envelope BlobTxWithBlobs
+		err := rlp.DecodeBytes(b[1:], &envelope)
+		if err != nil {
+			var inner BlobTx
+			err := rlp.DecodeBytes(b[1:], &inner)
+			return &inner, err
+		}
+		return &envelope, err
 	default:
 		return nil, ErrTxTypeNotSupported
 	}

@@ -85,11 +85,11 @@ type Header struct {
 	// WithdrawalsHash was added by EIP-4895 and is ignored in legacy headers.
 	WithdrawalsHash *common.Hash `json:"withdrawalsRoot" rlp:"optional"`
 
-	// ExcessDataGas was added by EIP-4844 and is ignored in legacy headers.
-	ExcessDataGas *uint64 `json:"excessDataGas" rlp:"optional"`
-
 	// DataGasUsed was added by EIP-4844 and is ignored in legacy headers.
 	DataGasUsed *uint64 `json:"dataGasUsed" rlp:"optional"`
+
+	// ExcessDataGas was added by EIP-4844 and is ignored in legacy headers.
+	ExcessDataGas *uint64 `json:"excessDataGas" rlp:"optional"`
 }
 
 // field type overrides for gencodec
@@ -102,8 +102,8 @@ type headerMarshaling struct {
 	Extra         hexutil.Bytes
 	BaseFee       *hexutil.Big
 	Hash          common.Hash `json:"hash"` // adds call to Hash() in MarshalJSON
-	ExcessDataGas *hexutil.Uint64
 	DataGasUsed   *hexutil.Uint64
+	ExcessDataGas *hexutil.Uint64
 }
 
 // Hash returns the block hash of the header, which is simply the keccak256 hash of its
@@ -283,6 +283,14 @@ func CopyHeader(h *Header) *Header {
 	if h.WithdrawalsHash != nil {
 		cpy.WithdrawalsHash = new(common.Hash)
 		*cpy.WithdrawalsHash = *h.WithdrawalsHash
+	}
+	if h.ExcessDataGas != nil {
+		excessDataGas := *h.ExcessDataGas
+		cpy.ExcessDataGas = &excessDataGas
+	}
+	if h.DataGasUsed != nil {
+		dataGasUsed := *h.DataGasUsed
+		cpy.DataGasUsed = &dataGasUsed
 	}
 	return &cpy
 }

@@ -20,28 +20,48 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto/kzg4844"
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/holiman/uint256"
 )
 
 // BlobTx represents an EIP-4844 transaction.
 type BlobTx struct {
-	ChainID    *uint256.Int
+	ChainID    *big.Int
 	Nonce      uint64
-	GasTipCap  *uint256.Int // a.k.a. maxPriorityFeePerGas
-	GasFeeCap  *uint256.Int // a.k.a. maxFeePerGas
+	GasTipCap  *big.Int // a.k.a. maxPriorityFeePerGas
+	GasFeeCap  *big.Int // a.k.a. maxFeePerGas
 	Gas        uint64
 	To         common.Address
-	Value      *uint256.Int
+	Value      *big.Int
 	Data       []byte
 	AccessList AccessList
-	BlobFeeCap *uint256.Int // a.k.a. maxFeePerDataGas
+	BlobFeeCap *big.Int // a.k.a. maxFeePerDataGas
 	BlobHashes []common.Hash
 
 	// Signature values
-	V *uint256.Int `json:"v" gencodec:"required"`
-	R *uint256.Int `json:"r" gencodec:"required"`
-	S *uint256.Int `json:"s" gencodec:"required"`
+	V *big.Int `json:"v" gencodec:"required"`
+	R *big.Int `json:"r" gencodec:"required"`
+	S *big.Int `json:"s" gencodec:"required"`
+}
+
+type BlobTxWithBlobs struct {
+	*BlobTx
+	Blobs       []kzg4844.Blob
+	Commitments []kzg4844.Commitment
+	Proofs      []kzg4844.Proof
+}
+
+func (tx *BlobTxWithBlobs) copy() TxData {
+	cpy := BlobTxWithBlobs{
+		BlobTx:      tx.BlobTx.copy().(*BlobTx),
+		Blobs:       make([]kzg4844.Blob, len(tx.Blobs)),
+		Commitments: make([]kzg4844.Commitment, len(tx.Commitments)),
+		Proofs:      make([]kzg4844.Proof, len(tx.Proofs)),
+	}
+	copy(cpy.Blobs, tx.Blobs)
+	copy(cpy.Commitments, tx.Commitments)
+	copy(cpy.Proofs, tx.Proofs)
+	return &cpy
 }
 
 // copy creates a deep copy of the transaction data and initializes all fields.
@@ -54,14 +74,14 @@ func (tx *BlobTx) copy() TxData {
 		// These are copied below.
 		AccessList: make(AccessList, len(tx.AccessList)),
 		BlobHashes: make([]common.Hash, len(tx.BlobHashes)),
-		Value:      new(uint256.Int),
-		ChainID:    new(uint256.Int),
-		GasTipCap:  new(uint256.Int),
-		GasFeeCap:  new(uint256.Int),
-		BlobFeeCap: new(uint256.Int),
-		V:          new(uint256.Int),
-		R:          new(uint256.Int),
-		S:          new(uint256.Int),
+		Value:      new(big.Int),
+		ChainID:    new(big.Int),
+		GasTipCap:  new(big.Int),
+		GasFeeCap:  new(big.Int),
+		BlobFeeCap: new(big.Int),
+		V:          new(big.Int),
+		R:          new(big.Int),
+		S:          new(big.Int),
 	}
 	copy(cpy.AccessList, tx.AccessList)
 	copy(cpy.BlobHashes, tx.BlobHashes)
@@ -95,38 +115,38 @@ func (tx *BlobTx) copy() TxData {
 
 // accessors for innerTx.
 func (tx *BlobTx) txType() byte              { return BlobTxType }
-func (tx *BlobTx) chainID() *big.Int         { return tx.ChainID.ToBig() }
+func (tx *BlobTx) chainID() *big.Int         { return tx.ChainID }
 func (tx *BlobTx) accessList() AccessList    { return tx.AccessList }
 func (tx *BlobTx) data() []byte              { return tx.Data }
 func (tx *BlobTx) gas() uint64               { return tx.Gas }
-func (tx *BlobTx) gasFeeCap() *big.Int       { return tx.GasFeeCap.ToBig() }
-func (tx *BlobTx) gasTipCap() *big.Int       { return tx.GasTipCap.ToBig() }
-func (tx *BlobTx) gasPrice() *big.Int        { return tx.GasFeeCap.ToBig() }
-func (tx *BlobTx) value() *big.Int           { return tx.Value.ToBig() }
+func (tx *BlobTx) gasFeeCap() *big.Int       { return tx.GasFeeCap }
+func (tx *BlobTx) gasTipCap() *big.Int       { return tx.GasTipCap }
+func (tx *BlobTx) gasPrice() *big.Int        { return tx.GasFeeCap }
+func (tx *BlobTx) value() *big.Int           { return tx.Value }
 func (tx *BlobTx) nonce() uint64             { return tx.Nonce }
 func (tx *BlobTx) to() *common.Address       { tmp := tx.To; return &tmp }
 func (tx *BlobTx) blobGas() uint64           { return params.BlobTxDataGasPerBlob * uint64(len(tx.BlobHashes)) }
-func (tx *BlobTx) blobGasFeeCap() *big.Int   { return tx.BlobFeeCap.ToBig() }
+func (tx *BlobTx) blobGasFeeCap() *big.Int   { return tx.BlobFeeCap }
 func (tx *BlobTx) blobHashes() []common.Hash { return tx.BlobHashes }
 
 func (tx *BlobTx) effectiveGasPrice(dst *big.Int, baseFee *big.Int) *big.Int {
 	if baseFee == nil {
-		return dst.Set(tx.GasFeeCap.ToBig())
+		return dst.Set(tx.GasFeeCap)
 	}
-	tip := dst.Sub(tx.GasFeeCap.ToBig(), baseFee)
-	if tip.Cmp(tx.GasTipCap.ToBig()) > 0 {
-		tip.Set(tx.GasTipCap.ToBig())
+	tip := dst.Sub(tx.GasFeeCap, baseFee)
+	if tip.Cmp(tx.GasTipCap) > 0 {
+		tip.Set(tx.GasTipCap)
 	}
 	return tip.Add(tip, baseFee)
 }
 
 func (tx *BlobTx) rawSignatureValues() (v, r, s *big.Int) {
-	return tx.V.ToBig(), tx.R.ToBig(), tx.S.ToBig()
+	return tx.V, tx.R, tx.S
 }
 
 func (tx *BlobTx) setSignatureValues(chainID, v, r, s *big.Int) {
-	tx.ChainID.SetFromBig(chainID)
-	tx.V.SetFromBig(v)
-	tx.R.SetFromBig(r)
-	tx.S.SetFromBig(s)
+	tx.ChainID.Set(chainID)
+	tx.V.Set(v)
+	tx.R.Set(r)
+	tx.S.Set(s)
 }

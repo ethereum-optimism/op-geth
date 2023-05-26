@@ -895,6 +895,16 @@ func (w *worker) prepareWork(genParams *generateParams) (*environment, error) {
 			header.GasLimit = core.CalcGasLimit(parentGasLimit, w.config.GasCeil)
 		}
 	}
+	if w.chainConfig.IsCancun(header.Number, header.Time) {
+		var excessData uint64
+		if w.chainConfig.IsCancun(parent.Number, parent.Time) {
+			excessData = misc.CalcExcessDataGas(*parent.ExcessDataGas, *parent.DataGasUsed)
+		} else {
+			// For the first post-fork block, both parent.data_gas_used and parent.excess_data_gas are evaluated as 0
+			excessData = misc.CalcExcessDataGas(0, 0)
+		}
+		header.ExcessDataGas = &excessData
+	}
 	// Run the consensus preparation with the default or customized consensus engine.
 	if err := w.engine.Prepare(w.chain, header); err != nil {
 		log.Error("Failed to prepare header for sealing", "err", err)
