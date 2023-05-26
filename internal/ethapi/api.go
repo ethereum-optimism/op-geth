@@ -774,7 +774,7 @@ func (s *BlockChainAPI) GetHeaderByNumber(ctx context.Context, number rpc.BlockN
 	header, err := s.b.HeaderByNumber(ctx, number)
 	if header != nil && err == nil {
 		response := s.rpcMarshalHeader(ctx, header)
-		if number == rpc.PendingBlockNumber {
+		if number == rpc.PendingBlockNumber && s.b.ChainConfig().Optimism == nil { // don't remove info if optimism
 			// Pending header need to nil out a few fields
 			for _, field := range []string{"hash", "nonce", "miner"} {
 				response[field] = nil
@@ -803,7 +803,7 @@ func (s *BlockChainAPI) GetBlockByNumber(ctx context.Context, number rpc.BlockNu
 	block, err := s.b.BlockByNumber(ctx, number)
 	if block != nil && err == nil {
 		response, err := s.rpcMarshalBlock(ctx, block, true, fullTx)
-		if err == nil && number == rpc.PendingBlockNumber {
+		if err == nil && number == rpc.PendingBlockNumber && s.b.ChainConfig().Optimism == nil { // don't remove info if optimism
 			// Pending blocks need to nil out a few fields
 			for _, field := range []string{"hash", "nonce", "miner"} {
 				response[field] = nil
