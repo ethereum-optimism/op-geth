@@ -172,6 +172,10 @@ type Config struct {
 	Journal   string           // Journal of local transactions to survive node restarts
 	Rejournal time.Duration    // Time interval to regenerate the local transaction journal
 
+	// JournalRemote controls whether journaling includes remote transactions or not.
+	// When true, all transactions loaded from the journal are treated as remote.
+	JournalRemote bool
+
 	PriceLimit uint64 // Minimum gas price to enforce for acceptance into the pool
 	PriceBump  uint64 // Minimum price bump percentage to replace an already existing transaction (nonce)
 
@@ -330,14 +334,18 @@ func NewTxPool(config Config, chainconfig *params.ChainConfig, chain blockChain)
 	pool.wg.Add(1)
 	go pool.scheduleReorgLoop()
 
-	// If local transactions and journaling is enabled, load from disk
-	if !config.NoLocals && config.Journal != "" {
+	// If journaling is enabled and has transactions to journal, load from disk
+	if (!config.NoLocals || config.JournalRemote) && config.Journal != "" {
 		pool.journal = newTxJournal(config.Journal)
 
-		if err := pool.journal.load(pool.AddLocals); err != nil {
+		add := pool.AddLocals
+		if config.JournalRemote {
+			add = pool.AddRemotesSync // Use sync version to match pool.AddLocals
+		}
+		if err := pool.journal.load(add); err != nil {
 			log.Warn("Failed to load transaction journal", "err", err)
 		}
-		if err := pool.journal.rotate(pool.local()); err != nil {
+		if err := pool.journal.rotate(pool.toJournal()); err != nil {
 			log.Warn("Failed to rotate transaction journal", "err", err)
 		}
 	}
@@ -420,7 +428,7 @@ func (pool *TxPool) loop() {
 		case <-journal.C:
 			if pool.journal != nil {
 				pool.mu.Lock()
-				if err := pool.journal.rotate(pool.local()); err != nil {
+				if err := pool.journal.rotate(pool.toJournal()); err != nil {
 					log.Warn("Failed to rotate local tx journal", "err", err)
 				}
 				pool.mu.Unlock()
@@ -596,6 +604,23 @@ func (pool *TxPool) local() map[common.Address]types.Transactions {
 		if queued := pool.queue[addr]; queued != nil {
 			txs[addr] = append(txs[addr], queued.Flatten()...)
 		}
+	}
+	return txs
+}
+
+// toJournal retrieves all transactions that should be included in the journal,
+// grouped by origin account and sorted by nonce.
+// The returned transaction set is a copy and can be freely modified by calling code.
+func (pool *TxPool) toJournal() map[common.Address]types.Transactions {
+	if !pool.config.JournalRemote {
+		return pool.local()
+	}
+	txs := make(map[common.Address]types.Transactions)
+	for addr, pending := range pool.pending {
+		txs[addr] = append(txs[addr], pending.Flatten()...)
+	}
+	for addr, queued := range pool.queue {
+		txs[addr] = append(txs[addr], queued.Flatten()...)
 	}
 	return txs
 }
@@ -904,7 +929,7 @@ func (pool *TxPool) enqueueTx(hash common.Hash, tx *types.Transaction, local boo
 // deemed to have been sent from a local account.
 func (pool *TxPool) journalTx(from common.Address, tx *types.Transaction) {
 	// Only journal if it's enabled and the transaction is local
-	if pool.journal == nil || !pool.locals.contains(from) {
+	if pool.journal == nil || (!pool.config.JournalRemote && !pool.locals.contains(from)) {
 		return
 	}
 	if err := pool.journal.insert(tx); err != nil {
