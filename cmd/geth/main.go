@@ -80,6 +80,7 @@ var (
 		utils.TxPoolLocalsFlag,
 		utils.TxPoolNoLocalsFlag,
 		utils.TxPoolJournalFlag,
+		utils.TxPoolJournalRemotesFlag,
 		utils.TxPoolRejournalFlag,
 		utils.TxPoolPriceLimitFlag,
 		utils.TxPoolPriceBumpFlag,
