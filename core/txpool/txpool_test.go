@@ -2255,10 +2255,13 @@ func TestReplacementDynamicFee(t *testing.T) {
 
 // Tests that local transactions are journaled to disk, but remote transactions
 // get discarded between restarts.
-func TestJournaling(t *testing.T)         { testJournaling(t, false) }
-func TestJournalingNoLocals(t *testing.T) { testJournaling(t, true) }
+func TestJournaling(t *testing.T)         { testJournaling(t, false, false) }
+func TestJournalingNoLocals(t *testing.T) { testJournaling(t, true, false) }
 
-func testJournaling(t *testing.T, nolocals bool) {
+func TestJournalingRemotes(t *testing.T)         { testJournaling(t, false, true) }
+func TestJournalingRemotesNoLocals(t *testing.T) { testJournaling(t, true, true) }
+
+func testJournaling(t *testing.T, nolocals bool, journalRemotes bool) {
 	t.Parallel()
 
 	// Create a temporary file for the journal
@@ -2279,6 +2282,7 @@ func testJournaling(t *testing.T, nolocals bool) {
 
 	config := testTxPoolConfig
 	config.NoLocals = nolocals
+	config.JournalRemote = journalRemotes
 	config.Journal = journal
 	config.Rejournal = time.Second
 
@@ -2325,9 +2329,13 @@ func testJournaling(t *testing.T, nolocals bool) {
 	if queued != 0 {
 		t.Fatalf("queued transactions mismatched: have %d, want %d", queued, 0)
 	}
-	if nolocals {
+	if nolocals && !journalRemotes {
 		if pending != 0 {
 			t.Fatalf("pending transactions mismatched: have %d, want %d", pending, 0)
+		}
+	} else if journalRemotes {
+		if pending != 3 {
+			t.Fatalf("pending transactions mismatched: have %d, want %d", pending, 3)
 		}
 	} else {
 		if pending != 2 {
@@ -2348,10 +2356,16 @@ func testJournaling(t *testing.T, nolocals bool) {
 	pool = NewTxPool(config, params.TestChainConfig, blockchain)
 
 	pending, queued = pool.Stats()
-	if pending != 0 {
-		t.Fatalf("pending transactions mismatched: have %d, want %d", pending, 0)
+	if journalRemotes {
+		if pending != 1 { // Remove the 2 replaced local transactions, but preserve the remote
+			t.Fatalf("pending transactions mismatched: have %d, want %d", pending, 1)
+		}
+	} else {
+		if pending != 0 {
+			t.Fatalf("pending transactions mismatched: have %d, want %d", pending, 0)
+		}
 	}
-	if nolocals {
+	if nolocals && !journalRemotes {
 		if queued != 0 {
 			t.Fatalf("queued transactions mismatched: have %d, want %d", queued, 0)
 		}
