@@ -406,6 +406,11 @@ var (
 		Value:    txpool.DefaultConfig.Journal,
 		Category: flags.TxPoolCategory,
 	}
+	TxPoolJournalRemotesFlag = &cli.BoolFlag{
+		Name:     "txpool.journalremotes",
+		Usage:    "Includes remote transactions in the journal",
+		Category: flags.TxPoolCategory,
+	}
 	TxPoolRejournalFlag = &cli.DurationFlag{
 		Name:     "txpool.rejournal",
 		Usage:    "Time interval to regenerate the local transaction journal",
@@ -1624,6 +1629,9 @@ func setTxPool(ctx *cli.Context, cfg *txpool.Config) {
 	}
 	if ctx.IsSet(TxPoolJournalFlag.Name) {
 		cfg.Journal = ctx.String(TxPoolJournalFlag.Name)
+	}
+	if ctx.IsSet(TxPoolJournalRemotesFlag.Name) {
+		cfg.JournalRemote = ctx.Bool(TxPoolJournalRemotesFlag.Name)
 	}
 	if ctx.IsSet(TxPoolRejournalFlag.Name) {
 		cfg.Rejournal = ctx.Duration(TxPoolRejournalFlag.Name)
