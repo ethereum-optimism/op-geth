@@ -62,7 +62,7 @@ func (b *opTestBackend) PendingBlockAndReceipts() (*types.Block, types.Receipts)
 }
 
 func (b *opTestBackend) ChainConfig() *params.ChainConfig {
-	return params.TestChainConfig
+	return params.OptimismTestConfig
 }
 
 func (b *opTestBackend) SubscribeChainHeadEvent(ch chan<- core.ChainHeadEvent) event.Subscription {
@@ -74,8 +74,8 @@ func newOpTestBackend(t *testing.T, txs []testTxData) *opTestBackend {
 		key, _ = crypto.HexToECDSA("b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291")
 		signer = types.LatestSigner(params.TestChainConfig)
 	)
-	// for optimism price suggestion only the most recent block is considered so this is where
-	// we add the test transactions
+	// only the most recent block is considered for optimism priority fee suggestions, so this is
+	// where we add the test transactions
 	ts := []*types.Transaction{}
 	rs := []*types.Receipt{}
 	header := types.Header{}
@@ -105,6 +105,7 @@ func newOpTestBackend(t *testing.T, txs []testTxData) *opTestBackend {
 }
 
 func TestSuggestOptimismPriorityFee(t *testing.T) {
+	minSuggestion := new(big.Int).SetUint64(1e8 * params.Wei)
 	var cases = []struct {
 		txdata []testTxData
 		want   *big.Int
@@ -112,12 +113,12 @@ func TestSuggestOptimismPriorityFee(t *testing.T) {
 		{
 			// block well under capacity, expect min priority fee suggestion
 			txdata: []testTxData{testTxData{params.GWei, 21000}},
-			want:   MinSuggestedOptimismPriorityFee,
+			want:   minSuggestion,
 		},
 		{
 			// 2 txs, still under capacity, expect min priority fee suggestion
 			txdata: []testTxData{testTxData{params.GWei, 21000}, testTxData{params.GWei, 21000}},
-			want:   MinSuggestedOptimismPriorityFee,
+			want:   minSuggestion,
 		},
 		{
 			// 2 txs w same priority fee (1 gwei), but second tx puts it right over capacity
@@ -132,7 +133,7 @@ func TestSuggestOptimismPriorityFee(t *testing.T) {
 	}
 	for i, c := range cases {
 		backend := newOpTestBackend(t, c.txdata)
-		oracle := NewOracle(backend, Config{})
+		oracle := NewOracle(backend, Config{MinSuggestedPriorityFee: minSuggestion})
 		got := oracle.SuggestOptimismPriorityFee(context.Background(), backend.block.Header(), backend.block.Hash())
 		if got.Cmp(c.want) != 0 {
 			t.Errorf("Gas price mismatch for test case %d: want %d, got %d", i, c.want, got)
