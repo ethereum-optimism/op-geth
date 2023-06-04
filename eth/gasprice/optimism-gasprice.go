@@ -8,13 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
-)
-
-var (
-	// TODO: What's the recommended way to make this a configurable parameter?
-	MinSuggestedOptimismPriorityFee = big.NewInt(1e8 * params.Wei) // 0.1 gwei
 )
 
 // SuggestOptimismPriorityFee returns a max priority fee value that can be used such that newly
@@ -42,7 +36,7 @@ var (
 // returning a suggestion that is a significant amount (10%) higher than the median effective
 // priority fee from the previous block.
 func (oracle *Oracle) SuggestOptimismPriorityFee(ctx context.Context, h *types.Header, headHash common.Hash) *big.Int {
-	suggestion := new(big.Int).Set(MinSuggestedOptimismPriorityFee)
+	suggestion := new(big.Int).Set(oracle.minSuggestedPriorityFee)
 
 	// find the maximum gas used by any of the transactions in the block to use as the capacity
 	// margin
