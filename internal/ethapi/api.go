@@ -1473,6 +1473,10 @@ func newRPCTransaction(tx *types.Transaction, blockHash common.Hash, blockNumber
 			result.Nonce = hexutil.Uint64(*receipt.DepositNonce)
 		}
 	case types.LegacyTxType:
+		if v.Sign() == 0 && r.Sign() == 0 && s.Sign() == 0 { // pre-bedrock relayed tx does not have a signature
+			result.ChainID = (*hexutil.Big)(new(big.Int).Set(config.ChainID))
+			break
+		}
 		// if a legacy transaction has an EIP-155 chain id, include it explicitly
 		if id := tx.ChainId(); id.Sign() != 0 {
 			result.ChainID = (*hexutil.Big)(id)
