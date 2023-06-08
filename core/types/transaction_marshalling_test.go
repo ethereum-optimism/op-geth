@@ -77,4 +77,27 @@ func TestTransactionUnmarshalJSON(t *testing.T) {
 			}
 		})
 	}
+
+	tests = []struct {
+		name          string
+		json          string
+		expectedError string
+	}{
+		{
+			name: "Valid deposit sender",
+			json: `{"type":"0x7e","nonce":"0x1","gas": "0x1234", "gasPrice":null,"maxPriorityFeePerGas":null,"maxFeePerGas":null,"value":"0x1","input":"0x616263646566","v":null,"r":null,"s":null,"to":null,"sourceHash":"0x0000000000000000000000000000000000000000000000000000000000000000","from":"0x0000000000000000000000000000000000000001","hash":"0xa4341f3db4363b7ca269a8538bd027b2f8784f84454ca917668642d5f6dffdf9"}`,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var parsedTx = &Transaction{}
+			err := json.Unmarshal([]byte(test.json), &parsedTx)
+			require.NoError(t, err)
+
+			signer := NewLondonSigner(big.NewInt(123))
+			sender, err := signer.Sender(parsedTx)
+			require.NoError(t, err)
+			require.Equal(t, common.HexToAddress("0x1"), sender)
+		})
+	}
 }

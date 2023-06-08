@@ -183,7 +183,12 @@ func NewLondonSigner(chainId *big.Int) Signer {
 
 func (s londonSigner) Sender(tx *Transaction) (common.Address, error) {
 	if tx.Type() == DepositTxType {
-		return tx.inner.(*DepositTx).From, nil
+		switch tx.inner.(type) {
+		case *DepositTx:
+			return tx.inner.(*DepositTx).From, nil
+		case *depositTxWithNonce:
+			return tx.inner.(*depositTxWithNonce).From, nil
+		}
 	}
 	if tx.Type() != DynamicFeeTxType {
 		return s.eip2930Signer.Sender(tx)
