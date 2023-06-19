@@ -1276,6 +1276,14 @@ func RPCMarshalHeader(head *types.Header) map[string]interface{} {
 		result["withdrawalsRoot"] = head.WithdrawalsHash
 	}
 
+	if head.DataGasUsed != nil {
+		result["dataGasUsed"] = head.DataGasUsed
+	}
+
+	if head.ExcessDataGas != nil {
+		result["excessDataGas"] = head.ExcessDataGas
+	}
+
 	return result
 }
 
