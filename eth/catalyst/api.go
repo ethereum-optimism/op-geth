@@ -473,7 +473,7 @@ func (api *ConsensusAPI) newPayload(params engine.ExecutableData, versionedHashe
 	log.Trace("Engine API request received", "method", "NewPayload", "number", params.Number, "hash", params.BlockHash)
 	block, err := engine.ExecutableDataToBlock(params, versionedHashes)
 	if err != nil {
-		log.Debug("Invalid NewPayload params", "params", params, "error", err)
+		log.Warn("Invalid NewPayload params", "params", params, "error", err)
 		return engine.PayloadStatusV1{Status: engine.INVALID}, nil
 	}
 	// Stash away the last update to warn the user if the beacon client goes offline
