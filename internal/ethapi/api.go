@@ -1779,7 +1779,7 @@ func SubmitTransaction(ctx context.Context, b Backend, tx *types.Transaction, bl
 	signer := types.MakeSigner(b.ChainConfig(), head.Number, head.Time)
 	from, err := types.Sender(signer, tx)
 	if err != nil {
-		return common.Hash{}, fmt.Errorf("error during sender recovery: %w", err)
+		return common.Hash{}, err
 	}
 
 	if tx.To() == nil {
@@ -1855,7 +1855,7 @@ func (s *TransactionAPI) SendRawTransaction(ctx context.Context, input hexutil.B
 		return SubmitTransaction(ctx, s.b, types.NewTx(outer.BlobTx), outer.Blobs, outer.Commitments, outer.Proofs)
 	}
 	if err := tx.UnmarshalBinary(input); err != nil {
-		return common.Hash{}, fmt.Errorf("error during unmarshalling: %w", err)
+		return common.Hash{}, err
 	}
 	return SubmitTransaction(ctx, s.b, tx, nil, nil, nil)
 }
