@@ -1538,8 +1538,6 @@ func TestBlockToPayloadWithBlobs(t *testing.T) {
 		},
 	))
 
-	txs = append(txs, types.NewTx(&inner))
-
 	block := types.NewBlock(&header, txs, nil, nil, trie.NewStackTrie(nil))
 	envelope := engine.BlockToExecutableData(block, nil)
 	var want int
