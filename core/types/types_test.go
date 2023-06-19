@@ -24,6 +24,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/holiman/uint256"
 )
 
 type devnull struct{ len int }
@@ -129,10 +130,10 @@ func benchRLP(b *testing.B, encode bool) {
 					Nonce:     1,
 					Gas:       1000000,
 					To:        to,
-					Value:     big.NewInt(1),
-					GasTipCap: big.NewInt(500),
-					GasFeeCap: big.NewInt(500),
-					ChainID:   big.NewInt(1337),
+					Value:     uint256.NewInt(1),
+					GasTipCap: uint256.NewInt(500),
+					GasFeeCap: uint256.NewInt(500),
+					ChainID:   uint256.NewInt(1337),
 				}),
 		},
 	} {
@@ -170,10 +171,10 @@ func TestEncodeDecodeBlobTx(t *testing.T) {
 			Nonce:     1,
 			Gas:       1000000,
 			To:        to,
-			Value:     big.NewInt(1),
-			GasTipCap: big.NewInt(500),
-			GasFeeCap: big.NewInt(500),
-			ChainID:   big.NewInt(1337),
+			Value:     uint256.NewInt(1),
+			GasTipCap: uint256.NewInt(500),
+			GasFeeCap: uint256.NewInt(500),
+			ChainID:   uint256.NewInt(1337),
 		})
 	data, err := rlp.EncodeToBytes(tx)
 	if err != nil {

@@ -33,6 +33,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/txpool"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/ethereum/go-ethereum/crypto/kzg4844"
 	"github.com/ethereum/go-ethereum/eth/gasprice"
 	"github.com/ethereum/go-ethereum/eth/tracers"
 	"github.com/ethereum/go-ethereum/ethdb"
@@ -295,6 +296,10 @@ func (b *EthAPIBackend) SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscri
 
 func (b *EthAPIBackend) SendTx(ctx context.Context, signedTx *types.Transaction) error {
 	return b.eth.txPool.Add([]*txpool.Transaction{&txpool.Transaction{Tx: signedTx}}, true, false)[0]
+}
+
+func (b *EthAPIBackend) SendBlobTx(ctx context.Context, signedTx *types.Transaction, blobTxBlobs []kzg4844.Blob, blobTxCommits []kzg4844.Commitment, blobTxProofs []kzg4844.Proof) error {
+	return b.eth.txPool.Add([]*txpool.Transaction{&txpool.Transaction{Tx: signedTx, BlobTxBlobs: blobTxBlobs, BlobTxCommits: blobTxCommits, BlobTxProofs: blobTxProofs}}, true, false)[0]
 }
 
 func (b *EthAPIBackend) GetPoolTransactions() (types.Transactions, error) {

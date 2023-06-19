@@ -1292,10 +1292,13 @@ func (r *Resolver) Transaction(ctx context.Context, args struct{ Hash common.Has
 func (r *Resolver) SendRawTransaction(ctx context.Context, args struct{ Data hexutil.Bytes }) (common.Hash, error) {
 	tx := new(types.Transaction)
 	if err := tx.UnmarshalBinary(args.Data); err != nil {
+		var outer types.BlobTxWithBlobs
+		if innerErr := rlp.DecodeBytes(args.Data, &outer); innerErr == nil {
+			return ethapi.SubmitTransaction(ctx, r.backend, types.NewTx(outer.BlobTx), outer.Blobs, outer.Commitments, outer.Proofs)
+		}
 		return common.Hash{}, err
 	}
-	hash, err := ethapi.SubmitTransaction(ctx, r.backend, tx)
-	return hash, err
+	return ethapi.SubmitTransaction(ctx, r.backend, tx, nil, nil, nil)
 }
 
 // FilterCriteria encapsulates the arguments to `logs` on the root resolver object.

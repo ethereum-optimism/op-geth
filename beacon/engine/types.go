@@ -23,6 +23,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto/kzg4844"
 	"github.com/ethereum/go-ethereum/trie"
 )
 
@@ -155,9 +156,6 @@ func decodeTransactions(enc [][]byte) ([]*types.Transaction, error) {
 		if err := tx.UnmarshalBinary(encTx); err != nil {
 			return nil, fmt.Errorf("invalid transaction %d: %v", i, err)
 		}
-		if _, ok := tx.Inner().(*types.BlobTxWithBlobs); ok {
-			return nil, fmt.Errorf("blob transaction in network form")
-		}
 		txs[i] = &tx
 	}
 	return txs, nil
@@ -238,7 +236,7 @@ func ExecutableDataToBlock(params ExecutableData, versionedHashes []common.Hash)
 
 // BlockToExecutableData constructs the ExecutableData structure by filling the
 // fields from the given block. It assumes the given block is post-merge block.
-func BlockToExecutableData(block *types.Block, fees *big.Int) *ExecutionPayloadEnvelope {
+func BlockToExecutableData(block *types.Block, fees *big.Int, blobs []kzg4844.Blob, commitments []kzg4844.Commitment, proofs []kzg4844.Proof) *ExecutionPayloadEnvelope {
 	data := &ExecutableData{
 		BlockHash:     block.Hash(),
 		ParentHash:    block.ParentHash(),
@@ -263,14 +261,10 @@ func BlockToExecutableData(block *types.Block, fees *big.Int) *ExecutionPayloadE
 		Blobs:       make([]hexutil.Bytes, 0),
 		Proofs:      make([]hexutil.Bytes, 0),
 	}
-	for _, tx := range block.Transactions() {
-		if tx, ok := tx.Inner().(*types.BlobTxWithBlobs); ok {
-			for i := 0; i < len(tx.Commitments); i++ {
-				blobsBundle.Commitments = append(blobsBundle.Commitments, hexutil.Bytes(tx.Commitments[i][:]))
-				blobsBundle.Blobs = append(blobsBundle.Blobs, hexutil.Bytes(tx.Blobs[i][:]))
-				blobsBundle.Proofs = append(blobsBundle.Proofs, hexutil.Bytes(tx.Proofs[i][:]))
-			}
-		}
+	for i := range blobs {
+		blobsBundle.Commitments = append(blobsBundle.Commitments, hexutil.Bytes(commitments[i][:]))
+		blobsBundle.Blobs = append(blobsBundle.Blobs, hexutil.Bytes(blobs[i][:]))
+		blobsBundle.Proofs = append(blobsBundle.Proofs, hexutil.Bytes(proofs[i][:]))
 	}
 	return &ExecutionPayloadEnvelope{ExecutionPayload: data, BlockValue: fees, BlobsBundle: &blobsBundle}
 }

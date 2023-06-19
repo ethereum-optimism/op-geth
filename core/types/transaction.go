@@ -120,9 +120,6 @@ func (tx *Transaction) EncodeRLP(w io.Writer) error {
 // encodeTyped writes the canonical encoding of a typed transaction to w.
 func (tx *Transaction) encodeTyped(w *bytes.Buffer) error {
 	w.WriteByte(tx.Type())
-	if blobTx, ok := tx.inner.(*BlobTxWithBlobs); ok {
-		return rlp.Encode(w, blobTx.BlobTx)
-	}
 	return rlp.Encode(w, tx.inner)
 }
 
@@ -203,14 +200,9 @@ func (tx *Transaction) decodeTyped(b []byte) (TxData, error) {
 		err := rlp.DecodeBytes(b[1:], &inner)
 		return &inner, err
 	case BlobTxType:
-		var envelope BlobTxWithBlobs
-		err := rlp.DecodeBytes(b[1:], &envelope)
-		if err != nil {
-			var inner BlobTx
-			err := rlp.DecodeBytes(b[1:], &inner)
-			return &inner, err
-		}
-		return &envelope, err
+		var inner BlobTx
+		err := rlp.DecodeBytes(b[1:], &inner)
+		return &inner, err
 	default:
 		return nil, ErrTxTypeNotSupported
 	}
