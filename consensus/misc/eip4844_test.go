@@ -45,8 +45,8 @@ func TestCalcExcessDataGas(t *testing.T) {
 		// The excess data gas should decrease by however much the target was
 		// under-shot, capped at zero.
 		{params.BlobTxTargetDataGasPerBlock, params.BlobTxTargetDataGasPerBlock / params.BlobTxDataGasPerBlob, params.BlobTxTargetDataGasPerBlock},
-		{params.BlobTxTargetDataGasPerBlock, (params.BlobTxTargetDataGasPerBlock / params.BlobTxDataGasPerBlob) - 1, params.BlobTxDataGasPerBlob},
-		{params.BlobTxTargetDataGasPerBlock, (params.BlobTxTargetDataGasPerBlock / params.BlobTxDataGasPerBlob) - 2, 0},
+		{params.BlobTxTargetDataGasPerBlock, (params.BlobTxTargetDataGasPerBlock / params.BlobTxDataGasPerBlob) - 1, 2 * params.BlobTxDataGasPerBlob},
+		{params.BlobTxTargetDataGasPerBlock, (params.BlobTxTargetDataGasPerBlock / params.BlobTxDataGasPerBlob) - 2, params.BlobTxDataGasPerBlob},
 		{params.BlobTxDataGasPerBlob - 1, (params.BlobTxTargetDataGasPerBlock / params.BlobTxDataGasPerBlob) - 1, 0},
 	}
 	for _, tt := range tests {
@@ -64,8 +64,9 @@ func TestCalcBlobFee(t *testing.T) {
 	}{
 		{0, 1},
 		{1542706, 1},
-		{1542707, 2},
-		{10 * 1024 * 1024, 111},
+		{1542707, 1},
+		{3085414, 2},
+		{10 * 1024 * 1024, 23},
 	}
 	for i, tt := range tests {
 		have := CalcBlobFee(tt.excessDataGas)

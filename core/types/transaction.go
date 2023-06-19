@@ -120,6 +120,9 @@ func (tx *Transaction) EncodeRLP(w io.Writer) error {
 // encodeTyped writes the canonical encoding of a typed transaction to w.
 func (tx *Transaction) encodeTyped(w *bytes.Buffer) error {
 	w.WriteByte(tx.Type())
+	if blobTx, ok := tx.inner.(*BlobTxWithBlobs); ok {
+		return rlp.Encode(w, blobTx.BlobTx)
+	}
 	return rlp.Encode(w, tx.inner)
 }
 

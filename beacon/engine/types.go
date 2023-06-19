@@ -155,6 +155,9 @@ func decodeTransactions(enc [][]byte) ([]*types.Transaction, error) {
 		if err := tx.UnmarshalBinary(encTx); err != nil {
 			return nil, fmt.Errorf("invalid transaction %d: %v", i, err)
 		}
+		if _, ok := tx.Inner().(*types.BlobTxWithBlobs); ok {
+			return nil, fmt.Errorf("blob transaction in network form")
+		}
 		txs[i] = &tx
 	}
 	return txs, nil
