@@ -98,10 +98,6 @@ type TxData interface {
 	effectiveGasPrice(dst *big.Int, baseFee *big.Int) *big.Int
 }
 
-func (tx *Transaction) Inner() TxData {
-	return tx.inner
-}
-
 // EncodeRLP implements rlp.Encoder
 func (tx *Transaction) EncodeRLP(w io.Writer) error {
 	if tx.Type() == LegacyTxType {
