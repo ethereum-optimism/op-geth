@@ -1844,11 +1844,17 @@ func (s *TransactionAPI) FillTransaction(ctx context.Context, args TransactionAr
 // The sender is responsible for signing the transaction and using the correct nonce.
 func (s *TransactionAPI) SendRawTransaction(ctx context.Context, input hexutil.Bytes) (common.Hash, error) {
 	tx := new(types.Transaction)
-	if err := tx.UnmarshalBinary(input); err != nil {
+	if len(input) < 1 {
+		return common.Hash{}, errors.New("input to short")
+	}
+	if input[0] == types.BlobTxType {
 		var outer types.BlobTxWithBlobs
-		if innerErr := rlp.DecodeBytes(input, &outer); innerErr == nil {
-			return SubmitTransaction(ctx, s.b, types.NewTx(outer.BlobTx), outer.Blobs, outer.Commitments, outer.Proofs)
+		if err := rlp.DecodeBytes(input[1:], &outer); err != nil {
+			return common.Hash{}, err
 		}
+		return SubmitTransaction(ctx, s.b, types.NewTx(outer.BlobTx), outer.Blobs, outer.Commitments, outer.Proofs)
+	}
+	if err := tx.UnmarshalBinary(input); err != nil {
 		return common.Hash{}, err
 	}
 	return SubmitTransaction(ctx, s.b, tx, nil, nil, nil)
