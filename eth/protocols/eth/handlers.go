@@ -497,8 +497,13 @@ func answerGetPooledTransactions(backend Backend, query GetPooledTransactionsPac
 		if tx == nil {
 			continue
 		}
+		var toEncode interface{}
+		toEncode = tx.Tx
+		if tx.Tx.Type() == types.BlobTxType {
+			toEncode = types.NewBlobTxWithBlobs(tx.Tx, tx.BlobTxBlobs, tx.BlobTxCommits, tx.BlobTxProofs)
+		}
 		// If known, encode and queue for response packet
-		if encoded, err := rlp.EncodeToBytes(tx.Tx); err != nil {
+		if encoded, err := rlp.EncodeToBytes(toEncode); err != nil {
 			log.Error("Failed to encode transaction", "err", err)
 		} else {
 			hashes = append(hashes, hash)
