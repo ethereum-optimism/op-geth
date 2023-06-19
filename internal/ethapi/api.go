@@ -1764,12 +1764,12 @@ func SubmitTransaction(ctx context.Context, b Backend, tx *types.Transaction, bl
 		// Ensure only eip155 signed transactions are submitted if EIP155Required is set.
 		return common.Hash{}, errors.New("only replay-protected (EIP-155) transactions allowed over RPC")
 	}
-	if len(blobTxBlobs) == 0 {
-		if err := b.SendTx(ctx, tx); err != nil {
+	if tx.Type() == types.BlobTxType {
+		if err := b.SendBlobTx(ctx, tx, blobTxBlobs, blobTxCommits, blobTxProofs); err != nil {
 			return common.Hash{}, err
 		}
 	} else {
-		if err := b.SendBlobTx(ctx, tx, blobTxBlobs, blobTxCommits, blobTxProofs); err != nil {
+		if err := b.SendTx(ctx, tx); err != nil {
 			return common.Hash{}, err
 		}
 	}
@@ -1779,7 +1779,7 @@ func SubmitTransaction(ctx context.Context, b Backend, tx *types.Transaction, bl
 	signer := types.MakeSigner(b.ChainConfig(), head.Number, head.Time)
 	from, err := types.Sender(signer, tx)
 	if err != nil {
-		return common.Hash{}, err
+		return common.Hash{}, fmt.Errorf("error during sender recovery: %w", err)
 	}
 
 	if tx.To() == nil {
@@ -1855,7 +1855,7 @@ func (s *TransactionAPI) SendRawTransaction(ctx context.Context, input hexutil.B
 		return SubmitTransaction(ctx, s.b, types.NewTx(outer.BlobTx), outer.Blobs, outer.Commitments, outer.Proofs)
 	}
 	if err := tx.UnmarshalBinary(input); err != nil {
-		return common.Hash{}, err
+		return common.Hash{}, fmt.Errorf("error during unmarshalling: %w", err)
 	}
 	return SubmitTransaction(ctx, s.b, tx, nil, nil, nil)
 }
