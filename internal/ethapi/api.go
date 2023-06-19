@@ -1277,11 +1277,11 @@ func RPCMarshalHeader(head *types.Header) map[string]interface{} {
 	}
 
 	if head.DataGasUsed != nil {
-		result["dataGasUsed"] = head.DataGasUsed
+		result["dataGasUsed"] = hexutil.Uint64(*head.DataGasUsed)
 	}
 
 	if head.ExcessDataGas != nil {
-		result["excessDataGas"] = head.ExcessDataGas
+		result["excessDataGas"] = hexutil.Uint64(*head.ExcessDataGas)
 	}
 
 	return result
