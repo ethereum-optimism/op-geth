@@ -282,6 +282,8 @@ func (pool *LegacyPool) Filter(tx *types.Transaction) bool {
 	switch tx.Type() {
 	case types.LegacyTxType, types.AccessListTxType, types.DynamicFeeTxType:
 		return true
+	case types.BlobTxType:
+		return true // TODO (MariusVanDerWijden) remove once blob pool is implemented
 	default:
 		return false
 	}
