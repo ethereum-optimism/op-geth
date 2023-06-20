@@ -89,8 +89,9 @@ type blobTx struct {
 // bare minimum needed fields to keep the size down (and thus number of entries
 // larger with the same memory consumption).
 type blobTxMeta struct {
-	id   uint64 // Storage ID in the pool's persistent store
-	size uint32 // Byte size in the pool's persistent store
+	hash common.Hash // Transaction hash to maintain the lookup table
+	id   uint64      // Storage ID in the pool's persistent store
+	size uint32      // Byte size in the pool's persistent store
 
 	nonce      uint64       // Needed to prioritize inclusion order within an account
 	costCap    *uint256.Int // Needed to validate cummulative balance sufficiency
@@ -109,20 +110,15 @@ type blobTxMeta struct {
 // newBlobTxMeta retrieves the indexed metadata fields from a blob transaction
 // and assembles a helper struct to track in memory.
 func newBlobTxMeta(id uint64, size uint32, tx *types.Transaction) *blobTxMeta {
-	// Temporarilly permit non-blob txs in with a fake blob fee cap while battle
-	// testing the pool with normal transactions. TODO(karalabe): remove this
-	blobFeeCap := new(uint256.Int)
-	if fee := tx.BlobGasFeeCap(); fee != nil {
-		blobFeeCap = uint256.MustFromBig(fee)
-	}
 	meta := &blobTxMeta{
+		hash:       tx.Hash(),
 		id:         id,
 		size:       size,
 		nonce:      tx.Nonce(),
 		costCap:    uint256.MustFromBig(tx.Cost()),
 		execTipCap: uint256.MustFromBig(tx.GasTipCap()),
 		execFeeCap: uint256.MustFromBig(tx.GasFeeCap()),
-		blobFeeCap: blobFeeCap, // TODO(karalabe): uint256.MustFromBig(tx.BlobGasFeeCap()),
+		blobFeeCap: uint256.MustFromBig(tx.BlobGasFeeCap()),
 	}
 	meta.basefeeJumps = dynamicFeeJumps(meta.execFeeCap)
 	meta.blobfeeJumps = dynamicFeeJumps(meta.blobFeeCap)
@@ -305,14 +301,15 @@ type BlobPool struct {
 	state  *state.StateDB // Current state at the head of the chain
 	gasTip *uint256.Int   // Currently accepted minimum gas tip
 
-	index map[common.Address][]*blobTxMeta // Blob transactions groupped by accounts, sorted by nonce
-	spent map[common.Address]*uint256.Int  // Expenditure tracking for individual accounts
-	evict *evictHeap                       // Heap of cheapest accounts for eviction when full
+	lookup map[common.Hash]uint64           // Lookup table mapping hashes to tx billy entries
+	index  map[common.Address][]*blobTxMeta // Blob transactions groupped by accounts, sorted by nonce
+	spent  map[common.Address]*uint256.Int  // Expenditure tracking for individual accounts
+	evict  *evictHeap                       // Heap of cheapest accounts for eviction when full
 
 	eventFeed  event.Feed              // Event feed to send out new tx events on pool inclusion
 	eventScope event.SubscriptionScope // Event scope to track and mass unsubscribe on termination
 
-	lock sync.Mutex // Mutex protecting the pool during reorg handling
+	lock sync.RWMutex // Mutex protecting the pool during reorg handling
 }
 
 // New creates a new blob transaction pool to gather, sort and filter inbound
@@ -326,6 +323,7 @@ func New(config Config, chain BlockChain) *BlobPool {
 		config: config,
 		signer: types.LatestSigner(chain.Config()),
 		chain:  chain,
+		lookup: make(map[common.Hash]uint64),
 		index:  make(map[common.Address][]*blobTxMeta),
 		spent:  make(map[common.Address]*uint256.Int),
 	}
@@ -462,7 +460,9 @@ func (p *BlobPool) parseTransaction(id uint64, size uint32, blob []byte) error {
 	p.index[sender] = append(p.index[sender], meta)
 	p.spent[sender] = new(uint256.Int).Add(p.spent[sender], meta.costCap)
 
+	p.lookup[meta.hash] = meta.id
 	p.stored += uint64(meta.size)
+
 	return nil
 }
 
@@ -495,6 +495,7 @@ func (p *BlobPool) recheck(addr common.Address, inclusions map[common.Hash]uint6
 			nonces = append(nonces, txs[i].nonce)
 
 			p.stored -= uint64(txs[i].size)
+			delete(p.lookup, txs[i].hash)
 
 			// Included transactions blobs need to be moved to the limbo
 			if filled && inclusions != nil {
@@ -531,6 +532,7 @@ func (p *BlobPool) recheck(addr common.Address, inclusions map[common.Hash]uint6
 
 			p.spent[addr] = new(uint256.Int).Sub(p.spent[addr], txs[0].costCap)
 			p.stored -= uint64(txs[0].size)
+			delete(p.lookup, txs[0].hash)
 
 			// Included transactions blobs need to be moved to the limbo
 			if filled && inclusions != nil {
@@ -586,6 +588,7 @@ func (p *BlobPool) recheck(addr common.Address, inclusions map[common.Hash]uint6
 
 			p.spent[addr] = new(uint256.Int).Sub(p.spent[addr], txs[j].costCap)
 			p.stored -= uint64(txs[j].size)
+			delete(p.lookup, txs[j].hash)
 		}
 		p.index[addr] = txs[:i]
 
@@ -620,6 +623,7 @@ func (p *BlobPool) recheck(addr common.Address, inclusions map[common.Hash]uint6
 
 			p.spent[addr] = new(uint256.Int).Sub(p.spent[addr], last.costCap)
 			p.stored -= uint64(last.size)
+			delete(p.lookup, last.hash)
 		}
 		if len(txs) == 0 {
 			delete(p.index, addr)
@@ -725,7 +729,7 @@ func (p *BlobPool) Reset(oldHead, newHead *types.Header) {
 //
 // The transactionblock inclusion infos are also returned to allow tracking any
 // just-included blocks by block number in the limbo.
-func (p *BlobPool) reorg(oldHead, newHead *types.Header) (map[common.Address]types.Transactions, map[common.Hash]uint64) {
+func (p *BlobPool) reorg(oldHead, newHead *types.Header) (map[common.Address][]*types.Transaction, map[common.Hash]uint64) {
 	// If the pool was not yet initialized, don't do anything
 	if oldHead == nil {
 		return nil, nil
@@ -740,8 +744,8 @@ func (p *BlobPool) reorg(oldHead, newHead *types.Header) (map[common.Address]typ
 	// Reorg seems shallow enough to pull in all transactions into memory
 	var (
 		transactors = make(map[common.Address]struct{})
-		discarded   = make(map[common.Address]types.Transactions)
-		included    = make(map[common.Address]types.Transactions)
+		discarded   = make(map[common.Address][]*types.Transaction)
+		included    = make(map[common.Address][]*types.Transaction)
 		inclusions  = make(map[common.Hash]uint64)
 
 		rem = p.chain.GetBlock(oldHead.Hash(), oldHead.Number.Uint64())
@@ -816,14 +820,22 @@ func (p *BlobPool) reorg(oldHead, newHead *types.Header) (map[common.Address]typ
 	}
 	// Generate the set of transactions per address to pull back into the pool,
 	// also updating the rest along the way
-	reinject := make(map[common.Address]types.Transactions)
+	reinject := make(map[common.Address][]*types.Transaction)
 	for addr := range transactors {
 		// Generate the set that was lost to reinject into the pool
-		reinject[addr] = types.TxDifference(discarded[addr], included[addr])
+		lost := make([]*types.Transaction, 0, len(discarded[addr]))
+		for _, tx := range types.TxDifference(discarded[addr], included[addr]) {
+			if p.Filter(tx) {
+				lost = append(lost, tx)
+			}
+		}
+		reinject[addr] = lost
 
 		// Update the set that was already reincluded to track the blocks in limbo
 		for _, tx := range types.TxDifference(included[addr], discarded[addr]) {
-			p.limbo.update(tx.Hash(), inclusions[tx.Hash()])
+			if p.Filter(tx) {
+				p.limbo.update(tx.Hash(), inclusions[tx.Hash()])
+			}
 		}
 	}
 	return reinject, inclusions
@@ -863,6 +875,7 @@ func (p *BlobPool) reinject(addr common.Address, tx *types.Transaction) {
 		p.index[addr] = append(p.index[addr], meta)
 		p.spent[addr] = new(uint256.Int).Add(p.spent[addr], meta.costCap)
 	}
+	p.lookup[meta.hash] = meta.id
 	p.stored += uint64(meta.size)
 }
 
@@ -888,6 +901,7 @@ func (p *BlobPool) SetGasTip(tip *big.Int) {
 					)
 					p.spent[addr] = new(uint256.Int).Sub(p.spent[addr], txs[i].costCap)
 					p.stored -= uint64(tx.size)
+					delete(p.lookup, tx.hash)
 					txs[i] = nil
 
 					// Drop everything afterwards, no gaps allowed
@@ -897,6 +911,7 @@ func (p *BlobPool) SetGasTip(tip *big.Int) {
 
 						p.spent[addr] = new(uint256.Int).Sub(p.spent[addr], tx.costCap)
 						p.stored -= uint64(tx.size)
+						delete(p.lookup, tx.hash)
 						txs[i+1+j] = nil
 					}
 					// Clear out the dropped transactions from the index
@@ -1003,12 +1018,38 @@ func (p *BlobPool) validateTx(tx *types.Transaction, blobs []kzg4844.Blob, commi
 // Has returns an indicator whether subpool has a transaction cached with the
 // given hash.
 func (p *BlobPool) Has(hash common.Hash) bool {
-	return false
+	p.lock.RLock()
+	defer p.lock.RUnlock()
+
+	_, ok := p.lookup[hash]
+	return ok
 }
 
 // Get returns a transaction if it is contained in the pool, or nil otherwise.
 func (p *BlobPool) Get(hash common.Hash) *txpool.Transaction {
-	return nil
+	p.lock.RLock()
+	defer p.lock.RUnlock()
+
+	id, ok := p.lookup[hash]
+	if !ok {
+		return nil
+	}
+	data, err := p.store.Get(id)
+	if err != nil {
+		log.Error("Tracked blob transaction missing from store", "hash", hash, "id", id, "err", err)
+		return nil
+	}
+	item := new(blobTx)
+	if err = rlp.DecodeBytes(data, item); err != nil {
+		log.Error("Blobs corrupted for traced transaction", "hash", hash, "id", id, "err", err)
+		return nil
+	}
+	return &txpool.Transaction{
+		Tx:            item.Tx,
+		BlobTxBlobs:   item.Blobs,
+		BlobTxCommits: item.Commits,
+		BlobTxProofs:  item.Proofs,
+	}
 }
 
 // Add inserts a set of blob transactions into the pool if they pass validation (both
@@ -1043,7 +1084,7 @@ func (p *BlobPool) add(tx *types.Transaction, blobs []kzg4844.Blob, commits []kz
 	}
 	// Transaction permitted into the pool from a nonce and cost perspective,
 	// insert it into the database and update the indices
-	blob, err := rlp.EncodeToBytes(&blobTx{Tx: tx, Blobs: blobs})
+	blob, err := rlp.EncodeToBytes(&blobTx{Tx: tx, Blobs: blobs, Commits: commits, Proofs: proofs})
 	if err != nil {
 		log.Error("Failed to encode transaction for storage", "hash", tx.Hash(), "err", err)
 		return err
@@ -1071,7 +1112,11 @@ func (p *BlobPool) add(tx *types.Transaction, blobs []kzg4844.Blob, commits []kz
 		p.index[from][offset] = meta
 		p.spent[from] = new(uint256.Int).Sub(p.spent[from], prev.costCap)
 		p.spent[from] = new(uint256.Int).Add(p.spent[from], meta.costCap)
+
+		delete(p.lookup, prev.hash)
+		p.lookup[meta.hash] = meta.id
 		p.stored += uint64(meta.size) - uint64(prev.size)
+
 	} else {
 		// Transaction extends previously scheduled ones
 		p.index[from] = append(p.index[from], meta)
@@ -1080,6 +1125,7 @@ func (p *BlobPool) add(tx *types.Transaction, blobs []kzg4844.Blob, commits []kz
 			newacc = true
 		}
 		p.spent[from] = new(uint256.Int).Add(p.spent[from], meta.costCap)
+		p.lookup[meta.hash] = meta.id
 		p.stored += uint64(meta.size)
 	}
 	// Recompute the rolling eviction fields. In case of a replacement, this will
@@ -1179,6 +1225,7 @@ func (p *BlobPool) drop() {
 		p.spent[from] = new(uint256.Int).Sub(p.spent[from], drop.costCap)
 	}
 	p.stored -= uint64(drop.size)
+	delete(p.lookup, drop.hash)
 
 	// Remove the transation from the pool's evicion heap:
 	//   - If the entire account was dropped, pop off the address
@@ -1204,49 +1251,28 @@ func (p *BlobPool) drop() {
 
 // Pending retrieves all currently processable transactions, grouped by origin
 // account and sorted by nonce.
-func (p *BlobPool) Pending(enforceTips bool) map[common.Address][]*types.Transaction {
-	return nil
-}
+func (p *BlobPool) Pending(enforceTips bool) map[common.Address][]*txpool.LazyTransaction {
+	p.lock.RLock()
+	defer p.lock.RUnlock()
 
-/*
-// Pending retrieves a snapshot of the pending transactions for the miner to sift
-// through and pick the best ones. The method already does a pre-filtering since
-// there's no point to retrieve non-executble ones.
-//
-// Note, please don't provide an RPC API method to expose these. The blob pool will
-// ideally get enormous, and it will not be feasible to constatly expose that entire
-// dump out of the process.
-func (p *BlobPool) Pending(basefee, datafee *uint256.Int) map[common.Address][]*BlobTxShim {
-	waitStart := time.Now()
-	p.lock.Lock()
-	pendwaitHist.Update(time.Since(waitStart).Nanoseconds())
-	defer p.lock.Unlock()
-
-	defer func(start time.Time) {
-		pendtimeHist.Update(time.Since(start).Nanoseconds())
-	}(time.Now())
-
-	pending := make(map[common.Address][]*BlobTxShim)
+	pending := make(map[common.Address][]*txpool.LazyTransaction)
 	for addr, txs := range p.index {
-		var shims []*BlobTxShim
+		var lazies []*txpool.LazyTransaction
 		for _, tx := range txs {
-			// If the transaction cannot be executed in the current block, or does
-			// not meet teh minimum required tip, stop aggregating the account
-			if tx.execFeeCap.Lt(basefee) || tx.blobFeeCap.Lt(datafee) {
-				break
-			}
-			if new(uint256.Int).Sub(tx.execFeeCap, basefee).Lt(p.gasTip) {
-				break
-			}
-			// Transaction met teh minimum filters, att to the shims
-			shims = append(shims, &BlobTxShim{})
+			lazies = append(lazies, &txpool.LazyTransaction{
+				Pool:      p,
+				Hash:      tx.hash,
+				Time:      time.Now(), // TODO(karalabe): Maybe save these and use that?
+				GasFeeCap: tx.execFeeCap.ToBig(),
+				GasTipCap: tx.execTipCap.ToBig(),
+			})
 		}
-		if len(shims) > 0 {
-			pending[addr] = shims
+		if len(lazies) > 0 {
+			pending[addr] = lazies
 		}
 	}
 	return pending
-}*/
+}
 
 // updateStorageMetrics retrieves a bunch of stats from the data store and pushes
 // them out as metrics.
@@ -1382,5 +1408,8 @@ func (p *BlobPool) Locals() []common.Address {
 // Status returns the known status (unknown/pending/queued) of a transaction
 // identified by their hashes.
 func (p *BlobPool) Status(hash common.Hash) txpool.TxStatus {
+	if p.Has(hash) {
+		return txpool.TxStatusPending
+	}
 	return txpool.TxStatusUnknown
 }

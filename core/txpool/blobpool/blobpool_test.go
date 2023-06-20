@@ -188,6 +188,25 @@ func verifyPoolInternals(t *testing.T, pool *BlobPool) {
 	// Mark this method as a helper to remove from stack traces
 	t.Helper()
 
+	// Verify that all items in the index are present in the lookup and nothing more
+	seen := make(map[common.Hash]struct{})
+	for addr, txs := range pool.index {
+		for _, tx := range txs {
+			if _, ok := seen[tx.hash]; ok {
+				t.Errorf("duplicate hash #%x in transaction index: address %s, nonce %d", tx.hash, addr, tx.nonce)
+			}
+			seen[tx.hash] = struct{}{}
+		}
+	}
+	for hash, id := range pool.lookup {
+		if _, ok := seen[hash]; !ok {
+			t.Errorf("lookup entry missing from transaction index: hash #%x, id %d", hash, id)
+		}
+		delete(seen, hash)
+	}
+	for hash := range seen {
+		t.Errorf("indexed transaction hash #%x missing from lookup table", hash)
+	}
 	// Verify that transactions are sorted per account and contain no nonce gaps
 	for addr, txs := range pool.index {
 		for i := 1; i < len(txs); i++ {

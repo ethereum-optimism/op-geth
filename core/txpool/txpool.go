@@ -235,8 +235,8 @@ func (p *TxPool) Add(txs []*Transaction, local bool, sync bool) []error {
 
 // Pending retrieves all currently processable transactions, grouped by origin
 // account and sorted by nonce.
-func (p *TxPool) Pending(enforceTips bool) map[common.Address][]*types.Transaction {
-	txs := make(map[common.Address][]*types.Transaction)
+func (p *TxPool) Pending(enforceTips bool) map[common.Address][]*LazyTransaction {
+	txs := make(map[common.Address][]*LazyTransaction)
 	for _, subpool := range p.subpools {
 		for addr, set := range subpool.Pending(enforceTips) {
 			txs[addr] = set

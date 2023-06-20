@@ -508,11 +508,11 @@ func (pool *LegacyPool) ContentFrom(addr common.Address) ([]*types.Transaction, 
 // The enforceTips parameter can be used to do an extra filtering on the pending
 // transactions and only return those whose **effective** tip is large enough in
 // the next pending execution environment.
-func (pool *LegacyPool) Pending(enforceTips bool) map[common.Address][]*types.Transaction {
+func (pool *LegacyPool) Pending(enforceTips bool) map[common.Address][]*txpool.LazyTransaction {
 	pool.mu.Lock()
 	defer pool.mu.Unlock()
 
-	pending := make(map[common.Address][]*types.Transaction, len(pool.pending))
+	pending := make(map[common.Address][]*txpool.LazyTransaction, len(pool.pending))
 	for addr, list := range pool.pending {
 		txs := list.Flatten()
 
@@ -526,7 +526,18 @@ func (pool *LegacyPool) Pending(enforceTips bool) map[common.Address][]*types.Tr
 			}
 		}
 		if len(txs) > 0 {
-			pending[addr] = txs
+			lazies := make([]*txpool.LazyTransaction, len(txs))
+			for i := 0; i < len(txs); i++ {
+				lazies[i] = &txpool.LazyTransaction{
+					Pool:      pool,
+					Hash:      txs[i].Hash(),
+					Tx:        &txpool.Transaction{Tx: txs[i]},
+					Time:      txs[i].Time(),
+					GasFeeCap: txs[i].GasFeeCap(),
+					GasTipCap: txs[i].GasTipCap(),
+				}
+			}
+			pending[addr] = lazies
 		}
 	}
 	return pending
@@ -1305,7 +1316,13 @@ func (pool *LegacyPool) reset(oldHead, newHead *types.Header) {
 						return
 					}
 				}
-				reinject = types.TxDifference(discarded, included)
+				lost := make([]*types.Transaction, 0, len(discarded))
+				for _, tx := range types.TxDifference(discarded, included) {
+					if pool.Filter(tx) {
+						lost = append(lost, tx)
+					}
+				}
+				reinject = lost
 			}
 		}
 	}
