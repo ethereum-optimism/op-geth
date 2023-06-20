@@ -17,7 +17,6 @@
 package txpool
 
 import (
-	"errors"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -94,7 +93,7 @@ func (p *TxPool) Close() error {
 	for _, subpool := range p.subpools {
 		errs = append(errs, subpool.Close())
 	}
-	return errors.Join(errs...)
+	return errs[0] // TODO fix properly
 }
 
 // loop is the transaction pool's main event loop, waiting for and reacting to
