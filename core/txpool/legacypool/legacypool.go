@@ -282,8 +282,6 @@ func (pool *LegacyPool) Filter(tx *types.Transaction) bool {
 	switch tx.Type() {
 	case types.LegacyTxType, types.AccessListTxType, types.DynamicFeeTxType:
 		return true
-	case types.BlobTxType:
-		return true // TODO (MariusVanDerWijden) remove once blob pool is implemented
 	default:
 		return false
 	}
@@ -579,8 +577,7 @@ func (pool *LegacyPool) validateTxBasics(tx *types.Transaction, local bool) erro
 		Accept: 0 |
 			1<<types.LegacyTxType |
 			1<<types.AccessListTxType |
-			1<<types.DynamicFeeTxType |
-			1<<types.BlobTxType, // TODO (MariusVanDerWijden): remove before merging
+			1<<types.DynamicFeeTxType,
 		MaxSize: txMaxSize,
 		MinTip:  pool.gasTip.Load(),
 	}
