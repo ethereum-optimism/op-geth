@@ -67,7 +67,11 @@ type txPool interface {
 
 	// Pending should return pending transactions.
 	// The slice should be modifiable by the caller.
+<<<<<<< HEAD
 	Pending(enforceTips bool) map[common.Address][]*txpool.LazyTransaction
+=======
+	Pending(enforceTips bool) map[common.Address][]*txpool.Transaction
+>>>>>>> ceafc2a1d (core, eth, miner: do integration with miner, todo clean up)
 
 	// SubscribeNewTxsEvent should return an event subscription of
 	// NewTxsEvent and send events to the given channel.

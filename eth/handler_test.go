@@ -100,18 +100,24 @@ func (p *testTxPool) Add(txs []*txpool.Transaction, local bool, sync bool) []err
 	return make([]error, len(unwrapped))
 }
 
+type TxByNonce []*txpool.Transaction
+
+func (s TxByNonce) Len() int           { return len(s) }
+func (s TxByNonce) Less(i, j int) bool { return s[i].Tx.Nonce() < s[j].Tx.Nonce() }
+func (s TxByNonce) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+
 // Pending returns all the transactions known to the pool
 func (p *testTxPool) Pending(enforceTips bool) map[common.Address][]*txpool.LazyTransaction {
 	p.lock.RLock()
 	defer p.lock.RUnlock()
 
-	batches := make(map[common.Address][]*types.Transaction)
+	batches := make(map[common.Address][]*txpool.Transaction)
 	for _, tx := range p.pool {
 		from, _ := types.Sender(types.HomesteadSigner{}, tx)
-		batches[from] = append(batches[from], tx)
+		batches[from] = append(batches[from], &txpool.Transaction{Tx: tx})
 	}
 	for _, batch := range batches {
-		sort.Sort(types.TxByNonce(batch))
+		sort.Sort(TxByNonce(batch))
 	}
 	pending := make(map[common.Address][]*txpool.LazyTransaction)
 	for addr, batch := range batches {

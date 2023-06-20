@@ -508,11 +508,19 @@ func (pool *LegacyPool) ContentFrom(addr common.Address) ([]*types.Transaction, 
 // The enforceTips parameter can be used to do an extra filtering on the pending
 // transactions and only return those whose **effective** tip is large enough in
 // the next pending execution environment.
+<<<<<<< HEAD
 func (pool *LegacyPool) Pending(enforceTips bool) map[common.Address][]*txpool.LazyTransaction {
 	pool.mu.Lock()
 	defer pool.mu.Unlock()
 
 	pending := make(map[common.Address][]*txpool.LazyTransaction, len(pool.pending))
+=======
+func (pool *LegacyPool) Pending(enforceTips bool) map[common.Address][]*txpool.Transaction {
+	pool.mu.Lock()
+	defer pool.mu.Unlock()
+
+	pending := make(map[common.Address][]*txpool.Transaction, len(pool.pending))
+>>>>>>> ceafc2a1d (core, eth, miner: do integration with miner, todo clean up)
 	for addr, list := range pool.pending {
 		txs := list.Flatten()
 

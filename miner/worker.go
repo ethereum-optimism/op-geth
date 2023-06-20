@@ -31,6 +31,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/txpool"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto/kzg4844"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
@@ -86,9 +87,12 @@ type environment struct {
 	gasPool  *core.GasPool  // available gas used to pack transactions
 	coinbase common.Address
 
-	header   *types.Header
-	txs      []*types.Transaction
-	receipts []*types.Receipt
+	header      *types.Header
+	txs         []*types.Transaction
+	receipts    []*types.Receipt
+	blobs       []kzg4844.Blob
+	commitments []kzg4844.Commitment
+	proofs      []kzg4844.Proof
 }
 
 // copy creates a deep copy of environment.
@@ -107,6 +111,15 @@ func (env *environment) copy() *environment {
 	}
 	cpy.txs = make([]*types.Transaction, len(env.txs))
 	copy(cpy.txs, env.txs)
+
+	cpy.blobs = make([]kzg4844.Blob, len(env.blobs))
+	copy(cpy.blobs, env.blobs)
+
+	cpy.commitments = make([]kzg4844.Commitment, len(env.commitments))
+	copy(cpy.commitments, env.commitments)
+
+	cpy.proofs = make([]kzg4844.Proof, len(env.proofs))
+	copy(cpy.proofs, env.proofs)
 	return cpy
 }
 
@@ -146,6 +159,10 @@ type newPayloadResult struct {
 	err   error
 	block *types.Block
 	fees  *big.Int
+
+	blobs       []kzg4844.Blob
+	commitments []kzg4844.Commitment
+	proofs      []kzg4844.Proof
 }
 
 // getWorkReq represents a request for getting a new sealing work with provided parameters.
@@ -516,11 +533,14 @@ func (w *worker) mainLoop() {
 			w.commitWork(req.interrupt, req.timestamp)
 
 		case req := <-w.getWorkCh:
-			block, fees, err := w.generateWork(req.params)
+			block, fees, blobs, commits, proofs, err := w.generateWork(req.params)
 			req.result <- &newPayloadResult{
-				err:   err,
-				block: block,
-				fees:  fees,
+				err:         err,
+				block:       block,
+				fees:        fees,
+				blobs:       blobs,
+				commitments: commits,
+				proofs:      proofs,
 			}
 
 		case ev := <-w.txsCh:
@@ -809,6 +829,12 @@ func (w *worker) commitTransactions(env *environment, txs *transactionsByPriceAn
 			coalescedLogs = append(coalescedLogs, logs...)
 			env.tcount++
 			txs.Shift()
+			if tx.Type() == types.BlobTxType {
+				txWrap := w.eth.TxPool().Get(tx.Hash())
+				env.blobs = append(env.blobs, txWrap.BlobTxBlobs...)
+				env.commitments = append(env.commitments, txWrap.BlobTxCommits...)
+				env.proofs = append(env.proofs, txWrap.BlobTxProofs...)
+			}
 
 		default:
 			// Transaction is regarded as invalid, drop all consecutive transactions from
@@ -931,11 +957,20 @@ func (w *worker) fillTransactions(interrupt *atomic.Int32, env *environment) err
 
 	localTxs, remoteTxs := make(map[common.Address][]*txpool.LazyTransaction), pending
 	for _, account := range w.eth.TxPool().Locals() {
-		if txs := remoteTxs[account]; len(txs) > 0 {
-			delete(remoteTxs, account)
-			localTxs[account] = txs
+		if txs := pending[account]; len(txs) > 0 {
+			delete(pending, account)
+			for _, tx := range txs {
+				localTxs[account] = append(localTxs[account], tx.Tx)
+			}
 		}
 	}
+	for account, remotes := range pending {
+		remoteTxs[account] = make([]*types.Transaction, 0, len(remotes))
+		for _, tx := range remotes {
+			remoteTxs[account] = append(remoteTxs[account], tx.Tx)
+		}
+	}
+
 	if len(localTxs) > 0 {
 		txs := newTransactionsByPriceAndNonce(env.signer, localTxs, env.header.BaseFee)
 		if err := w.commitTransactions(env, txs, interrupt); err != nil {
@@ -952,10 +987,10 @@ func (w *worker) fillTransactions(interrupt *atomic.Int32, env *environment) err
 }
 
 // generateWork generates a sealing block based on the given parameters.
-func (w *worker) generateWork(params *generateParams) (*types.Block, *big.Int, error) {
+func (w *worker) generateWork(params *generateParams) (*types.Block, *big.Int, []kzg4844.Blob, []kzg4844.Commitment, []kzg4844.Proof, error) {
 	work, err := w.prepareWork(params)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, nil, nil, err
 	}
 	defer work.discard()
 
@@ -973,9 +1008,9 @@ func (w *worker) generateWork(params *generateParams) (*types.Block, *big.Int, e
 	}
 	block, err := w.engine.FinalizeAndAssemble(w.chain, work.header, work.state, work.txs, nil, work.receipts, params.withdrawals)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, nil, nil, err
 	}
-	return block, totalFees(block, work.receipts), nil
+	return block, totalFees(block, work.receipts), work.blobs, work.commitments, work.proofs, nil
 }
 
 // commitWork generates several new sealing tasks based on the parent block
@@ -1084,7 +1119,7 @@ func (w *worker) commit(env *environment, interval func(), update bool, start ti
 // getSealingBlock generates the sealing block based on the given parameters.
 // The generation result will be passed back via the given channel no matter
 // the generation itself succeeds or not.
-func (w *worker) getSealingBlock(parent common.Hash, timestamp uint64, coinbase common.Address, random common.Hash, withdrawals types.Withdrawals, noTxs bool) (*types.Block, *big.Int, error) {
+func (w *worker) getSealingBlock(parent common.Hash, timestamp uint64, coinbase common.Address, random common.Hash, withdrawals types.Withdrawals, noTxs bool) (*types.Block, *big.Int, []kzg4844.Blob, []kzg4844.Commitment, []kzg4844.Proof, error) {
 	req := &getWorkReq{
 		params: &generateParams{
 			timestamp:   timestamp,
@@ -1101,11 +1136,11 @@ func (w *worker) getSealingBlock(parent common.Hash, timestamp uint64, coinbase 
 	case w.getWorkCh <- req:
 		result := <-req.result
 		if result.err != nil {
-			return nil, nil, result.err
+			return nil, nil, nil, nil, nil, result.err
 		}
-		return result.block, result.fees, nil
+		return result.block, result.fees, result.blobs, result.commitments, result.proofs, nil
 	case <-w.exitCh:
-		return nil, nil, errors.New("miner closed")
+		return nil, nil, nil, nil, nil, errors.New("miner closed")
 	}
 }
 
