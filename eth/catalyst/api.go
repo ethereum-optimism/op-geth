@@ -442,7 +442,7 @@ func (api *ConsensusAPI) NewPayloadV2(params engine.ExecutableData) (engine.Payl
 }
 
 // NewPayloadV3 creates an Eth1 block, inserts it in the chain, and returns the status of the chain.
-func (api *ConsensusAPI) NewPayloadV3(params engine.ExecutableData, versionedHashes []common.Hash) (engine.PayloadStatusV1, error) {
+func (api *ConsensusAPI) NewPayloadV3(params engine.ExecutableData, versionedHashes *[]common.Hash) (engine.PayloadStatusV1, error) {
 	if api.eth.BlockChain().Config().IsCancun(new(big.Int).SetUint64(params.Number), params.Timestamp) {
 		if params.ExcessDataGas == nil {
 			return engine.PayloadStatusV1{Status: engine.INVALID}, engine.InvalidParams.With(fmt.Errorf("nil excessDataGas post-cancun"))
@@ -450,7 +450,11 @@ func (api *ConsensusAPI) NewPayloadV3(params engine.ExecutableData, versionedHas
 	} else if params.ExcessDataGas != nil {
 		return engine.PayloadStatusV1{Status: engine.INVALID}, engine.InvalidParams.With(fmt.Errorf("non-nil excessDataGas pre-cancun"))
 	}
-	return api.newPayload(params, versionedHashes)
+	var hashes []common.Hash
+	if versionedHashes != nil {
+		hashes = *versionedHashes
+	}
+	return api.newPayload(params, hashes)
 }
 
 func (api *ConsensusAPI) newPayload(params engine.ExecutableData, versionedHashes []common.Hash) (engine.PayloadStatusV1, error) {
