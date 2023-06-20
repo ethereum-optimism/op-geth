@@ -759,6 +759,10 @@ func (w *worker) commitTransaction(env *environment, tx *txpool.Transaction) ([]
 		snap = env.state.Snapshot()
 		gp   = env.gasPool.Gas()
 	)
+	// TODO (MariusVanDerWijden): Move this check
+	if len(env.blobs)+len(tx.BlobHashes())*params.BlobTxDataGasPerBlob > params.BlobTxMaxDataGasPerBlock {
+		return nil, errors.New("max data blobs reached")
+	}
 	receipt, err := core.ApplyTransaction(w.chainConfig, w.chain, &env.coinbase, env.gasPool, env.state, env.header, tx.Tx, &env.header.GasUsed, *w.chain.GetVMConfig())
 	if err != nil {
 		env.state.RevertToSnapshot(snap)
