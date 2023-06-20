@@ -127,7 +127,7 @@ func (payload *Payload) Resolve() *engine.ExecutionPayloadEnvelope {
 		close(payload.stop)
 	}
 	if payload.full != nil {
-		return engine.BlockToExecutableData(payload.full, payload.fullFees, nil, nil, nil) // TODO (marius): add blobs here
+		return engine.BlockToExecutableData(payload.full, payload.fullFees, payload.blobs, payload.commitments, payload.proofs)
 	}
 	return engine.BlockToExecutableData(payload.empty, big.NewInt(0), nil, nil, nil)
 }
@@ -155,7 +155,7 @@ func (payload *Payload) ResolveFull() *engine.ExecutionPayloadEnvelope {
 		}
 		payload.cond.Wait()
 	}
-	return engine.BlockToExecutableData(payload.full, payload.fullFees, nil, nil, nil) // TODO add payloads
+	return engine.BlockToExecutableData(payload.full, payload.fullFees, payload.blobs, payload.commitments, payload.proofs)
 }
 
 // buildPayload builds the payload according to the provided parameters.
