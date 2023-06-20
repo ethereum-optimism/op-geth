@@ -326,6 +326,7 @@ func New(config Config, chain BlockChain) *BlobPool {
 		lookup: make(map[common.Hash]uint64),
 		index:  make(map[common.Address][]*blobTxMeta),
 		spent:  make(map[common.Address]*uint256.Int),
+		cache:  make(map[common.Hash]*blobTxMeta),
 	}
 }
 
