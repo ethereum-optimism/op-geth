@@ -760,7 +760,7 @@ func (w *worker) commitTransaction(env *environment, tx *txpool.Transaction) ([]
 		gp   = env.gasPool.Gas()
 	)
 	// TODO (MariusVanDerWijden): Move this check
-	if len(env.blobs)+len(tx.BlobHashes())*params.BlobTxDataGasPerBlob > params.BlobTxMaxDataGasPerBlock {
+	if len(env.blobs)+len(tx.Tx.BlobHashes())*params.BlobTxDataGasPerBlob > params.BlobTxMaxDataGasPerBlock {
 		return nil, errors.New("max data blobs reached")
 	}
 	receipt, err := core.ApplyTransaction(w.chainConfig, w.chain, &env.coinbase, env.gasPool, env.state, env.header, tx.Tx, &env.header.GasUsed, *w.chain.GetVMConfig())
@@ -833,8 +833,8 @@ func (w *worker) commitTransactions(env *environment, txs *transactionsByPriceAn
 			coalescedLogs = append(coalescedLogs, logs...)
 			env.tcount++
 			txs.Shift()
-			if tx.Type() == types.BlobTxType {
-				txWrap := w.eth.TxPool().Get(tx.Hash())
+			if tx.Tx.Type() == types.BlobTxType {
+				txWrap := w.eth.TxPool().Get(tx.Tx.Hash())
 				env.blobs = append(env.blobs, txWrap.BlobTxBlobs...)
 				env.commitments = append(env.commitments, txWrap.BlobTxCommits...)
 				env.proofs = append(env.proofs, txWrap.BlobTxProofs...)
@@ -964,14 +964,8 @@ func (w *worker) fillTransactions(interrupt *atomic.Int32, env *environment) err
 		if txs := pending[account]; len(txs) > 0 {
 			delete(pending, account)
 			for _, tx := range txs {
-				localTxs[account] = append(localTxs[account], tx.Tx)
+				localTxs[account] = append(localTxs[account], tx)
 			}
-		}
-	}
-	for account, remotes := range pending {
-		remoteTxs[account] = make([]*types.Transaction, 0, len(remotes))
-		for _, tx := range remotes {
-			remoteTxs[account] = append(remoteTxs[account], tx.Tx)
 		}
 	}
 
