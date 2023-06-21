@@ -760,7 +760,7 @@ func (w *worker) commitTransaction(env *environment, tx *txpool.Transaction) ([]
 		gp   = env.gasPool.Gas()
 	)
 	// TODO (MariusVanDerWijden): Move this check
-	if len(env.blobs)+len(tx.Tx.BlobHashes())*params.BlobTxDataGasPerBlob > params.BlobTxMaxDataGasPerBlock {
+	if (len(env.blobs)+len(tx.Tx.BlobHashes()))*params.BlobTxDataGasPerBlob > params.BlobTxMaxDataGasPerBlock {
 		return nil, errors.New("max data blobs reached")
 	}
 	receipt, err := core.ApplyTransaction(w.chainConfig, w.chain, &env.coinbase, env.gasPool, env.state, env.header, tx.Tx, &env.header.GasUsed, *w.chain.GetVMConfig())
@@ -771,6 +771,12 @@ func (w *worker) commitTransaction(env *environment, tx *txpool.Transaction) ([]
 	}
 	env.txs = append(env.txs, tx.Tx)
 	env.receipts = append(env.receipts, receipt)
+
+	if tx.Tx.Type() == types.BlobTxType {
+		env.blobs = append(env.blobs, tx.BlobTxBlobs...)
+		env.commitments = append(env.commitments, tx.BlobTxCommits...)
+		env.proofs = append(env.proofs, tx.BlobTxProofs...)
+	}
 
 	return receipt.Logs, nil
 }
@@ -833,12 +839,6 @@ func (w *worker) commitTransactions(env *environment, txs *transactionsByPriceAn
 			coalescedLogs = append(coalescedLogs, logs...)
 			env.tcount++
 			txs.Shift()
-			if tx.Tx.Type() == types.BlobTxType {
-				txWrap := w.eth.TxPool().Get(tx.Tx.Hash())
-				env.blobs = append(env.blobs, txWrap.BlobTxBlobs...)
-				env.commitments = append(env.commitments, txWrap.BlobTxCommits...)
-				env.proofs = append(env.proofs, txWrap.BlobTxProofs...)
-			}
 
 		default:
 			// Transaction is regarded as invalid, drop all consecutive transactions from
