@@ -261,7 +261,7 @@ func (f *TxFetcher) Notify(peer string, hashes []common.Hash) error {
 // and the fetcher. This method may be called by both transaction broadcasts and
 // direct request replies. The differentiation is important so the fetcher can
 // re-schedule missing transactions as soon as possible.
-func (f *TxFetcher) Enqueue(peer string, txs []*types.Transaction, direct bool) error {
+func (f *TxFetcher) Enqueue(peer string, txs []*types.BlobTxWithBlobs, direct bool) error {
 	var (
 		inMeter          = txReplyInMeter
 		knownMeter       = txReplyKnownMeter
@@ -297,7 +297,7 @@ func (f *TxFetcher) Enqueue(peer string, txs []*types.Transaction, direct bool) 
 
 		wrapped := make([]*txpool.Transaction, len(batch))
 		for j, tx := range batch {
-			wrapped[j] = &txpool.Transaction{Tx: tx}
+			wrapped[j] = &txpool.Transaction{Tx: &tx.Transaction, BlobTxBlobs: tx.Blobs, BlobTxCommits: tx.Commitments, BlobTxProofs: tx.Proofs}
 		}
 		for j, err := range f.addTxs(wrapped) {
 			// Track the transaction hash if the price is too low for us.

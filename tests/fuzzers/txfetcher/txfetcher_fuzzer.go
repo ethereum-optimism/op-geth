@@ -152,7 +152,7 @@ func Fuzz(input []byte) int {
 
 			var (
 				deliverIdxs = make([]int, deliver)
-				deliveries  = make([]*types.Transaction, deliver)
+				deliveries  = make([]*types.BlobTxWithBlobs, deliver)
 			)
 			for i := 0; i < len(deliveries); i++ {
 				deliverBuf := make([]byte, 2)
@@ -160,7 +160,7 @@ func Fuzz(input []byte) int {
 					return 0
 				}
 				deliverIdxs[i] = (int(deliverBuf[0])*256 + int(deliverBuf[1])) % len(txs)
-				deliveries[i] = txs[deliverIdxs[i]]
+				deliveries[i] = types.NewBlobTxWithBlobs(txs[deliverIdxs[i]], nil, nil, nil)
 			}
 			directFlag, err := r.ReadByte()
 			if err != nil {

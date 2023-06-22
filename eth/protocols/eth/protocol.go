@@ -321,7 +321,7 @@ type GetPooledTransactionsPacket66 struct {
 }
 
 // PooledTransactionsPacket is the network packet for transaction distribution.
-type PooledTransactionsPacket []*types.Transaction
+type PooledTransactionsPacket []*types.BlobTxWithBlobs
 
 // PooledTransactionsPacket66 is the network packet for transaction distribution over eth/66.
 type PooledTransactionsPacket66 struct {

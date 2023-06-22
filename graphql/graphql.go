@@ -1294,7 +1294,7 @@ func (r *Resolver) SendRawTransaction(ctx context.Context, args struct{ Data hex
 	if err := tx.UnmarshalBinary(args.Data); err != nil {
 		var outer types.BlobTxWithBlobs
 		if innerErr := rlp.DecodeBytes(args.Data, &outer); innerErr == nil {
-			return ethapi.SubmitTransaction(ctx, r.backend, types.NewTx(outer.BlobTx), outer.Blobs, outer.Commitments, outer.Proofs)
+			return ethapi.SubmitTransaction(ctx, r.backend, &outer.Transaction, outer.Blobs, outer.Commitments, outer.Proofs)
 		}
 		return common.Hash{}, err
 	}
