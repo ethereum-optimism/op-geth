@@ -122,10 +122,10 @@ var PrecompiledContractsBLS = map[common.Address]PrecompiledContract{
 	common.BytesToAddress([]byte{18}): &bls12381MapG2{},
 }
 
-// PrecompiledContractsEcverify contains the precompiled Ethereum
-// contract specified in EIP-N. This is exported for testing purposes.
-var PrecompiledContractsEcverify = map[common.Address]PrecompiledContract{
-	common.BytesToAddress([]byte{19}): &ecverify{},
+// PrecompiledContractsP256Verify contains the precompiled Ethereum
+// contract specified in EIP-7212. This is exported for testing purposes.
+var PrecompiledContractsP256Verify = map[common.Address]PrecompiledContract{
+	common.BytesToAddress([]byte{19}): &p256Verify{},
 }
 
 var (
@@ -1143,22 +1143,22 @@ func kZGToVersionedHash(kzg kzg4844.Commitment) common.Hash {
 	return h
 }
 
-// ECVERIFY (secp256r1 signature verification)
+// P256VERIFY (secp256r1 signature verification)
 // implemented as a native contract
-type ecverify struct{}
+type p256Verify struct{}
 
 // RequiredGas returns the gas required to execute the precompiled contract
-func (c *ecverify) RequiredGas(input []byte) uint64 {
-	return params.EcverifyGas
+func (c *p256Verify) RequiredGas(input []byte) uint64 {
+	return params.P256VerifyGas
 }
 
 // Run executes the precompiled contract, returning the output and the used gas
-func (c *ecverify) Run(input []byte) ([]byte, error) {
+func (c *p256Verify) Run(input []byte) ([]byte, error) {
 	// Required input length is 160 bytes
-	const ecverifyInputLength = 160
+	const p256VerifyInputLength = 160
 
 	// "input" is (hash, r, s, x, y), each 32 bytes
-	input = common.RightPadBytes(input, ecverifyInputLength)
+	input = common.RightPadBytes(input, p256VerifyInputLength)
 
 	// Extract the hash, r, s, x, y from the input
 	hash := input[0:32]
