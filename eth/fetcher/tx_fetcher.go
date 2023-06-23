@@ -320,6 +320,7 @@ func (f *TxFetcher) Enqueue(peer string, txs []*types.BlobTxWithBlobs, direct bo
 				underpriced++
 
 			default:
+				panic(err)
 				otherreject++
 			}
 			added = append(added, batch[j].Hash())
