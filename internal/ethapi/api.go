@@ -1733,6 +1733,11 @@ func (s *TransactionAPI) GetTransactionReceipt(ctx context.Context, hash common.
 		fields["logs"] = []*types.Log{}
 	}
 
+	if receipt.DataGasPrice != nil {
+		fields["dataGasUsed"] = receipt.DataGasUsed
+		fields["dataGasPrice"] = receipt.DataGasPrice
+	}
+
 	// If the ContractAddress is 20 0x0 bytes, assume it is not a contract creation
 	if receipt.ContractAddress != (common.Address{}) {
 		fields["contractAddress"] = receipt.ContractAddress

@@ -645,7 +645,7 @@ func ReadReceipts(db ethdb.Reader, hash common.Hash, number uint64, time uint64,
 		baseFee = header.BaseFee
 	}
 	var dataGasPrice *big.Int
-	if header.ExcessDataGas != nil {
+	if header != nil && header.ExcessDataGas != nil {
 		dataGasPrice = eip4844.CalcBlobFee(*header.ExcessDataGas)
 	}
 	if err := receipts.DeriveFields(config, hash, number, time, baseFee, body.Transactions, dataGasPrice); err != nil {
