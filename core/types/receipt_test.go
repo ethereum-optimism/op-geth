@@ -137,6 +137,7 @@ var (
 			GasTipCap:  uint256.NewInt(66),
 			GasFeeCap:  uint256.NewInt(1066),
 			BlobFeeCap: uint256.NewInt(100066),
+			BlobHashes: make([]common.Hash, 1),
 		}),
 		NewTx(&BlobTx{
 			To:         to7,
@@ -146,6 +147,7 @@ var (
 			GasTipCap:  uint256.NewInt(77),
 			GasFeeCap:  uint256.NewInt(1077),
 			BlobFeeCap: uint256.NewInt(100077),
+			BlobHashes: make([]common.Hash, 2),
 		}),
 	}
 
@@ -273,6 +275,8 @@ var (
 			BlockHash:         blockHash,
 			BlockNumber:       blockNumber,
 			TransactionIndex:  5,
+			DataGasUsed:       params.BlobTxDataGasPerBlob,
+			DataGasPrice:      big.NewInt(1337),
 		},
 		&Receipt{
 			Type:              BlobTxType,
@@ -286,6 +290,8 @@ var (
 			BlockHash:         blockHash,
 			BlockNumber:       blockNumber,
 			TransactionIndex:  6,
+			DataGasUsed:       2 * params.BlobTxDataGasPerBlob,
+			DataGasPrice:      big.NewInt(1337),
 		},
 	}
 )
@@ -304,7 +310,7 @@ func TestDeriveFields(t *testing.T) {
 	// Re-derive receipts.
 	basefee := big.NewInt(1000)
 	derivedReceipts := clearComputedFieldsOnReceipts(receipts)
-	err := Receipts(derivedReceipts).DeriveFields(params.TestChainConfig, blockHash, blockNumber.Uint64(), blockTime, basefee, txs)
+	err := Receipts(derivedReceipts).DeriveFields(params.TestChainConfig, blockHash, blockNumber.Uint64(), blockTime, basefee, txs, big.NewInt(1337))
 	if err != nil {
 		t.Fatalf("DeriveFields(...) = %v, want <nil>", err)
 	}
@@ -501,6 +507,7 @@ func clearComputedFieldsOnReceipt(receipt *Receipt) *Receipt {
 	cpy.ContractAddress = common.Address{0xff, 0xff, 0x33}
 	cpy.GasUsed = 0xffffffff
 	cpy.Logs = clearComputedFieldsOnLogs(receipt.Logs)
+	cpy.DataGasPrice = nil
 	return &cpy
 }
 
