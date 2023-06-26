@@ -956,14 +956,15 @@ func (p *BlobPool) validateTx(tx *types.Transaction, blobs []kzg4844.Blob, commi
 	}
 	// Ensure the transaction adheres to the stateful pool filters (nonce, balance)
 	stateOpts := &txpool.ValidationOptionsWithState{
-		State: p.state,
-
-		FirstNonceGap: func(addr common.Address) uint64 {
-			// Nonce gaps are not permitted in the blob pool, the first gap will
-			// be the next nonce shifted by however many transactions we already
-			// have pooled.
-			return p.state.GetNonce(addr) + uint64(len(p.index[addr]))
-		},
+		State:         p.state,
+		FirstNonceGap: nil, // TODO (MariusVanDerWijden) reenable once txs are strictly sent by nonce
+		/*
+			FirstNonceGap: func(addr common.Address) uint64 {
+				// Nonce gaps are not permitted in the blob pool, the first gap will
+				// be the next nonce shifted by however many transactions we already
+				// have pooled.
+				return p.state.GetNonce(addr) + uint64(len(p.index[addr]))
+			},*/
 		ExistingExpenditure: func(addr common.Address) *big.Int {
 			if spent := p.spent[addr]; spent != nil {
 				return spent.ToBig()
