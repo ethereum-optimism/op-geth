@@ -1177,8 +1177,8 @@ func (p *BlobPool) add(tx *types.Transaction, blobs []kzg4844.Blob, commits []kz
 		heap.Fix(p.evict, p.evict.index[from])
 
 	case offset == len(txs): // either append or last tx replacement
-		evictionExecFeeDiff := txs[offset-1].evictionExecFeeJumps - txs[offset].evictionExecFeeJumps
-		evictionBlobFeeDiff := txs[offset-1].evictionBlobFeeJumps - txs[offset].evictionBlobFeeJumps
+		evictionExecFeeDiff := txs[offset-2].evictionExecFeeJumps - txs[offset-1].evictionExecFeeJumps
+		evictionBlobFeeDiff := txs[offset-2].evictionBlobFeeJumps - txs[offset-1].evictionBlobFeeJumps
 
 		if evictionExecFeeDiff > 0.001 || evictionBlobFeeDiff > 0.001 { // no need for math.Abs, monotonic decreasing
 			heap.Fix(p.evict, p.evict.index[from])
