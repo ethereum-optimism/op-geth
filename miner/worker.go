@@ -27,6 +27,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/misc"
+	"github.com/ethereum/go-ethereum/consensus/misc/eip4844"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/txpool"
@@ -928,10 +929,10 @@ func (w *worker) prepareWork(genParams *generateParams) (*environment, error) {
 	if w.chainConfig.IsCancun(header.Number, header.Time) {
 		var excessData uint64
 		if w.chainConfig.IsCancun(parent.Number, parent.Time) {
-			excessData = misc.CalcExcessDataGas(*parent.ExcessDataGas, *parent.DataGasUsed)
+			excessData = eip4844.CalcExcessDataGas(*parent.ExcessDataGas, *parent.DataGasUsed)
 		} else {
 			// For the first post-fork block, both parent.data_gas_used and parent.excess_data_gas are evaluated as 0
-			excessData = misc.CalcExcessDataGas(0, 0)
+			excessData = eip4844.CalcExcessDataGas(0, 0)
 		}
 		header.ExcessDataGas = &excessData
 	}

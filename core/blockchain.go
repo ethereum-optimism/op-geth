@@ -2049,7 +2049,11 @@ func (bc *BlockChain) recoverAncestors(block *types.Block) (common.Hash, error) 
 // the processing of a block. These logs are later announced as deleted or reborn.
 func (bc *BlockChain) collectLogs(b *types.Block, removed bool) []*types.Log {
 	receipts := rawdb.ReadRawReceipts(bc.db, b.Hash(), b.NumberU64())
-	receipts.DeriveFields(bc.chainConfig, b.Hash(), b.NumberU64(), b.Time(), b.BaseFee(), b.Transactions(), eip4844.CalcBlobFee(*b.ExcessDataGas()))
+	var dataGasPrice *big.Int
+	if parent := bc.GetBlockByNumber(b.NumberU64() - 1); parent != nil && parent.ExcessDataGas() != nil {
+		dataGasPrice = eip4844.CalcBlobFee(*b.ExcessDataGas())
+	}
+	receipts.DeriveFields(bc.chainConfig, b.Hash(), b.NumberU64(), b.Time(), b.BaseFee(), b.Transactions(), dataGasPrice)
 
 	var logs []*types.Log
 	for _, receipt := range receipts {
