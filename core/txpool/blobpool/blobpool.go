@@ -1058,7 +1058,6 @@ func (p *BlobPool) Get(hash common.Hash) *txpool.Transaction {
 // Add inserts a set of blob transactions into the pool if they pass validation (both
 // consensus validity and pool restictions).
 func (p *BlobPool) Add(txs []*txpool.Transaction, local bool, sync bool) []error {
-	fmt.Printf("Blob transactions added: %v, with blob length %v\n", len(txs), len(txs[0].BlobTxBlobs))
 	errs := make([]error, len(txs))
 	for i, tx := range txs {
 		errs[i] = p.add(tx.Tx, tx.BlobTxBlobs, tx.BlobTxCommits, tx.BlobTxProofs)

@@ -70,11 +70,9 @@ func (h *ethHandler) Handle(peer *eth.Peer, packet eth.Packet) error {
 		return h.txFetcher.Notify(peer.ID(), *packet)
 
 	case *eth.NewPooledTransactionHashesPacket68:
-		fmt.Printf("#######, Pooled Tx hashes packet received: %v\n", len(packet.Hashes))
 		return h.txFetcher.Notify(peer.ID(), packet.Hashes)
 
 	case *eth.TransactionsPacket:
-		fmt.Printf("#######, Tx packet received: %v\n", len(*packet))
 		var txs []*types.BlobTxWithBlobs
 		for _, tx := range *packet {
 			txs = append(txs, types.NewBlobTxWithBlobs(tx, nil, nil, nil))
@@ -82,7 +80,6 @@ func (h *ethHandler) Handle(peer *eth.Peer, packet eth.Packet) error {
 		return h.txFetcher.Enqueue(peer.ID(), txs, false)
 
 	case *eth.PooledTransactionsPacket:
-		fmt.Printf("#######, Pooled Tx packet received: %v\n", len(*packet))
 		return h.txFetcher.Enqueue(peer.ID(), *packet, true)
 
 	default:

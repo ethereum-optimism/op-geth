@@ -81,7 +81,7 @@ func (p *Peer) broadcastTransactions() {
 			)
 			for i := 0; i < len(queue) && size < maxTxPacketSize; i++ {
 				// Do not broadcast blob transactions
-				if tx := p.txpool.Get(queue[i]); tx != nil && tx.Tx.Type() != types.BlobTxType {
+				if tx := p.txpool.Get(queue[i]); tx != nil {
 					txs = append(txs, tx.Tx)
 					size += common.StorageSize(tx.Tx.Size())
 				}
