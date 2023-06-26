@@ -64,7 +64,7 @@ type Receipt struct {
 	GasUsed           uint64         `json:"gasUsed" gencodec:"required"`
 	EffectiveGasPrice *big.Int       `json:"effectiveGasPrice"` // required, but tag omitted for backwards compatibility
 	DataGasUsed       uint64         `json:"dataGasUsed,omitempty"`
-	DataGasPrice      *big.Int       `json:"effectiveDataGasPrice,omitempty"`
+	DataGasPrice      *big.Int       `json:"dataGasPrice,omitempty"`
 
 	// Inclusion information: These fields provide information about the inclusion of the
 	// transaction corresponding to this receipt.

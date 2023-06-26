@@ -294,7 +294,7 @@ func (tx *Transaction) BlobGas() uint64 { return tx.inner.blobGas() }
 // BlobGasFeeCap returns the data gas fee cap per data gas of the transaction for blob transactions, nil otherwise.
 func (tx *Transaction) BlobGasFeeCap() *big.Int { return tx.inner.blobGasFeeCap() }
 
-// BlobHashes returns the hases of the blob commitments for blob transactions, nil otherwise.
+// BlobHashes returns the hashes of the blob commitments for blob transactions, nil otherwise.
 func (tx *Transaction) BlobHashes() []common.Hash { return tx.inner.blobHashes() }
 
 // Value returns the ether amount of the transaction.
