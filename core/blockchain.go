@@ -2051,7 +2051,7 @@ func (bc *BlockChain) collectLogs(b *types.Block, removed bool) []*types.Log {
 	receipts := rawdb.ReadRawReceipts(bc.db, b.Hash(), b.NumberU64())
 	var dataGasPrice *big.Int
 	if parent := bc.GetBlockByNumber(b.NumberU64() - 1); parent != nil && parent.ExcessDataGas() != nil {
-		dataGasPrice = eip4844.CalcBlobFee(*b.ExcessDataGas())
+		dataGasPrice = eip4844.CalcBlobFee(*parent.ExcessDataGas())
 	}
 	receipts.DeriveFields(bc.chainConfig, b.Hash(), b.NumberU64(), b.Time(), b.BaseFee(), b.Transactions(), dataGasPrice)
 
