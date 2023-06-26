@@ -1197,6 +1197,8 @@ func (p *BlobPool) add(tx *types.Transaction, blobs []kzg4844.Blob, commits []kz
 		p.drop()
 	}
 	p.updateStorageMetrics()
+
+	p.eventFeed.Send(core.NewTxsEvent{Txs: types.Transactions{tx}})
 	return nil
 }
 
