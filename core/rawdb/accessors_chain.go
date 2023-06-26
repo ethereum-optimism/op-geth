@@ -639,15 +639,14 @@ func ReadReceipts(db ethdb.Reader, hash common.Hash, number uint64, time uint64,
 	}
 	header := ReadHeader(db, hash, number)
 	var baseFee *big.Int
-	var dataGasPrice *big.Int
 	if header == nil {
 		baseFee = big.NewInt(0)
 	} else {
 		baseFee = header.BaseFee
-		parentHeader := ReadHeader(db, header.ParentHash, number-1)
-		if parentHeader != nil && parentHeader.ExcessDataGas != nil {
-			dataGasPrice = eip4844.CalcBlobFee(*parentHeader.ExcessDataGas)
-		}
+	}
+	var dataGasPrice *big.Int
+	if header.ExcessDataGas != nil {
+		dataGasPrice = eip4844.CalcBlobFee(*header.ExcessDataGas)
 	}
 	if err := receipts.DeriveFields(config, hash, number, time, baseFee, body.Transactions, dataGasPrice); err != nil {
 		log.Error("Failed to derive block receipts fields", "hash", hash, "number", number, "err", err)

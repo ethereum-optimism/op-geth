@@ -178,12 +178,8 @@ func GetBlockReceipts(ctx context.Context, odr OdrBackend, hash common.Hash, num
 
 		var dataGasPrice *big.Int
 		if block.ExcessDataGas() != nil {
-			parentHeader, err := GetHeaderByNumber(ctx, odr, number-1)
-			if err != nil && parentHeader != nil && parentHeader.ExcessDataGas != nil {
-				dataGasPrice = eip4844.CalcBlobFee(*parentHeader.ExcessDataGas)
-			}
+			dataGasPrice = eip4844.CalcBlobFee(*block.ExcessDataGas())
 		}
-
 		if err := receipts.DeriveFields(config, block.Hash(), block.NumberU64(), block.Time(), block.BaseFee(), block.Transactions(), dataGasPrice); err != nil {
 			return nil, err
 		}
