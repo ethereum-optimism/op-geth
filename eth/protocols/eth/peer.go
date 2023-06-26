@@ -17,6 +17,7 @@
 package eth
 
 import (
+	"fmt"
 	"math/big"
 	"math/rand"
 	"sync"
@@ -232,6 +233,8 @@ func (p *Peer) sendPooledTransactionHashes66(hashes []common.Hash) error {
 func (p *Peer) sendPooledTransactionHashes68(hashes []common.Hash, types []byte, sizes []uint32) error {
 	// Mark all the transactions as known, but ensure we don't overflow our limits
 	p.knownTxs.Add(hashes...)
+
+	fmt.Printf("#######, Sending pooled Tx hashes packet: %v\n", len(hashes))
 	return p2p.Send(p.rw, NewPooledTransactionHashesMsg, NewPooledTransactionHashesPacket68{Types: types, Sizes: sizes, Hashes: hashes})
 }
 
