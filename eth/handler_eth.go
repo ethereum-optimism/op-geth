@@ -80,6 +80,7 @@ func (h *ethHandler) Handle(peer *eth.Peer, packet eth.Packet) error {
 		return h.txFetcher.Enqueue(peer.ID(), txs, false)
 
 	case *eth.PooledTransactionsPacket:
+		fmt.Printf("#######, Tx packet received: %v\n", len(*packet))
 		return h.txFetcher.Enqueue(peer.ID(), *packet, true)
 
 	default:
