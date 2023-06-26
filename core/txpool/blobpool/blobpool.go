@@ -1185,8 +1185,8 @@ func (p *BlobPool) add(tx *types.Transaction, blobs []kzg4844.Blob, commits []kz
 		}
 
 	default: // no new account, no singleton tx, no last update; must be internal replacement
-		evictionExecFeeDiff := oldEvictionExecFeeJumps - txs[offset].evictionExecFeeJumps
-		evictionBlobFeeDiff := oldEvictionBlobFeeJumps - txs[offset].evictionBlobFeeJumps
+		evictionExecFeeDiff := oldEvictionExecFeeJumps - txs[offset-1].evictionExecFeeJumps
+		evictionBlobFeeDiff := oldEvictionBlobFeeJumps - txs[offset-1].evictionBlobFeeJumps
 
 		if math.Abs(evictionExecFeeDiff) > 0.001 || math.Abs(evictionBlobFeeDiff) > 0.001 { // need math.Abs, can go up and down
 			heap.Fix(p.evict, p.evict.index[from])
