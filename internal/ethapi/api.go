@@ -1734,8 +1734,8 @@ func (s *TransactionAPI) GetTransactionReceipt(ctx context.Context, hash common.
 	}
 
 	if receipt.DataGasPrice != nil {
-		fields["dataGasUsed"] = receipt.DataGasUsed
-		fields["dataGasPrice"] = receipt.DataGasPrice
+		fields["dataGasUsed"] = hexutil.Uint64(receipt.DataGasUsed)
+		fields["dataGasPrice"] = (*hexutil.Big)(receipt.DataGasPrice)
 	}
 
 	// If the ContractAddress is 20 0x0 bytes, assume it is not a contract creation
