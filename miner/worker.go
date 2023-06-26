@@ -964,9 +964,7 @@ func (w *worker) fillTransactions(interrupt *atomic.Int32, env *environment) err
 	for _, account := range w.eth.TxPool().Locals() {
 		if txs := pending[account]; len(txs) > 0 {
 			delete(pending, account)
-			for _, tx := range txs {
-				localTxs[account] = append(localTxs[account], tx)
-			}
+			localTxs[account] = append(localTxs[account], txs...)
 		}
 	}
 
