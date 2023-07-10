@@ -1,0 +1,13 @@
+Do you guys ever used 'go get github.com/ethereum-optimism/op-geth'?
+
+This operation will fail due to mismatch of package name, the error message is:
+
+go: github.com/ethereum-optimism/op-geth@v1.101106.0: parsing go.mod:
+	module declares its path as: github.com/ethereum/go-ethereum
+	        but was required as: github.com/ethereum-optimism/op-geth
+
+can you please rename the package in go.mod? 
+
+No one want to fork the repo and rename the package and use it.
+
+Thanks
