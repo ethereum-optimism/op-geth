@@ -25,6 +25,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/trie/trienode"
 )
 
 // Trie is a Merkle Patricia Trie. Use New to create a trie that sits on
@@ -95,7 +96,7 @@ func New(id *ID, db NodeReader) (*Trie, error) {
 
 // NewEmpty is a shortcut to create empty tree. It's mostly used in tests.
 func NewEmpty(db *Database) *Trie {
-	tr, _ := New(TrieID(common.Hash{}), db)
+	tr, _ := New(TrieID(types.EmptyRootHash), db)
 	return tr
 }
 
@@ -212,7 +213,7 @@ func (t *Trie) getNode(origNode node, path []byte, pos int) (item []byte, newnod
 		if hash == nil {
 			return nil, origNode, 0, errors.New("non-consensus node")
 		}
-		blob, err := t.reader.nodeBlob(path, common.BytesToHash(hash))
+		blob, err := t.reader.node(path, common.BytesToHash(hash))
 		return blob, origNode, 1, err
 	}
 	// Path still needs to be traversed, descend into children
@@ -549,7 +550,7 @@ func (t *Trie) resolve(n node, prefix []byte) (node, error) {
 // node's original value. The rlp-encoded blob is preferred to be loaded from
 // database because it's easy to decode node while complex to encode node to blob.
 func (t *Trie) resolveAndTrack(n hashNode, prefix []byte) (node, error) {
-	blob, err := t.reader.nodeBlob(prefix, common.BytesToHash(n))
+	blob, err := t.reader.node(prefix, common.BytesToHash(n))
 	if err != nil {
 		return nil, err
 	}
@@ -571,10 +572,10 @@ func (t *Trie) Hash() common.Hash {
 // The returned nodeset can be nil if the trie is clean (nothing to commit).
 // Once the trie is committed, it's not usable anymore. A new trie must
 // be created with new root and updated trie database for following usage
-func (t *Trie) Commit(collectLeaf bool) (common.Hash, *NodeSet) {
+func (t *Trie) Commit(collectLeaf bool) (common.Hash, *trienode.NodeSet) {
 	defer t.tracer.reset()
 
-	nodes := NewNodeSet(t.owner, t.tracer.accessList)
+	nodes := trienode.NewNodeSet(t.owner)
 	t.tracer.markDeletions(nodes)
 
 	// Trie is empty and can be classified into two types of situations:
@@ -595,7 +596,7 @@ func (t *Trie) Commit(collectLeaf bool) (common.Hash, *NodeSet) {
 		t.root = hashedNode
 		return rootHash, nil
 	}
-	t.root = newCommitter(nodes, collectLeaf).Commit(t.root)
+	t.root = newCommitter(nodes, t.tracer, collectLeaf).Commit(t.root)
 	return rootHash, nodes
 }
 
