@@ -564,7 +564,7 @@ func (pool *TxPool) Pending(enforceTips bool) map[common.Address]types.Transacti
 	pool.mu.Lock()
 	defer pool.mu.Unlock()
 
-	pending := make(map[common.Address]types.Transactions)
+	pending := make(map[common.Address]types.Transactions, len(pool.pending))
 	for addr, list := range pool.pending {
 		txs := list.Flatten()
 
@@ -642,6 +642,10 @@ func (pool *TxPool) validateTxBasics(tx *types.Transaction, local bool) error {
 	}
 	// Reject dynamic fee transactions until EIP-1559 activates.
 	if !pool.eip1559.Load() && tx.Type() == types.DynamicFeeTxType {
+		return core.ErrTxTypeNotSupported
+	}
+	// Reject blob transactions forever, those will have their own pool.
+	if tx.Type() == types.BlobTxType {
 		return core.ErrTxTypeNotSupported
 	}
 	// Reject transactions over defined size to prevent DOS attacks
@@ -1458,7 +1462,7 @@ func (pool *TxPool) reset(oldHead, newHead *types.Header) {
 	pool.istanbul.Store(pool.chainconfig.IsIstanbul(next))
 	pool.eip2718.Store(pool.chainconfig.IsBerlin(next))
 	pool.eip1559.Store(pool.chainconfig.IsLondon(next))
-	pool.shanghai.Store(pool.chainconfig.IsShanghai(uint64(time.Now().Unix())))
+	pool.shanghai.Store(pool.chainconfig.IsShanghai(next, uint64(time.Now().Unix())))
 }
 
 // promoteExecutables moves transactions that have become processable from the
