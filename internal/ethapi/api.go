@@ -2272,6 +2272,10 @@ func (api *DebugAPI) SetHead(number hexutil.Uint64) {
 	api.b.SetHead(uint64(number))
 }
 
+func (api *DebugAPI) ChainConfig() *params.ChainConfig {
+	return api.b.ChainConfig()
+}
+
 // NetAPI offers network related RPC methods
 type NetAPI struct {
 	net            *p2p.Server
