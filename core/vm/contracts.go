@@ -172,8 +172,16 @@ var PrecompiledContractsGranite = map[common.Address]PrecompiledContract{
 	common.BytesToAddress([]byte{0x01, 0x00}): &p256Verify{},
 }
 
+// PrecompiledContractsCel2 contains the default set of pre-compiled Ethereum
+// contracts used in the Cel2 release which don't require the extra
+// celoPrecompileContext, while PrecompiledCeloContractsCel2 contains those
+// that do.
+var PrecompiledContractsCel2 = PrecompiledContractsGranite
+var PrecompiledCeloContractsCel2 = map[common.Address]CeloPrecompiledContract{}
+
 var (
 	PrecompiledAddressesGranite   []common.Address
+	PrecompiledAddressesCel2      []common.Address
 	PrecompiledAddressesFjord     []common.Address
 	PrecompiledAddressesPrague    []common.Address
 	PrecompiledAddressesCancun    []common.Address
@@ -210,8 +218,9 @@ func init() {
 	}
 }
 
-// ActivePrecompiles returns the precompiles enabled with the current configuration.
-func ActivePrecompiles(rules params.Rules) []common.Address {
+// OptimismPrecompiles returns the original Optimism precompiles enabled with
+// the current configuration.
+func OptimismPrecompiles(rules params.Rules) []common.Address {
 	switch {
 	case rules.IsOptimismGranite:
 		return PrecompiledAddressesGranite
@@ -232,12 +241,30 @@ func ActivePrecompiles(rules params.Rules) []common.Address {
 	}
 }
 
+// ActivePrecompiles returns the precompiles enabled with the current configuration.
+func ActivePrecompiles(rules params.Rules) []common.Address {
+	addresses := OptimismPrecompiles(rules)
+
+	if !rules.IsCel2 {
+		return addresses
+	}
+
+	PrecompiledAddressesCel2 = PrecompiledAddressesCel2[:0]
+	PrecompiledAddressesCel2 = append(PrecompiledAddressesCel2, addresses...)
+
+	for k := range PrecompiledCeloContractsCel2 {
+		PrecompiledAddressesCel2 = append(PrecompiledAddressesCel2, k)
+	}
+
+	return PrecompiledAddressesCel2
+}
+
 // RunPrecompiledContract runs and evaluates the output of a precompiled contract.
 // It returns
 // - the returned bytes,
 // - the _remaining_ gas,
 // - any error that occurred
-func RunPrecompiledContract(p PrecompiledContract, input []byte, suppliedGas uint64, logger *tracing.Hooks) (ret []byte, remainingGas uint64, err error) {
+func RunPrecompiledContract(p CeloPrecompiledContract, input []byte, suppliedGas uint64, logger *tracing.Hooks, ctx *celoPrecompileContext) (ret []byte, remainingGas uint64, err error) {
 	gasCost := p.RequiredGas(input)
 	if suppliedGas < gasCost {
 		return nil, 0, ErrOutOfGas
@@ -246,7 +273,7 @@ func RunPrecompiledContract(p PrecompiledContract, input []byte, suppliedGas uin
 		logger.OnGasChange(suppliedGas, suppliedGas-gasCost, tracing.GasChangeCallPrecompiledContract)
 	}
 	suppliedGas -= gasCost
-	output, err := p.Run(input)
+	output, err := p.Run(input, ctx)
 	return output, suppliedGas, err
 }
 
