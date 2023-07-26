@@ -249,11 +249,11 @@ func (s *Suite) TestSnapGetByteCodes(t *utesting.T) {
 		// A few stateroots
 		{
 			nBytes: 10000, hashes: []common.Hash{s.chain.RootAt(0), s.chain.RootAt(999)},
-			expHashes: 0,
+			expHashes: 1, // 32-byte keys are detected as code, even if not code (like genesis hash), in legacy lookups.
 		},
 		{
 			nBytes: 10000, hashes: []common.Hash{s.chain.RootAt(0), s.chain.RootAt(0)},
-			expHashes: 0,
+			expHashes: 2, // 32-byte keys are detected as code, even if not code (like genesis hash), in legacy lookups.
 		},
 		// Empties
 		{
