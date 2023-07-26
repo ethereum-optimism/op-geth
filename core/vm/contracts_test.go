@@ -45,30 +45,30 @@ type precompiledFailureTest struct {
 
 // allPrecompiles does not map to the actual set of precompiles, as it also contains
 // repriced versions of precompiles at certain slots
-var allPrecompiles = map[common.Address]PrecompiledContract{
-	common.BytesToAddress([]byte{1}):    &ecrecover{},
-	common.BytesToAddress([]byte{2}):    &sha256hash{},
-	common.BytesToAddress([]byte{3}):    &ripemd160hash{},
-	common.BytesToAddress([]byte{4}):    &dataCopy{},
-	common.BytesToAddress([]byte{5}):    &bigModExp{eip2565: false},
-	common.BytesToAddress([]byte{0xf5}): &bigModExp{eip2565: true},
-	common.BytesToAddress([]byte{6}):    &bn256AddIstanbul{},
-	common.BytesToAddress([]byte{7}):    &bn256ScalarMulIstanbul{},
-	common.BytesToAddress([]byte{8}):    &bn256PairingIstanbul{},
-	common.BytesToAddress([]byte{9}):    &blake2F{},
-	common.BytesToAddress([]byte{0x0a}): &kzgPointEvaluation{},
+var allPrecompiles = map[common.Address]CeloPrecompiledContract{
+	common.BytesToAddress([]byte{1}):    &wrap{&ecrecover{}},
+	common.BytesToAddress([]byte{2}):    &wrap{&sha256hash{}},
+	common.BytesToAddress([]byte{3}):    &wrap{&ripemd160hash{}},
+	common.BytesToAddress([]byte{4}):    &wrap{&dataCopy{}},
+	common.BytesToAddress([]byte{5}):    &wrap{&bigModExp{eip2565: false}},
+	common.BytesToAddress([]byte{0xf5}): &wrap{&bigModExp{eip2565: true}},
+	common.BytesToAddress([]byte{6}):    &wrap{&bn256AddIstanbul{}},
+	common.BytesToAddress([]byte{7}):    &wrap{&bn256ScalarMulIstanbul{}},
+	common.BytesToAddress([]byte{8}):    &wrap{&bn256PairingIstanbul{}},
+	common.BytesToAddress([]byte{9}):    &wrap{&blake2F{}},
+	common.BytesToAddress([]byte{0x0a}): &wrap{&kzgPointEvaluation{}},
 
-	common.BytesToAddress([]byte{0x01, 0x00}): &p256Verify{},
+	common.BytesToAddress([]byte{0x01, 0x00}): &wrap{&p256Verify{}},
 
-	common.BytesToAddress([]byte{0x0f, 0x0a}): &bls12381G1Add{},
-	common.BytesToAddress([]byte{0x0f, 0x0b}): &bls12381G1Mul{},
-	common.BytesToAddress([]byte{0x0f, 0x0c}): &bls12381G1MultiExp{},
-	common.BytesToAddress([]byte{0x0f, 0x0d}): &bls12381G2Add{},
-	common.BytesToAddress([]byte{0x0f, 0x0e}): &bls12381G2Mul{},
-	common.BytesToAddress([]byte{0x0f, 0x0f}): &bls12381G2MultiExp{},
-	common.BytesToAddress([]byte{0x0f, 0x10}): &bls12381Pairing{},
-	common.BytesToAddress([]byte{0x0f, 0x11}): &bls12381MapG1{},
-	common.BytesToAddress([]byte{0x0f, 0x12}): &bls12381MapG2{},
+	common.BytesToAddress([]byte{0x0f, 0x0a}): &wrap{&bls12381G1Add{}},
+	common.BytesToAddress([]byte{0x0f, 0x0b}): &wrap{&bls12381G1Mul{}},
+	common.BytesToAddress([]byte{0x0f, 0x0c}): &wrap{&bls12381G1MultiExp{}},
+	common.BytesToAddress([]byte{0x0f, 0x0d}): &wrap{&bls12381G2Add{}},
+	common.BytesToAddress([]byte{0x0f, 0x0e}): &wrap{&bls12381G2Mul{}},
+	common.BytesToAddress([]byte{0x0f, 0x0f}): &wrap{&bls12381G2MultiExp{}},
+	common.BytesToAddress([]byte{0x0f, 0x10}): &wrap{&bls12381Pairing{}},
+	common.BytesToAddress([]byte{0x0f, 0x11}): &wrap{&bls12381MapG1{}},
+	common.BytesToAddress([]byte{0x0f, 0x12}): &wrap{&bls12381MapG2{}},
 }
 
 // EIP-152 test vectors
@@ -100,7 +100,7 @@ func testPrecompiled(addr string, test precompiledTest, t *testing.T) {
 	in := common.Hex2Bytes(test.Input)
 	gas := p.RequiredGas(in)
 	t.Run(fmt.Sprintf("%s-Gas=%d", test.Name, gas), func(t *testing.T) {
-		if res, _, err := RunPrecompiledContract(p, in, gas); err != nil {
+		if res, _, err := RunPrecompiledContract(p, in, gas, mockPrecompileContext); err != nil {
 			t.Error(err)
 		} else if common.Bytes2Hex(res) != test.Expected {
 			t.Errorf("Expected %v, got %v", test.Expected, common.Bytes2Hex(res))
@@ -122,7 +122,7 @@ func testPrecompiledOOG(addr string, test precompiledTest, t *testing.T) {
 	gas := p.RequiredGas(in) - 1
 
 	t.Run(fmt.Sprintf("%s-Gas=%d", test.Name, gas), func(t *testing.T) {
-		_, _, err := RunPrecompiledContract(p, in, gas)
+		_, _, err := RunPrecompiledContract(p, in, gas, mockPrecompileContext)
 		if err.Error() != "out of gas" {
 			t.Errorf("Expected error [out of gas], got [%v]", err)
 		}
@@ -139,7 +139,7 @@ func testPrecompiledFailure(addr string, test precompiledFailureTest, t *testing
 	in := common.Hex2Bytes(test.Input)
 	gas := p.RequiredGas(in)
 	t.Run(test.Name, func(t *testing.T) {
-		_, _, err := RunPrecompiledContract(p, in, gas)
+		_, _, err := RunPrecompiledContract(p, in, gas, mockPrecompileContext)
 		if err.Error() != test.ExpectedError {
 			t.Errorf("Expected error [%v], got [%v]", test.ExpectedError, err)
 		}
@@ -171,7 +171,7 @@ func benchmarkPrecompiled(addr string, test precompiledTest, bench *testing.B) {
 		bench.ResetTimer()
 		for i := 0; i < bench.N; i++ {
 			copy(data, in)
-			res, _, err = RunPrecompiledContract(p, data, reqGas)
+			res, _, err = RunPrecompiledContract(p, data, reqGas, mockPrecompileContext)
 		}
 		bench.StopTimer()
 		elapsed := uint64(time.Since(start))
