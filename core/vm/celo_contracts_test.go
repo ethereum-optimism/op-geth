@@ -2,8 +2,10 @@ package vm
 
 import (
 	"math/big"
+	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/contracts/addresses"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/holiman/uint256"
@@ -59,3 +61,60 @@ var mockEVM = &EVM{
 }
 
 var mockPrecompileContext = NewContext(common.HexToAddress("1337"), mockEVM)
+
+func TestPrecompileTransfer(t *testing.T) {
+	type args struct {
+		input []byte
+		ctx   *celoPrecompileContext
+	}
+	tests := []struct {
+		name        string
+		args        args
+		wantErr     bool
+		expectedErr string
+	}{
+		{
+			name: "Test transfer with invalid caller",
+			args: args{
+				input: []byte(""),
+				ctx:   mockPrecompileContext,
+			},
+			wantErr:     true,
+			expectedErr: "unable to call transfer from unpermissioned address",
+		}, {
+			name: "Test transfer with short input",
+			args: args{
+				input: []byte("0000"),
+				ctx:   NewContext(addresses.CeloTokenAddress, mockEVM),
+			},
+			wantErr:     true,
+			expectedErr: "invalid input length",
+		}, {
+			name: "Test transferring from zero address (was used for minting on Celo L1)",
+			args: args{
+				// input consists of (from, to, value), each 32 bytes. In this case (0x0, 0x1, 2).
+				input: []byte{
+					0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+					0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+					0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2,
+				},
+				ctx: NewContext(addresses.CeloTokenAddress, mockEVM),
+			},
+			wantErr:     true,
+			expectedErr: "insufficient balance for transfer",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := &transfer{}
+			_, err := c.Run(tt.args.input, tt.args.ctx)
+			if tt.wantErr {
+				if err == nil {
+					t.Errorf("transfer.Run() expected error = %v", tt.expectedErr)
+				} else if err.Error() != tt.expectedErr {
+					t.Errorf("transfer.Run() error = %v, expected %v", err, tt.wantErr)
+				}
+			}
+		})
+	}
+}

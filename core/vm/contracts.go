@@ -177,7 +177,12 @@ var PrecompiledContractsGranite = map[common.Address]PrecompiledContract{
 // celoPrecompileContext, while PrecompiledCeloContractsCel2 contains those
 // that do.
 var PrecompiledContractsCel2 = PrecompiledContractsGranite
-var PrecompiledCeloContractsCel2 = map[common.Address]CeloPrecompiledContract{}
+
+// PrecompiledCeloContractsCel2 contains a set of pre-compiled contracts used
+// in the Cel2 release which require the extra celoPrecompileContext.
+var PrecompiledCeloContractsCel2 = map[common.Address]CeloPrecompiledContract{
+	celoPrecompileAddress(2): &transfer{},
+}
 
 var (
 	PrecompiledAddressesGranite   []common.Address
