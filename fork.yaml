@@ -163,7 +163,7 @@ def:
           globs:
             - "eth/state_accessor.go"
         - title: API frontend
-          description: Format deposit and L1-cost data in transaction responses.
+          description: Format deposit and L1-cost data in transaction responses. Add `debug_chainConfig` API.
           globs:
             - "internal/ethapi/api.go"
             - "rpc/errors.go"
