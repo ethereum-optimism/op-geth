@@ -129,7 +129,9 @@ var PrecompiledContractsFjord = map[common.Address]PrecompiledContract{
 // celoPrecompileContext, while PrecompiledCeloContractsCel2 contains those
 // that do.
 var PrecompiledContractsCel2 = PrecompiledContractsCancun
-var PrecompiledCeloContractsCel2 = map[common.Address]CeloPrecompiledContract{}
+var PrecompiledCeloContractsCel2 = map[common.Address]CeloPrecompiledContract{
+	celoPrecompileAddress(2): &transfer{},
+}
 
 // PrecompiledContractsBLS contains the set of pre-compiled Ethereum
 // contracts specified in EIP-2537. These are exported for testing purposes.
