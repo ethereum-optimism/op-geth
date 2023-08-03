@@ -3,6 +3,7 @@ module github.com/ethereum/go-ethereum
 go 1.19
 
 require (
+	github.com/ethereum-optimism/superchain-registry/superchain v0.0.0
 	github.com/Azure/azure-sdk-for-go/sdk/storage/azblob v0.3.0
 	github.com/VictoriaMetrics/fastcache v1.6.0
 	github.com/aws/aws-sdk-go-v2 v1.2.0
@@ -130,3 +131,5 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	rsc.io/tmplfunc v0.0.3 // indirect
 )
+
+replace github.com/ethereum-optimism/superchain-registry/superchain v0.0.0 => ../superchain-registry/superchain
