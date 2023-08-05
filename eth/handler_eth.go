@@ -23,6 +23,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/txpool"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth/protocols/eth"
 	"github.com/ethereum/go-ethereum/p2p/enode"
@@ -39,7 +40,7 @@ func (h *ethHandler) Chain() *core.BlockChain { return h.chain }
 type NilPool struct{}
 
 // NilPool Get always returns nil
-func (n NilPool) Get(hash common.Hash) *types.Transaction { return nil }
+func (n NilPool) Get(hash common.Hash) *txpool.Transaction { return nil }
 
 func (h *ethHandler) TxPool() eth.TxPool {
 	if h.noTxGossip {
@@ -89,7 +90,11 @@ func (h *ethHandler) Handle(peer *eth.Peer, packet eth.Packet) error {
 		return h.txFetcher.Notify(peer.ID(), packet.Hashes)
 
 	case *eth.TransactionsPacket:
-		return h.txFetcher.Enqueue(peer.ID(), *packet, false)
+		var txs []*types.BlobTxWithBlobs
+		for _, tx := range *packet {
+			txs = append(txs, types.NewBlobTxWithBlobs(tx, nil, nil, nil))
+		}
+		return h.txFetcher.Enqueue(peer.ID(), txs, false)
 
 	case *eth.PooledTransactionsPacket:
 		return h.txFetcher.Enqueue(peer.ID(), *packet, true)

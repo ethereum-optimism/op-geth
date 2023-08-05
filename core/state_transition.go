@@ -23,6 +23,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	cmath "github.com/ethereum/go-ethereum/common/math"
+	"github.com/ethereum/go-ethereum/consensus/misc/eip4844"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/params"
@@ -125,16 +126,18 @@ func toWordSize(size uint64) uint64 {
 // A Message contains the data derived from a single transaction that is relevant to state
 // processing.
 type Message struct {
-	To         *common.Address
-	From       common.Address
-	Nonce      uint64
-	Value      *big.Int
-	GasLimit   uint64
-	GasPrice   *big.Int
-	GasFeeCap  *big.Int
-	GasTipCap  *big.Int
-	Data       []byte
-	AccessList types.AccessList
+	To            *common.Address
+	From          common.Address
+	Nonce         uint64
+	Value         *big.Int
+	GasLimit      uint64
+	GasPrice      *big.Int
+	GasFeeCap     *big.Int
+	GasTipCap     *big.Int
+	Data          []byte
+	AccessList    types.AccessList
+	BlobGasFeeCap *big.Int
+	BlobHashes    []common.Hash
 
 	// When SkipAccountChecks is true, the message nonce is not checked against the
 	// account nonce in state. It also disables checking that the sender is an EOA.
@@ -165,6 +168,8 @@ func TransactionToMessage(tx *types.Transaction, s types.Signer, baseFee *big.In
 		RollupDataGas: tx.RollupDataGas(),
 
 		SkipAccountChecks: false,
+		BlobHashes:        tx.BlobHashes(),
+		BlobGasFeeCap:     tx.BlobGasFeeCap(),
 	}
 	// If baseFee provided, set gasPrice to effectiveGasPrice.
 	if baseFee != nil {
@@ -254,6 +259,23 @@ func (st *StateTransition) buyGas() error {
 			balanceCheck.Add(balanceCheck, l1Cost)
 		}
 	}
+
+	if st.evm.ChainConfig().IsCancun(st.evm.Context.BlockNumber, st.evm.Context.Time) {
+		if dataGas := st.dataGasUsed(); dataGas > 0 {
+			if st.evm.Context.ExcessDataGas == nil {
+				panic("adsf")
+			}
+			// Check that the user has enough funds to cover dataGasUsed * tx.BlobGasFeeCap
+			blobBalanceCheck := new(big.Int).SetUint64(dataGas)
+			blobBalanceCheck.Mul(blobBalanceCheck, st.msg.BlobGasFeeCap)
+			balanceCheck.Add(balanceCheck, blobBalanceCheck)
+			// Pay for dataGasUsed * actual blob fee
+			blobFee := new(big.Int).SetUint64(dataGas)
+			blobFee.Mul(blobFee, eip4844.CalcBlobFee(*st.evm.Context.ExcessDataGas))
+			mgval.Add(mgval, blobFee)
+		}
+	}
+
 	if have, want := st.state.GetBalance(st.msg.From), balanceCheck; have.Cmp(want) < 0 {
 		return fmt.Errorf("%w: address %v have %v want %v", ErrInsufficientFunds, st.msg.From.Hex(), have, want)
 	}
@@ -327,6 +349,15 @@ func (st *StateTransition) preCheck() error {
 			if msg.GasFeeCap.Cmp(st.evm.Context.BaseFee) < 0 {
 				return fmt.Errorf("%w: address %v, maxFeePerGas: %s baseFee: %s", ErrFeeCapTooLow,
 					msg.From.Hex(), msg.GasFeeCap, st.evm.Context.BaseFee)
+			}
+		}
+	}
+
+	if st.evm.ChainConfig().IsCancun(st.evm.Context.BlockNumber, st.evm.Context.Time) {
+		if st.dataGasUsed() > 0 {
+			// Check that the user is paying at least the current blob fee
+			if have, want := st.msg.BlobGasFeeCap, eip4844.CalcBlobFee(*st.evm.Context.ExcessDataGas); have.Cmp(want) < 0 {
+				return fmt.Errorf("%w: address %v have %v want %v", ErrBlobFeeCapTooLow, st.msg.From.Hex(), have, want)
 			}
 		}
 	}
@@ -525,4 +556,9 @@ func (st *StateTransition) refundGas(refundQuotient uint64) {
 // gasUsed returns the amount of gas used up by the state transition.
 func (st *StateTransition) gasUsed() uint64 {
 	return st.initialGas - st.gasRemaining
+}
+
+// dataGasUsed returns the amount of data gas used by the message.
+func (st *StateTransition) dataGasUsed() uint64 {
+	return uint64(len(st.msg.BlobHashes) * params.BlobTxDataGasPerBlob)
 }

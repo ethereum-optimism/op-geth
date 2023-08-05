@@ -171,9 +171,15 @@ const (
 	RefundQuotient        uint64 = 2
 	RefundQuotientEIP3529 uint64 = 5
 
-	BlobTxDataGasPerBlob             = 1 << 17 // Gas consumption of a single data blob (== blob byte size)
-	BlobTxMinDataGasprice            = 1       // Minimum gas price for data blobs
-	BlobTxDataGaspriceUpdateFraction = 2225652 // Controls the maximum rate of change for data gas price
+	BlobTxBytesPerFieldElement         = 32                       // Size in bytes of a field element
+	BlobTxFieldElementsPerBlob         = 4096                     // Number of field elements stored in a single data blob
+	BlobTxHashVersion                  = 0x01                     // Version byte of the commitment hash
+	BlobTxDataGasPerBlob               = 1 << 17                  // Gas consumption of a single data blob (== blob byte size)
+	BlobTxMaxDataGasPerBlock           = 6 * BlobTxDataGasPerBlob // Maximum consumable data gas for data blobs per block
+	BlobTxTargetDataGasPerBlock        = 3 * BlobTxDataGasPerBlob // Target consumable data gas for data blobs per block (for 1559-like pricing)
+	BlobTxMinDataGasprice              = 1                        // Minimum gas price for data blobs
+	BlobTxDataGaspriceUpdateFraction   = 3338477                  // Controls the maximum rate of change for data gas price
+	BlobTxPointEvaluationPrecompileGas = 50000                    // Gas price for the point evaluation precompile.
 )
 
 // Gas discount table for BLS12-381 G1 and G2 multi exponentiation operations

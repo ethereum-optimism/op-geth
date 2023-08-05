@@ -26,6 +26,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/ethash"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/rawdb"
+	"github.com/ethereum/go-ethereum/core/txpool"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -47,7 +48,7 @@ var (
 // Its goal is to get around setting up a valid statedb for the balance and nonce
 // checks.
 type testTxPool struct {
-	pool map[common.Hash]*types.Transaction // Hash map of collected transactions
+	pool map[common.Hash]*txpool.Transaction // Hash map of collected transactions
 
 	txFeed event.Feed   // Notification feed to allow waiting for inclusion
 	lock   sync.RWMutex // Protects the transaction pool
@@ -56,7 +57,7 @@ type testTxPool struct {
 // newTestTxPool creates a mock transaction pool.
 func newTestTxPool() *testTxPool {
 	return &testTxPool{
-		pool: make(map[common.Hash]*types.Transaction),
+		pool: make(map[common.Hash]*txpool.Transaction),
 	}
 }
 
@@ -71,40 +72,60 @@ func (p *testTxPool) Has(hash common.Hash) bool {
 
 // Get retrieves the transaction from local txpool with given
 // tx hash.
-func (p *testTxPool) Get(hash common.Hash) *types.Transaction {
+func (p *testTxPool) Get(hash common.Hash) *txpool.Transaction {
 	p.lock.Lock()
 	defer p.lock.Unlock()
 
-	return p.pool[hash]
+	if tx := p.pool[hash]; tx != nil {
+		return tx
+	}
+	return nil
 }
 
-// AddRemotes appends a batch of transactions to the pool, and notifies any
+// Add appends a batch of transactions to the pool, and notifies any
 // listeners if the addition channel is non nil
-func (p *testTxPool) AddRemotes(txs []*types.Transaction) []error {
+func (p *testTxPool) Add(txs []*txpool.Transaction, local bool, sync bool) []error {
+	unwrapped := make([]*types.Transaction, len(txs))
+	for i, tx := range txs {
+		unwrapped[i] = tx.Tx
+	}
 	p.lock.Lock()
 	defer p.lock.Unlock()
 
 	for _, tx := range txs {
-		p.pool[tx.Hash()] = tx
+		p.pool[tx.Tx.Hash()] = tx
 	}
-	p.txFeed.Send(core.NewTxsEvent{Txs: txs})
-	return make([]error, len(txs))
+
+	p.txFeed.Send(core.NewTxsEvent{Txs: unwrapped})
+	return make([]error, len(unwrapped))
 }
 
 // Pending returns all the transactions known to the pool
-func (p *testTxPool) Pending(enforceTips bool) map[common.Address]types.Transactions {
+func (p *testTxPool) Pending(enforceTips bool) map[common.Address][]*txpool.LazyTransaction {
 	p.lock.RLock()
 	defer p.lock.RUnlock()
 
-	batches := make(map[common.Address]types.Transactions)
+	batches := make(map[common.Address][]*types.Transaction)
 	for _, tx := range p.pool {
-		from, _ := types.Sender(types.HomesteadSigner{}, tx)
-		batches[from] = append(batches[from], tx)
+		from, _ := types.Sender(types.HomesteadSigner{}, tx.Tx)
+		batches[from] = append(batches[from], tx.Tx)
 	}
 	for _, batch := range batches {
 		sort.Sort(types.TxByNonce(batch))
 	}
-	return batches
+	pending := make(map[common.Address][]*txpool.LazyTransaction)
+	for addr, batch := range batches {
+		for _, tx := range batch {
+			pending[addr] = append(pending[addr], &txpool.LazyTransaction{
+				Hash:      tx.Hash(),
+				Tx:        &txpool.Transaction{Tx: tx}, // TODO (MariusVanDerWijden): fix this to use the txpool type
+				Time:      tx.Time(),
+				GasFeeCap: tx.GasFeeCap(),
+				GasTipCap: tx.GasTipCap(),
+			})
+		}
+	}
+	return pending
 }
 
 // SubscribeNewTxsEvent should return an event subscription of NewTxsEvent and

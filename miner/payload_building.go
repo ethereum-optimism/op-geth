@@ -26,6 +26,7 @@ import (
 	"github.com/ethereum/go-ethereum/beacon/engine"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto/kzg4844"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
@@ -79,13 +80,16 @@ func (args *BuildPayloadArgs) Id() engine.PayloadID {
 // the revenue. Therefore, the empty-block here is always available and full-block
 // will be set/updated afterwards.
 type Payload struct {
-	id       engine.PayloadID
-	empty    *types.Block
-	full     *types.Block
-	fullFees *big.Int
-	stop     chan struct{}
-	lock     sync.Mutex
-	cond     *sync.Cond
+	id          engine.PayloadID
+	empty       *types.Block
+	full        *types.Block
+	blobs       []kzg4844.Blob
+	commitments []kzg4844.Commitment
+	proofs      []kzg4844.Proof
+	fullFees    *big.Int
+	stop        chan struct{}
+	lock        sync.Mutex
+	cond        *sync.Cond
 }
 
 // newPayload initializes the payload object.
@@ -101,7 +105,7 @@ func newPayload(empty *types.Block, id engine.PayloadID) *Payload {
 }
 
 // update updates the full-block with latest built version.
-func (payload *Payload) update(block *types.Block, fees *big.Int, elapsed time.Duration) {
+func (payload *Payload) update(block *types.Block, fees *big.Int, blobs []kzg4844.Blob, commits []kzg4844.Commitment, proofs []kzg4844.Proof, elapsed time.Duration) {
 	payload.lock.Lock()
 	defer payload.lock.Unlock()
 
@@ -116,11 +120,14 @@ func (payload *Payload) update(block *types.Block, fees *big.Int, elapsed time.D
 	if payload.full == nil || fees.Cmp(payload.fullFees) > 0 {
 		payload.full = block
 		payload.fullFees = fees
+		payload.blobs = blobs
+		payload.commitments = commits
+		payload.proofs = proofs
 
 		feesInEther := new(big.Float).Quo(new(big.Float).SetInt(fees), big.NewFloat(params.Ether))
 		log.Info("Updated payload", "id", payload.id, "number", block.NumberU64(), "hash", block.Hash(),
-			"txs", len(block.Transactions()), "gas", block.GasUsed(), "fees", feesInEther,
-			"root", block.Root(), "elapsed", common.PrettyDuration(elapsed))
+			"txs", len(block.Transactions()), "withdrawals", len(block.Withdrawals()), "gas", block.GasUsed(),
+			"fees", feesInEther, "root", block.Root(), "elapsed", common.PrettyDuration(elapsed))
 	}
 	payload.cond.Broadcast() // fire signal for notifying full block
 }
@@ -137,9 +144,9 @@ func (payload *Payload) Resolve() *engine.ExecutionPayloadEnvelope {
 		close(payload.stop)
 	}
 	if payload.full != nil {
-		return engine.BlockToExecutableData(payload.full, payload.fullFees)
+		return engine.BlockToExecutableData(payload.full, payload.fullFees, payload.blobs, payload.commitments, payload.proofs)
 	}
-	return engine.BlockToExecutableData(payload.empty, big.NewInt(0))
+	return engine.BlockToExecutableData(payload.empty, big.NewInt(0), nil, nil, nil)
 }
 
 // ResolveEmpty is basically identical to Resolve, but it expects empty block only.
@@ -148,7 +155,7 @@ func (payload *Payload) ResolveEmpty() *engine.ExecutionPayloadEnvelope {
 	payload.lock.Lock()
 	defer payload.lock.Unlock()
 
-	return engine.BlockToExecutableData(payload.empty, big.NewInt(0))
+	return engine.BlockToExecutableData(payload.empty, big.NewInt(0), nil, nil, nil)
 }
 
 // ResolveFull is basically identical to Resolve, but it expects full block only.
@@ -165,7 +172,7 @@ func (payload *Payload) ResolveFull() *engine.ExecutionPayloadEnvelope {
 		}
 		payload.cond.Wait()
 	}
-	return engine.BlockToExecutableData(payload.full, payload.fullFees)
+	return engine.BlockToExecutableData(payload.full, payload.fullFees, payload.blobs, payload.commitments, payload.proofs)
 }
 
 // buildPayload builds the payload according to the provided parameters.
@@ -173,7 +180,7 @@ func (w *worker) buildPayload(args *BuildPayloadArgs) (*Payload, error) {
 	// Build the initial version with no transaction included. It should be fast
 	// enough to run. The empty payload can at least make sure there is something
 	// to deliver for not missing slot.
-	empty, _, err := w.getSealingBlock(args.Parent, args.Timestamp, args.FeeRecipient, args.Random, args.Withdrawals, true, args.Transactions, args.GasLimit)
+	empty, _, _, _, _, err := w.getSealingBlock(args.Parent, args.Timestamp, args.FeeRecipient, args.Random, args.Withdrawals, true, args.Transactions, args.GasLimit)
 	if err != nil {
 		return nil, err
 	}
@@ -200,9 +207,9 @@ func (w *worker) buildPayload(args *BuildPayloadArgs) (*Payload, error) {
 			select {
 			case <-timer.C:
 				start := time.Now()
-				block, fees, err := w.getSealingBlock(args.Parent, args.Timestamp, args.FeeRecipient, args.Random, args.Withdrawals, false, args.Transactions, args.GasLimit)
+				block, fees, blobs, commits, proofs, err := w.getSealingBlock(args.Parent, args.Timestamp, args.FeeRecipient, args.Random, args.Withdrawals, false, args.Transactions, args.GasLimit)
 				if err == nil {
-					payload.update(block, fees, time.Since(start))
+					payload.update(block, fees, blobs, commits, proofs, time.Since(start))
 				}
 				timer.Reset(w.recommit)
 			case <-payload.stop:

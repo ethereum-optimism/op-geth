@@ -57,9 +57,9 @@ func MakeSigner(config *params.ChainConfig, blockNumber *big.Int, blockTime uint
 }
 
 // LatestSigner returns the 'most permissive' Signer available for the given chain
-// configuration. Specifically, this enables support of EIP-155 replay protection and
-// EIP-2930 access list transactions when their respective forks are scheduled to occur at
-// any block number in the chain config.
+// configuration. Specifically, this enables support of all types of transacrions
+// when their respective forks are scheduled to occur at any block number (or time)
+// in the chain config.
 //
 // Use this in transaction-handling code where the current block number is unknown. If you
 // have the current block number available, use MakeSigner instead.
@@ -188,6 +188,9 @@ func NewCancunSigner(chainId *big.Int) Signer {
 }
 
 func (s cancunSigner) Sender(tx *Transaction) (common.Address, error) {
+	if tx.Type() == DepositTxType {
+		return s.londonSigner.Sender(tx)
+	}
 	if tx.Type() != BlobTxType {
 		return s.londonSigner.Sender(tx)
 	}
@@ -207,6 +210,9 @@ func (s cancunSigner) Equal(s2 Signer) bool {
 }
 
 func (s cancunSigner) SignatureValues(tx *Transaction, sig []byte) (R, S, V *big.Int, err error) {
+	if tx.Type() == DepositTxType {
+		return s.londonSigner.SignatureValues(tx, sig)
+	}
 	txdata, ok := tx.inner.(*BlobTx)
 	if !ok {
 		return s.londonSigner.SignatureValues(tx, sig)
@@ -224,6 +230,9 @@ func (s cancunSigner) SignatureValues(tx *Transaction, sig []byte) (R, S, V *big
 // Hash returns the hash to be signed by the sender.
 // It does not uniquely identify the transaction.
 func (s cancunSigner) Hash(tx *Transaction) common.Hash {
+	if tx.Type() == DepositTxType {
+		return s.londonSigner.Hash(tx)
+	}
 	if tx.Type() != BlobTxType {
 		return s.londonSigner.Hash(tx)
 	}

@@ -24,6 +24,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/misc"
+	"github.com/ethereum/go-ethereum/consensus/misc/eip4844"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/params"
@@ -257,7 +258,7 @@ func (beacon *Beacon) verifyHeader(chain consensus.ChainHeaderReader, header, pa
 		return consensus.ErrInvalidNumber
 	}
 	// Verify the header's EIP-1559 attributes.
-	if err := misc.VerifyEip1559Header(chain.Config(), parent, header); err != nil {
+	if err := misc.VerifyEIP1559Header(chain.Config(), parent, header); err != nil {
 		return err
 	}
 	// Verify existence / non-existence of withdrawalsHash.
@@ -270,11 +271,16 @@ func (beacon *Beacon) verifyHeader(chain consensus.ChainHeaderReader, header, pa
 	}
 	// Verify the existence / non-existence of excessDataGas
 	cancun := chain.Config().IsCancun(header.Number, header.Time)
-	if cancun && header.ExcessDataGas == nil {
-		return errors.New("missing excessDataGas")
-	}
 	if !cancun && header.ExcessDataGas != nil {
 		return fmt.Errorf("invalid excessDataGas: have %d, expected nil", header.ExcessDataGas)
+	}
+	if !cancun && header.DataGasUsed != nil {
+		return fmt.Errorf("invalid dataGasUsed: have %d, expected nil", header.DataGasUsed)
+	}
+	if cancun {
+		if err := eip4844.VerifyEIP4844Header(parent, header); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -366,6 +372,14 @@ func (beacon *Beacon) FinalizeAndAssemble(chain consensus.ChainHeaderReader, hea
 		if len(withdrawals) > 0 {
 			return nil, errors.New("withdrawals set before Shanghai activation")
 		}
+	}
+	if chain.Config().IsCancun(header.Number, header.Time) {
+		var blobs int
+		for _, tx := range txs {
+			blobs += len(tx.BlobHashes())
+		}
+		dataGasUsed := uint64(blobs * params.BlobTxDataGasPerBlob)
+		header.DataGasUsed = &dataGasUsed
 	}
 	// Finalize and assemble the block.
 	beacon.Finalize(chain, header, state, txs, uncles, withdrawals)

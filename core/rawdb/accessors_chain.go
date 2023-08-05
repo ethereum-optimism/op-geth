@@ -25,6 +25,7 @@ import (
 	"sort"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/consensus/misc/eip4844"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb"
@@ -641,7 +642,11 @@ func ReadReceipts(db ethdb.Reader, hash common.Hash, number uint64, time uint64,
 		log.Error("Missing header but have receipt", "hash", hash, "number", number)
 		return nil
 	}
-	if err := receipts.DeriveFields(config, hash, number, time, header.BaseFee, body.Transactions); err != nil {
+	var dataGasPrice *big.Int
+	if header != nil && header.ExcessDataGas != nil {
+		dataGasPrice = eip4844.CalcBlobFee(*header.ExcessDataGas)
+	}
+	if err := receipts.DeriveFields(config, hash, number, time, header.BaseFee, body.Transactions, dataGasPrice); err != nil {
 		log.Error("Failed to derive block receipts fields", "hash", hash, "number", number, "err", err)
 		return nil
 	}

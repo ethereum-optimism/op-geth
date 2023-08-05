@@ -25,6 +25,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/mclock"
+	"github.com/ethereum/go-ethereum/core/txpool"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth/fetcher"
 )
@@ -79,7 +80,7 @@ func Fuzz(input []byte) int {
 
 	f := fetcher.NewTxFetcherForTests(
 		func(common.Hash) bool { return false },
-		func(txs []*types.Transaction) []error {
+		func(txs []*txpool.Transaction) []error {
 			return make([]error, len(txs))
 		},
 		func(string, []common.Hash) error { return nil },
@@ -151,7 +152,7 @@ func Fuzz(input []byte) int {
 
 			var (
 				deliverIdxs = make([]int, deliver)
-				deliveries  = make([]*types.Transaction, deliver)
+				deliveries  = make([]*types.BlobTxWithBlobs, deliver)
 			)
 			for i := 0; i < len(deliveries); i++ {
 				deliverBuf := make([]byte, 2)
@@ -159,7 +160,7 @@ func Fuzz(input []byte) int {
 					return 0
 				}
 				deliverIdxs[i] = (int(deliverBuf[0])*256 + int(deliverBuf[1])) % len(txs)
-				deliveries[i] = txs[deliverIdxs[i]]
+				deliveries[i] = types.NewBlobTxWithBlobs(txs[deliverIdxs[i]], nil, nil, nil)
 			}
 			directFlag, err := r.ReadByte()
 			if err != nil {
