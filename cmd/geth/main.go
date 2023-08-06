@@ -69,6 +69,7 @@ var (
 		utils.OverrideOptimismBedrock,
 		utils.OverrideOptimismRegolith,
 		utils.OverrideOptimism,
+		utils.OverrideL1ArchiveNodeRPC,
 		utils.TxPoolLocalsFlag,
 		utils.TxPoolNoLocalsFlag,
 		utils.TxPoolJournalFlag,

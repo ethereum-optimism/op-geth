@@ -167,6 +167,7 @@ type Config struct {
 	OverrideOptimismBedrock  *big.Int
 	OverrideOptimismRegolith *uint64 `toml:",omitempty"`
 	OverrideOptimism         *bool
+	OverrideL1ArchiveNodeRPC *string
 
 	RollupSequencerHTTP        string
 	RollupHistoricalRPC        string

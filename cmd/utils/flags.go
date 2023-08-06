@@ -289,6 +289,11 @@ var (
 		Usage:    "Manually specify optimism",
 		Category: flags.EthCategory,
 	}
+	OverrideL1ArchiveNodeRPC = &cli.StringFlag{
+		Name:     "override.l1archivenoderpc",
+		Usage:    "Manually specify the L1 Archive Node RPC URL, overriding the bundled setting",
+		Category: flags.EthCategory,
+	}
 	// Light server and client settings
 	LightServeFlag = &cli.IntFlag{
 		Name:     "light.serve",

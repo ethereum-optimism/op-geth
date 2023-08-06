@@ -45,10 +45,13 @@ type StateGetter interface {
 // Returns nil if there is no cost.
 type L1CostFunc func(blockNum uint64, blockTime uint64, dataGas RollupGasData, isDepositTx bool) *big.Int
 
+// TODO: are these slots updated / correct?
+// https://github.com/ethereum-optimism/optimism/blob/develop/packages/contracts-bedrock/src/L2/L1Block.sol#L39C28-L39C28
 var (
-	L1BaseFeeSlot = common.BigToHash(big.NewInt(1))
-	OverheadSlot  = common.BigToHash(big.NewInt(5))
-	ScalarSlot    = common.BigToHash(big.NewInt(6))
+	L1BlockNumberSlot = common.BigToHash(big.NewInt(0))
+	L1BaseFeeSlot     = common.BigToHash(big.NewInt(1))
+	OverheadSlot      = common.BigToHash(big.NewInt(5))
+	ScalarSlot        = common.BigToHash(big.NewInt(6))
 )
 
 var L1BlockAddr = common.HexToAddress("0x4200000000000000000000000000000000000015")

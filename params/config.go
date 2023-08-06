@@ -309,9 +309,9 @@ type ChainConfig struct {
 	CancunTime   *uint64 `json:"cancunTime,omitempty"`   // Cancun switch time (nil = no fork, 0 = already on cancun)
 	PragueTime   *uint64 `json:"pragueTime,omitempty"`   // Prague switch time (nil = no fork, 0 = already on prague)
 
-	BedrockBlock *big.Int `json:"bedrockBlock,omitempty"` // Bedrock switch block (nil = no fork, 0 = already on optimism bedrock)
-	RegolithTime *uint64  `json:"regolithTime,omitempty"` // Regolith switch time (nil = no fork, 0 = already on optimism regolith)
-
+	BedrockBlock     *big.Int `json:"bedrockBlock,omitempty"`     // Bedrock switch block (nil = no fork, 0 = already on optimism bedrock)
+	RegolithTime     *uint64  `json:"regolithTime,omitempty"`     // Regolith switch time (nil = no fork, 0 = already on optimism regolith)
+	L1ArchiveNodeRPC *string  `json:"l1ArchiveNodeRPC,omitempty"` // L1 Archive Node RPC URL (nil = no fork, 0 = already on optimism l1 archive node)
 	// TerminalTotalDifficulty is the amount of total difficulty reached by
 	// the network that triggers the consensus upgrade.
 	TerminalTotalDifficulty *big.Int `json:"terminalTotalDifficulty,omitempty"`
@@ -358,6 +358,10 @@ type OptimismConfig struct {
 func (o *OptimismConfig) String() string {
 	return "optimism"
 }
+
+// func (o *OptimismConfig) Get1ArchiveNodeRPC() string {
+// 	return o.Get1ArchiveNodeRPC()
+// }
 
 // Description returns a human-readable description of ChainConfig.
 func (c *ChainConfig) Description() string {
