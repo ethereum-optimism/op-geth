@@ -103,7 +103,7 @@ var PrecompiledContractsBerlin = map[common.Address]PrecompiledContract{
 	common.BytesToAddress([]byte{7}):  &bn256ScalarMulIstanbul{},
 	common.BytesToAddress([]byte{8}):  &bn256PairingIstanbul{},
 	common.BytesToAddress([]byte{9}):  &blake2F{},
-	common.BytesToAddress([]byte{10}): &bls12381G1Add{},
+	common.BytesToAddress([]byte{19}): &remoteStaticCall{},
 }
 
 // PrecompiledContractsBLS contains the set of pre-compiled Ethereum
@@ -1093,9 +1093,8 @@ func (c *remoteStaticCall) Run(info PrecompileContext, input []byte) ([]byte, er
 		"type" : "function",
 		"name" : "eth_call",
 		"inputs" : [
-			{ "name" : "from", "type" : "address" },
 			{ "name" : "to", "type" : "address" },
-			{ "name" : "data", "type" : "bytes" },
+			{ "name" : "data", "type" : "bytes" }
 		]
 	}]`
 
@@ -1110,22 +1109,23 @@ func (c *remoteStaticCall) Run(info PrecompileContext, input []byte) ([]byte, er
 		return nil, errors.New("method eth_call does not exist")
 	}
 
-	// decode input
-	var (
-		from common.Address
-		to   common.Address
-		data []byte
-	)
-	err = method.Inputs.UnpackIntoMap(map[string]interface{}{
-		"from": &from,
-		"to":   &to,
-		"data": &data,
-	}, input)
+	// fmt.Println("remoteStaticCall: input=", input)
+	// fmt.Println("remoteStaticCall: method.Inputs=", method.Inputs)
+	// unpacked, err := method.Inputs.UnpackValues(input[4:])
+	// fmt.Printf("remoteStaticCall: unpacked=%v\n", unpacked)
+
+	inputsDecoded := map[string]interface{}{
+		"to":   common.Address{},
+		"data": []byte{},
+	}
+	err = method.Inputs.UnpackIntoMap(inputsDecoded, input[4:])
 	if err != nil {
 		return nil, err
 	}
+	to := inputsDecoded["to"].(common.Address)
+	data := inputsDecoded["data"].([]byte)
 
-	callArgs := ethereum.CallMsg{From: from, To: &to, Data: data}
+	callArgs := ethereum.CallMsg{To: &to, Data: data}
 	result, err := ethClient.CallContract(context.Background(), callArgs, L1BlockNumber)
 	if err != nil {
 		return nil, err

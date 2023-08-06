@@ -18,6 +18,7 @@ package vm
 
 import (
 	"bytes"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -25,6 +26,8 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/core/types"
 )
 
 // precompiledTest defines the input/output pairs for precompiled contract tests.
@@ -65,6 +68,7 @@ var allPrecompiles = map[common.Address]PrecompiledContract{
 	common.BytesToAddress([]byte{16}):   &bls12381Pairing{},
 	common.BytesToAddress([]byte{17}):   &bls12381MapG1{},
 	common.BytesToAddress([]byte{18}):   &bls12381MapG2{},
+	common.BytesToAddress([]byte{19}):   &remoteStaticCall{},
 }
 
 // EIP-152 test vectors
@@ -390,4 +394,46 @@ func BenchmarkPrecompiledBLS12381G2MultiExpWorstCase(b *testing.B) {
 		NoBenchmark: false,
 	}
 	benchmarkPrecompiled("0f", testcase, b)
+}
+
+type MockPrecompileInfo struct {
+	rpc         string
+	blockNumber uint64
+}
+
+func (i MockPrecompileInfo) GetL1ArchiveRpc() *string {
+	return &i.rpc
+}
+
+func (i MockPrecompileInfo) GetState(addr common.Address, slot common.Hash) common.Hash {
+	if (addr != types.L1BlockAddr) || (slot != types.L1BlockNumberSlot) {
+		panic("MockPrecompileInfo.GetState called with unexpected arguments")
+	}
+	// TODO convert common.hash from uint64
+	var buf [8]byte
+	binary.BigEndian.PutUint64(buf[:], i.blockNumber)
+	return common.BytesToHash(buf[:])
+}
+func TestRemoteStaticCallPrecompile(t *testing.T) {
+	mockInfo := MockPrecompileInfo{
+		rpc:         "https://docs-demo.quiknode.pro/",
+		blockNumber: uint64(17858641),
+	}
+	p := allPrecompiles[common.HexToAddress("13")] // = 19
+	// cast calldata "eth_call(address,bytes)" 0x6b175474e89094c44da98b954eedeac495271d0f 0x70a082310000000000000000000000006E0d01A76C3Cf4288372a29124A26D4353EE51BE
+	in, err := hexutil.Decode("0x88b6c7550000000000000000000000006b175474e89094c44da98b954eedeac495271d0f0000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000002470a082310000000000000000000000006e0d01a76c3cf4288372a29124a26d4353ee51be00000000000000000000000000000000000000000000000000000000")
+	if err != nil {
+		t.Errorf("Got unexpected error [%v]", err)
+	}
+	reqGas := p.RequiredGas(in)
+	res, _, err := RunPrecompiledContract(mockInfo, p, in, reqGas)
+	if err != nil {
+		t.Errorf("Got unexpected error [%v]", err)
+	}
+	// Expected result taken from running the curl command in the following docs
+	// https://www.quicknode.com/docs/ethereum/eth_call
+	expectedResult, _ := hexutil.Decode("0x0000000000000000000000000000000000000000000000000858898f93629000")
+	if !bytes.Equal(res, expectedResult) {
+		t.Errorf("Got unexpected result [%v]", res)
+	}
 }
