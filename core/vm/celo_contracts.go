@@ -45,7 +45,7 @@ func celoPrecompileAddress(index byte) common.Address {
 }
 
 func (ctx *celoPrecompileContext) IsCallerGoldToken() (bool, error) {
-	return true, nil // TODO
+	return ctx.BlockContext.GoldTokenAddress == ctx.caller, nil
 }
 
 // Native transfer contract to make Celo Gold ERC20 compatible.

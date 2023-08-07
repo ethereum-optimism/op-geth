@@ -17,7 +17,7 @@ var (
 	// FeeCurrencyWhitelistRegistryId = makeRegistryId("FeeCurrencyWhitelist")
 	// FreezerRegistryId              = makeRegistryId("Freezer")
 	// GasPriceMinimumRegistryId      = makeRegistryId("GasPriceMinimum")
-	// GoldTokenRegistryId            = makeRegistryId("GoldToken")
+	GoldTokenRegistryId = makeRegistryId("GoldToken")
 	// GovernanceRegistryId           = makeRegistryId("Governance")
 	// LockedGoldRegistryId           = makeRegistryId("LockedGold")
 	// RandomRegistryId               = makeRegistryId("Random")
