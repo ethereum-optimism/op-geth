@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+option go_package = "github.com/VannaLabs/vanna-op-geth/rpc/inference;inference";
+package inference;
+
+// Inference service definition
+service Inference {
+  // Runs a model inference
+  rpc RunInference (InferenceParameters) returns (InferenceResult);
+}
+
+// Inference input parameters
+message InferenceParameters {
+  string modelHash = 1;
+  string modelInput = 2;
+}
+
+// The response message containing the inference result
+message InferenceResult {
+  string value = 1;
+}
