@@ -160,5 +160,5 @@ func getDialOptions() []grpc.DialOption {
 }
 
 func buildInferenceParameters(tx InferenceTx) *InferenceParameters {
-	return &InferenceParameters{ModelHash: tx.model, ModelInput: tx.params}
+	return &InferenceParameters{Tx: tx.hash, ModelHash: tx.model, ModelInput: tx.params}
 }

@@ -11,11 +11,14 @@ service Inference {
 
 // Inference input parameters
 message InferenceParameters {
-  string modelHash = 1;
-  string modelInput = 2;
+  string tx = 1;
+  string modelHash = 2;
+  string modelInput = 3;
 }
 
 // The response message containing the inference result
 message InferenceResult {
-  string value = 1;
+  string tx = 1;
+  string node = 2;
+  string value = 3;
 }
