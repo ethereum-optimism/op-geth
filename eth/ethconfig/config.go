@@ -167,12 +167,12 @@ type Config struct {
 	OverrideOptimismBedrock  *big.Int
 	OverrideOptimismRegolith *uint64 `toml:",omitempty"`
 	OverrideOptimism         *bool
-	OverrideL1ArchiveNodeRPC *string
 
 	RollupSequencerHTTP        string
 	RollupHistoricalRPC        string
 	RollupHistoricalRPCTimeout time.Duration
 	RollupDisableTxPoolGossip  bool
+	L1ArchiveNodeRPC           string
 }
 
 // CreateConsensusEngine creates a consensus engine for the given chain config.

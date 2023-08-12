@@ -315,9 +315,6 @@ func SetupGenesisBlockWithOverride(db ethdb.Database, triedb *trie.Database, gen
 			if overrides != nil && overrides.OverrideOptimismRegolith != nil {
 				config.RegolithTime = overrides.OverrideOptimismRegolith
 			}
-			if overrides != nil && overrides.L1ArchiveNodeRPC != nil {
-				config.L1ArchiveNodeRPC = overrides.L1ArchiveNodeRPC
-			}
 			if overrides != nil && overrides.OverrideOptimism != nil {
 				if *overrides.OverrideOptimism {
 					config.Optimism = &params.OptimismConfig{

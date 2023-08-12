@@ -182,10 +182,6 @@ func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 		override := ctx.Bool(utils.OverrideOptimism.Name)
 		cfg.Eth.OverrideOptimism = &override
 	}
-	if ctx.IsSet(utils.OverrideL1ArchiveNodeRPC.Name) {
-		override := ctx.String(utils.OverrideL1ArchiveNodeRPC.Name)
-		cfg.Eth.OverrideL1ArchiveNodeRPC = &override
-	}
 
 	backend, eth := utils.RegisterEthService(stack, &cfg.Eth)
 

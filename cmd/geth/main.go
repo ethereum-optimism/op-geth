@@ -69,7 +69,6 @@ var (
 		utils.OverrideOptimismBedrock,
 		utils.OverrideOptimismRegolith,
 		utils.OverrideOptimism,
-		utils.OverrideL1ArchiveNodeRPC,
 		utils.TxPoolLocalsFlag,
 		utils.TxPoolNoLocalsFlag,
 		utils.TxPoolJournalFlag,
@@ -147,6 +146,7 @@ var (
 		utils.RollupHistoricalRPCTimeoutFlag,
 		utils.RollupDisableTxPoolGossipFlag,
 		utils.RollupComputePendingBlock,
+		utils.RollupL1ArchiveNodeRPCFlag,
 		configFileFlag,
 	}, utils.NetworkFlags, utils.DatabasePathFlags)
 

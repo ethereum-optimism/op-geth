@@ -18,7 +18,6 @@ package vm
 
 import (
 	"bytes"
-	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -27,7 +26,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/core/types"
 )
 
 // precompiledTest defines the input/output pairs for precompiled contract tests.
@@ -396,37 +394,32 @@ func BenchmarkPrecompiledBLS12381G2MultiExpWorstCase(b *testing.B) {
 	benchmarkPrecompiled("0f", testcase, b)
 }
 
-type MockPrecompileInfo struct {
-	rpc         string
-	blockNumber uint64
+type MockPrecompileContext struct {
+	rpc       string
+	blockhash common.Hash
 }
 
-func (i MockPrecompileInfo) GetL1ArchiveRpc() *string {
-	return &i.rpc
+func (c MockPrecompileContext) GetL1ArchiveRpc() *string {
+	return &c.rpc
 }
 
-func (i MockPrecompileInfo) GetState(addr common.Address, slot common.Hash) common.Hash {
-	if (addr != types.L1BlockAddr) || (slot != types.L1BlockNumberSlot) {
-		panic("MockPrecompileInfo.GetState called with unexpected arguments")
-	}
-	// TODO convert common.hash from uint64
-	var buf [8]byte
-	binary.BigEndian.PutUint64(buf[:], i.blockNumber)
-	return common.BytesToHash(buf[:])
+func (c MockPrecompileContext) GetState(addr common.Address, slot common.Hash) common.Hash {
+	return c.blockhash
 }
 func TestRemoteStaticCallPrecompile(t *testing.T) {
-	mockInfo := MockPrecompileInfo{
-		rpc:         "https://docs-demo.quiknode.pro/",
-		blockNumber: uint64(17858641),
+	mockCtx := MockPrecompileContext{
+		rpc: "https://docs-demo.quiknode.pro/",
+		// bookchash of block number 17858641
+		blockhash: common.HexToHash("01a4db51161474dd04aac6b55884bec2d44ce95970a68bbd6728d603e87ba76c"),
 	}
 	p := allPrecompiles[common.HexToAddress("13")] // = 19
-	// cast calldata "eth_call(address,bytes)" 0x6b175474e89094c44da98b954eedeac495271d0f 0x70a082310000000000000000000000006E0d01A76C3Cf4288372a29124A26D4353EE51BE
-	in, err := hexutil.Decode("0x88b6c7550000000000000000000000006b175474e89094c44da98b954eedeac495271d0f0000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000002470a082310000000000000000000000006e0d01a76c3cf4288372a29124a26d4353ee51be00000000000000000000000000000000000000000000000000000000")
+	// cast abi-encode "eth_call(address,bytes)" 0x6b175474e89094c44da98b954eedeac495271d0f 0x70a082310000000000000000000000006E0d01A76C3Cf4288372a29124A26D4353EE51BE
+	in, err := hexutil.Decode("0x0000000000000000000000006b175474e89094c44da98b954eedeac495271d0f0000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000002470a082310000000000000000000000006e0d01a76c3cf4288372a29124a26d4353ee51be00000000000000000000000000000000000000000000000000000000")
 	if err != nil {
 		t.Errorf("Got unexpected error [%v]", err)
 	}
 	reqGas := p.RequiredGas(in)
-	res, _, err := RunPrecompiledContract(mockInfo, p, in, reqGas)
+	res, _, err := RunPrecompiledContract(mockCtx, p, in, reqGas)
 	if err != nil {
 		t.Errorf("Got unexpected error [%v]", err)
 	}
