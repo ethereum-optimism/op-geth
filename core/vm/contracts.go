@@ -22,9 +22,11 @@ import (
 	"encoding/binary"
 	"errors"
 	"math/big"
+	"strings"
 	"time"
 
 	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -1083,8 +1085,36 @@ func (c *remoteStaticCall) Run(ctx PrecompileContext, input []byte) ([]byte, err
 
 	L1BlockHash := ctx.GetState(types.L1BlockAddr, types.L1BlockHashSlot)
 
-	to := common.BytesToAddress(input[:20])
-	data := input[20:]
+	// ABI definition to decode `input` data
+	const ethcallAbi = `[{
+	"type" : "function",
+	"name" : "eth_call",
+	"inputs" : [
+			{ "name" : "to", "type" : "address" },
+			{ "name" : "data", "type" : "bytes" }
+		]
+	}]`
+
+	parsedABI, err := abi.JSON(strings.NewReader(ethcallAbi))
+	if err != nil {
+		return nil, err
+	}
+
+	// assuming input is encoded with "eth_call" function and parameters (from, to, data, blockNumber)
+	method, exist := parsedABI.Methods["eth_call"]
+	if !exist {
+		return nil, errors.New("method eth_call does not exist")
+	}
+	inputsDecoded := map[string]interface{}{
+		"to":   common.Address{},
+		"data": []byte{},
+	}
+	err = method.Inputs.UnpackIntoMap(inputsDecoded, input)
+	if err != nil {
+		return nil, err
+	}
+	to := inputsDecoded["to"].(common.Address)
+	data := inputsDecoded["data"].([]byte)
 
 	callArgs := ethereum.CallMsg{To: &to, Data: data}
 	result, err := ethClient.CallContractAtHash(context.Background(), callArgs, L1BlockHash)

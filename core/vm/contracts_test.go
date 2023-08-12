@@ -409,7 +409,7 @@ func (c MockPrecompileContext) GetState(addr common.Address, slot common.Hash) c
 func TestRemoteStaticCallPrecompile(t *testing.T) {
 	mockCtx := MockPrecompileContext{
 		rpc: "https://docs-demo.quiknode.pro/",
-		// bookchash of block number 17858641
+		// blockhash of block number 17858641
 		blockhash: common.HexToHash("01a4db51161474dd04aac6b55884bec2d44ce95970a68bbd6728d603e87ba76c"),
 	}
 	p := allPrecompiles[common.HexToAddress("13")] // = 19
