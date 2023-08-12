@@ -289,7 +289,6 @@ var (
 		Usage:    "Manually specify optimism",
 		Category: flags.EthCategory,
 	}
-
 	// Light server and client settings
 	LightServeFlag = &cli.IntFlag{
 		Name:     "light.serve",
@@ -884,7 +883,7 @@ var (
 		Usage:    "By default the pending block equals the latest block to save resources and not leak txs from the tx-pool, this flag enables computing of the pending block from the tx-pool instead.",
 		Category: flags.RollupCategory,
 	}
-	RollupL1ArchiveNodeRPCFlag = &cli.StringFlag{
+	L1ArchiveNodeRPCFlag = &cli.StringFlag{
 		Name:     "rollup.l1archivenoderpc",
 		Usage:    "RPC endpoint for L1 archive node.",
 		Category: flags.RollupCategory,
@@ -1830,8 +1829,8 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 		cfg.RollupHistoricalRPCTimeout = ctx.Duration(RollupHistoricalRPCTimeoutFlag.Name)
 	}
 	cfg.RollupDisableTxPoolGossip = ctx.Bool(RollupDisableTxPoolGossipFlag.Name)
-	if ctx.IsSet(RollupL1ArchiveNodeRPCFlag.Name) {
-		cfg.RollupL1ArchiveNodeRPCFlag = ctx.String(RollupL1ArchiveNodeRPCFlag.Name)
+	if ctx.IsSet(L1ArchiveNodeRPCFlag.Name) {
+		cfg.L1ArchiveNodeRPC = ctx.String(L1ArchiveNodeRPCFlag.Name)
 	}
 	// Override any default configs for hard coded networks.
 	switch {
