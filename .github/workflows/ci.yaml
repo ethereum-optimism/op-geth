@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - master
+      - celo*
+
+  pull_request:
+    branches:
+      - master
+      - celo*
+
+  workflow_dispatch:
+
+jobs:
+  Test:
+    runs-on: ["8-cpu","self-hosted","org"]
+    steps:
+        - uses: actions/checkout@v4
+
+        - uses: actions/setup-go@v5
+          with:
+            go-version: '1.21'
+
+        - name: Build
+          run: make all
+
+        - name: Test
+          run: make test
+
+        - uses: actions/setup-node@v4
+          with:
+            node-version: 18
+
+        - name: Install Foundry
+          uses: foundry-rs/foundry-toolchain@v1
+          with:
+            version: nightly-f625d0fa7c51e65b4bf1e8f7931cd1c6e2e285e9
+
+        - name: Run e2e tests
+          shell: bash
+          run: e2e_test/run_all_tests.sh
+
+  Lint:
+    runs-on: ["8-cpu","self-hosted","org"]
+    steps:
+        - uses: actions/checkout@v4
+
+        - uses: actions/setup-go@v5
+          with:
+            go-version: '1.21'
+            cache: false
+
+        - name: Lint
+          run: make lint
