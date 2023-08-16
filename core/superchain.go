@@ -2,6 +2,7 @@ package core
 
 import (
 	"fmt"
+	"math/big"
 
 	"github.com/ethereum-optimism/superchain-registry/superchain"
 	"github.com/ethereum/go-ethereum/common"
@@ -19,33 +20,54 @@ func LoadOPStackGenesis(chainID uint64) (*Genesis, error) {
 		return nil, fmt.Errorf("failed to load params.ChainConfig for chain %d: %w", chainID, err)
 	}
 
+	gen, err := superchain.LoadGenesis(chainID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load genesis definition for chain %d: %w", chainID, err)
+	}
+
 	genesis := &Genesis{
 		Config:     cfg,
-		Nonce:      0,
-		Timestamp:  chConfig.Genesis.L2Time,
-		ExtraData:  []byte("BEDROCK"),
-		GasLimit:   30_000_000,
-		Difficulty: nil,
-		Mixhash:    common.Hash{},
-		Coinbase:   common.Address{},
-		Alloc:      nil,
-		Number:     0,
-		GasUsed:    0,
-		ParentHash: common.Hash{},
-		BaseFee:    nil,
+		Nonce:      gen.Nonce,
+		Timestamp:  gen.Timestamp,
+		ExtraData:  gen.ExtraData,
+		GasLimit:   uint64(gen.GasLimit),
+		Difficulty: (*big.Int)(gen.Difficulty),
+		Mixhash:    common.Hash(gen.Mixhash),
+		Coinbase:   common.Address(gen.Coinbase),
+		Alloc:      make(GenesisAlloc),
+		Number:     gen.Number,
+		GasUsed:    gen.GasUsed,
+		ParentHash: common.Hash(gen.ParentHash),
+		BaseFee:    (*big.Int)(gen.BaseFee),
 	}
 
-	// TODO: load state allocations
-
-	// TODO: exceptions for OP-Mainnet and OP-Goerli to handle pre-Bedrock history
-
-	if chConfig.Genesis.ExtraData != nil {
-		genesis.ExtraData = *chConfig.Genesis.ExtraData
-		if len(genesis.ExtraData) > 32 {
-			return nil, fmt.Errorf("chain must have 32 bytes or less extra-data in genesis, got %d", len(genesis.ExtraData))
+	for addr, acc := range gen.Alloc {
+		var code []byte
+		if acc.CodeHash != ([32]byte{}) {
+			dat, err := superchain.LoadContractBytecode(acc.CodeHash)
+			if err != nil {
+				return nil, fmt.Errorf("failed to load bytecode %s of address %s in chain %d: %w", acc.CodeHash, addr, chainID, err)
+			}
+			code = dat
+		}
+		var storage map[common.Hash]common.Hash
+		if len(acc.Storage) > 0 {
+			storage = make(map[common.Hash]common.Hash)
+			for k, v := range acc.Storage {
+				storage[common.Hash(k)] = common.Hash(v)
+			}
+		}
+		bal := common.Big0
+		if acc.Balance != nil {
+			bal = (*big.Int)(acc.Balance)
+		}
+		genesis.Alloc[common.Address(addr)] = GenesisAccount{
+			Code:    code,
+			Storage: storage,
+			Balance: bal,
+			Nonce:   acc.Nonce,
 		}
 	}
-	// TODO: apply all genesis block values
 
 	// Verify we correctly produced the genesis config by recomputing the genesis-block-hash
 	genesisBlock := genesis.ToBlock()
@@ -54,15 +76,4 @@ func LoadOPStackGenesis(chainID uint64) (*Genesis, error) {
 		return nil, fmt.Errorf("produced genesis with hash %s but expected %s", genesisBlockHash, chConfig.Genesis.L2.Hash)
 	}
 	return genesis, nil
-}
-
-func SystemConfigAddr(chainID uint64) (common.Address, error) {
-	// TODO(proto): when we move to CREATE-2 proxy addresses
-	// for SystemConfig contracts we can deterministically compute the system config addr,
-	// and do not have to load it from the superchain configs.
-	chConfig, ok := superchain.OPChains[chainID]
-	if !ok {
-		return common.Address{}, fmt.Errorf("unknown chain ID: %d", chainID)
-	}
-	return common.Address(chConfig.SystemConfigAddr), nil
 }
