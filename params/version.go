@@ -30,8 +30,8 @@ const (
 
 // OPVersion is the version of op-geth
 const (
-	OPVersionMajor = 0          // Major version component of the current release
-	OPVersionMinor = 1          // Minor version component of the current release
+	OPVersionMajor = 1          // Major version component of the current release
+	OPVersionMinor = 101106     // Minor version component of the current release
 	OPVersionPatch = 0          // Patch version component of the current release
 	OPVersionMeta  = "unstable" // Version metadata to append to the version string
 )
