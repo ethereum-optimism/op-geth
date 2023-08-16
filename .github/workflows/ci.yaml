@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - master
+      - celo*
+
+  pull_request:
+    branches:
+      - master
+      - celo*
+
+jobs:
+  Test:
+    runs-on: ["8-cpu","self-hosted","org"]
+    steps:
+        - uses: actions/checkout@v4
+
+        - uses: actions/setup-go@v4
+          with:
+            go-version: '1.21'
+
+        - name: Build
+          run: make all
+
+        - name: Run e2e tests
+          shell: bash
+          run: |
+            curl -L https://foundry.paradigm.xyz | bash
+            source /home/runner/.bashrc
+            FOUNDRY_HOME="/home/runner/.foundry/bin"
+            PATH="${FOUNDRY_HOME}:${PATH}"
+            /home/runner/.foundry/bin/foundryup
+            e2e_test/run_all_tests.sh
+
+        - name: Test
+          run: make test
+
+  Lint:
+    runs-on: ["8-cpu","self-hosted","org"]
+    steps:
+        - uses: actions/checkout@v4
+
+        - uses: actions/setup-go@v4
+          with:
+            go-version: '1.21'
+            cache: false
+
+        - name: Lint
+          run: make lint
