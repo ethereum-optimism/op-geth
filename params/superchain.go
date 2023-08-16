@@ -15,7 +15,7 @@ func LoadOPStackChainConfig(chainID uint64) (*ChainConfig, error) {
 	}
 	superchainConfig, ok := superchain.Superchains[chConfig.Superchain]
 	if !ok {
-		return nil, fmt.Errorf("unknown superchain %q: %w", chConfig.Superchain)
+		return nil, fmt.Errorf("unknown superchain %q", chConfig.Superchain)
 	}
 
 	genesisActivation := uint64(0)
@@ -46,7 +46,7 @@ func LoadOPStackChainConfig(chainID uint64) (*ChainConfig, error) {
 		TerminalTotalDifficultyPassed: true,
 		Ethash:                        nil,
 		Clique:                        nil,
-		Optimism:                      &OptimismConfig{
+		Optimism: &OptimismConfig{
 			EIP1559Elasticity:  6,
 			EIP1559Denominator: 50,
 		},
@@ -67,12 +67,12 @@ func LoadOPStackChainConfig(chainID uint64) (*ChainConfig, error) {
 		out.RegolithTime = &OptimismGoerliRegolithTime
 		out.Optimism.EIP1559Elasticity = 10
 	case 10:
-		out.BerlinBlock =                   big.NewInt(3950000)
-		out.LondonBlock =                   big.NewInt(105235063)
-		out.ArrowGlacierBlock =             big.NewInt(105235063)
-		out.GrayGlacierBlock =              big.NewInt(105235063)
-		out.MergeNetsplitBlock =            big.NewInt(105235063)
-		out.BedrockBlock =                  big.NewInt(105235063)
+		out.BerlinBlock = big.NewInt(3950000)
+		out.LondonBlock = big.NewInt(105235063)
+		out.ArrowGlacierBlock = big.NewInt(105235063)
+		out.GrayGlacierBlock = big.NewInt(105235063)
+		out.MergeNetsplitBlock = big.NewInt(105235063)
+		out.BedrockBlock = big.NewInt(105235063)
 	case 84531:
 		out.RegolithTime = &BaseGoerliRegolithTime
 	}
