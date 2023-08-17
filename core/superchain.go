@@ -5,6 +5,7 @@ import (
 	"math/big"
 
 	"github.com/ethereum-optimism/superchain-registry/superchain"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/params"
 )
@@ -68,12 +69,31 @@ func LoadOPStackGenesis(chainID uint64) (*Genesis, error) {
 			Nonce:   acc.Nonce,
 		}
 	}
+	if gen.StateHash != nil {
+		if len(gen.Alloc) > 0 {
+			return nil, fmt.Errorf("chain definition unexpectedly contains both allocation (%d) and state-hash %s", len(gen.Alloc), *gen.StateHash)
+		}
+		genesis.StateHash = (*common.Hash)(gen.StateHash)
+	}
 
-	// Verify we correctly produced the genesis config by recomputing the genesis-block-hash
 	genesisBlock := genesis.ToBlock()
 	genesisBlockHash := genesisBlock.Hash()
-	if [32]byte(chConfig.Genesis.L2.Hash) != genesisBlockHash {
-		return nil, fmt.Errorf("produced genesis with hash %s but expected %s", genesisBlockHash, chConfig.Genesis.L2.Hash)
+	expectedHash := common.Hash([32]byte(chConfig.Genesis.L2.Hash))
+
+	// Verify we correctly produced the genesis config by recomputing the genesis-block-hash,
+	// if the genesis matches the chain genesis definition.
+	if chConfig.Genesis.L2.Number != genesisBlock.NumberU64() {
+		switch chainID {
+		case 10:
+			expectedHash = common.HexToHash("0x7ca38a1916c42007829c55e69d3e9a73265554b586a499015373241b8a3fa48b")
+		case 420:
+			expectedHash = common.HexToHash("0xc1fc15cd51159b1f1e5cbc4b82e85c1447ddfa33c52cf1d98d14fba0d6354be1")
+		default:
+			return nil, fmt.Errorf("unknown stateless genesis definition for chain %d", chainID)
+		}
+	}
+	if expectedHash != genesisBlockHash {
+		return nil, fmt.Errorf("produced genesis with hash %s but expected %s", genesisBlockHash, expectedHash)
 	}
 	return genesis, nil
 }
