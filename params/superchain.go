@@ -8,6 +8,12 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
+func init() {
+	for id, ch := range superchain.OPChains {
+		NetworkNames[fmt.Sprintf("%d", id)] = ch.Name
+	}
+}
+
 func OPStackChainIDByName(name string) (uint64, error) {
 	for id, ch := range superchain.OPChains {
 		if ch.Chain+"-"+ch.Superchain == name {
