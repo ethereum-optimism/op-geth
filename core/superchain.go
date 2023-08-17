@@ -31,7 +31,7 @@ func LoadOPStackGenesis(chainID uint64) (*Genesis, error) {
 		Nonce:      gen.Nonce,
 		Timestamp:  gen.Timestamp,
 		ExtraData:  gen.ExtraData,
-		GasLimit:   uint64(gen.GasLimit),
+		GasLimit:   gen.GasLimit,
 		Difficulty: (*big.Int)(gen.Difficulty),
 		Mixhash:    common.Hash(gen.Mixhash),
 		Coinbase:   common.Address(gen.Coinbase),
