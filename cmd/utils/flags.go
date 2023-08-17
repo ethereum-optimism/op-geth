@@ -1079,7 +1079,6 @@ func setBootstrapNodes(ctx *cli.Context, cfg *p2p.Config) {
 		urls = params.RinkebyBootnodes
 	case ctx.Bool(GoerliFlag.Name):
 		urls = params.GoerliBootnodes
-		// TODO(): BetaOPNetworkFlag default bootnodes
 	}
 
 	// don't apply defaults if BootstrapNodes is already set
@@ -2205,13 +2204,14 @@ func MakeGenesis(ctx *cli.Context) *core.Genesis {
 	case ctx.Bool(GoerliFlag.Name):
 		genesis = core.DefaultGoerliGenesisBlock()
 	case ctx.IsSet(BetaOPNetworkFlag.Name):
-		ch, err := params.OPStackChainIDByName(ctx.String(BetaOPNetworkFlag.Name))
+		name := ctx.String(BetaOPNetworkFlag.Name)
+		ch, err := params.OPStackChainIDByName(name)
 		if err != nil {
-			Fatalf("failed to load OP-Stack chain: %v", err)
+			Fatalf("failed to load OP-Stack chain %q: %v", name, err)
 		}
 		genesis, err := core.LoadOPStackGenesis(ch)
 		if err != nil {
-			Fatalf("failed to load genesis for OP-Stack chain %d: %v", ch, err)
+			Fatalf("failed to load genesis for OP-Stack chain %q (%d): %v", name, ch, err)
 		}
 		return genesis
 	case ctx.Bool(DeveloperFlag.Name):
