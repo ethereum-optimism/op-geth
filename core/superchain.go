@@ -81,7 +81,7 @@ func LoadOPStackGenesis(chainID uint64) (*Genesis, error) {
 	expectedHash := common.Hash([32]byte(chConfig.Genesis.L2.Hash))
 
 	// Verify we correctly produced the genesis config by recomputing the genesis-block-hash,
-	// if the genesis matches the chain genesis definition.
+	// and check the genesis matches the chain genesis definition.
 	if chConfig.Genesis.L2.Number != genesisBlock.NumberU64() {
 		switch chainID {
 		case 10:
