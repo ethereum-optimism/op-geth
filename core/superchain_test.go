@@ -1,11 +1,17 @@
 package core
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/ethereum-optimism/superchain-registry/superchain"
+)
 
 func TestOPStackGenesis(t *testing.T) {
-	gen, err := LoadOPStackGenesis(7777777)
-	if err != nil {
-		t.Fatal(err)
+	for id := range superchain.OPChains {
+		gen, err := LoadOPStackGenesis(id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Logf("chain: %d, genesis block hash: %s", id, gen.ToBlock().Hash())
 	}
-	t.Logf("genesis block hash: %s", gen.ToBlock().Hash())
 }

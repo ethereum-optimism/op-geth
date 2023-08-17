@@ -8,6 +8,15 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
+func OPStackChainIDByName(name string) (uint64, error) {
+	for id, ch := range superchain.OPChains {
+		if ch.Chain+"-"+ch.Superchain == name {
+			return id, nil
+		}
+	}
+	return 0, fmt.Errorf("unknown chain %q", name)
+}
+
 func LoadOPStackChainConfig(chainID uint64) (*ChainConfig, error) {
 	chConfig, ok := superchain.OPChains[chainID]
 	if !ok {
