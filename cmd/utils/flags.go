@@ -2207,11 +2207,11 @@ func MakeGenesis(ctx *cli.Context) *core.Genesis {
 	case ctx.IsSet(BetaOPNetworkFlag.Name):
 		ch, err := params.OPStackChainIDByName(ctx.String(BetaOPNetworkFlag.Name))
 		if err != nil {
-			Fatalf("failed to load OP-Stack chain: %w", err)
+			Fatalf("failed to load OP-Stack chain: %v", err)
 		}
 		genesis, err := core.LoadOPStackGenesis(ch)
 		if err != nil {
-			Fatalf("failed to load genesis for OP-Stack chain %d: %w", ch, err)
+			Fatalf("failed to load genesis for OP-Stack chain %d: %v", ch, err)
 		}
 		return genesis
 	case ctx.Bool(DeveloperFlag.Name):
