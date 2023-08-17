@@ -84,9 +84,9 @@ func LoadOPStackGenesis(chainID uint64) (*Genesis, error) {
 	// and check the genesis matches the chain genesis definition.
 	if chConfig.Genesis.L2.Number != genesisBlock.NumberU64() {
 		switch chainID {
-		case 10:
+		case params.OPMainnetChainID:
 			expectedHash = common.HexToHash("0x7ca38a1916c42007829c55e69d3e9a73265554b586a499015373241b8a3fa48b")
-		case 420:
+		case params.OPGoerliChainID:
 			expectedHash = common.HexToHash("0xc1fc15cd51159b1f1e5cbc4b82e85c1447ddfa33c52cf1d98d14fba0d6354be1")
 		default:
 			return nil, fmt.Errorf("unknown stateless genesis definition for chain %d", chainID)

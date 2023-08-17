@@ -302,11 +302,11 @@ func SetupGenesisBlockWithOverride(db ethdb.Database, triedb *trie.Database, gen
 	}
 	applyOverrides := func(config *params.ChainConfig) {
 		if config != nil {
-			if config.IsOptimism() && config.ChainID != nil && config.ChainID.Cmp(params.OptimismGoerliChainId) == 0 {
+			if config.IsOptimism() && config.ChainID != nil && config.ChainID.Cmp(big.NewInt(params.OPGoerliChainID)) == 0 {
 				// Apply Optimism Goerli regolith time
 				config.RegolithTime = &params.OptimismGoerliRegolithTime
 			}
-			if config.IsOptimism() && config.ChainID != nil && config.ChainID.Cmp(params.BaseGoerliChainId) == 0 {
+			if config.IsOptimism() && config.ChainID != nil && config.ChainID.Cmp(big.NewInt(params.BaseGoerliChainID)) == 0 {
 				// Apply Base Goerli regolith time
 				config.RegolithTime = &params.BaseGoerliRegolithTime
 			}
@@ -467,7 +467,7 @@ func (g *Genesis) ToBlock() *types.Block {
 	if g.StateHash != nil {
 		if len(g.Alloc) > 0 {
 			panic(fmt.Errorf("cannot both have genesis hash %s "+
-				"and state-allocation with %d entries", *g.StateHash, len(g.Alloc)))
+				"and non-empty state-allocation", *g.StateHash))
 		}
 		root = *g.StateHash
 	} else if root, err = g.Alloc.deriveHash(); err != nil {
