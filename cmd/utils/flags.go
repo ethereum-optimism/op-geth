@@ -158,6 +158,11 @@ var (
 		Usage:    "Sepolia network: pre-configured proof-of-work test network",
 		Category: flags.EthCategory,
 	}
+	BetaOPNetworkFlag = &cli.StringFlag{
+		Name:     "beta.op-network",
+		Usage:    "Beta feature: pick an OP Stack network configuration",
+		Category: flags.EthCategory,
+	}
 
 	// Dev mode
 	DeveloperFlag = &cli.BoolFlag{
@@ -988,7 +993,7 @@ var (
 		SepoliaFlag,
 	}
 	// NetworkFlags is the flag group of all built-in supported networks.
-	NetworkFlags = append([]cli.Flag{MainnetFlag}, TestnetFlags...)
+	NetworkFlags = append([]cli.Flag{MainnetFlag, BetaOPNetworkFlag}, TestnetFlags...)
 
 	// DatabasePathFlags is the flag group of all database path flags.
 	DatabasePathFlags = []cli.Flag{
@@ -1018,6 +1023,9 @@ func MakeDataDir(ctx *cli.Context) string {
 		}
 		if ctx.Bool(SepoliaFlag.Name) {
 			return filepath.Join(path, "sepolia")
+		}
+		if ctx.IsSet(BetaOPNetworkFlag.Name) {
+			return filepath.Join(path, ctx.String(BetaOPNetworkFlag.Name))
 		}
 		return path
 	}
@@ -1071,6 +1079,7 @@ func setBootstrapNodes(ctx *cli.Context, cfg *p2p.Config) {
 		urls = params.RinkebyBootnodes
 	case ctx.Bool(GoerliFlag.Name):
 		urls = params.GoerliBootnodes
+		// TODO(): BetaOPNetworkFlag default bootnodes
 	}
 
 	// don't apply defaults if BootstrapNodes is already set
@@ -1522,6 +1531,8 @@ func SetDataDir(ctx *cli.Context, cfg *node.Config) {
 		cfg.DataDir = filepath.Join(node.DefaultDataDir(), "goerli")
 	case ctx.Bool(SepoliaFlag.Name) && cfg.DataDir == node.DefaultDataDir():
 		cfg.DataDir = filepath.Join(node.DefaultDataDir(), "sepolia")
+	case ctx.IsSet(BetaOPNetworkFlag.Name) && cfg.DataDir == node.DefaultDataDir():
+		cfg.DataDir = filepath.Join(node.DefaultDataDir(), ctx.String(BetaOPNetworkFlag.Name))
 	}
 }
 
@@ -1684,7 +1695,7 @@ func CheckExclusive(ctx *cli.Context, args ...interface{}) {
 // SetEthConfig applies eth-related command line flags to the config.
 func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 	// Avoid conflicting network flags
-	CheckExclusive(ctx, MainnetFlag, DeveloperFlag, RinkebyFlag, GoerliFlag, SepoliaFlag)
+	CheckExclusive(ctx, MainnetFlag, DeveloperFlag, RinkebyFlag, GoerliFlag, SepoliaFlag, BetaOPNetworkFlag)
 	CheckExclusive(ctx, LightServeFlag, SyncModeFlag, "light")
 	CheckExclusive(ctx, DeveloperFlag, ExternalSignerFlag) // Can't use both ephemeral unlocked and external signer
 	if ctx.String(GCModeFlag.Name) == "archive" && ctx.Uint64(TxLookupLimitFlag.Name) != 0 {
@@ -1927,6 +1938,12 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 		if !ctx.IsSet(MinerGasPriceFlag.Name) {
 			cfg.Miner.GasPrice = big.NewInt(1)
 		}
+	case ctx.IsSet(BetaOPNetworkFlag.Name):
+		genesis := MakeGenesis(ctx)
+		if !ctx.IsSet(NetworkIdFlag.Name) {
+			cfg.NetworkId = genesis.Config.ChainID.Uint64()
+		}
+		cfg.Genesis = genesis
 	default:
 		if cfg.NetworkId == 1 {
 			SetDNSDiscoveryDefaults(cfg, params.MainnetGenesisHash)
@@ -2187,6 +2204,16 @@ func MakeGenesis(ctx *cli.Context) *core.Genesis {
 		genesis = core.DefaultRinkebyGenesisBlock()
 	case ctx.Bool(GoerliFlag.Name):
 		genesis = core.DefaultGoerliGenesisBlock()
+	case ctx.IsSet(BetaOPNetworkFlag.Name):
+		ch, err := params.OPStackChainIDByName(ctx.String(BetaOPNetworkFlag.Name))
+		if err != nil {
+			Fatalf("failed to load OP-Stack chain: %w", err)
+		}
+		genesis, err := core.LoadOPStackGenesis(ch)
+		if err != nil {
+			Fatalf("failed to load genesis for OP-Stack chain %d: %w", ch, err)
+		}
+		return genesis
 	case ctx.Bool(DeveloperFlag.Name):
 		Fatalf("Developer chains are ephemeral")
 	}
