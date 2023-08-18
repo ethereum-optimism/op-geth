@@ -74,7 +74,7 @@ func (ctx PrecompileContextImpl) GetState(addr common.Address, slot common.Hash)
 func (evm *EVM) getPrecompileContext() PrecompileContext {
 	return PrecompileContextImpl{
 		stateDb:          evm.StateDB,
-		L1ArchiveNodeRPC: &evm.chainConfig.Optimism.L1ArchiveNodeRPC,
+		L1ArchiveNodeRPC: &evm.chainConfig.L1ArchiveNodeRPC,
 	}
 }
 

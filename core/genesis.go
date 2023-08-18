@@ -272,6 +272,7 @@ type ChainOverrides struct {
 	OverrideOptimismBedrock  *big.Int
 	OverrideOptimismRegolith *uint64
 	OverrideOptimism         *bool
+	OverrideL1ArchiveNodeRPC *string
 }
 
 // SetupGenesisBlock writes or updates the genesis block in db.
@@ -313,6 +314,9 @@ func SetupGenesisBlockWithOverride(db ethdb.Database, triedb *trie.Database, gen
 			}
 			if overrides != nil && overrides.OverrideOptimismRegolith != nil {
 				config.RegolithTime = overrides.OverrideOptimismRegolith
+			}
+			if overrides != nil && overrides.OverrideL1ArchiveNodeRPC != nil {
+				config.L1ArchiveNodeRPC = *overrides.OverrideL1ArchiveNodeRPC
 			}
 			if overrides != nil && overrides.OverrideOptimism != nil {
 				if *overrides.OverrideOptimism {

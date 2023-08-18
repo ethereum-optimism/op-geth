@@ -246,7 +246,7 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, genesis *Genesis
 	if _, ok := genesisErr.(*params.ConfigCompatError); genesisErr != nil && !ok {
 		return nil, genesisErr
 	}
-	chainConfig.Optimism.L1ArchiveNodeRPC = *overrides.L1ArchiveNodeRPC
+
 	log.Info("")
 	log.Info(strings.Repeat("-", 153))
 	for _, line := range strings.Split(chainConfig.Description(), "\n") {
@@ -257,6 +257,9 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, genesis *Genesis
 
 	if chainConfig.IsOptimism() && chainConfig.RegolithTime == nil {
 		log.Warn("Optimism RegolithTime has not been set")
+	}
+	if chainConfig.IsOptimism() && chainConfig.L1ArchiveNodeRPC != "" {
+		log.Info("remotestaticcall configured")
 	}
 
 	bc := &BlockChain{

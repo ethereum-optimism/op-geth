@@ -143,6 +143,11 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	if config.L1ArchiveNodeRPC != "" {
+		chainConfig.L1ArchiveNodeRPC = config.L1ArchiveNodeRPC
+	}
+
 	engine, err := ethconfig.CreateConsensusEngine(chainConfig, chainDb)
 	if err != nil {
 		return nil, err
@@ -210,7 +215,9 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 	if config.OverrideOptimism != nil {
 		overrides.OverrideOptimism = config.OverrideOptimism
 	}
-	overrides.L1ArchiveNodeRPC = &config.L1ArchiveNodeRPC
+	if config.L1ArchiveNodeRPC != "" {
+		overrides.OverrideL1ArchiveNodeRPC = &config.L1ArchiveNodeRPC
+	}
 	eth.blockchain, err = core.NewBlockChain(chainDb, cacheConfig, config.Genesis, &overrides, eth.engine, vmConfig, eth.shouldPreserve, &config.TxLookupLimit)
 	if err != nil {
 		return nil, err
