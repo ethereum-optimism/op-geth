@@ -272,7 +272,6 @@ type ChainOverrides struct {
 	OverrideOptimismBedrock  *big.Int
 	OverrideOptimismRegolith *uint64
 	OverrideOptimism         *bool
-	L1ArchiveNodeRPC         *string
 }
 
 // SetupGenesisBlock writes or updates the genesis block in db.

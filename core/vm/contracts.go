@@ -1062,8 +1062,29 @@ func (c *bls12381MapG2) Run(ctx PrecompileContext, input []byte) ([]byte, error)
 
 type remoteStaticCall struct{}
 
+func parseRemoteStaticCallInput(input []byte) (common.Address, []byte, error) {
+	// input = abi.encode(address to, bytes memory data)
+	// bytes memory data = bytes32(pointer) | uint256(numBytes) | bytes padded to length of multiple of 32
+	to := common.BytesToAddress(input[:32])
+	offset := 32
+	_ = input[offset : offset+32] // pointer, we don't need this for our purposes
+	offset += 32
+	numBytes := input[offset : offset+32]
+	numBytesAsNum := common.BytesToHash(numBytes).Big()
+	if !numBytesAsNum.IsInt64() {
+		return common.Address{}, nil, errors.New("bytes array not encoded properly")
+	}
+	offset += 32
+	data := input[offset:][:numBytesAsNum.Int64()]
+	return to, data, nil
+}
+
 func (c *remoteStaticCall) RequiredGas(input []byte) uint64 {
-	return params.RemoteStaticCallGas
+	_, data, err := parseRemoteStaticCallInput(input)
+	if err != nil {
+		return 0
+	}
+	return params.RemoteStaticCallGas * uint64(len(data))
 }
 
 func (c *remoteStaticCall) Run(ctx PrecompileContext, input []byte) ([]byte, error) {
@@ -1079,20 +1100,10 @@ func (c *remoteStaticCall) Run(ctx PrecompileContext, input []byte) ([]byte, err
 	}
 
 	L1BlockHash := ctx.GetState(types.L1BlockAddr, types.L1BlockHashSlot)
-
-	// input = abi.encode(address to, bytes memory data)
-	// bytes memory data = bytes32(pointer) | uint256(numBytes) | bytes padded to length of multiple 32
-	to := common.BytesToAddress(input[:32])
-	offset := 32
-	_ = input[offset : offset+32] // pointer, we don't need this for our purposes
-	offset += 32
-	numBytes := input[offset : offset+32]
-	numBytesAsNum := common.BytesToHash(numBytes).Big()
-	if !numBytesAsNum.IsInt64() {
-		return nil, errors.New("bytes array not encoded properly")
+	to, data, err := parseRemoteStaticCallInput(input)
+	if err != nil {
+		return nil, err
 	}
-	offset += 32
-	data := input[offset:][:numBytesAsNum.Int64()]
 
 	callArgs := ethereum.CallMsg{To: &to, Data: data}
 	result, err := ethClient.CallContractAtHash(context.Background(), callArgs, L1BlockHash)
