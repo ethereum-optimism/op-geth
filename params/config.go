@@ -31,12 +31,16 @@ var (
 	GoerliGenesisHash  = common.HexToHash("0xbf7e331f7f7c1dd2e05159666b3bf8bc7a8a3a9eb1d518969eab529dd9b88c1a")
 )
 
+const (
+	OPMainnetChainID  = 10
+	OPGoerliChainID   = 420
+	BaseGoerliChainID = 84531
+)
+
 // OP Stack chain config
 var (
-	OptimismGoerliChainId = big.NewInt(420)
 	// March 17, 2023 @ 7:00:00 pm UTC
 	OptimismGoerliRegolithTime = uint64(1679079600)
-	BaseGoerliChainId          = big.NewInt(84531)
 	// May 4, 2023 @ 5:00:00 pm UTC
 	BaseGoerliRegolithTime = uint64(1683219600)
 )
