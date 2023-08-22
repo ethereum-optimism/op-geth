@@ -43,7 +43,7 @@ var gitTag string
 
 // Override the version variables if the gitTag was set at build time.
 var _ = func() (_ string) {
-	semver := regexp.MustCompile("^v([0-9]+)\\.([0-9]+)\\.([0-9]+)(?:-([0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*))?(?:\\+[0-9A-Za-z-]+)?$")
+	semver := regexp.MustCompile(`^v([0-9]+)\.([0-9]+)\.([0-9]+)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?(?:\+[0-9A-Za-z-]+)?$`)
 	version := semver.FindStringSubmatch(gitTag)
 	if version == nil {
 		return
