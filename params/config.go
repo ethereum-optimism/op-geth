@@ -356,6 +356,7 @@ func (c *CliqueConfig) String() string {
 type OptimismConfig struct {
 	EIP1559Elasticity  uint64 `json:"eip1559Elasticity"`
 	EIP1559Denominator uint64 `json:"eip1559Denominator"`
+	L1ArchiveNodeRPC   string `json:"l1ArchiveNodeRPC"`
 }
 
 // String implements the stringer interface, returning the optimism fee config details.

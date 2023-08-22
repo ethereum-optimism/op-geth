@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
 // precompiledTest defines the input/output pairs for precompiled contract tests.
@@ -65,6 +66,7 @@ var allPrecompiles = map[common.Address]PrecompiledContract{
 	common.BytesToAddress([]byte{16}):   &bls12381Pairing{},
 	common.BytesToAddress([]byte{17}):   &bls12381MapG1{},
 	common.BytesToAddress([]byte{18}):   &bls12381MapG2{},
+	common.BytesToAddress([]byte{19}):   &remoteStaticCall{},
 }
 
 // EIP-152 test vectors
@@ -96,7 +98,7 @@ func testPrecompiled(addr string, test precompiledTest, t *testing.T) {
 	in := common.Hex2Bytes(test.Input)
 	gas := p.RequiredGas(in)
 	t.Run(fmt.Sprintf("%s-Gas=%d", test.Name, gas), func(t *testing.T) {
-		if res, _, err := RunPrecompiledContract(p, in, gas); err != nil {
+		if res, _, err := RunPrecompiledContract(nil, p, in, gas); err != nil {
 			t.Error(err)
 		} else if common.Bytes2Hex(res) != test.Expected {
 			t.Errorf("Expected %v, got %v", test.Expected, common.Bytes2Hex(res))
@@ -118,7 +120,7 @@ func testPrecompiledOOG(addr string, test precompiledTest, t *testing.T) {
 	gas := p.RequiredGas(in) - 1
 
 	t.Run(fmt.Sprintf("%s-Gas=%d", test.Name, gas), func(t *testing.T) {
-		_, _, err := RunPrecompiledContract(p, in, gas)
+		_, _, err := RunPrecompiledContract(nil, p, in, gas)
 		if err.Error() != "out of gas" {
 			t.Errorf("Expected error [out of gas], got [%v]", err)
 		}
@@ -135,7 +137,7 @@ func testPrecompiledFailure(addr string, test precompiledFailureTest, t *testing
 	in := common.Hex2Bytes(test.Input)
 	gas := p.RequiredGas(in)
 	t.Run(test.Name, func(t *testing.T) {
-		_, _, err := RunPrecompiledContract(p, in, gas)
+		_, _, err := RunPrecompiledContract(nil, p, in, gas)
 		if err.Error() != test.ExpectedError {
 			t.Errorf("Expected error [%v], got [%v]", test.ExpectedError, err)
 		}
@@ -167,7 +169,7 @@ func benchmarkPrecompiled(addr string, test precompiledTest, bench *testing.B) {
 		bench.ResetTimer()
 		for i := 0; i < bench.N; i++ {
 			copy(data, in)
-			res, _, err = RunPrecompiledContract(p, data, reqGas)
+			res, _, err = RunPrecompiledContract(nil, p, data, reqGas)
 		}
 		bench.StopTimer()
 		elapsed := uint64(time.Since(start))
@@ -390,4 +392,42 @@ func BenchmarkPrecompiledBLS12381G2MultiExpWorstCase(b *testing.B) {
 		NoBenchmark: false,
 	}
 	benchmarkPrecompiled("0f", testcase, b)
+}
+
+type MockPrecompileContext struct {
+	rpc       string
+	blockhash common.Hash
+}
+
+func (c MockPrecompileContext) GetL1ArchiveRpc() *string {
+	return &c.rpc
+}
+
+func (c MockPrecompileContext) GetState(addr common.Address, slot common.Hash) common.Hash {
+	return c.blockhash
+}
+func TestRemoteStaticCallPrecompile(t *testing.T) {
+	mockCtx := MockPrecompileContext{
+		rpc: "https://docs-demo.quiknode.pro/",
+		// blockhash of block number 17858641
+		blockhash: common.HexToHash("01a4db51161474dd04aac6b55884bec2d44ce95970a68bbd6728d603e87ba76c"),
+	}
+	p := allPrecompiles[common.HexToAddress("13")] // = 19
+	// has byte length 72 /2 = 36 (0x24)
+	// cast abi-encode "eth_call(address,bytes)" 0x6b175474e89094c44da98b954eedeac495271d0f 0x70a082310000000000000000000000006E0d01A76C3Cf4288372a29124A26D4353EE51BE
+	in, err := hexutil.Decode("0x0000000000000000000000006b175474e89094c44da98b954eedeac495271d0f0000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000002470a082310000000000000000000000006e0d01a76c3cf4288372a29124a26d4353ee51be00000000000000000000000000000000000000000000000000000000")
+	if err != nil {
+		t.Errorf("Got unexpected error [%v]", err)
+	}
+	reqGas := p.RequiredGas(in)
+	res, _, err := RunPrecompiledContract(mockCtx, p, in, reqGas)
+	if err != nil {
+		t.Errorf("Got unexpected error [%v]", err)
+	}
+	// Expected result taken from running the curl command in the following docs
+	// https://www.quicknode.com/docs/ethereum/eth_call
+	expectedResult, _ := hexutil.Decode("0x0000000000000000000000000000000000000000000000000858898f93629000")
+	if !bytes.Equal(res, expectedResult) {
+		t.Errorf("Got unexpected result [%v]", res)
+	}
 }

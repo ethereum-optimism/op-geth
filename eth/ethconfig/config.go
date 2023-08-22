@@ -172,6 +172,7 @@ type Config struct {
 	RollupHistoricalRPC        string
 	RollupHistoricalRPCTimeout time.Duration
 	RollupDisableTxPoolGossip  bool
+	L1ArchiveNodeRPC           string
 }
 
 // CreateConsensusEngine creates a consensus engine for the given chain config.

@@ -46,9 +46,10 @@ type StateGetter interface {
 type L1CostFunc func(blockNum uint64, blockTime uint64, dataGas RollupGasData, isDepositTx bool) *big.Int
 
 var (
-	L1BaseFeeSlot = common.BigToHash(big.NewInt(1))
-	OverheadSlot  = common.BigToHash(big.NewInt(5))
-	ScalarSlot    = common.BigToHash(big.NewInt(6))
+	L1BaseFeeSlot   = common.BigToHash(big.NewInt(1))
+	L1BlockHashSlot = common.BigToHash(big.NewInt(2))
+	OverheadSlot    = common.BigToHash(big.NewInt(5))
+	ScalarSlot      = common.BigToHash(big.NewInt(6))
 )
 
 var L1BlockAddr = common.HexToAddress("0x4200000000000000000000000000000000000015")
