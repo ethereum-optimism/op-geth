@@ -213,10 +213,11 @@ type Config struct {
 	OverrideOptimismRegolith *uint64 `toml:",omitempty"`
 	OverrideOptimism         *bool
 
-	RollupSequencerHTTP        string
-	RollupHistoricalRPC        string
-	RollupHistoricalRPCTimeout time.Duration
-	RollupDisableTxPoolGossip  bool
+	RollupSequencerHTTP          string
+	RollupHistoricalRPC          string
+	RollupHistoricalRPCTimeout   time.Duration
+	RollupDisableTxPoolGossip    bool
+	RollupDisableTxPoolAdmission bool
 }
 
 // CreateConsensusEngine creates a consensus engine for the given chain configuration.
