@@ -49,7 +49,7 @@ import (
 type EthAPIBackend struct {
 	extRPCEnabled       bool
 	allowUnprotectedTxs bool
-	disableTxPool       bool
+	enableTxPool        bool
 	eth                 *Ethereum
 	gpo                 *gasprice.Oracle
 }
@@ -301,7 +301,7 @@ func (b *EthAPIBackend) SendTx(ctx context.Context, tx *types.Transaction) error
 		if err := b.eth.seqRPCService.CallContext(ctx, nil, "eth_sendRawTransaction", hexutil.Encode(data)); err != nil {
 			return err
 		}
-		if b.disableTxPool {
+		if !b.enableTxPool {
 			return nil
 		}
 		// Retain tx in local tx pool after forwarding, for local RPC usage.
@@ -310,7 +310,7 @@ func (b *EthAPIBackend) SendTx(ctx context.Context, tx *types.Transaction) error
 		}
 		return nil
 	}
-	if b.disableTxPool {
+	if !b.enableTxPool {
 		return nil
 	}
 	return b.eth.txPool.AddLocal(tx)
