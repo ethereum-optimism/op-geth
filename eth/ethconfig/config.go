@@ -168,12 +168,12 @@ type Config struct {
 	OverrideOptimismRegolith *uint64 `toml:",omitempty"`
 	OverrideOptimism         *bool
 
-	RollupSequencerHTTP         string
-	RollupHistoricalRPC         string
-	RollupHistoricalRPCTimeout  time.Duration
-	RollupDisableTxPoolGossip   bool
-	RollupEnableTxPoolAdmission bool
-	RollupAllowPendingTxFilters bool
+	RollupSequencerHTTP          string
+	RollupHistoricalRPC          string
+	RollupHistoricalRPCTimeout   time.Duration
+	RollupDisableTxPoolGossip    bool
+	RollupDisableTxPoolAdmission bool
+	RollupAllowPendingTxFilters  bool
 }
 
 // CreateConsensusEngine creates a consensus engine for the given chain config.

@@ -1843,7 +1843,7 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 		cfg.RollupHistoricalRPCTimeout = ctx.Duration(RollupHistoricalRPCTimeoutFlag.Name)
 	}
 	cfg.RollupDisableTxPoolGossip = ctx.Bool(RollupDisableTxPoolGossipFlag.Name)
-	cfg.RollupEnableTxPoolAdmission = cfg.RollupSequencerHTTP == "" || ctx.Bool(RollupEnableTxPoolAdmissionFlag.Name)
+	cfg.RollupDisableTxPoolAdmission = cfg.RollupSequencerHTTP != "" && !ctx.Bool(RollupEnableTxPoolAdmissionFlag.Name)
 	cfg.RollupAllowPendingTxFilters = ctx.Bool(RollupAllowPendingTxFilters.Name)
 	// Override any default configs for hard coded networks.
 	switch {
