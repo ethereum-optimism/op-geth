@@ -57,6 +57,9 @@ var (
 	headFinalizedBlockGauge = metrics.NewRegisteredGauge("chain/head/finalized", nil)
 	headSafeBlockGauge      = metrics.NewRegisteredGauge("chain/head/safe", nil)
 
+	// OP-Stack extension
+	headSubjectiveSafeBlockGauge = metrics.NewRegisteredGauge("chain/head/subjective-safe", nil)
+
 	accountReadTimer   = metrics.NewRegisteredTimer("chain/account/reads", nil)
 	accountHashTimer   = metrics.NewRegisteredTimer("chain/account/hashes", nil)
 	accountUpdateTimer = metrics.NewRegisteredTimer("chain/account/updates", nil)
@@ -204,6 +207,8 @@ type BlockChain struct {
 	currentFinalBlock atomic.Pointer[types.Header] // Latest (consensus) finalized block
 	currentSafeBlock  atomic.Pointer[types.Header] // Latest (consensus) safe block
 
+	currentSubjectiveSafeBlock atomic.Pointer[types.Header] // Latest (consensus) subjective-safe block
+
 	bodyCache     *lru.Cache[common.Hash, *types.Body]
 	bodyRLPCache  *lru.Cache[common.Hash, rlp.RawValue]
 	receiptsCache *lru.Cache[common.Hash, []*types.Receipt]
@@ -296,6 +301,7 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, genesis *Genesis
 	bc.currentSnapBlock.Store(nil)
 	bc.currentFinalBlock.Store(nil)
 	bc.currentSafeBlock.Store(nil)
+	bc.currentSubjectiveSafeBlock.Store(nil)
 
 	// If Geth is initialized with an external ancient store, re-initialize the
 	// missing chain indexes and chain flags. This procedure can survive crash
@@ -511,6 +517,13 @@ func (bc *BlockChain) loadLastState() error {
 			headSafeBlockGauge.Update(int64(block.NumberU64()))
 		}
 	}
+	// Restore the last known subjective-safe block
+	if head := rawdb.ReadSubjectiveSafeBlockHash(bc.db); head != (common.Hash{}) {
+		if hdr := bc.GetHeaderByHash(head); hdr != nil {
+			bc.currentSubjectiveSafeBlock.Store(hdr)
+			headSubjectiveSafeBlockGauge.Update(int64(hdr.Number.Uint64()))
+		}
+	}
 	// Issue a status log for the user
 	var (
 		currentSnapBlock  = bc.CurrentSnapBlock()
@@ -599,6 +612,18 @@ func (bc *BlockChain) SetSafe(header *types.Header) {
 		headSafeBlockGauge.Update(int64(header.Number.Uint64()))
 	} else {
 		headSafeBlockGauge.Update(0)
+	}
+}
+
+// SetSubjectiveSafe sets the subjective-safe block.
+func (bc *BlockChain) SetSubjectiveSafe(header *types.Header) {
+	bc.currentSubjectiveSafeBlock.Store(header)
+	if header != nil {
+		rawdb.WriteSubjectiveSafeBlockHash(bc.db, header.Hash())
+		headSubjectiveSafeBlockGauge.Update(int64(header.Number.Uint64()))
+	} else {
+		rawdb.WriteSubjectiveSafeBlockHash(bc.db, common.Hash{})
+		headSubjectiveSafeBlockGauge.Update(0)
 	}
 }
 
@@ -776,6 +801,10 @@ func (bc *BlockChain) setHeadBeyondRoot(head uint64, time uint64, root common.Ha
 	if finalized := bc.CurrentFinalBlock(); finalized != nil && head < finalized.Number.Uint64() {
 		log.Error("SetHead invalidated finalized block")
 		bc.SetFinalized(nil)
+	}
+	if subj := bc.CurrentSubjectiveSafeBlock(); subj != nil && head < subj.Number.Uint64() {
+		log.Error("SetHead invalidated subjective-safe block")
+		bc.SetSubjectiveSafe(nil)
 	}
 	return rootNumber, bc.loadLastState()
 }

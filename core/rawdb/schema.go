@@ -43,6 +43,9 @@ var (
 	// headFinalizedBlockKey tracks the latest known finalized block hash.
 	headFinalizedBlockKey = []byte("LastFinalized")
 
+	// headSubjectiveSafeBlockKey tracks the latest known subjective-safe block hash.
+	headSubjectiveSafeBlockKey = []byte("LastSubjectiveSafe")
+
 	// lastPivotKey tracks the last pivot block used by fast sync (to reenable on sethead).
 	lastPivotKey = []byte("LastPivot")
 

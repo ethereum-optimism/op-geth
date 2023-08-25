@@ -98,6 +98,13 @@ func (b *EthAPIBackend) HeaderByNumber(ctx context.Context, number rpc.BlockNumb
 		}
 		return nil, errors.New("safe block not found")
 	}
+	if number == rpc.SubjectiveSafeBlockNumber {
+		block := b.eth.blockchain.CurrentSubjectiveSafeBlock()
+		if block != nil {
+			return block, nil
+		}
+		return nil, errors.New("subjective safe block not found")
+	}
 	return b.eth.blockchain.GetHeaderByNumber(uint64(number)), nil
 }
 
@@ -150,6 +157,13 @@ func (b *EthAPIBackend) BlockByNumber(ctx context.Context, number rpc.BlockNumbe
 		header := b.eth.blockchain.CurrentSafeBlock()
 		if header == nil {
 			return nil, errors.New("safe block not found")
+		}
+		return b.eth.blockchain.GetBlock(header.Hash(), header.Number.Uint64()), nil
+	}
+	if number == rpc.SubjectiveSafeBlockNumber {
+		header := b.eth.blockchain.CurrentSubjectiveSafeBlock()
+		if header == nil {
+			return nil, errors.New("subjective safe block not found")
 		}
 		return b.eth.blockchain.GetBlock(header.Hash(), header.Number.Uint64()), nil
 	}

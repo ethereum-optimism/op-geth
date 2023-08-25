@@ -62,6 +62,11 @@ func (bc *BlockChain) CurrentSafeBlock() *types.Header {
 	return bc.currentSafeBlock.Load()
 }
 
+// CurrentSubjectiveSafeBlock retrieves the current subjective-safe block (from cache).
+func (bc *BlockChain) CurrentSubjectiveSafeBlock() *types.Header {
+	return bc.currentSubjectiveSafeBlock.Load()
+}
+
 // HasHeader checks if a block header is present in the database or not, caching
 // it if present.
 func (bc *BlockChain) HasHeader(hash common.Hash, number uint64) bool {

@@ -203,6 +203,22 @@ func (api *ConsensusAPI) verifyPayloadAttributes(attr *engine.PayloadAttributes)
 	return nil
 }
 
+func (api *ConsensusAPI) SetSubjectiveSafeHead(subjectiveSafeHash common.Hash) error {
+	safe := api.eth.BlockChain().CurrentSafeBlock()
+	if safe == nil {
+		return errors.New("cannot set subjective safe head without safe-block")
+	}
+	subj := api.eth.BlockChain().GetHeaderByHash(subjectiveSafeHash)
+	if subj.Number.Uint64() < safe.Number.Uint64() {
+		return fmt.Errorf("cannot set subjective safe block to %s (%d) while safe block is ahead: %s (%d)", subjectiveSafeHash, subj.Number, safe.Hash(), safe.Number)
+	}
+	if expected := rawdb.ReadCanonicalHash(api.eth.ChainDb(), subj.Number.Uint64()); expected != subjectiveSafeHash {
+		return fmt.Errorf("subjective-safe block %s is not part of the canonical chain, %s at %d is canonical", subjectiveSafeHash, expected, subj.Number)
+	}
+	api.eth.BlockChain().SetSubjectiveSafe(subj)
+	return nil
+}
+
 func (api *ConsensusAPI) forkchoiceUpdated(update engine.ForkchoiceStateV1, payloadAttributes *engine.PayloadAttributes) (engine.ForkChoiceResponse, error) {
 	api.forkchoiceLock.Lock()
 	defer api.forkchoiceLock.Unlock()
