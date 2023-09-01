@@ -44,8 +44,6 @@ import (
 type Config struct {
 	LogCacheSize int           // maximum number of cached blocks (default: 32)
 	Timeout      time.Duration // how long filters stay active (default: 5min)
-	// allow filtering or subscriptions to new pending txs:
-	AllowPendingTxs bool
 }
 
 func (cfg Config) withDefaults() Config {
