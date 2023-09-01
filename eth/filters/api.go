@@ -36,8 +36,6 @@ import (
 var (
 	errInvalidTopic   = errors.New("invalid topic(s)")
 	errFilterNotFound = errors.New("filter not found")
-	// errPendingDisabled is returned from NewPendingTransaction* when access to the mempool is not allowed
-	errPendingDisabled = errors.New("pending tx filters are disabled")
 )
 
 // filter is a helper struct that holds meta information over the filter type
@@ -111,11 +109,7 @@ func (api *FilterAPI) timeoutLoop(timeout time.Duration) {
 //
 // It is part of the filter package because this filter can be used through the
 // `eth_getFilterChanges` polling method that is also used for log filters.
-func (api *FilterAPI) NewPendingTransactionFilter(fullTx *bool) (rpc.ID, error) {
-	if !api.sys.cfg.AllowPendingTxs {
-		return "", errPendingDisabled
-	}
-
+func (api *FilterAPI) NewPendingTransactionFilter(fullTx *bool) rpc.ID {
 	var (
 		pendingTxs   = make(chan []*types.Transaction)
 		pendingTxSub = api.events.SubscribePendingTxs(pendingTxs)
@@ -143,17 +137,13 @@ func (api *FilterAPI) NewPendingTransactionFilter(fullTx *bool) (rpc.ID, error) 
 		}
 	}()
 
-	return pendingTxSub.ID, nil
+	return pendingTxSub.ID
 }
 
 // NewPendingTransactions creates a subscription that is triggered each time a
 // transaction enters the transaction pool. If fullTx is true the full tx is
 // sent to the client, otherwise the hash is sent.
 func (api *FilterAPI) NewPendingTransactions(ctx context.Context, fullTx *bool) (*rpc.Subscription, error) {
-	if !api.sys.cfg.AllowPendingTxs {
-		return &rpc.Subscription{}, errPendingDisabled
-	}
-
 	notifier, supported := rpc.NotifierFromContext(ctx)
 	if !supported {
 		return &rpc.Subscription{}, rpc.ErrNotificationsUnsupported
