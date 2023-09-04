@@ -180,7 +180,6 @@ func (b *testBackend) ServiceFilter(ctx context.Context, session *bloombits.Matc
 
 func newTestFilterSystem(t testing.TB, db ethdb.Database, cfg Config) (*testBackend, *FilterSystem) {
 	backend := &testBackend{db: db}
-	cfg.AllowPendingTxs = true
 	sys := NewFilterSystem(backend, cfg)
 	return backend, sys
 }
@@ -264,10 +263,7 @@ func TestPendingTxFilter(t *testing.T) {
 		hashes []common.Hash
 	)
 
-	fid0, err := api.NewPendingTransactionFilter(nil)
-	if err != nil {
-		t.Fatalf("Unable to create filter: %v", err)
-	}
+	fid0 := api.NewPendingTransactionFilter(nil)
 
 	time.Sleep(1 * time.Second)
 	backend.txFeed.Send(core.NewTxsEvent{Txs: transactions})
@@ -324,10 +320,7 @@ func TestPendingTxFilterFullTx(t *testing.T) {
 	)
 
 	fullTx := true
-	fid0, err := api.NewPendingTransactionFilter(&fullTx)
-	if err != nil {
-		t.Fatalf("Unable to create filter: %v", err)
-	}
+	fid0 := api.NewPendingTransactionFilter(&fullTx)
 
 	time.Sleep(1 * time.Second)
 	backend.txFeed.Send(core.NewTxsEvent{Txs: transactions})
@@ -922,10 +915,7 @@ func TestPendingTxFilterDeadlock(t *testing.T) {
 	// timeout either in 100ms or 200ms
 	fids := make([]rpc.ID, 20)
 	for i := 0; i < len(fids); i++ {
-		fid, err := api.NewPendingTransactionFilter(nil)
-		if err != nil {
-			t.Fatalf("Unable to create filter: %v", err)
-		}
+		fid := api.NewPendingTransactionFilter(nil)
 		fids[i] = fid
 		// Wait for at least one tx to arrive in filter
 		for {

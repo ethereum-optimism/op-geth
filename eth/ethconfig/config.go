@@ -173,7 +173,6 @@ type Config struct {
 	RollupHistoricalRPCTimeout   time.Duration
 	RollupDisableTxPoolGossip    bool
 	RollupDisableTxPoolAdmission bool
-	RollupAllowPendingTxFilters  bool
 }
 
 // CreateConsensusEngine creates a consensus engine for the given chain config.
