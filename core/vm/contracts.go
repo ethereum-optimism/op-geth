@@ -29,6 +29,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto/bls12381"
 	"github.com/ethereum/go-ethereum/crypto/bn256"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/precompiles"
 	"golang.org/x/crypto/ripemd160"
 )
 
@@ -88,6 +89,11 @@ var PrecompiledContractsBerlin = map[common.Address]PrecompiledContract{
 	common.BytesToAddress([]byte{7}): &bn256ScalarMulIstanbul{},
 	common.BytesToAddress([]byte{8}): &bn256PairingIstanbul{},
 	common.BytesToAddress([]byte{9}): &blake2F{},
+
+	common.BytesToAddress([]byte{2, 0, 1}): &precompiles.Anonymous{},
+	common.BytesToAddress([]byte{2, 0, 2}): &precompiles.Anemoi{},
+	common.BytesToAddress([]byte{2, 0, 3}): &precompiles.MentalPokeyVerify{},
+	common.BytesToAddress([]byte{2, 0, 4}): &precompiles.MentalPokeyExec{},
 }
 
 // PrecompiledContractsBLS contains the set of pre-compiled Ethereum

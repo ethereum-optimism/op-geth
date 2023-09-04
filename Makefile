@@ -9,11 +9,13 @@ GO ?= latest
 GORUN = env GO111MODULE=on go run
 
 geth:
+	cargo build --release
 	$(GORUN) build/ci.go install ./cmd/geth
 	@echo "Done building."
 	@echo "Run \"$(GOBIN)/geth\" to launch geth."
 
 all:
+	cargo build --release
 	$(GORUN) build/ci.go install
 
 test: all

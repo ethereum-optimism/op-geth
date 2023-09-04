@@ -48,3 +48,6 @@ profile.cov
 
 **/yarn-error.log
 logs/
+
+/target
+/Cargo.lock
