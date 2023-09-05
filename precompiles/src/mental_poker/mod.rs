@@ -1,23 +1,21 @@
 mod compute_aggregate_key;
 mod mask;
 mod reveal;
+mod test;
 mod utils;
 mod verify_key_ownership;
 mod verify_reveal;
 mod verify_shuffle;
 
 use {
-    self::{
-        compute_aggregate_key::ComputeAggregateKey, mask::Mask, reveal::Reveal,
-        verify_key_ownership::VerifyKeyOwnership, verify_reveal::VerifyReveal,
-        verify_shuffle::VerifyShuffle,
-    },
     crate::{Error, Result},
     ark_bn254::{g1::Config, Fr, G1Affine, G1Projective},
     ark_ec::models::short_weierstrass::{Affine, Projective},
     barnett_smart_card_protocol::discrete_log_cards::{
         DLCards, MaskedCard as InMaskedCard, Parameters, RevealToken as InRevealToken,
     },
+    compute_aggregate_key::ComputeAggregateKey,
+    mask::Mask,
     proof_essentials::{
         homomorphic_encryption::el_gamal::{ElGamal, Plaintext},
         vector_commitment::pedersen::PedersenCommitment,
@@ -29,7 +27,12 @@ use {
             },
         },
     },
+    reveal::Reveal,
     std::slice,
+    test::Test,
+    verify_key_ownership::VerifyKeyOwnership,
+    verify_reveal::VerifyReveal,
+    verify_shuffle::VerifyShuffle,
 };
 
 type CConfig = Config;
@@ -126,6 +129,8 @@ pub const REVEAL: [u8; 4] = [0x6a, 0x33, 0xd6, 0x52];
 // mask(bytes,bytes,bytes) 0x5a8890bc
 pub const MASK: [u8; 4] = [0x5a, 0x88, 0x90, 0xbc];
 
+// test() 0xf8a8fd6d
+pub const TEST: [u8; 4] = [0xf8, 0xa8, 0xfd, 0x6d];
 pub enum ArgumentVerifys {
     VerifyKeyOwnership(VerifyKeyOwnership),
     VerifyReveal(VerifyReveal),
@@ -168,6 +173,7 @@ pub enum Arguments {
     ComputeAggregateKey(ComputeAggregateKey),
     Reveal(Reveal),
     Mask(Mask),
+    Test(Test),
 }
 
 impl Arguments {
@@ -181,6 +187,7 @@ impl Arguments {
             )?)),
             REVEAL => Ok(Self::Reveal(Reveal::new(&data[4..])?)),
             MASK => Ok(Self::Mask(Mask::new(&data[4..])?)),
+            TEST => Ok(Self::Test(Test::new())),
             _ => Err(Error::UnknownSelector),
         }
     }
@@ -190,6 +197,7 @@ impl Arguments {
             Self::ComputeAggregateKey(v) => v.check(),
             Self::Reveal(v) => v.check(),
             Self::Mask(v) => v.check(),
+            Self::Test(v) => v.check(),
         }
     }
 
@@ -198,6 +206,7 @@ impl Arguments {
             Self::ComputeAggregateKey(v) => v.gas(),
             Self::Reveal(v) => v.gas(),
             Self::Mask(v) => v.gas(),
+            Self::Test(v) => v.gas(),
         }
     }
 }
