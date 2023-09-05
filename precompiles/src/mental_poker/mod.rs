@@ -114,17 +114,17 @@ pub fn exec(data: &[u8]) -> Result<Vec<u8>> {
 }
 
 // verifyKeyOwnership(bytes,bytes,bytes,bytes) 0x3931f649
-pub const VERIFY_KEY_OWNERSHIP: [u8; 4] = [0xb5, 0x54, 0x2c, 0x2f];
+pub const VERIFY_KEY_OWNERSHIP: [u8; 4] = [0x39, 0x31, 0xf6, 0x49];
 // verifyReveal(bytes,bytes,bytes,bytes,bytes) 0x9ca80d77
-pub const VERIFY_REVEAL: [u8; 4] = [0xb5, 0x44, 0x2c, 0x2f];
+pub const VERIFY_REVEAL: [u8; 4] = [0x9c, 0xa8, 0x0d, 0x77];
 // computeAggregateKey(bytes[]) 0x5b2bfec7
-pub const COMPUTE_AGGREGATE_KEY: [u8; 4] = [0xb6, 0x54, 0x2c, 0x2f];
+pub const COMPUTE_AGGREGATE_KEY: [u8; 4] = [0x5b, 0x2b, 0xfe, 0xc7];
 // verifyShuffle(bytes,bytes,bytes[],bytes[],bytes) 0x2a379865
-pub const VERIFY_SHUFFLE: [u8; 4] = [0xb5, 0x74, 0x2c, 0x2f];
+pub const VERIFY_SHUFFLE: [u8; 4] = [0x2a, 0x37, 0x98, 0x65];
 // reveal(bytes[],bytes) 0x6a33d652
-pub const REVEAL: [u8; 4] = [0xb5, 0x54, 0x2c, 0x8f];
+pub const REVEAL: [u8; 4] = [0x6a, 0x33, 0xd6, 0x52];
 // mask(bytes,bytes,bytes) 0x5a8890bc
-pub const MASK: [u8; 4] = [0xb5, 0x54, 0x2c, 0x9f];
+pub const MASK: [u8; 4] = [0x5a, 0x88, 0x90, 0xbc];
 
 pub enum ArgumentVerifys {
     VerifyKeyOwnership(VerifyKeyOwnership),
