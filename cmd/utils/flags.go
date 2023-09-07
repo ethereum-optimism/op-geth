@@ -859,7 +859,7 @@ var (
 	}
 	GpoMinSuggestedPriorityFeeFlag = &cli.Int64Flag{
 		Name:     "gpo.minsuggestedpriorityfee",
-		Usage:    "Minimum transaction priority fee to suggest. Occurs when blocks are empty",
+		Usage:    "Minimum transaction priority fee to suggest. Used on OP chains when blocks are not full.",
 		Value:    ethconfig.Defaults.GPO.MinSuggestedPriorityFee.Int64(),
 		Category: flags.GasPriceCategory,
 	}
