@@ -1,12 +1,16 @@
 package params
 
 import (
+	"encoding/binary"
 	"fmt"
 	"math/big"
 
 	"github.com/ethereum-optimism/superchain-registry/superchain"
 	"github.com/ethereum/go-ethereum/common"
 )
+
+// TODO initial version
+var OPStackSupport = ToProtocolVersion(0, 0, 0, 1, 0)
 
 func init() {
 	for id, ch := range superchain.OPChains {
@@ -93,4 +97,104 @@ func LoadOPStackChainConfig(chainID uint64) (*ChainConfig, error) {
 	}
 
 	return out, nil
+}
+
+// ProtocolVersion encodes the OP-Stack protocol version. See OP-Stack superchain-upgrade specification.
+type ProtocolVersion [32]byte
+
+func (p ProtocolVersion) MarshalText() ([]byte, error) {
+	return common.Hash(p).MarshalText()
+}
+
+func (p *ProtocolVersion) UnmarshalText(input []byte) error {
+	return (*common.Hash)(p).UnmarshalText(input)
+}
+
+func (p ProtocolVersion) Parse() (versionType uint8, build uint64, major, minor, patch, preRelease uint32) {
+	versionType = p[0]
+	if versionType != 0 {
+		return
+	}
+	// bytes 1:8 reserved for future use
+	build = binary.BigEndian.Uint64(p[8:16])       // differentiates forks and custom-builds of standard protocol
+	major = binary.BigEndian.Uint32(p[16:20])      // incompatible API changes
+	minor = binary.BigEndian.Uint32(p[20:24])      // identifies additional functionality in backwards compatible manner
+	patch = binary.BigEndian.Uint32(p[24:28])      // identifies backward-compatible bug-fixes
+	preRelease = binary.BigEndian.Uint32(p[28:32]) // identifies unstable versions that may not satisfy the above
+	return
+}
+
+func (p ProtocolVersion) String() string {
+	versionType, build, major, minor, patch, preRelease := p.Parse()
+	if versionType != 0 {
+		return "v0.0.0-unknown." + common.Hash(p).String()
+	}
+	ver := fmt.Sprintf("v%d.%d.%d", major, minor, patch)
+	if preRelease != 0 {
+		ver += fmt.Sprintf("-%d", preRelease)
+	}
+	if build != 0 {
+		ver += fmt.Sprintf("+%d", build)
+	}
+	return ver
+}
+
+// ProtocolVersionComparison is used to identify how far ahead/outdated a protocol version is relative to another.
+// This value is used in metrics and switch comparisons, to easily identify each type of version difference.
+// Negative values mean the version is outdated.
+// Positive values mean the version is up-to-date.
+// Matching versions have a 0.
+type ProtocolVersionComparison int
+
+const (
+	AheadMajor         ProtocolVersionComparison = 4
+	OutdatedMajor                                = -4
+	AheadMinor                                   = 3
+	OutdatedMinor                                = -3
+	AheadPatch                                   = 2
+	OutdatedPatch                                = -2
+	AheadPrerelease                              = 1
+	OutdatedPrerelease                           = -1
+	Matching                                     = 0
+	DiffVersionType                              = 100
+	DiffBuild                                    = 101
+)
+
+func (p ProtocolVersion) Compare(other ProtocolVersion) (cmp ProtocolVersionComparison) {
+	aVersionType, aBuild, aMajor, aMinor, aPatch, aPreRelease := p.Parse()
+	bVersionType, bBuild, bMajor, bMinor, bPatch, bPreRelease := other.Parse()
+	if aVersionType != bVersionType {
+		return DiffVersionType
+	}
+	if aBuild != bBuild {
+		return DiffBuild
+	}
+	fn := func(a, b uint32, ahead, outdated ProtocolVersionComparison) ProtocolVersionComparison {
+		if a == b {
+			return Matching
+		}
+		if a > b {
+			return ahead
+		}
+		return outdated
+	}
+	if c := fn(aMajor, bMajor, AheadMajor, OutdatedMajor); c != Matching {
+		return c
+	}
+	if c := fn(aMinor, bMinor, AheadMinor, OutdatedMinor); c != Matching {
+		return c
+	}
+	if c := fn(aPatch, bPatch, AheadPatch, OutdatedPatch); c != Matching {
+		return c
+	}
+	return fn(aPreRelease, bPreRelease, AheadPrerelease, OutdatedPrerelease)
+}
+
+func ToProtocolVersion(build uint64, major, minor, patch, preRelease uint32) (out ProtocolVersion) {
+	binary.BigEndian.PutUint64(out[8:16], build)
+	binary.BigEndian.PutUint32(out[16:20], major)
+	binary.BigEndian.PutUint32(out[20:24], minor)
+	binary.BigEndian.PutUint32(out[24:28], patch)
+	binary.BigEndian.PutUint32(out[28:32], preRelease)
+	return
 }
