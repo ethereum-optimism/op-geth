@@ -887,7 +887,6 @@ var (
 		Name:     "rollup.l1archivenoderpc",
 		Usage:    "RPC endpoint for L1 archive node.",
 		Category: flags.RollupCategory,
-		Required: true,
 	}
 
 	// Metrics flags
