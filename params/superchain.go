@@ -158,9 +158,13 @@ const (
 	Matching                                     = 0
 	DiffVersionType                              = 100
 	DiffBuild                                    = 101
+	EmptyVersion                                 = 102
 )
 
 func (p ProtocolVersion) Compare(other ProtocolVersion) (cmp ProtocolVersionComparison) {
+	if p == (ProtocolVersion{}) || (other == (ProtocolVersion{})) {
+		return EmptyVersion
+	}
 	aVersionType, aBuild, aMajor, aMinor, aPatch, aPreRelease := p.Parse()
 	bVersionType, bBuild, bMajor, bMinor, bPatch, bPreRelease := other.Parse()
 	if aVersionType != bVersionType {

@@ -1,6 +1,7 @@
 package catalyst
 
 import (
+	"fmt"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/params"
@@ -21,50 +22,37 @@ func (api *ConsensusAPI) SignalSuperchainV1(signal *SuperchainSignal) params.Pro
 		log.Info("received empty superchain version signal", "local", params.OPStackSupport)
 		return params.OPStackSupport
 	}
+	// update metrics and log any warnings/info
+	requiredProtocolDeltaGauge.Update(int64(params.OPStackSupport.Compare(signal.Required)))
+	recommendedProtocolDeltaGauge.Update(int64(params.OPStackSupport.Compare(signal.Recommended)))
 	logger := log.New("local", params.OPStackSupport, "required", signal.Required, "recommended", signal.Recommended)
-	requiredCmp := params.OPStackSupport.Compare(signal.Required)
-	requiredProtocolDeltaGauge.Update(int64(requiredCmp))
-	switch requiredCmp {
-	case params.AheadMajor:
-		logger.Info("node is ahead of major required protocol change")
-	case params.AheadMinor, params.AheadPatch, params.AheadPrerelease:
-		logger.Debug("node is ahead of compatible required protocol change")
-	case params.Matching:
-		logger.Debug("node supports latest required protocol change")
-	case params.OutdatedMajor:
-		logger.Error("node does not support major required protocol change")
-	case params.OutdatedMinor:
-		logger.Warn("node does not support minor required protocol change")
-	case params.OutdatedPatch:
-		logger.Warn("node does not support backwards-compatible required protocol change")
-	case params.OutdatedPrerelease:
-		logger.Debug("new required protocol pre-release is available")
-	case params.DiffBuild:
-		logger.Debug("ignoring required-protocol-version signal, build is different")
-	case params.DiffVersionType:
-		logger.Warn("unrecognized required-protocol-version signal version-type")
-	}
-	recommendedCmp := params.OPStackSupport.Compare(signal.Recommended)
-	recommendedProtocolDeltaGauge.Update(int64(recommendedCmp))
-	switch recommendedCmp {
-	case params.AheadMajor:
-		logger.Info("node is ahead of major recommended protocol change")
-	case params.AheadMinor, params.AheadPatch, params.AheadPrerelease:
-		logger.Debug("node is ahead of compatible recommended protocol change")
-	case params.Matching:
-		logger.Debug("node supports latest recommended protocol change")
-	case params.OutdatedMajor:
-		logger.Warn("node does not support major recommended protocol change")
-	case params.OutdatedMinor:
-		logger.Info("node does not support minor recommended protocol change")
-	case params.OutdatedPatch:
-		logger.Debug("node does not support backwards-compatible recommended protocol change")
-	case params.OutdatedPrerelease:
-		logger.Debug("new recommended protocol pre-release is available")
-	case params.DiffBuild:
-		logger.Debug("ignoring recommended-protocol-version signal, build is different")
-	case params.DiffVersionType:
-		logger.Warn("unrecognized recommended-protocol-version signal version-type")
-	}
+	LogProtocolVersionSupport(logger, params.OPStackSupport, signal.Recommended, "recommended")
+	LogProtocolVersionSupport(logger, params.OPStackSupport, signal.Required, "required")
+
 	return params.OPStackSupport
+}
+
+func LogProtocolVersionSupport(logger log.Logger, local, other params.ProtocolVersion, name string) {
+	switch local.Compare(other) {
+	case params.AheadMajor:
+		logger.Info(fmt.Sprintf("ahead with major %s protocol version change", name))
+	case params.AheadMinor, params.AheadPatch, params.AheadPrerelease:
+		logger.Debug(fmt.Sprintf("ahead with compatible %s protocol version change", name))
+	case params.Matching:
+		logger.Debug(fmt.Sprintf("latest %s protocol version is supported", name))
+	case params.OutdatedMajor:
+		logger.Error(fmt.Sprintf("outdated with major %s protocol change", name))
+	case params.OutdatedMinor:
+		logger.Warn(fmt.Sprintf("outdated with minor backward-compatible %s protocol change", name))
+	case params.OutdatedPatch:
+		logger.Info(fmt.Sprintf("outdated with support backward-compatible %s protocol change", name))
+	case params.OutdatedPrerelease:
+		logger.Debug(fmt.Sprintf("new %s protocol pre-release is available", name))
+	case params.DiffBuild:
+		logger.Debug(fmt.Sprintf("ignoring %s protocolversion signal, local build is different", name))
+	case params.DiffVersionType:
+		logger.Warn(fmt.Sprintf("failed to recognize %s protocol version signal version-type", name))
+	case params.EmptyVersion:
+		logger.Debug(fmt.Sprintf("no %s protocol version available to check", name))
+	}
 }
