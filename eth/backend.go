@@ -103,6 +103,8 @@ type Ethereum struct {
 	lock sync.RWMutex // Protects the variadic fields (e.g. gas price and etherbase)
 
 	shutdownTracker *shutdowncheck.ShutdownTracker // Tracks if and when the node has shutdown ungracefully
+
+	nodeCloser func() error
 }
 
 // New creates a new Ethereum object (including the
@@ -162,6 +164,7 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 		bloomIndexer:      core.NewBloomIndexer(chainDb, params.BloomBitsBlocks, params.BloomConfirms),
 		p2pServer:         stack.Server(),
 		shutdownTracker:   shutdowncheck.NewShutdownTracker(chainDb),
+		nodeCloser:        stack.Close,
 	}
 
 	bcVersion := rawdb.ReadDatabaseVersion(chainDb)
@@ -573,5 +576,33 @@ func (s *Ethereum) Stop() error {
 	s.chainDb.Close()
 	s.eventMux.Stop()
 
+	return nil
+}
+
+func (s *Ethereum) HandleRequiredProtocolVersion(required params.ProtocolVersion) error {
+	var needLevel int
+	switch s.config.RollupHaltOnIncompatibleProtocolVersion {
+	case "major":
+		needLevel = 3
+	case "minor":
+		needLevel = 2
+	case "patch":
+		needLevel = 1
+	default:
+		return nil // do not consider halting if not configured to
+	}
+	haveLevel := 0
+	switch params.OPStackSupport.Compare(required) {
+	case params.OutdatedMajor:
+		haveLevel = 3
+	case params.OutdatedMinor:
+		haveLevel = 2
+	case params.OutdatedPatch:
+		haveLevel = 1
+	}
+	if haveLevel >= needLevel { // halt if we opted in to do so at this granularity
+		log.Error("opted to halt, unprepared for protocol change", "required", required, "local", params.OPStackSupport)
+		return s.nodeCloser()
+	}
 	return nil
 }

@@ -148,17 +148,17 @@ type ProtocolVersionComparison int
 
 const (
 	AheadMajor         ProtocolVersionComparison = 4
-	OutdatedMajor                                = -4
-	AheadMinor                                   = 3
-	OutdatedMinor                                = -3
-	AheadPatch                                   = 2
-	OutdatedPatch                                = -2
-	AheadPrerelease                              = 1
-	OutdatedPrerelease                           = -1
-	Matching                                     = 0
-	DiffVersionType                              = 100
-	DiffBuild                                    = 101
-	EmptyVersion                                 = 102
+	OutdatedMajor      ProtocolVersionComparison = -4
+	AheadMinor         ProtocolVersionComparison = 3
+	OutdatedMinor      ProtocolVersionComparison = -3
+	AheadPatch         ProtocolVersionComparison = 2
+	OutdatedPatch      ProtocolVersionComparison = -2
+	AheadPrerelease    ProtocolVersionComparison = 1
+	OutdatedPrerelease ProtocolVersionComparison = -1
+	Matching           ProtocolVersionComparison = 0
+	DiffVersionType    ProtocolVersionComparison = 100
+	DiffBuild          ProtocolVersionComparison = 101
+	EmptyVersion       ProtocolVersionComparison = 102
 )
 
 func (p ProtocolVersion) Compare(other ProtocolVersion) (cmp ProtocolVersionComparison) {
