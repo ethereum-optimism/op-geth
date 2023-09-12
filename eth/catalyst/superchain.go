@@ -2,6 +2,7 @@ package catalyst
 
 import (
 	"fmt"
+
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/params"
@@ -17,10 +18,10 @@ type SuperchainSignal struct {
 	Required    params.ProtocolVersion `json:"required"`
 }
 
-func (api *ConsensusAPI) SignalSuperchainV1(signal *SuperchainSignal) params.ProtocolVersion {
+func (api *ConsensusAPI) SignalSuperchainV1(signal *SuperchainSignal) (params.ProtocolVersion, error) {
 	if signal == nil {
 		log.Info("received empty superchain version signal", "local", params.OPStackSupport)
-		return params.OPStackSupport
+		return params.OPStackSupport, nil
 	}
 	// update metrics and log any warnings/info
 	requiredProtocolDeltaGauge.Update(int64(params.OPStackSupport.Compare(signal.Required)))
@@ -29,7 +30,12 @@ func (api *ConsensusAPI) SignalSuperchainV1(signal *SuperchainSignal) params.Pro
 	LogProtocolVersionSupport(logger, params.OPStackSupport, signal.Recommended, "recommended")
 	LogProtocolVersionSupport(logger, params.OPStackSupport, signal.Required, "required")
 
-	return params.OPStackSupport
+	if err := api.eth.HandleRequiredProtocolVersion(signal.Required); err != nil {
+		log.Error("failed to handle required protocol version", "err", err, "required", signal.Required)
+		return params.OPStackSupport, err
+	}
+
+	return params.OPStackSupport, nil
 }
 
 func LogProtocolVersionSupport(logger log.Logger, local, other params.ProtocolVersion, name string) {
