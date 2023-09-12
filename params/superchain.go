@@ -9,8 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-// TODO initial version
-var OPStackSupport = ToProtocolVersion(0, 0, 0, 1, 0)
+var OPStackSupport = ToProtocolVersion(0, 3, 1, 0, 1)
 
 func init() {
 	for id, ch := range superchain.OPChains {
