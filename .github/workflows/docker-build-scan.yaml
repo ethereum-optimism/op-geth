@@ -1,10 +1,17 @@
 name: Docker Build Push
 on:
-  pull_request:
+  push:
   workflow_dispatch:
 
 jobs:
-  Build-Scan-Container:
-    uses: celo-org/reusable-workflows/.github/workflows/container-cicd-local.yaml@main
+  build-scan-container:
+    uses: celo-org/reusable-workflows/.github/workflows/container-cicd.yaml@main
+    name: Build us-west1-docker.pkg.dev/blockchaintestsglobaltestnet/dev-images/op-geth:${{ github.sha }}
     with:
-      dockerfile: Dockerfile
+      workload-id-provider: projects/1094498259535/locations/global/workloadIdentityPools/gh-op-geth/providers/github-by-repos
+      service-account: 'op-geth-dev@blockchaintestsglobaltestnet.iam.gserviceaccount.com'
+      artifact-registry: us-west1-docker.pkg.dev/blockchaintestsglobaltestnet/dev-images/op-geth
+      tag: ${{ github.sha }}
+      context: .
+      file: Dockerfile
+      trivy: true
