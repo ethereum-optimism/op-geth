@@ -4,12 +4,13 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math/big"
+	"strings"
 
 	"github.com/ethereum-optimism/superchain-registry/superchain"
 	"github.com/ethereum/go-ethereum/common"
 )
 
-var OPStackSupport = ToProtocolVersion(0, 3, 1, 0, 1)
+var OPStackSupport = ToProtocolVersion([8]byte{}, 3, 1, 0, 1)
 
 func init() {
 	for id, ch := range superchain.OPChains {
@@ -109,13 +110,13 @@ func (p *ProtocolVersion) UnmarshalText(input []byte) error {
 	return (*common.Hash)(p).UnmarshalText(input)
 }
 
-func (p ProtocolVersion) Parse() (versionType uint8, build uint64, major, minor, patch, preRelease uint32) {
+func (p ProtocolVersion) Parse() (versionType uint8, build [8]byte, major, minor, patch, preRelease uint32) {
 	versionType = p[0]
 	if versionType != 0 {
 		return
 	}
 	// bytes 1:8 reserved for future use
-	build = binary.BigEndian.Uint64(p[8:16])       // differentiates forks and custom-builds of standard protocol
+	copy(build[:], p[8:16])                        // differentiates forks and custom-builds of standard protocol
 	major = binary.BigEndian.Uint32(p[16:20])      // incompatible API changes
 	minor = binary.BigEndian.Uint32(p[20:24])      // identifies additional functionality in backwards compatible manner
 	patch = binary.BigEndian.Uint32(p[24:28])      // identifies backward-compatible bug-fixes
@@ -132,10 +133,32 @@ func (p ProtocolVersion) String() string {
 	if preRelease != 0 {
 		ver += fmt.Sprintf("-%d", preRelease)
 	}
-	if build != 0 {
-		ver += fmt.Sprintf("+%d", build)
+	if build != ([8]byte{}) {
+		if humanBuildTag(build) {
+			ver += fmt.Sprintf("+%s", strings.TrimRight(string(build[:]), "\x00"))
+		} else {
+			ver += fmt.Sprintf("+0x%x", build)
+		}
 	}
 	return ver
+}
+
+// humanBuildTag identifies which build tag we can stringify for human-readable versions
+func humanBuildTag(v [8]byte) bool {
+	for i, c := range v { // following semver.org advertised regex, alphanumeric with '-' and '.', except leading '.'.
+		if c == 0 { // trailing zeroed are allowed
+			for _, d := range v[i:] {
+				if d != 0 {
+					return false
+				}
+			}
+			return true
+		}
+		if !((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-' || (c == '.' && i > 0)) {
+			return false
+		}
+	}
+	return true
 }
 
 // ProtocolVersionComparison is used to identify how far ahead/outdated a protocol version is relative to another.
@@ -193,8 +216,8 @@ func (p ProtocolVersion) Compare(other ProtocolVersion) (cmp ProtocolVersionComp
 	return fn(aPreRelease, bPreRelease, AheadPrerelease, OutdatedPrerelease)
 }
 
-func ToProtocolVersion(build uint64, major, minor, patch, preRelease uint32) (out ProtocolVersion) {
-	binary.BigEndian.PutUint64(out[8:16], build)
+func ToProtocolVersion(build [8]byte, major, minor, patch, preRelease uint32) (out ProtocolVersion) {
+	copy(out[8:16], build[:])
 	binary.BigEndian.PutUint32(out[16:20], major)
 	binary.BigEndian.PutUint32(out[20:24], minor)
 	binary.BigEndian.PutUint32(out[24:28], patch)
