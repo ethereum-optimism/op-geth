@@ -128,3 +128,5 @@ func (tx *AccessListTx) encode(b *bytes.Buffer) error {
 func (tx *AccessListTx) decode(input []byte) error {
 	return rlp.DecodeBytes(input, tx)
 }
+
+func (tx *AccessListTx) feeCurrency() *common.Address { return nil }

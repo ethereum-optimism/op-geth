@@ -1625,7 +1625,7 @@ func newRPCTransaction(tx *types.Transaction, blockHash common.Hash, blockNumber
 		result.ChainID = (*hexutil.Big)(tx.ChainId())
 		result.YParity = &yparity
 
-	case types.DynamicFeeTxType:
+	case types.DynamicFeeTxType, types.CeloDynamicFeeTxType:
 		al := tx.AccessList()
 		yparity := hexutil.Uint64(v.Sign())
 		result.Accesses = &al

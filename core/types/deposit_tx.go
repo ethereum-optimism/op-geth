@@ -101,3 +101,5 @@ func (tx *DepositTx) encode(b *bytes.Buffer) error {
 func (tx *DepositTx) decode(input []byte) error {
 	return rlp.DecodeBytes(input, tx)
 }
+
+func (tx *DepositTx) feeCurrency() *common.Address { return nil }
