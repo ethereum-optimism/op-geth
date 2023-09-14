@@ -243,3 +243,5 @@ func (tx *BlobTx) decode(input []byte) error {
 	}
 	return nil
 }
+
+func (tx *BlobTx) feeCurrency() *common.Address { return nil }

@@ -124,3 +124,5 @@ func (tx *LegacyTx) encode(*bytes.Buffer) error {
 func (tx *LegacyTx) decode([]byte) error {
 	panic("decode called on LegacyTx)")
 }
+
+func (tx *LegacyTx) feeCurrency() *common.Address { return nil }
