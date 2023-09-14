@@ -579,6 +579,8 @@ func (s *Ethereum) Stop() error {
 	return nil
 }
 
+// HandleRequiredProtocolVersion handles the protocol version signal. This implements opt-in halting,
+// the protocol version data is already logged and metered when signaled through the Engine API.
 func (s *Ethereum) HandleRequiredProtocolVersion(required params.ProtocolVersion) error {
 	var needLevel int
 	switch s.config.RollupHaltOnIncompatibleProtocolVersion {
@@ -601,7 +603,7 @@ func (s *Ethereum) HandleRequiredProtocolVersion(required params.ProtocolVersion
 		haveLevel = 1
 	}
 	if haveLevel >= needLevel { // halt if we opted in to do so at this granularity
-		log.Error("opted to halt, unprepared for protocol change", "required", required, "local", params.OPStackSupport)
+		log.Error("Opted to halt, unprepared for protocol change", "required", required, "local", params.OPStackSupport)
 		return s.nodeCloser()
 	}
 	return nil

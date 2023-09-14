@@ -146,6 +146,7 @@ var (
 		utils.RollupHistoricalRPCTimeoutFlag,
 		utils.RollupDisableTxPoolGossipFlag,
 		utils.RollupComputePendingBlock,
+		utils.RollupHaltOnIncompatibleProtocolVersionFlag,
 		configFileFlag,
 	}, utils.NetworkFlags, utils.DatabasePathFlags)
 
