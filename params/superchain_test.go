@@ -62,9 +62,9 @@ func TestProtocolVersion_Compare(t *testing.T) {
 	}
 	for i, tc := range testCases {
 		t.Run(fmt.Sprintf("case_%d", i), func(t *testing.T) {
-			a := ToProtocolVersion(tc.A.Build, tc.A.Major, tc.A.Minor, tc.A.Patch, tc.A.Prerelease)
+			a := ProtocolVersionV0{tc.A.Build, tc.A.Major, tc.A.Minor, tc.A.Patch, tc.A.Prerelease}.Encode()
 			a[0] = tc.A.VersionType
-			b := ToProtocolVersion(tc.B.Build, tc.B.Major, tc.B.Minor, tc.B.Patch, tc.B.Prerelease)
+			b := ProtocolVersionV0{tc.B.Build, tc.B.Major, tc.B.Minor, tc.B.Patch, tc.B.Prerelease}.Encode()
 			b[0] = tc.B.VersionType
 			cmp := a.Compare(b)
 			if cmp != tc.Cmp {
@@ -90,15 +90,15 @@ func TestProtocolVersion_String(t *testing.T) {
 		version  ProtocolVersion
 		expected string
 	}{
-		{ToProtocolVersion([8]byte{}, 0, 0, 0, 0), "v0.0.0"},
-		{ToProtocolVersion([8]byte{}, 0, 0, 0, 1), "v0.0.0-1"},
-		{ToProtocolVersion([8]byte{}, 0, 0, 1, 0), "v0.0.1"},
-		{ToProtocolVersion([8]byte{}, 4, 3, 2, 1), "v4.3.2-1"},
-		{ToProtocolVersion([8]byte{}, 0, 100, 2, 0), "v0.100.2"},
-		{ToProtocolVersion([8]byte{'O', 'P', '-', 'm', 'o', 'd'}, 42, 0, 2, 1), "v42.0.2-1+OP-mod"},
-		{ToProtocolVersion([8]byte{'b', 'e', 't', 'a', '.', '1', '2', '3'}, 1, 0, 0, 0), "v1.0.0+beta.123"},
-		{ToProtocolVersion([8]byte{'a', 'b', 1}, 42, 0, 2, 0), "v42.0.2+0x6162010000000000"}, // do not render invalid alpha numeric
-		{ToProtocolVersion([8]byte{1, 2, 3, 4, 5, 6, 7, 8}, 42, 0, 2, 0), "v42.0.2+0x0102030405060708"},
+		{ProtocolVersionV0{[8]byte{}, 0, 0, 0, 0}.Encode(), "v0.0.0"},
+		{ProtocolVersionV0{[8]byte{}, 0, 0, 0, 1}.Encode(), "v0.0.0-1"},
+		{ProtocolVersionV0{[8]byte{}, 0, 0, 1, 0}.Encode(), "v0.0.1"},
+		{ProtocolVersionV0{[8]byte{}, 4, 3, 2, 1}.Encode(), "v4.3.2-1"},
+		{ProtocolVersionV0{[8]byte{}, 0, 100, 2, 0}.Encode(), "v0.100.2"},
+		{ProtocolVersionV0{[8]byte{'O', 'P', '-', 'm', 'o', 'd'}, 42, 0, 2, 1}.Encode(), "v42.0.2-1+OP-mod"},
+		{ProtocolVersionV0{[8]byte{'b', 'e', 't', 'a', '.', '1', '2', '3'}, 1, 0, 0, 0}.Encode(), "v1.0.0+beta.123"},
+		{ProtocolVersionV0{[8]byte{'a', 'b', 1}, 42, 0, 2, 0}.Encode(), "v42.0.2+0x6162010000000000"}, // do not render invalid alpha numeric
+		{ProtocolVersionV0{[8]byte{1, 2, 3, 4, 5, 6, 7, 8}, 42, 0, 2, 0}.Encode(), "v42.0.2+0x0102030405060708"},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.expected, func(t *testing.T) {
