@@ -2222,3 +2222,77 @@ func testRPCResponseWithFile(t *testing.T, testid int, result interface{}, rpc s
 	}
 	require.JSONEqf(t, string(want), string(data), "test %d: json not match, want: %s, have: %s", testid, string(want), string(data))
 }
+
+func TestCeloTransaction_RoundTripRpcJSON(t *testing.T) {
+	var (
+		config = params.TestChainConfig
+		signer = types.LatestSigner(config)
+		key, _ = crypto.HexToECDSA("b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291")
+		tests  = celoTransactionTypes(common.Address{0xde, 0xad}, config)
+	)
+	t.Parallel()
+	for i, tt := range tests {
+		var tx2 types.Transaction
+		tx, err := types.SignNewTx(key, signer, tt)
+		if err != nil {
+			t.Fatalf("test %d: signing failed: %v", i, err)
+		}
+		// Regular transaction
+		if data, err := json.Marshal(tx); err != nil {
+			t.Fatalf("test %d: marshalling failed; %v", i, err)
+		} else if err = tx2.UnmarshalJSON(data); err != nil {
+			t.Fatalf("test %d: sunmarshal failed: %v", i, err)
+		} else if want, have := tx.Hash(), tx2.Hash(); want != have {
+			t.Fatalf("test %d: stx changed, want %x have %x", i, want, have)
+		}
+
+		//  rpcTransaction
+		rpcTx := newRPCTransaction(tx, common.Hash{}, 0, 0, 0, nil, config, nil)
+		if data, err := json.Marshal(rpcTx); err != nil {
+			t.Fatalf("test %d: marshalling failed; %v", i, err)
+		} else if err = tx2.UnmarshalJSON(data); err != nil {
+			t.Fatalf("test %d: unmarshal failed: %v", i, err)
+		} else if want, have := tx.Hash(), tx2.Hash(); want != have {
+			t.Fatalf("test %d: tx changed, want %x have %x", i, want, have)
+		}
+	}
+}
+func celoTransactionTypes(addr common.Address, config *params.ChainConfig) []types.TxData {
+	return []types.TxData{
+		&types.CeloDynamicFeeTx{
+			ChainID:     config.ChainID,
+			Nonce:       5,
+			GasTipCap:   big.NewInt(6),
+			GasFeeCap:   big.NewInt(9),
+			Gas:         7,
+			FeeCurrency: nil,
+			To:          &addr,
+			Value:       big.NewInt(8),
+			Data:        []byte{0, 1, 2, 3, 4},
+			AccessList: types.AccessList{
+				types.AccessTuple{
+					Address:     common.Address{0x2},
+					StorageKeys: []common.Hash{types.EmptyRootHash},
+				},
+			},
+			V: big.NewInt(32),
+			R: big.NewInt(10),
+			S: big.NewInt(11),
+		},
+		&types.CeloDynamicFeeTx{
+			ChainID:     config.ChainID,
+			Nonce:       5,
+			GasTipCap:   big.NewInt(6),
+			GasFeeCap:   big.NewInt(9),
+			Gas:         7,
+			FeeCurrency: &common.Address{0x42},
+			To:          nil,
+			Value:       big.NewInt(8),
+			Data:        []byte{0, 1, 2, 3, 4},
+			AccessList:  types.AccessList{},
+			V:           big.NewInt(32),
+			R:           big.NewInt(10),
+			S:           big.NewInt(11),
+		},
+	}
+}
