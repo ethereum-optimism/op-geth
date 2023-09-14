@@ -10,7 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-var OPStackSupport = ToProtocolVersion([8]byte{}, 3, 1, 0, 1)
+var OPStackSupport = ProtocolVersionV0{Build: [8]byte{}, Major: 3, Minor: 1, Patch: 0, PreRelease: 1}.Encode()
 
 func init() {
 	for id, ch := range superchain.OPChains {
@@ -216,11 +216,16 @@ func (p ProtocolVersion) Compare(other ProtocolVersion) (cmp ProtocolVersionComp
 	return fn(aPreRelease, bPreRelease, AheadPrerelease, OutdatedPrerelease)
 }
 
-func ToProtocolVersion(build [8]byte, major, minor, patch, preRelease uint32) (out ProtocolVersion) {
-	copy(out[8:16], build[:])
-	binary.BigEndian.PutUint32(out[16:20], major)
-	binary.BigEndian.PutUint32(out[20:24], minor)
-	binary.BigEndian.PutUint32(out[24:28], patch)
-	binary.BigEndian.PutUint32(out[28:32], preRelease)
+type ProtocolVersionV0 struct {
+	Build                           [8]byte
+	Major, Minor, Patch, PreRelease uint32
+}
+
+func (v ProtocolVersionV0) Encode() (out ProtocolVersion) {
+	copy(out[8:16], v.Build[:])
+	binary.BigEndian.PutUint32(out[16:20], v.Major)
+	binary.BigEndian.PutUint32(out[20:24], v.Minor)
+	binary.BigEndian.PutUint32(out[24:28], v.Patch)
+	binary.BigEndian.PutUint32(out[28:32], v.PreRelease)
 	return
 }

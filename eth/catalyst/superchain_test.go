@@ -75,7 +75,7 @@ func TestSignalSuperchainV1Halt(t *testing.T) {
 			}
 			out, err := api.SignalSuperchainV1(&SuperchainSignal{
 				Recommended: params.OPStackSupport, // required version change should be enough
-				Required:    params.ToProtocolVersion(build, majorSignal, minorSignal, patchSignal, preRelease),
+				Required:    params.ProtocolVersionV0{Build: build, Major: majorSignal, Minor: minorSignal, Patch: patchSignal, PreRelease: preRelease}.Encode(),
 			})
 			if err != nil {
 				t.Fatalf("failed to process signal: %v", err)
