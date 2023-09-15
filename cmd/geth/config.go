@@ -210,6 +210,11 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 		cfg.Eth.OverrideVerkle = &v
 	}
 
+	if ctx.IsSet(utils.OverrideOptimismCel2.Name) {
+		v := ctx.Uint64(utils.OverrideOptimismCel2.Name)
+		cfg.Eth.OverrideOptimismCel2 = &v
+	}
+
 	backend, eth := utils.RegisterEthService(stack, &cfg.Eth)
 
 	// Create gauge with geth system and build information

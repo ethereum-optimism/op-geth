@@ -72,6 +72,7 @@ var (
 		utils.OverrideOptimismGranite,
 		utils.OverrideOptimismHolocene,
 		utils.OverrideOptimismInterop,
+		utils.OverrideOptimismCel2,
 		utils.EnablePersonal,
 		utils.TxPoolLocalsFlag,
 		utils.TxPoolNoLocalsFlag,
