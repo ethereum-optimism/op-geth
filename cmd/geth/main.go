@@ -71,6 +71,7 @@ var (
 		utils.OverrideOptimismEcotone,
 		utils.OverrideOptimismFjord,
 		utils.OverrideOptimismInterop,
+		utils.OverrideOptimismCel2,
 		utils.EnablePersonal,
 		utils.TxPoolLocalsFlag,
 		utils.TxPoolNoLocalsFlag,

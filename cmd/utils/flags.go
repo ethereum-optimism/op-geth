@@ -281,6 +281,11 @@ var (
 		Usage:    "Manually specify the Optimsim Interop feature-set fork timestamp, overriding the bundled setting",
 		Category: flags.EthCategory,
 	}
+	OverrideOptimismCel2 = &flags.BigFlag{
+		Name:     "override.cel2",
+		Usage:    "Manually specify the OptimismCel2 fork timestamp, overriding the bundled setting",
+		Category: flags.EthCategory,
+	}
 	SyncModeFlag = &flags.TextMarshalerFlag{
 		Name:     "syncmode",
 		Usage:    `Blockchain sync mode ("snap" or "full")`,
