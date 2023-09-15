@@ -289,6 +289,8 @@ type ChainOverrides struct {
 	OverrideVerkle *uint64
 	// optimism
 	OverrideOptimismCanyon *uint64
+	// celo
+	OverrideOptimismCel2 *uint64
 }
 
 // SetupGenesisBlock writes or updates the genesis block in db.
@@ -330,6 +332,9 @@ func SetupGenesisBlockWithOverride(db ethdb.Database, triedb *trie.Database, gen
 			}
 			if overrides != nil && overrides.OverrideOptimismCanyon != nil {
 				config.CanyonTime = overrides.OverrideOptimismCanyon
+			}
+			if overrides != nil && overrides.OverrideOptimismCel2 != nil {
+				config.Cel2Time = overrides.OverrideOptimismCel2
 			}
 		}
 	}
