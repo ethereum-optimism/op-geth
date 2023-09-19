@@ -18,6 +18,7 @@ package eth
 
 import (
 	"fmt"
+	"github.com/ethereum/go-ethereum/core/txpool"
 	"math/big"
 	"time"
 
@@ -39,7 +40,7 @@ func (h *ethHandler) Chain() *core.BlockChain { return h.chain }
 type NilPool struct{}
 
 // NilPool Get always returns nil
-func (n NilPool) Get(hash common.Hash) *types.Transaction { return nil }
+func (n NilPool) Get(hash common.Hash) *txpool.Transaction { return nil }
 
 func (h *ethHandler) TxPool() eth.TxPool {
 	if h.noTxGossip {
@@ -150,7 +151,7 @@ func (h *ethHandler) handleBlockBroadcast(peer *eth.Peer, block *types.Block, td
 	// Update the peer's total difficulty if better than the previous
 	if _, td := peer.Head(); trueTD.Cmp(td) > 0 {
 		peer.SetHead(trueHead, trueTD)
-		h.chainSync.handlePeerEvent(peer)
+		h.chainSync.handlePeerEvent()
 	}
 	return nil
 }
