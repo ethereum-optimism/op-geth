@@ -31,6 +31,8 @@ func (g Genesis) MarshalJSON() ([]byte, error) {
 		GasUsed    math.HexOrDecimal64                         `json:"gasUsed"`
 		ParentHash common.Hash                                 `json:"parentHash"`
 		BaseFee    *math.HexOrDecimal256                       `json:"baseFeePerGas"`
+		ExcessBlobGas *math.HexOrDecimal64                        `json:"excessBlobGas"`
+		BlobGasUsed   *math.HexOrDecimal64                        `json:"blobGasUsed"`
 		StateHash  *common.Hash                                `json:"stateHash,omitempty"`
 	}
 	var enc Genesis
@@ -52,6 +54,8 @@ func (g Genesis) MarshalJSON() ([]byte, error) {
 	enc.GasUsed = math.HexOrDecimal64(g.GasUsed)
 	enc.ParentHash = g.ParentHash
 	enc.BaseFee = (*math.HexOrDecimal256)(g.BaseFee)
+	enc.ExcessBlobGas = (*math.HexOrDecimal64)(g.ExcessBlobGas)
+	enc.BlobGasUsed = (*math.HexOrDecimal64)(g.BlobGasUsed)
 	enc.StateHash = g.StateHash
 	return json.Marshal(&enc)
 }
@@ -59,19 +63,21 @@ func (g Genesis) MarshalJSON() ([]byte, error) {
 // UnmarshalJSON unmarshals from JSON.
 func (g *Genesis) UnmarshalJSON(input []byte) error {
 	type Genesis struct {
-		Config     *params.ChainConfig                         `json:"config"`
-		Nonce      *math.HexOrDecimal64                        `json:"nonce"`
-		Timestamp  *math.HexOrDecimal64                        `json:"timestamp"`
-		ExtraData  *hexutil.Bytes                              `json:"extraData"`
-		GasLimit   *math.HexOrDecimal64                        `json:"gasLimit"   gencodec:"required"`
-		Difficulty *math.HexOrDecimal256                       `json:"difficulty" gencodec:"required"`
-		Mixhash    *common.Hash                                `json:"mixHash"`
-		Coinbase   *common.Address                             `json:"coinbase"`
-		Alloc      map[common.UnprefixedAddress]GenesisAccount `json:"alloc"      gencodec:"required"`
-		Number     *math.HexOrDecimal64                        `json:"number"`
-		GasUsed    *math.HexOrDecimal64                        `json:"gasUsed"`
-		ParentHash *common.Hash                                `json:"parentHash"`
-		BaseFee    *math.HexOrDecimal256                       `json:"baseFeePerGas"`
+		Config        *params.ChainConfig                         `json:"config"`
+		Nonce         *math.HexOrDecimal64                        `json:"nonce"`
+		Timestamp     *math.HexOrDecimal64                        `json:"timestamp"`
+		ExtraData     *hexutil.Bytes                              `json:"extraData"`
+		GasLimit      *math.HexOrDecimal64                        `json:"gasLimit"   gencodec:"required"`
+		Difficulty    *math.HexOrDecimal256                       `json:"difficulty" gencodec:"required"`
+		Mixhash       *common.Hash                                `json:"mixHash"`
+		Coinbase      *common.Address                             `json:"coinbase"`
+		Alloc         map[common.UnprefixedAddress]GenesisAccount `json:"alloc"      gencodec:"required"`
+		Number        *math.HexOrDecimal64                        `json:"number"`
+		GasUsed       *math.HexOrDecimal64                        `json:"gasUsed"`
+		ParentHash    *common.Hash                                `json:"parentHash"`
+		BaseFee       *math.HexOrDecimal256                       `json:"baseFeePerGas"`
+		ExcessBlobGas *math.HexOrDecimal64                        `json:"excessBlobGas"`
+		BlobGasUsed   *math.HexOrDecimal64                        `json:"blobGasUsed"`
 		StateHash  *common.Hash                                `json:"stateHash,omitempty"`
 	}
 	var dec Genesis
@@ -122,6 +128,12 @@ func (g *Genesis) UnmarshalJSON(input []byte) error {
 	}
 	if dec.BaseFee != nil {
 		g.BaseFee = (*big.Int)(dec.BaseFee)
+	}
+	if dec.ExcessBlobGas != nil {
+		g.ExcessBlobGas = (*uint64)(dec.ExcessBlobGas)
+	}
+	if dec.BlobGasUsed != nil {
+		g.BlobGasUsed = (*uint64)(dec.BlobGasUsed)
 	}
 	if dec.StateHash != nil {
 		g.StateHash = dec.StateHash

@@ -306,9 +306,11 @@ func (bc *BlockChain) TrieNode(hash common.Hash) ([]byte, error) {
 // new code scheme.
 func (bc *BlockChain) ContractCodeWithPrefix(hash common.Hash) ([]byte, error) {
 	type codeReader interface {
-		ContractCodeWithPrefix(addrHash, codeHash common.Hash) ([]byte, error)
+		ContractCodeWithPrefix(address common.Address, codeHash common.Hash) ([]byte, error)
 	}
-	return bc.stateCache.(codeReader).ContractCodeWithPrefix(common.Hash{}, hash)
+	// TODO(rjl493456442) The associated account address is also required
+	// in Verkle scheme. Fix it once snap-sync is supported for Verkle.
+	return bc.stateCache.(codeReader).ContractCodeWithPrefix(common.Address{}, hash)
 }
 
 // ContractCode retrieves a blob of data associated with a contract hash
@@ -316,7 +318,7 @@ func (bc *BlockChain) ContractCodeWithPrefix(hash common.Hash) ([]byte, error) {
 // This is a legacy-method, replaced by ContractCodeWithPrefix,
 // but required for old databases to serve snap-sync.
 func (bc *BlockChain) ContractCode(hash common.Hash) ([]byte, error) {
-	return bc.stateCache.ContractCode(common.Hash{}, hash)
+	return bc.stateCache.ContractCode(common.Address{}, hash)
 }
 
 // State returns a new mutable state based on the current HEAD block.
