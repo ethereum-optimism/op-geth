@@ -24,7 +24,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/urfave/cli/v2"
 	"math"
 	"math/big"
 	"net"
@@ -77,6 +76,7 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 	pcsclite "github.com/gballet/go-libpcsclite"
 	gopsutil "github.com/shirou/gopsutil/mem"
+	"github.com/urfave/cli/v2"
 )
 
 // These are all the command line flags we support.

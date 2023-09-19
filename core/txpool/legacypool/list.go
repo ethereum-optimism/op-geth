@@ -18,7 +18,6 @@ package legacypool
 
 import (
 	"container/heap"
-	"github.com/ethereum/go-ethereum/core/txpool"
 	"math"
 	"math/big"
 	"sort"
@@ -27,6 +26,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/txpool"
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
