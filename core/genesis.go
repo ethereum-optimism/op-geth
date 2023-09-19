@@ -106,6 +106,10 @@ func ReadGenesis(db ethdb.Database) (*Genesis, error) {
 	genesis.BaseFee = genesisHeader.BaseFee
 	genesis.ExcessBlobGas = genesisHeader.ExcessBlobGas
 	genesis.BlobGasUsed = genesisHeader.BlobGasUsed
+	if genesis.Alloc == nil {
+		h := genesisHeader.Hash()
+		genesis.StateHash = &h
+	}
 
 	return &genesis, nil
 }
