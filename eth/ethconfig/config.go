@@ -19,7 +19,6 @@ package ethconfig
 
 import (
 	"errors"
-	"math/big"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -163,11 +162,8 @@ type Config struct {
 	RPCTxFeeCap float64
 
 	// OverrideCancun (TODO: remove after the fork)
-	OverrideCancun *uint64 `toml:",omitempty"`
-
-	OverrideOptimismBedrock  *big.Int
-	OverrideOptimismRegolith *uint64 `toml:",omitempty"`
-	OverrideOptimism         *bool
+	OverrideCancun         *uint64 `toml:",omitempty"`
+	OverrideOptimismCanyon *uint64 `toml:",omitempty"`
 
 	RollupSequencerHTTP                     string
 	RollupHistoricalRPC                     string
