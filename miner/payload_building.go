@@ -216,6 +216,9 @@ func (w *worker) buildPayload(args *BuildPayloadArgs) (*Payload, error) {
 	// Construct a payload object for return.
 	payload := newPayload(empty.block, args.Id())
 	if args.NoTxPool { // don't start the background payload updating job if there is no tx pool to pull from
+		// make sure to make it appear as full, otherwise it will wait indefinitely for payload building to complete.
+		payload.full = empty.block
+		payload.fullFees = empty.fees
 		return payload, nil
 	}
 
