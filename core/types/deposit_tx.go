@@ -17,9 +17,11 @@
 package types
 
 import (
+	"bytes"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/rlp"
 )
 
 const DepositTxType = 0x7E
@@ -93,4 +95,12 @@ func (tx *DepositTx) rawSignatureValues() (v, r, s *big.Int) {
 
 func (tx *DepositTx) setSignatureValues(chainID, v, r, s *big.Int) {
 	// this is a noop for deposit transactions
+}
+
+func (tx *DepositTx) encode(b *bytes.Buffer) error {
+	return rlp.Encode(b, tx)
+}
+
+func (tx *DepositTx) decode(input []byte) error {
+	return rlp.DecodeBytes(input, tx)
 }

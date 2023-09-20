@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/trie"
 	"math/big"
 	"sync"
 	"time"
@@ -157,7 +158,7 @@ func NewSimulatedBackendWithOpts(opts ...SimulatedBackendOpt) *SimulatedBackend 
 		opt(config)
 	}
 
-	config.genesis.MustCommit(config.database)
+	config.genesis.MustCommit(config.database, trie.NewDatabase(config.database, trie.HashDefaults))
 	blockchain, _ := core.NewBlockChain(config.database, config.cacheConfig, &config.genesis, nil, config.consensus, config.vmConfig, nil, nil)
 
 	backend := &SimulatedBackend{
@@ -963,7 +964,7 @@ func (fb *filterBackend) GetReceipts(ctx context.Context, hash common.Hash) (typ
 }
 
 func (fb *filterBackend) GetLogs(ctx context.Context, hash common.Hash, number uint64) ([][]*types.Log, error) {
-	logs := rawdb.ReadLogs(fb.db, hash, number, fb.bc.Config())
+	logs := rawdb.ReadLogs(fb.db, hash, number)
 	return logs, nil
 }
 
