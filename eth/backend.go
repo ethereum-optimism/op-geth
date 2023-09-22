@@ -212,14 +212,8 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 	if config.OverrideVerkle != nil {
 		overrides.OverrideVerkle = config.OverrideVerkle
 	}
-	if config.OverrideOptimismBedrock != nil {
-		overrides.OverrideOptimismBedrock = config.OverrideOptimismBedrock
-	}
-	if config.OverrideOptimismRegolith != nil {
-		overrides.OverrideOptimismRegolith = config.OverrideOptimismRegolith
-	}
-	if config.OverrideOptimism != nil {
-		overrides.OverrideOptimism = config.OverrideOptimism
+	if config.OverrideOptimismCanyon != nil {
+		overrides.OverrideOptimismCanyon = config.OverrideOptimismCanyon
 	}
 	eth.blockchain, err = core.NewBlockChain(chainDb, cacheConfig, config.Genesis, &overrides, eth.engine, vmConfig, eth.shouldPreserve, &config.TransactionHistory)
 	if err != nil {

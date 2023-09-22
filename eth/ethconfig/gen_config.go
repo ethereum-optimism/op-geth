@@ -3,7 +3,6 @@
 package ethconfig
 
 import (
-	"math/big"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -57,9 +56,7 @@ func (c Config) MarshalTOML() (interface{}, error) {
 		RPCTxFeeCap                             float64
 		OverrideCancun                          *uint64 `toml:",omitempty"`
 		OverrideVerkle                          *uint64 `toml:",omitempty"`
-		OverrideOptimismBedrock                 *big.Int
-		OverrideOptimismRegolith                *uint64 `toml:",omitempty"`
-		OverrideOptimism                        *bool
+		OverrideOptimismCanyon                  *uint64 `toml:",omitempty"`
 		RollupSequencerHTTP                     string
 		RollupHistoricalRPC                     string
 		RollupHistoricalRPCTimeout              time.Duration
@@ -107,9 +104,7 @@ func (c Config) MarshalTOML() (interface{}, error) {
 	enc.RPCTxFeeCap = c.RPCTxFeeCap
 	enc.OverrideCancun = c.OverrideCancun
 	enc.OverrideVerkle = c.OverrideVerkle
-	enc.OverrideOptimismBedrock = c.OverrideOptimismBedrock
-	enc.OverrideOptimismRegolith = c.OverrideOptimismRegolith
-	enc.OverrideOptimism = c.OverrideOptimism
+	enc.OverrideOptimismCanyon = c.OverrideOptimismCanyon
 	enc.RollupSequencerHTTP = c.RollupSequencerHTTP
 	enc.RollupHistoricalRPC = c.RollupHistoricalRPC
 	enc.RollupHistoricalRPCTimeout = c.RollupHistoricalRPCTimeout
@@ -161,9 +156,7 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 		RPCTxFeeCap                             *float64
 		OverrideCancun                          *uint64 `toml:",omitempty"`
 		OverrideVerkle                          *uint64 `toml:",omitempty"`
-		OverrideOptimismBedrock                 *big.Int
-		OverrideOptimismRegolith                *uint64 `toml:",omitempty"`
-		OverrideOptimism                        *bool
+		OverrideOptimismCanyon                  *uint64 `toml:",omitempty"`
 		RollupSequencerHTTP                     *string
 		RollupHistoricalRPC                     *string
 		RollupHistoricalRPCTimeout              *time.Duration
@@ -292,14 +285,8 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 	if dec.OverrideVerkle != nil {
 		c.OverrideVerkle = dec.OverrideVerkle
 	}
-	if dec.OverrideOptimismBedrock != nil {
-		c.OverrideOptimismBedrock = dec.OverrideOptimismBedrock
-	}
-	if dec.OverrideOptimismRegolith != nil {
-		c.OverrideOptimismRegolith = dec.OverrideOptimismRegolith
-	}
-	if dec.OverrideOptimism != nil {
-		c.OverrideOptimism = dec.OverrideOptimism
+	if dec.OverrideOptimismCanyon != nil {
+		c.OverrideOptimismCanyon = dec.OverrideOptimismCanyon
 	}
 	if dec.RollupSequencerHTTP != nil {
 		c.RollupSequencerHTTP = *dec.RollupSequencerHTTP

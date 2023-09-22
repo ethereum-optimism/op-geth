@@ -1664,8 +1664,7 @@ func (pool *LegacyPool) truncateQueue() {
 // to trigger a re-heap is this function
 func (pool *LegacyPool) demoteUnexecutables() {
 	// Iterate over all accounts and demote any non-executable transactions
-	gasLimit := pool.currentHead.Load().GasLimit
-	// TODO
+	gasLimit := txpool.EffectiveGasLimit(pool.chainconfig, pool.currentHead.Load().GasLimit)
 	for addr, list := range pool.pending {
 		nonce := pool.currentState.GetNonce(addr)
 
