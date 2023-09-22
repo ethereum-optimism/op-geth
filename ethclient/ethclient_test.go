@@ -335,7 +335,7 @@ func generateTestChain(enableHistoricalState bool) []*types.Block {
 
 func TestEthClientHistoricalBackend(t *testing.T) {
 	backend, _ := newTestBackend(t, true)
-	client, _ := backend.Attach()
+	client := backend.Attach()
 	defer backend.Close()
 	defer client.Close()
 
@@ -344,7 +344,7 @@ func TestEthClientHistoricalBackend(t *testing.T) {
 
 func TestEthClient(t *testing.T) {
 	backend, chain := newTestBackend(t, false)
-	client, _ := backend.Attach()
+	client := backend.Attach()
 	defer backend.Close()
 	defer client.Close()
 
