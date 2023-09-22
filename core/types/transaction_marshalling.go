@@ -39,7 +39,7 @@ type txJSON struct {
 	GasPrice             *hexutil.Big    `json:"gasPrice"`
 	MaxPriorityFeePerGas *hexutil.Big    `json:"maxPriorityFeePerGas"`
 	MaxFeePerGas         *hexutil.Big    `json:"maxFeePerGas"`
-	MaxFeePerDataGas     *hexutil.Big    `json:"maxFeePerDataGas,omitempty"`
+	MaxFeePerBlobGas     *hexutil.Big    `json:"maxFeePerBlobGas,omitempty"`
 	Value                *hexutil.Big    `json:"value"`
 	Input                *hexutil.Bytes  `json:"input"`
 	AccessList           *AccessList     `json:"accessList,omitempty"`
@@ -47,6 +47,7 @@ type txJSON struct {
 	V                    *hexutil.Big    `json:"v"`
 	R                    *hexutil.Big    `json:"r"`
 	S                    *hexutil.Big    `json:"s"`
+	YParity              *hexutil.Uint64 `json:"yParity,omitempty"`
 
 	// Deposit transaction fields
 	SourceHash *common.Hash    `json:"sourceHash,omitempty"`
@@ -56,6 +57,26 @@ type txJSON struct {
 
 	// Only used for encoding:
 	Hash common.Hash `json:"hash"`
+}
+
+// yParityValue returns the YParity value from JSON. For backwards-compatibility reasons,
+// this can be given in the 'v' field or the 'yParity' field. If both exist, they must match.
+func (tx *txJSON) yParityValue() (*big.Int, error) {
+	if tx.YParity != nil {
+		val := uint64(*tx.YParity)
+		if val != 0 && val != 1 {
+			return nil, errors.New("'yParity' field must be 0 or 1")
+		}
+		bigval := new(big.Int).SetUint64(val)
+		if tx.V != nil && tx.V.ToInt().Cmp(bigval) != 0 {
+			return nil, errors.New("'v' and 'yParity' fields do not match")
+		}
+		return bigval, nil
+	}
+	if tx.V != nil {
+		return tx.V.ToInt(), nil
+	}
+	return nil, errors.New("missing 'yParity' or 'v' field in transaction")
 }
 
 // MarshalJSON marshals as JSON with a hash.
@@ -77,6 +98,9 @@ func (tx *Transaction) MarshalJSON() ([]byte, error) {
 		enc.V = (*hexutil.Big)(itx.V)
 		enc.R = (*hexutil.Big)(itx.R)
 		enc.S = (*hexutil.Big)(itx.S)
+		if tx.Protected() {
+			enc.ChainID = (*hexutil.Big)(tx.ChainId())
+		}
 
 	case *AccessListTx:
 		enc.ChainID = (*hexutil.Big)(itx.ChainID)
@@ -90,6 +114,8 @@ func (tx *Transaction) MarshalJSON() ([]byte, error) {
 		enc.V = (*hexutil.Big)(itx.V)
 		enc.R = (*hexutil.Big)(itx.R)
 		enc.S = (*hexutil.Big)(itx.S)
+		yparity := itx.V.Uint64()
+		enc.YParity = (*hexutil.Uint64)(&yparity)
 
 	case *DynamicFeeTx:
 		enc.ChainID = (*hexutil.Big)(itx.ChainID)
@@ -104,6 +130,8 @@ func (tx *Transaction) MarshalJSON() ([]byte, error) {
 		enc.V = (*hexutil.Big)(itx.V)
 		enc.R = (*hexutil.Big)(itx.R)
 		enc.S = (*hexutil.Big)(itx.S)
+		yparity := itx.V.Uint64()
+		enc.YParity = (*hexutil.Uint64)(&yparity)
 
 	case *BlobTx:
 		enc.ChainID = (*hexutil.Big)(itx.ChainID.ToBig())
@@ -111,7 +139,7 @@ func (tx *Transaction) MarshalJSON() ([]byte, error) {
 		enc.Gas = (*hexutil.Uint64)(&itx.Gas)
 		enc.MaxFeePerGas = (*hexutil.Big)(itx.GasFeeCap.ToBig())
 		enc.MaxPriorityFeePerGas = (*hexutil.Big)(itx.GasTipCap.ToBig())
-		enc.MaxFeePerDataGas = (*hexutil.Big)(itx.BlobFeeCap.ToBig())
+		enc.MaxFeePerBlobGas = (*hexutil.Big)(itx.BlobFeeCap.ToBig())
 		enc.Value = (*hexutil.Big)(itx.Value.ToBig())
 		enc.Input = (*hexutil.Bytes)(&itx.Data)
 		enc.AccessList = &itx.AccessList
@@ -120,7 +148,8 @@ func (tx *Transaction) MarshalJSON() ([]byte, error) {
 		enc.V = (*hexutil.Big)(itx.V.ToBig())
 		enc.R = (*hexutil.Big)(itx.R.ToBig())
 		enc.S = (*hexutil.Big)(itx.S.ToBig())
-
+		yparity := itx.V.Uint64()
+		enc.YParity = (*hexutil.Uint64)(&yparity)
 	case *DepositTx:
 		enc.Gas = (*hexutil.Uint64)(&itx.Gas)
 		enc.Value = (*hexutil.Big)(itx.Value)
@@ -140,7 +169,8 @@ func (tx *Transaction) MarshalJSON() ([]byte, error) {
 // UnmarshalJSON unmarshals from JSON.
 func (tx *Transaction) UnmarshalJSON(input []byte) error {
 	var dec txJSON
-	if err := json.Unmarshal(input, &dec); err != nil {
+	err := json.Unmarshal(input, &dec)
+	if err != nil {
 		return err
 	}
 
@@ -173,20 +203,23 @@ func (tx *Transaction) UnmarshalJSON(input []byte) error {
 			return errors.New("missing required field 'input' in transaction")
 		}
 		itx.Data = *dec.Input
-		if dec.V == nil {
-			return errors.New("missing required field 'v' in transaction")
-		}
-		itx.V = (*big.Int)(dec.V)
+
+		// signature R
 		if dec.R == nil {
 			return errors.New("missing required field 'r' in transaction")
 		}
 		itx.R = (*big.Int)(dec.R)
+		// signature S
 		if dec.S == nil {
 			return errors.New("missing required field 's' in transaction")
 		}
 		itx.S = (*big.Int)(dec.S)
-		withSignature := itx.V.Sign() != 0 || itx.R.Sign() != 0 || itx.S.Sign() != 0
-		if withSignature {
+		// signature V
+		if dec.V == nil {
+			return errors.New("missing required field 'v' in transaction")
+		}
+		itx.V = (*big.Int)(dec.V)
+		if itx.V.Sign() != 0 || itx.R.Sign() != 0 || itx.S.Sign() != 0 {
 			if err := sanityCheckSignature(itx.V, itx.R, itx.S, true); err != nil {
 				return err
 			}
@@ -222,23 +255,26 @@ func (tx *Transaction) UnmarshalJSON(input []byte) error {
 			return errors.New("missing required field 'input' in transaction")
 		}
 		itx.Data = *dec.Input
-		if dec.V == nil {
-			return errors.New("missing required field 'v' in transaction")
-		}
 		if dec.AccessList != nil {
 			itx.AccessList = *dec.AccessList
 		}
-		itx.V = (*big.Int)(dec.V)
+
+		// signature R
 		if dec.R == nil {
 			return errors.New("missing required field 'r' in transaction")
 		}
 		itx.R = (*big.Int)(dec.R)
+		// signature S
 		if dec.S == nil {
 			return errors.New("missing required field 's' in transaction")
 		}
 		itx.S = (*big.Int)(dec.S)
-		withSignature := itx.V.Sign() != 0 || itx.R.Sign() != 0 || itx.S.Sign() != 0
-		if withSignature {
+		// signature V
+		itx.V, err = dec.yParityValue()
+		if err != nil {
+			return err
+		}
+		if itx.V.Sign() != 0 || itx.R.Sign() != 0 || itx.S.Sign() != 0 {
 			if err := sanityCheckSignature(itx.V, itx.R, itx.S, false); err != nil {
 				return err
 			}
@@ -284,17 +320,23 @@ func (tx *Transaction) UnmarshalJSON(input []byte) error {
 		if dec.AccessList != nil {
 			itx.AccessList = *dec.AccessList
 		}
-		itx.V = (*big.Int)(dec.V)
+
+		// signature R
 		if dec.R == nil {
 			return errors.New("missing required field 'r' in transaction")
 		}
 		itx.R = (*big.Int)(dec.R)
+		// signature S
 		if dec.S == nil {
 			return errors.New("missing required field 's' in transaction")
 		}
 		itx.S = (*big.Int)(dec.S)
-		withSignature := itx.V.Sign() != 0 || itx.R.Sign() != 0 || itx.S.Sign() != 0
-		if withSignature {
+		// signature V
+		itx.V, err = dec.yParityValue()
+		if err != nil {
+			return err
+		}
+		if itx.V.Sign() != 0 || itx.R.Sign() != 0 || itx.S.Sign() != 0 {
 			if err := sanityCheckSignature(itx.V, itx.R, itx.S, false); err != nil {
 				return err
 			}
@@ -311,9 +353,10 @@ func (tx *Transaction) UnmarshalJSON(input []byte) error {
 			return errors.New("missing required field 'nonce' in transaction")
 		}
 		itx.Nonce = uint64(*dec.Nonce)
-		if dec.To != nil {
-			itx.To = dec.To
+		if dec.To == nil {
+			return errors.New("missing required field 'to' in transaction")
 		}
+		itx.To = *dec.To
 		if dec.Gas == nil {
 			return errors.New("missing required field 'gas' for txdata")
 		}
@@ -326,10 +369,10 @@ func (tx *Transaction) UnmarshalJSON(input []byte) error {
 			return errors.New("missing required field 'maxFeePerGas' for txdata")
 		}
 		itx.GasFeeCap = uint256.MustFromBig((*big.Int)(dec.MaxFeePerGas))
-		if dec.MaxFeePerDataGas == nil {
-			return errors.New("missing required field 'maxFeePerDataGas' for txdata")
+		if dec.MaxFeePerBlobGas == nil {
+			return errors.New("missing required field 'maxFeePerBlobGas' for txdata")
 		}
-		itx.BlobFeeCap = uint256.MustFromBig((*big.Int)(dec.MaxFeePerDataGas))
+		itx.BlobFeeCap = uint256.MustFromBig((*big.Int)(dec.MaxFeePerBlobGas))
 		if dec.Value == nil {
 			return errors.New("missing required field 'value' in transaction")
 		}
@@ -348,18 +391,35 @@ func (tx *Transaction) UnmarshalJSON(input []byte) error {
 			return errors.New("missing required field 'blobVersionedHashes' in transaction")
 		}
 		itx.BlobHashes = dec.BlobVersionedHashes
-		itx.V = uint256.MustFromBig((*big.Int)(dec.V))
+
+		// signature R
+		var ok bool
 		if dec.R == nil {
 			return errors.New("missing required field 'r' in transaction")
 		}
-		itx.R = uint256.MustFromBig((*big.Int)(dec.R))
+		itx.R, ok = uint256.FromBig((*big.Int)(dec.R))
+		if !ok {
+			return errors.New("'r' value overflows uint256")
+		}
+		// signature S
 		if dec.S == nil {
 			return errors.New("missing required field 's' in transaction")
 		}
-		itx.S = uint256.MustFromBig((*big.Int)(dec.S))
-		withSignature := itx.V.Sign() != 0 || itx.R.Sign() != 0 || itx.S.Sign() != 0
-		if withSignature {
-			if err := sanityCheckSignature(itx.V.ToBig(), itx.R.ToBig(), itx.S.ToBig(), false); err != nil {
+		itx.S, ok = uint256.FromBig((*big.Int)(dec.S))
+		if !ok {
+			return errors.New("'s' value overflows uint256")
+		}
+		// signature V
+		vbig, err := dec.yParityValue()
+		if err != nil {
+			return err
+		}
+		itx.V, ok = uint256.FromBig(vbig)
+		if !ok {
+			return errors.New("'v' value overflows uint256")
+		}
+		if itx.V.Sign() != 0 || itx.R.Sign() != 0 || itx.S.Sign() != 0 {
+			if err := sanityCheckSignature(vbig, itx.R.ToBig(), itx.S.ToBig(), false); err != nil {
 				return err
 			}
 		}

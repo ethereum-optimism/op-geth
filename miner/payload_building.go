@@ -119,8 +119,8 @@ func (payload *Payload) update(block *types.Block, fees *big.Int, elapsed time.D
 
 		feesInEther := new(big.Float).Quo(new(big.Float).SetInt(fees), big.NewFloat(params.Ether))
 		log.Info("Updated payload", "id", payload.id, "number", block.NumberU64(), "hash", block.Hash(),
-			"txs", len(block.Transactions()), "gas", block.GasUsed(), "fees", feesInEther,
-			"root", block.Root(), "elapsed", common.PrettyDuration(elapsed))
+			"txs", len(block.Transactions()), "withdrawals", len(block.Withdrawals()), "gas", block.GasUsed(),
+			"fees", feesInEther, "root", block.Root(), "elapsed", common.PrettyDuration(elapsed))
 	}
 	payload.cond.Broadcast() // fire signal for notifying full block
 }
@@ -137,9 +137,9 @@ func (payload *Payload) Resolve() *engine.ExecutionPayloadEnvelope {
 		close(payload.stop)
 	}
 	if payload.full != nil {
-		return engine.BlockToExecutableData(payload.full, payload.fullFees)
+		return engine.BlockToExecutableData(payload.full, payload.fullFees, nil, nil, nil)
 	}
-	return engine.BlockToExecutableData(payload.empty, big.NewInt(0))
+	return engine.BlockToExecutableData(payload.empty, big.NewInt(0), nil, nil, nil)
 }
 
 // ResolveEmpty is basically identical to Resolve, but it expects empty block only.
@@ -148,11 +148,11 @@ func (payload *Payload) ResolveEmpty() *engine.ExecutionPayloadEnvelope {
 	payload.lock.Lock()
 	defer payload.lock.Unlock()
 
-	return engine.BlockToExecutableData(payload.empty, big.NewInt(0))
+	return engine.BlockToExecutableData(payload.empty, big.NewInt(0), nil, nil, nil)
 }
 
 // ResolveFull is basically identical to Resolve, but it expects full block only.
-// It's only used in tests.
+// Don't call Resolve until ResolveFull returns, otherwise it might block forever.
 func (payload *Payload) ResolveFull() *engine.ExecutionPayloadEnvelope {
 	payload.lock.Lock()
 	defer payload.lock.Unlock()
@@ -163,9 +163,18 @@ func (payload *Payload) ResolveFull() *engine.ExecutionPayloadEnvelope {
 			return nil
 		default:
 		}
+		// Wait the full payload construction. Note it might block
+		// forever if Resolve is called in the meantime which
+		// terminates the background construction process.
 		payload.cond.Wait()
 	}
-	return engine.BlockToExecutableData(payload.full, payload.fullFees)
+	// Terminate the background payload construction
+	select {
+	case <-payload.stop:
+	default:
+		close(payload.stop)
+	}
+	return engine.BlockToExecutableData(payload.full, payload.fullFees, nil, nil, nil)
 }
 
 // buildPayload builds the payload according to the provided parameters.
@@ -173,13 +182,17 @@ func (w *worker) buildPayload(args *BuildPayloadArgs) (*Payload, error) {
 	// Build the initial version with no transaction included. It should be fast
 	// enough to run. The empty payload can at least make sure there is something
 	// to deliver for not missing slot.
-	empty, _, err := w.getSealingBlock(args.Parent, args.Timestamp, args.FeeRecipient, args.Random, args.Withdrawals, true, args.Transactions, args.GasLimit)
+	// In OP-Stack, the "empty" block is constructed from provided txs only, i.e. no tx-pool usage.
+	empty, emptyFees, err := w.getSealingBlock(args.Parent, args.Timestamp, args.FeeRecipient, args.Random, args.Withdrawals, true, args.Transactions, args.GasLimit)
 	if err != nil {
 		return nil, err
 	}
 	// Construct a payload object for return.
 	payload := newPayload(empty, args.Id())
 	if args.NoTxPool { // don't start the background payload updating job if there is no tx pool to pull from
+		// make sure to make it appear as full, otherwise it will wait indefinitely for payload building to complete.
+		payload.full = empty
+		payload.fullFees = emptyFees
 		return payload, nil
 	}
 
