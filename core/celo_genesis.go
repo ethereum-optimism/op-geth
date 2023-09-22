@@ -8,6 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	contracts "github.com/ethereum/go-ethereum/contracts/celo"
 	contracts_config "github.com/ethereum/go-ethereum/contracts/config"
+	"github.com/ethereum/go-ethereum/crypto"
 )
 
 // Decode 0x prefixed hex string from file (including trailing newline)
@@ -24,6 +25,10 @@ func DecodeHex(hexbytes []byte) ([]byte, error) {
 
 	return bytes, nil
 }
+
+var DevPrivateKey, _ = crypto.HexToECDSA("2771aff413cac48d9f8c114fabddd9195a2129f3c2c436caa07e27bb7f58ead5")
+var DevAddr = common.BytesToAddress(DevAddr32.Bytes())
+var DevAddr32 = common.HexToHash("0x42cf1bbc38BaAA3c4898ce8790e21eD2738c6A4a")
 
 func celoGenesisAccounts() map[common.Address]GenesisAccount {
 	// As defined in ERC-1967: Proxy Storage Slots (https://eips.ethereum.org/EIPS/eip-1967)
@@ -44,15 +49,17 @@ func celoGenesisAccounts() map[common.Address]GenesisAccount {
 	if err != nil {
 		panic(err)
 	}
-	registry_owner := common.HexToHash("0x42cf1bbc38BaAA3c4898ce8790e21eD2738c6A4a")
+	devBalance, ok := new(big.Int).SetString("100000000000000000000", 10)
+	if !ok {
+		panic("Could not set devBalance!")
+	}
 	return map[common.Address]GenesisAccount{
-		// Celo Contracts
 		contracts_config.RegistrySmartContractAddress: { // Registry Proxy
 			Code: proxyBytecode,
 			Storage: map[common.Hash]common.Hash{
-				common.HexToHash("0x0"):   registry_owner, // `_owner` slot in Registry contract
+				common.HexToHash("0x0"):   DevAddr32, // `_owner` slot in Registry contract
 				proxy_implementation_slot: common.HexToHash("0xce11"),
-				proxy_owner_slot:          registry_owner,
+				proxy_owner_slot:          DevAddr32,
 			},
 			Balance: big.NewInt(0),
 		},
@@ -64,13 +71,16 @@ func celoGenesisAccounts() map[common.Address]GenesisAccount {
 			Code: proxyBytecode,
 			Storage: map[common.Hash]common.Hash{
 				proxy_implementation_slot: common.HexToHash("0xce13"),
-				proxy_owner_slot:          registry_owner,
+				proxy_owner_slot:          DevAddr32,
 			},
 			Balance: big.NewInt(0),
 		},
 		common.HexToAddress("0xce13"): { // GoldToken Implementation
 			Code:    goldTokenBytecode,
 			Balance: big.NewInt(0),
+		},
+		DevAddr: {
+			Balance: devBalance,
 		},
 	}
 }
