@@ -19,7 +19,6 @@ package ethconfig
 
 import (
 	"errors"
-	"math/big"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -169,9 +168,7 @@ type Config struct {
 	// OverrideVerkle (TODO: remove after the fork)
 	OverrideVerkle *uint64 `toml:",omitempty"`
 
-	OverrideOptimismBedrock  *big.Int
-	OverrideOptimismRegolith *uint64 `toml:",omitempty"`
-	OverrideOptimism         *bool
+	OverrideOptimismCanyon *uint64 `toml:",omitempty"`
 
 	RollupSequencerHTTP                     string
 	RollupHistoricalRPC                     string
