@@ -317,6 +317,7 @@ type ChainConfig struct {
 
 	BedrockBlock *big.Int `json:"bedrockBlock,omitempty"` // Bedrock switch block (nil = no fork, 0 = already on optimism bedrock)
 	RegolithTime *uint64  `json:"regolithTime,omitempty"` // Regolith switch time (nil = no fork, 0 = already on optimism regolith)
+	CanyonTime   *uint64  `json:"canyonTime,omitempty"`   // Canyon switch time (nil = no fork, 0 = already on optimism canyon)
 
 	// TerminalTotalDifficulty is the amount of total difficulty reached by
 	// the network that triggers the consensus upgrade.
@@ -572,6 +573,10 @@ func (c *ChainConfig) IsRegolith(time uint64) bool {
 	return isTimestampForked(c.RegolithTime, time)
 }
 
+func (c *ChainConfig) IsCanyon(time uint64) bool {
+	return isTimestampForked(c.CanyonTime, time)
+}
+
 // IsOptimism returns whether the node is an optimism node or not.
 func (c *ChainConfig) IsOptimism() bool {
 	return c.Optimism != nil
@@ -584,6 +589,9 @@ func (c *ChainConfig) IsOptimismBedrock(num *big.Int) bool {
 
 func (c *ChainConfig) IsOptimismRegolith(time uint64) bool {
 	return c.IsOptimism() && c.IsRegolith(time)
+}
+func (c *ChainConfig) IsOptimismCanyon(time uint64) bool {
+	return c.IsOptimism() && c.IsCanyon(time)
 }
 
 // IsOptimismPreBedrock returns true iff this is an optimism node & bedrock is not yet active
@@ -905,6 +913,7 @@ type Rules struct {
 	IsMerge, IsShanghai, IsCancun, IsPrague                 bool
 	IsVerkle                                                bool
 	IsOptimismBedrock, IsOptimismRegolith                   bool
+	IsOptimismCanyon                                        bool
 }
 
 // Rules ensures c's ChainID is not nil.
@@ -933,5 +942,6 @@ func (c *ChainConfig) Rules(num *big.Int, isMerge bool, timestamp uint64) Rules 
 		// Optimism
 		IsOptimismBedrock:  c.IsOptimismBedrock(num),
 		IsOptimismRegolith: c.IsOptimismRegolith(timestamp),
+		IsOptimismCanyon:   c.IsOptimismCanyon(timestamp),
 	}
 }

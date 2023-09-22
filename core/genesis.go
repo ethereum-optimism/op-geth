@@ -284,9 +284,7 @@ type ChainOverrides struct {
 	OverrideCancun *uint64
 	OverrideVerkle *uint64
 	// optimism
-	OverrideOptimismBedrock  *big.Int
-	OverrideOptimismRegolith *uint64
-	OverrideOptimism         *bool
+	OverrideOptimismCanyon *uint64
 }
 
 // SetupGenesisBlock writes or updates the genesis block in db.
@@ -326,19 +324,8 @@ func SetupGenesisBlockWithOverride(db ethdb.Database, triedb *trie.Database, gen
 			if overrides != nil && overrides.OverrideVerkle != nil {
 				config.VerkleTime = overrides.OverrideVerkle
 			}
-			if overrides != nil && overrides.OverrideOptimismBedrock != nil {
-				config.BedrockBlock = overrides.OverrideOptimismBedrock
-			}
-			if overrides != nil && overrides.OverrideOptimismRegolith != nil {
-				config.RegolithTime = overrides.OverrideOptimismRegolith
-			}
-			if overrides != nil && overrides.OverrideOptimism != nil {
-				if *overrides.OverrideOptimism {
-					config.Optimism = &params.OptimismConfig{
-						EIP1559Elasticity:  10,
-						EIP1559Denominator: 50,
-					}
-				}
+			if overrides != nil && overrides.OverrideOptimismCanyon != nil {
+				config.CanyonTime = overrides.OverrideOptimismCanyon
 			}
 		}
 	}

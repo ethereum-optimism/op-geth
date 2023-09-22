@@ -273,19 +273,9 @@ var (
 		Usage:    "Manually specify the Verkle fork timestamp, overriding the bundled setting",
 		Category: flags.EthCategory,
 	}
-	OverrideOptimismBedrock = &flags.BigFlag{
-		Name:     "override.bedrock",
-		Usage:    "Manually specify OptimismBedrock, overriding the bundled setting",
-		Category: flags.EthCategory,
-	}
-	OverrideOptimismRegolith = &flags.BigFlag{
-		Name:     "override.regolith",
-		Usage:    "Manually specify the OptimismRegolith fork timestamp, overriding the bundled setting",
-		Category: flags.EthCategory,
-	}
-	OverrideOptimism = &cli.BoolFlag{
-		Name:     "override.optimism",
-		Usage:    "Manually specify optimism",
+	OverrideOptimismCanyon = &flags.BigFlag{
+		Name:     "override.canyon",
+		Usage:    "Manually specify the Optimsim Canyon fork timestamp, overriding the bundled setting",
 		Category: flags.EthCategory,
 	}
 	// Light server and client settings
