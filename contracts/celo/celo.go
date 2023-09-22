@@ -8,5 +8,8 @@ import _ "embed"
 //go:embed compiled/Registry.bin-runtime
 var RegistryBytecodeRaw []byte
 
+//go:embed compiled/GoldToken.bin-runtime
+var GoldTokenBytecodeRaw []byte
+
 //go:embed compiled/Proxy.bin-runtime
 var ProxyBytecodeRaw []byte

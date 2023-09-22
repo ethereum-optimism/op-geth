@@ -36,6 +36,10 @@ func celoGenesisAccounts() map[common.Address]GenesisAccount {
 	if err != nil {
 		panic(err)
 	}
+	goldTokenBytecode, err := DecodeHex(contracts.GoldTokenBytecodeRaw)
+	if err != nil {
+		panic(err)
+	}
 	proxyBytecode, err := DecodeHex(contracts.ProxyBytecodeRaw)
 	if err != nil {
 		panic(err)
@@ -54,6 +58,18 @@ func celoGenesisAccounts() map[common.Address]GenesisAccount {
 		},
 		common.HexToAddress("0xce11"): { // Registry Implementation
 			Code:    registryBytecode,
+			Balance: big.NewInt(0),
+		},
+		common.HexToAddress("0xce12"): { // GoldToken Proxy
+			Code: proxyBytecode,
+			Storage: map[common.Hash]common.Hash{
+				proxy_implementation_slot: common.HexToHash("0xce13"),
+				proxy_owner_slot:          registry_owner,
+			},
+			Balance: big.NewInt(0),
+		},
+		common.HexToAddress("0xce13"): { // GoldToken Implementation
+			Code:    goldTokenBytecode,
 			Balance: big.NewInt(0),
 		},
 	}
