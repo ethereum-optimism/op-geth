@@ -204,14 +204,8 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 	if config.OverrideCancun != nil {
 		overrides.OverrideCancun = config.OverrideCancun
 	}
-	if config.OverrideOptimismBedrock != nil {
-		overrides.OverrideOptimismBedrock = config.OverrideOptimismBedrock
-	}
-	if config.OverrideOptimismRegolith != nil {
-		overrides.OverrideOptimismRegolith = config.OverrideOptimismRegolith
-	}
-	if config.OverrideOptimism != nil {
-		overrides.OverrideOptimism = config.OverrideOptimism
+	if config.OverrideOptimismCanyon != nil {
+		overrides.OverrideOptimismCanyon = config.OverrideOptimismCanyon
 	}
 	eth.blockchain, err = core.NewBlockChain(chainDb, cacheConfig, config.Genesis, &overrides, eth.engine, vmConfig, eth.shouldPreserve, &config.TxLookupLimit)
 	if err != nil {
