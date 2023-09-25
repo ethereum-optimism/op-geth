@@ -893,7 +893,7 @@ var (
 		Category: flags.RollupCategory,
 	}
 	RollupHaltOnIncompatibleProtocolVersionFlag = &cli.StringFlag{
-		Name:     "beta.rollup.halt",
+		Name:     "rollup.halt",
 		Usage:    "Opt-in option to halt on incompatible protocol version requirements of the given level (major/minor/patch/none), as signaled through the Engine API by the rollup node",
 		Category: flags.RollupCategory,
 	}
