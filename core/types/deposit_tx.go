@@ -17,9 +17,11 @@
 package types
 
 import (
+	"bytes"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/rlp"
 )
 
 const DepositTxType = 0x7E
@@ -65,21 +67,18 @@ func (tx *DepositTx) copy() TxData {
 }
 
 // accessors for innerTx.
-func (tx *DepositTx) txType() byte              { return DepositTxType }
-func (tx *DepositTx) chainID() *big.Int         { return common.Big0 }
-func (tx *DepositTx) accessList() AccessList    { return nil }
-func (tx *DepositTx) data() []byte              { return tx.Data }
-func (tx *DepositTx) gas() uint64               { return tx.Gas }
-func (tx *DepositTx) gasFeeCap() *big.Int       { return new(big.Int) }
-func (tx *DepositTx) gasTipCap() *big.Int       { return new(big.Int) }
-func (tx *DepositTx) gasPrice() *big.Int        { return new(big.Int) }
-func (tx *DepositTx) value() *big.Int           { return tx.Value }
-func (tx *DepositTx) nonce() uint64             { return 0 }
-func (tx *DepositTx) to() *common.Address       { return tx.To }
-func (tx *DepositTx) blobGas() uint64           { return 0 }
-func (tx *DepositTx) blobGasFeeCap() *big.Int   { return nil }
-func (tx *DepositTx) blobHashes() []common.Hash { return nil }
-func (tx *DepositTx) isSystemTx() bool          { return tx.IsSystemTransaction }
+func (tx *DepositTx) txType() byte           { return DepositTxType }
+func (tx *DepositTx) chainID() *big.Int      { return common.Big0 }
+func (tx *DepositTx) accessList() AccessList { return nil }
+func (tx *DepositTx) data() []byte           { return tx.Data }
+func (tx *DepositTx) gas() uint64            { return tx.Gas }
+func (tx *DepositTx) gasFeeCap() *big.Int    { return new(big.Int) }
+func (tx *DepositTx) gasTipCap() *big.Int    { return new(big.Int) }
+func (tx *DepositTx) gasPrice() *big.Int     { return new(big.Int) }
+func (tx *DepositTx) value() *big.Int        { return tx.Value }
+func (tx *DepositTx) nonce() uint64          { return 0 }
+func (tx *DepositTx) to() *common.Address    { return tx.To }
+func (tx *DepositTx) isSystemTx() bool       { return tx.IsSystemTransaction }
 
 func (tx *DepositTx) effectiveGasPrice(dst *big.Int, baseFee *big.Int) *big.Int {
 	return dst.Set(new(big.Int))
@@ -93,4 +92,12 @@ func (tx *DepositTx) rawSignatureValues() (v, r, s *big.Int) {
 
 func (tx *DepositTx) setSignatureValues(chainID, v, r, s *big.Int) {
 	// this is a noop for deposit transactions
+}
+
+func (tx *DepositTx) encode(b *bytes.Buffer) error {
+	return rlp.Encode(b, tx)
+}
+
+func (tx *DepositTx) decode(input []byte) error {
+	return rlp.DecodeBytes(input, tx)
 }

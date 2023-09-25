@@ -5,7 +5,7 @@ footer: |
 base:
   name: go-ethereum
   url: https://github.com/ethereum/go-ethereum
-  hash: bed84606583893fdb698cc1b5058cc47b4dbd837  # v1.12.2
+  hash: 3f40e65c484486dea6cff80b7db178985d21a2c6  # v1.13.1
 fork:
   name: op-geth
   url: https://github.com/ethereum-optimism/op-geth
@@ -122,7 +122,7 @@ def:
             - "core/rawdb/accessors_metadata.go"
         - title: Genesis loading
           globs:
-            - "core/raw_genesis.go"
+            - "core/gen_genesis.go"
         - title: "Superchain config"
           description: Testing of the superchain configuration
           globs:
@@ -224,6 +224,12 @@ def:
           globs:
             - "eth/gasprice/gasprice.go"
             - "eth/gasprice/optimism-gasprice.go"
+        - title: API testvector fix
+          description: |
+            Upstream test of broken behavior; in Optimism, a zero signature is valid (pre-bedrock for deposit-txs),
+            and the chain ID formula on signature data must not be used, or an underflow happens.
+          globs:
+            - "internal/ethapi/testdata/eth_getBlockByNumber-tag-pending-fullTx.json"
     - title: "Geth extras"
       description: Extend the tools available in geth to improve external testing and tooling.
       sub:
