@@ -1,3 +1,4 @@
+# yamllint disable rule:line-length rule:document-start
 title: "CELO <> OP op-geth forkdiff"
 footer: |
   Fork-diff overview of changes made in [Celo's `op-geth`](https://github.com/celo-org/op-geth),
@@ -25,7 +26,20 @@ def:
         - title: "Celo token duality"
           description: "The Celo token is both the native token and ERC-20 compatible."
           globs:
-            - "common/celo-types/*"
+            - "core/evm.go"
+            - "core/vm/celo_contracts*.go"
+            - "core/vm/contracts*.go"
+            - "core/vm/evm.go"
+        - title: "Celo contracts"
+          description: |
+            Contract bindings are necessary for token duality and gas currencies.
+            The corresponding contracts are included to generate the bindings and test these features.
+          globs:
+            - "contracts/celo/*"
+            - "contracts/celo/*/*"
+            - "contracts/config/registry_ids.go"
+            - "core/celo_backend.go"
+            - "core/celo_genesis.go"
         - title: "Chain config"
           description: ""
           globs:
