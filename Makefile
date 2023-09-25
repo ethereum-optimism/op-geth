@@ -36,3 +36,9 @@ devtools:
 	env GOBIN= go install ./cmd/abigen
 	@type "solc" 2> /dev/null || echo 'Please install solc'
 	@type "protoc" 2> /dev/null || echo 'Please install protoc'
+
+forkdiff:
+	docker run --rm \
+		--mount src=$(shell pwd),target=/host-pwd,type=bind \
+		protolambda/forkdiff:latest \
+		-repo /host-pwd/ -fork /host-pwd/fork.yaml -out /host-pwd/forkdiff.html
