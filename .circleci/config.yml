@@ -16,6 +16,14 @@ jobs:
     steps:
       - checkout
       - run:
+          command: |
+            curl -L https://foundry.paradigm.xyz | SHELL=/usr/bin/bash bash
+            ~/.foundry/bin/foundryup
+      - run:
+          command: make geth
+      - run:
+          command: PATH="~/.foundry/bin:${PATH}" e2e_test/run_all_tests.sh
+      - run:
           command: go run build/ci.go test
   lint-geth:
     resource_class: medium

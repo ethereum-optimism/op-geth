@@ -29,26 +29,26 @@ do
 	echo -e "\nRun $f"
 	if "./$f"
 	then
-		tput setaf 2
+		tput setaf 2 || true
 		echo "PASS $f"
 	else
-		tput setaf 1
+		tput setaf 1 || true
 		echo "FAIL $f ❌"
-		((failures++))
+		((failures++)) || true
 	fi
-	tput init
-	((tests++))
+	tput init || true
+	((tests++)) || true
 done
 
 ## Final summary
 echo
 if [[ $failures -eq 0 ]] 
 then
-	tput setaf 2
+	tput setaf 2 || true
 	echo All tests succeeded!
 else
-	tput setaf 1
+	tput setaf 1 || true
 	echo $failures/$tests failed.
 fi
-tput init
+tput init || true
 exit $failures
