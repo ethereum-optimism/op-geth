@@ -37,6 +37,7 @@ var (
 
 	FeeCurrencyAddr = common.HexToAddress("0xce16")
 	DevBalance, _   = new(big.Int).SetString("100000000000000000000", 10)
+	FaucetAddr      = common.HexToAddress("0xfcf982bb4015852e706100b14e21f947a5bb718e")
 )
 
 func celoGenesisAccounts(fundedAddr common.Address) GenesisAlloc {
@@ -80,6 +81,10 @@ func celoGenesisAccounts(fundedAddr common.Address) GenesisAlloc {
 	var devBalance32 common.Hash
 	DevBalance.FillBytes(devBalance32[:])
 
+	faucetBalance, ok := new(big.Int).SetString("500000000000000000000000000", 10) // 500M
+	if !ok {
+		panic("Couldn not set faucet balance!")
+	}
 	return map[common.Address]GenesisAccount{
 		contracts.RegistryAddress: { // Registry Proxy
 			Code: proxyBytecode,
@@ -133,6 +138,9 @@ func celoGenesisAccounts(fundedAddr common.Address) GenesisAlloc {
 		},
 		DevAddr: {
 			Balance: DevBalance,
+		},
+		FaucetAddr: {
+			Balance: faucetBalance,
 		},
 	}
 }
