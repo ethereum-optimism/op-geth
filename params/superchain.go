@@ -96,6 +96,9 @@ func LoadOPStackChainConfig(chainID uint64) (*ChainConfig, error) {
 		out.RegolithTime = &BaseGoerliRegolithTime
 	case devnetChainID:
 		out.RegolithTime = &devnetRegolithTime
+	case chaosnetChainID:
+		out.RegolithTime = &chaosnetRegolithTime
+		out.Optimism.EIP1559Elasticity = 10
 	}
 
 	return out, nil
