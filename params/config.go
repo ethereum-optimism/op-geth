@@ -36,6 +36,7 @@ const (
 	OPGoerliChainID   = 420
 	BaseGoerliChainID = 84531
 	devnetChainID     = 997
+	chaosnetChainID   = 888
 )
 
 // OP Stack chain config
@@ -46,6 +47,8 @@ var (
 	BaseGoerliRegolithTime = uint64(1683219600)
 	// March 5, 2023 @ 2:48:00 am UTC
 	devnetRegolithTime = uint64(1677984480)
+	// August 16, 2023 @ 3:34:22 am UTC
+	chaosnetRegolithTime = uint64(1692156862)
 )
 
 func newUint64(val uint64) *uint64 { return &val }
