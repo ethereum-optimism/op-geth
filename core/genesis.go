@@ -25,6 +25,8 @@ import (
 	"math/big"
 	"strings"
 
+	"github.com/ethereum-optimism/superchain-registry/superchain"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/common/math"
@@ -288,7 +290,8 @@ type ChainOverrides struct {
 	OverrideCancun *uint64
 	OverrideVerkle *uint64
 	// optimism
-	OverrideOptimismCanyon *uint64
+	OverrideOptimismCanyon  *uint64
+	ApplySuperchainUpgrades bool
 }
 
 // SetupGenesisBlock writes or updates the genesis block in db.
@@ -314,6 +317,19 @@ func SetupGenesisBlockWithOverride(db ethdb.Database, triedb *trie.Database, gen
 	}
 	applyOverrides := func(config *params.ChainConfig) {
 		if config != nil {
+			// If applying the superchain-registry to a known OP-Stack chain,
+			// then override the local chain-config with that from the registry.
+			if overrides != nil && overrides.ApplySuperchainUpgrades && config.IsOptimism() && config.ChainID != nil && genesis.Config.ChainID.IsUint64() {
+				if _, ok := superchain.OPChains[config.ChainID.Uint64()]; ok {
+					conf, err := params.LoadOPStackChainConfig(config.ChainID.Uint64())
+					if err != nil {
+						log.Warn("failed to load chain config from superchain-registry, skipping override", "err", err, "chain_id", config.ChainID)
+					} else {
+						*config = *conf
+					}
+				}
+			}
+
 			if config.IsOptimism() && config.ChainID != nil && config.ChainID.Cmp(big.NewInt(params.OPGoerliChainID)) == 0 {
 				// Apply Optimism Goerli regolith time
 				config.RegolithTime = &params.OptimismGoerliRegolithTime
