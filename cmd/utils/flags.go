@@ -918,6 +918,11 @@ var (
 		Usage:    "Opt-in option to halt on incompatible protocol version requirements of the given level (major/minor/patch/none), as signaled through the Engine API by the rollup node",
 		Category: flags.RollupCategory,
 	}
+	RollupSuperchainUpgradesFlag = &cli.BoolFlag{
+		Name:     "beta.rollup.superchain-upgrades",
+		Usage:    "Beta feature: apply superchain-registry config changes to the local chain-configuration",
+		Category: flags.EthCategory,
+	}
 
 	// Metrics flags
 	MetricsEnabledFlag = &cli.BoolFlag{
@@ -1884,6 +1889,7 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 	cfg.RollupDisableTxPoolGossip = ctx.Bool(RollupDisableTxPoolGossipFlag.Name)
 	cfg.RollupDisableTxPoolAdmission = cfg.RollupSequencerHTTP != "" && !ctx.Bool(RollupEnableTxPoolAdmissionFlag.Name)
 	cfg.RollupHaltOnIncompatibleProtocolVersion = ctx.String(RollupHaltOnIncompatibleProtocolVersionFlag.Name)
+	cfg.ApplySuperchainUpgrades = ctx.Bool(RollupSuperchainUpgradesFlag.Name)
 	// Override any default configs for hard coded networks.
 	switch {
 	case ctx.Bool(MainnetFlag.Name):
