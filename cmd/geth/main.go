@@ -153,6 +153,7 @@ var (
 		utils.RollupDisableTxPoolGossipFlag,
 		utils.RollupComputePendingBlock,
 		utils.RollupHaltOnIncompatibleProtocolVersionFlag,
+		utils.RollupSuperchainUpgradesFlag,
 		configFileFlag,
 	}, utils.NetworkFlags, utils.DatabasePathFlags)
 
