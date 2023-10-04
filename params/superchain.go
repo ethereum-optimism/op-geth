@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math/big"
+	"sort"
 	"strings"
 
 	"github.com/ethereum-optimism/superchain-registry/superchain"
@@ -25,6 +26,14 @@ func OPStackChainIDByName(name string) (uint64, error) {
 		}
 	}
 	return 0, fmt.Errorf("unknown chain %q", name)
+}
+
+func OPStackChainNames() (out []string) {
+	for _, ch := range superchain.OPChains {
+		out = append(out, ch.Chain+"-"+ch.Superchain)
+	}
+	sort.Strings(out)
+	return
 }
 
 func LoadOPStackChainConfig(chainID uint64) (*ChainConfig, error) {
