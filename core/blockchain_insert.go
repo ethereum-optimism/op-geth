@@ -23,6 +23,13 @@ import (
 	"github.com/ethereum/go-ethereum/common/mclock"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/metrics"
+)
+
+var (
+	blockProcessingTime = metrics.NewRegisteredTimer("performance/block/time", nil)
+	blockGasPerSecond   = metrics.NewRegisteredGaugeFloat64("performance/block/gasps", nil)
+	blockGasTotal       = metrics.NewRegisteredCounterFloat64("performance/block/gastotal", nil)
 )
 
 // insertStats tracks and reports on block insertion.
@@ -53,6 +60,12 @@ func (st *insertStats) report(chain []*types.Block, index int, dirty common.Stor
 			txs += len(block.Transactions())
 		}
 		end := chain[index]
+
+		if st.processed > 0 {
+			blockProcessingTime.Update(elapsed / time.Duration(st.processed))
+			blockGasPerSecond.Update(float64(st.usedGas) / (float64(elapsed) / float64(time.Second)))
+			blockGasTotal.Inc(float64(st.usedGas))
+		}
 
 		// Assemble the log context and send it to the logger
 		context := []interface{}{
