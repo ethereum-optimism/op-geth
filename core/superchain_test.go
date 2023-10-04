@@ -28,6 +28,7 @@ func TestRegistryChainConfigOverride(t *testing.T) {
 	if genesis.Config.RegolithTime == nil {
 		t.Fatal("expected non-nil regolith time")
 	}
+	expectedRegolithTime := *genesis.Config.RegolithTime
 	genesis.Config.RegolithTime = nil
 
 	// initialize the DB
@@ -47,5 +48,7 @@ func TestRegistryChainConfigOverride(t *testing.T) {
 	// check if we have a corrected chain config
 	if chainConfig.RegolithTime == nil {
 		t.Fatal("expected regolith time to be corrected, but time is still nil")
+	} else if *chainConfig.RegolithTime != expectedRegolithTime {
+		t.Fatalf("expected regolith time to be %d, but got %d", expectedRegolithTime, *chainConfig.RegolithTime)
 	}
 }
