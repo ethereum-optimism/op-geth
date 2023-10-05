@@ -85,6 +85,15 @@ var (
 	blockPrefetchExecuteTimer   = metrics.NewRegisteredTimer("chain/prefetch/executes", nil)
 	blockPrefetchInterruptMeter = metrics.NewRegisteredMeter("chain/prefetch/interrupts", nil)
 
+	statReceipts                = metrics.NewRegisteredCounter("blockstats/receipts/total", nil)
+	statTransactions            = metrics.NewRegisteredCounter("blockstats/transactions/total", nil)
+	statLogEvents               = metrics.NewRegisteredCounter("blockstats/logevents", nil)
+	statDeploys                 = metrics.NewRegisteredCounter("blockstats/deploys", nil)
+	statAccessListEntries       = metrics.NewRegisteredCounter("blockstats/accesslist", nil)
+	statReceiptsSize            = metrics.NewRegisteredCounter("blockstats/receipts/totalsize", nil)
+	statTransactionsSize        = metrics.NewRegisteredCounter("blockstats/transactions/totalsize", nil)
+	statTransactionCalldataSize = metrics.NewRegisteredCounter("blockstats/transactions/calldata", nil)
+
 	errInsertionInterrupted = errors.New("insertion is interrupted")
 	errChainStopped         = errors.New("blockchain is stopped")
 )
@@ -1769,6 +1778,37 @@ func (bc *BlockChain) insertChain(chain types.Blocks, setHead bool) (int, error)
 		}
 		vtime := time.Since(vstart)
 		proctime := time.Since(start) // processing + validation
+
+		if metrics.EnabledExpensive {
+			logCount := 0
+			receiptsSize := common.StorageSize(0)
+			for _, r := range receipts {
+				logCount += len(r.Logs)
+				receiptsSize += r.Size()
+			}
+			deploys := 0
+			transactionsSize := uint64(0)
+			accessListEntries := 0
+			calldataSize := 0
+			for _, tx := range block.Transactions() {
+				if tx.To() == nil {
+					deploys += 1
+				}
+				transactionsSize += tx.Size()
+				for _, e := range tx.AccessList() {
+					accessListEntries += len(e.StorageKeys)
+				}
+				calldataSize += len(tx.Data())
+			}
+			statLogEvents.Inc(int64(logCount))
+			statReceipts.Inc(int64(len(receipts)))
+			statTransactions.Inc(int64(len(block.Transactions())))
+			statReceiptsSize.Inc(int64(receiptsSize))
+			statTransactionsSize.Inc(int64(transactionsSize))
+			statTransactionCalldataSize.Inc(int64(calldataSize))
+			statDeploys.Inc(int64(deploys))
+			statAccessListEntries.Inc(int64(accessListEntries))
+		}
 
 		// Update the metrics touched during block processing and validation
 		accountReadTimer.Update(statedb.AccountReads)                   // Account reads are complete(in processing)
