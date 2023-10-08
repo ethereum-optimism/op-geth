@@ -19,10 +19,10 @@ func (p PayloadAttributes) MarshalJSON() ([]byte, error) {
 		Timestamp             hexutil.Uint64      `json:"timestamp"             gencodec:"required"`
 		Random                common.Hash         `json:"prevRandao"            gencodec:"required"`
 		SuggestedFeeRecipient common.Address      `json:"suggestedFeeRecipient" gencodec:"required"`
-		Withdrawals           []*types.Withdrawal `json:"withdrawals"`
-		BeaconRoot            *common.Hash        `json:"parentBeaconBlockRoot"`
+		Withdrawals           []*types.Withdrawal `json:"withdrawals,omitempty" gencodec:"optional"`
 		Transactions          []hexutil.Bytes     `json:"transactions,omitempty"  gencodec:"optional"`
 		NoTxPool              bool                `json:"noTxPool,omitempty" gencodec:"optional"`
+		Espresso              bool                `json:"espresso,omitempty" gencodec:"optional"`
 		GasLimit              *hexutil.Uint64     `json:"gasLimit,omitempty" gencodec:"optional"`
 	}
 	var enc PayloadAttributes
@@ -30,7 +30,6 @@ func (p PayloadAttributes) MarshalJSON() ([]byte, error) {
 	enc.Random = p.Random
 	enc.SuggestedFeeRecipient = p.SuggestedFeeRecipient
 	enc.Withdrawals = p.Withdrawals
-	enc.BeaconRoot = p.BeaconRoot
 	if p.Transactions != nil {
 		enc.Transactions = make([]hexutil.Bytes, len(p.Transactions))
 		for k, v := range p.Transactions {
@@ -38,6 +37,7 @@ func (p PayloadAttributes) MarshalJSON() ([]byte, error) {
 		}
 	}
 	enc.NoTxPool = p.NoTxPool
+	enc.Espresso = p.Espresso
 	enc.GasLimit = (*hexutil.Uint64)(p.GasLimit)
 	return json.Marshal(&enc)
 }
@@ -48,10 +48,10 @@ func (p *PayloadAttributes) UnmarshalJSON(input []byte) error {
 		Timestamp             *hexutil.Uint64     `json:"timestamp"             gencodec:"required"`
 		Random                *common.Hash        `json:"prevRandao"            gencodec:"required"`
 		SuggestedFeeRecipient *common.Address     `json:"suggestedFeeRecipient" gencodec:"required"`
-		Withdrawals           []*types.Withdrawal `json:"withdrawals"`
-		BeaconRoot            *common.Hash        `json:"parentBeaconBlockRoot"`
+		Withdrawals           []*types.Withdrawal `json:"withdrawals,omitempty" gencodec:"optional"`
 		Transactions          []hexutil.Bytes     `json:"transactions,omitempty"  gencodec:"optional"`
 		NoTxPool              *bool               `json:"noTxPool,omitempty" gencodec:"optional"`
+		Espresso              *bool               `json:"espresso,omitempty" gencodec:"optional"`
 		GasLimit              *hexutil.Uint64     `json:"gasLimit,omitempty" gencodec:"optional"`
 	}
 	var dec PayloadAttributes
@@ -73,9 +73,6 @@ func (p *PayloadAttributes) UnmarshalJSON(input []byte) error {
 	if dec.Withdrawals != nil {
 		p.Withdrawals = dec.Withdrawals
 	}
-	if dec.BeaconRoot != nil {
-		p.BeaconRoot = dec.BeaconRoot
-	}
 	if dec.Transactions != nil {
 		p.Transactions = make([][]byte, len(dec.Transactions))
 		for k, v := range dec.Transactions {
@@ -84,6 +81,9 @@ func (p *PayloadAttributes) UnmarshalJSON(input []byte) error {
 	}
 	if dec.NoTxPool != nil {
 		p.NoTxPool = *dec.NoTxPool
+	}
+	if dec.Espresso != nil {
+		p.Espresso = *dec.Espresso
 	}
 	if dec.GasLimit != nil {
 		p.GasLimit = (*uint64)(dec.GasLimit)
