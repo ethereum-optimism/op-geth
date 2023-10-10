@@ -370,6 +370,14 @@ func (s *Ethereum) APIs() []rpc.API {
 	}...)
 }
 
+func (s *Ethereum) ClearUnderpriced() {
+	s.handler.txFetcher.ClearUnderpriced()
+}
+
+func (s *Ethereum) ListUnderpriced() []common.Hash {
+	return s.handler.txFetcher.ListUnderpriced()
+}
+
 func (s *Ethereum) ResetWithGenesisBlock(gb *types.Block) {
 	s.blockchain.ResetWithGenesisBlock(gb)
 }

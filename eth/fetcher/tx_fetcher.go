@@ -95,6 +95,7 @@ var (
 	txFetcherQueueingHashes = metrics.NewRegisteredGauge("eth/fetcher/transaction/queueing/hashes", nil)
 	txFetcherFetchingPeers  = metrics.NewRegisteredGauge("eth/fetcher/transaction/fetching/peers", nil)
 	txFetcherFetchingHashes = metrics.NewRegisteredGauge("eth/fetcher/transaction/fetching/hashes", nil)
+	totalUnderpricedTxs     = metrics.NewRegisteredGauge("eth/fetcher/transaction/underpriced/total", nil)
 )
 
 // txAnnounce is the notification of the availability of a batch
@@ -211,6 +212,14 @@ func NewTxFetcherForTests(
 	}
 }
 
+func (f *TxFetcher) ClearUnderpriced() {
+	f.underpriced.Clear()
+}
+
+func (f *TxFetcher) ListUnderpriced() []common.Hash {
+	return f.underpriced.ToSlice()
+}
+
 // Notify announces the fetcher of the potential availability of a new batch of
 // transactions in the network.
 func (f *TxFetcher) Notify(peer string, hashes []common.Hash) error {
@@ -323,6 +332,7 @@ func (f *TxFetcher) Enqueue(peer string, txs []*types.Transaction, direct bool) 
 		knownMeter.Mark(duplicate)
 		underpricedMeter.Mark(underpriced)
 		otherRejectMeter.Mark(otherreject)
+		totalUnderpricedTxs.Update(int64(f.underpriced.Cardinality()))
 
 		// If 'other reject' is >25% of the deliveries in any batch, sleep a bit.
 		if otherreject > 128/4 {
