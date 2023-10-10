@@ -635,7 +635,7 @@ func DeveloperGenesisBlock(gasLimit uint64, faucet *common.Address) *Genesis {
 	}
 
 	// Add state from celoGenesisAccounts
-	for addr, data := range celoGenesisAccounts() {
+	for addr, data := range celoGenesisAccounts(common.HexToAddress("0x2")) {
 		genesis.Alloc[addr] = data
 	}
 

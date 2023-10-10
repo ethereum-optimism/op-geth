@@ -25,17 +25,28 @@ func DecodeHex(hexbytes []byte) ([]byte, error) {
 	return bytes, nil
 }
 
-var DevPrivateKey, _ = crypto.HexToECDSA("2771aff413cac48d9f8c114fabddd9195a2129f3c2c436caa07e27bb7f58ead5")
-var DevAddr = common.BytesToAddress(DevAddr32.Bytes())
-var DevAddr32 = common.HexToHash("0x42cf1bbc38BaAA3c4898ce8790e21eD2738c6A4a")
+// Calculate address in evm mapping: keccak(key ++ mapping_slot)
+func CalcMapAddr(slot common.Hash, key common.Hash) common.Hash {
+	return crypto.Keccak256Hash(append(key.Bytes(), slot.Bytes()...))
+}
 
-func celoGenesisAccounts() map[common.Address]GenesisAccount {
+var (
+	DevPrivateKey, _ = crypto.HexToECDSA("2771aff413cac48d9f8c114fabddd9195a2129f3c2c436caa07e27bb7f58ead5")
+	DevAddr          = common.BytesToAddress(DevAddr32.Bytes())
+	DevAddr32        = common.HexToHash("0x42cf1bbc38BaAA3c4898ce8790e21eD2738c6A4a")
+
+	FeeCurrencyAddr = common.HexToAddress("0xce16")
+	DevBalance, _   = new(big.Int).SetString("100000000000000000000", 10)
+)
+
+func celoGenesisAccounts(fundedAddr common.Address) GenesisAlloc {
 	// As defined in ERC-1967: Proxy Storage Slots (https://eips.ethereum.org/EIPS/eip-1967)
 	var (
 		proxy_owner_slot          = common.HexToHash("0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103")
 		proxy_implementation_slot = common.HexToHash("0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc")
 	)
 
+	// Initialize Bytecodes
 	registryBytecode, err := DecodeHex(contracts.RegistryBytecodeRaw)
 	if err != nil {
 		panic(err)
@@ -48,10 +59,27 @@ func celoGenesisAccounts() map[common.Address]GenesisAccount {
 	if err != nil {
 		panic(err)
 	}
-	devBalance, ok := new(big.Int).SetString("100000000000000000000", 10)
-	if !ok {
-		panic("Could not set devBalance!")
+	// sortedOraclesBytecodeLinked := bytes.Replace(contracts.SortedOraclesBytecodeRaw, []byte("__$c0b499b413513d0c67e2a6a17d90846cb3$__"), []byte("000000000000000000000000000000000000ce17"), -1)
+	sortedOraclesBytecode, err := DecodeHex(contracts.MockSortedOraclesBytecodeRaw)
+	if err != nil {
+		panic(err)
 	}
+	feeCurrencyWhitelistBytecode, err := DecodeHex(contracts.FeeCurrencyWhitelistBytecodeRaw)
+	if err != nil {
+		panic(err)
+	}
+	feeCurrencyBytecode, err := DecodeHex(contracts.FeeCurrencyBytecodeRaw)
+	if err != nil {
+		panic(err)
+	}
+	addressSortedLinkedListWithMedian, err := DecodeHex(contracts.AddressSortedLinkedListWithMedianBytecodeRaw)
+	if err != nil {
+		panic(err)
+	}
+
+	var devBalance32 common.Hash
+	DevBalance.FillBytes(devBalance32[:])
+
 	return map[common.Address]GenesisAccount{
 		contracts.RegistryAddress: { // Registry Proxy
 			Code: proxyBytecode,
@@ -78,8 +106,33 @@ func celoGenesisAccounts() map[common.Address]GenesisAccount {
 			Code:    goldTokenBytecode,
 			Balance: big.NewInt(0),
 		},
+		contracts.FeeCurrencyWhitelistAddress: {
+			Code:    feeCurrencyWhitelistBytecode,
+			Balance: big.NewInt(0),
+			Storage: map[common.Hash]common.Hash{
+				common.HexToHash("0x1"):                               common.HexToHash("0x1"),                     // array length 1
+				crypto.Keccak256Hash(common.HexToHash("0x1").Bytes()): common.BytesToHash(FeeCurrencyAddr.Bytes()), // FeeCurrency
+			},
+		},
+		contracts.SortedOraclesAddress: {
+			Code:    sortedOraclesBytecode,
+			Balance: big.NewInt(0),
+		},
+		FeeCurrencyAddr: {
+			Code:    feeCurrencyBytecode,
+			Balance: big.NewInt(0),
+			Storage: map[common.Hash]common.Hash{
+				CalcMapAddr(common.HexToHash("0x0"), DevAddr32):                              devBalance32, // _balances[DevAddr]
+				CalcMapAddr(common.HexToHash("0x0"), common.BytesToHash(fundedAddr.Bytes())): devBalance32, // _balances[fund]
+				common.HexToHash("0x2"): devBalance32, // _totalSupply
+			},
+		},
+		common.HexToAddress("0xce17"): {
+			Code:    addressSortedLinkedListWithMedian,
+			Balance: big.NewInt(0),
+		},
 		DevAddr: {
-			Balance: devBalance,
+			Balance: DevBalance,
 		},
 	}
 }
