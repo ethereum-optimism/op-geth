@@ -4,6 +4,7 @@ on:
     branches:
       - main
       - optimism
+      - nodekit
       - release-*
     tags:
       # YYYYMMDD
