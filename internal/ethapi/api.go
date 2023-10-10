@@ -2154,6 +2154,19 @@ func NewDebugAPI(b Backend) *DebugAPI {
 	return &DebugAPI{b: b}
 }
 
+func (api *DebugAPI) ClearUnderpriced() {
+	if cl, ok := api.b.(interface{ ClearUnderpriced() }); ok {
+		cl.ClearUnderpriced()
+	}
+}
+
+func (api *DebugAPI) ListUnderpriced() []common.Hash {
+	if cl, ok := api.b.(interface{ ListUnderpriced() []common.Hash }); ok {
+		return cl.ListUnderpriced()
+	}
+	return nil
+}
+
 // GetRawHeader retrieves the RLP encoding for a single header.
 func (api *DebugAPI) GetRawHeader(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (hexutil.Bytes, error) {
 	var hash common.Hash
