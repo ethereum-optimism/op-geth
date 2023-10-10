@@ -303,16 +303,17 @@ func handleGetCode(msg Decoder) (serveRequestFn, uint64, uint64, error) {
 				p.bumpInvalid()
 				continue
 			}
-			address := common.BytesToAddress(request.AccountAddress)
-			account, err := getAccount(bc.TrieDB(), header.Root, address)
+			triedb := bc.StateCache().TrieDB()
+
+			account, err := getAccount(triedb, header.Root, common.BytesToHash(request.AccKey))
 			if err != nil {
-				p.Log().Warn("Failed to retrieve account for code", "block", header.Number, "hash", header.Hash(), "account", address, "err", err)
+				p.Log().Warn("Failed to retrieve account for code", "block", header.Number, "hash", header.Hash(), "account", common.BytesToHash(request.AccKey), "err", err)
 				p.bumpInvalid()
 				continue
 			}
-			code, err := bc.StateCache().ContractCode(address, common.BytesToHash(account.CodeHash))
+			code, err := bc.StateCache().ContractCode(common.BytesToHash(request.AccKey), common.BytesToHash(account.CodeHash))
 			if err != nil {
-				p.Log().Warn("Failed to retrieve account code", "block", header.Number, "hash", header.Hash(), "account", address, "codehash", common.BytesToHash(account.CodeHash), "err", err)
+				p.Log().Warn("Failed to retrieve account code", "block", header.Number, "hash", header.Hash(), "account", common.BytesToHash(request.AccKey), "codehash", common.BytesToHash(account.CodeHash), "err", err)
 				continue
 			}
 			// Accumulate the code and abort if enough data was retrieved
@@ -412,7 +413,7 @@ func handleGetProofs(msg Decoder) (serveRequestFn, uint64, uint64, error) {
 			statedb := bc.StateCache()
 
 			var trie state.Trie
-			switch len(request.AccountAddress) {
+			switch len(request.AccKey) {
 			case 0:
 				// No account key specified, open an account trie
 				trie, err = statedb.OpenTrie(root)
@@ -422,21 +423,20 @@ func handleGetProofs(msg Decoder) (serveRequestFn, uint64, uint64, error) {
 				}
 			default:
 				// Account key specified, open a storage trie
-				address := common.BytesToAddress(request.AccountAddress)
-				account, err := getAccount(bc.TrieDB(), root, address)
+				account, err := getAccount(statedb.TrieDB(), root, common.BytesToHash(request.AccKey))
 				if err != nil {
-					p.Log().Warn("Failed to retrieve account for proof", "block", header.Number, "hash", header.Hash(), "account", address, "err", err)
+					p.Log().Warn("Failed to retrieve account for proof", "block", header.Number, "hash", header.Hash(), "account", common.BytesToHash(request.AccKey), "err", err)
 					p.bumpInvalid()
 					continue
 				}
-				trie, err = statedb.OpenStorageTrie(root, address, account.Root)
+				trie, err = statedb.OpenStorageTrie(root, common.BytesToHash(request.AccKey), account.Root)
 				if trie == nil || err != nil {
-					p.Log().Warn("Failed to open storage trie for proof", "block", header.Number, "hash", header.Hash(), "account", address, "root", account.Root, "err", err)
+					p.Log().Warn("Failed to open storage trie for proof", "block", header.Number, "hash", header.Hash(), "account", common.BytesToHash(request.AccKey), "root", account.Root, "err", err)
 					continue
 				}
 			}
 			// Prove the user's request from the account or storage trie
-			if err := trie.Prove(request.Key, nodes); err != nil {
+			if err := trie.Prove(request.Key, request.FromLevel, nodes); err != nil {
 				p.Log().Warn("Failed to prove state request", "block", header.Number, "hash", header.Hash(), "err", err)
 				continue
 			}
@@ -480,7 +480,7 @@ func handleGetHelperTrieProofs(msg Decoder) (serveRequestFn, uint64, uint64, err
 			// the headers with no valid proof. Keep the compatibility for
 			// legacy les protocol and drop this hack when the les2/3 are
 			// not supported.
-			err := auxTrie.Prove(request.Key, nodes)
+			err := auxTrie.Prove(request.Key, request.FromLevel, nodes)
 			if p.version >= lpv4 && err != nil {
 				return nil
 			}
@@ -518,7 +518,12 @@ func handleSendTx(msg Decoder) (serveRequestFn, uint64, uint64, error) {
 			hash := tx.Hash()
 			stats[i] = txStatus(backend, hash)
 			if stats[i].Status == txpool.TxStatusUnknown {
-				if errs := backend.TxPool().Add([]*types.Transaction{tx}, false, backend.AddTxsSync()); errs[0] != nil {
+				addFn := backend.TxPool().AddRemotes
+				// Add txs synchronously for testing purpose
+				if backend.AddTxsSync() {
+					addFn = backend.TxPool().AddRemotesSync
+				}
+				if errs := addFn([]*types.Transaction{tx}); errs[0] != nil {
 					stats[i].Error = errs[0].Error()
 					continue
 				}
@@ -551,7 +556,7 @@ func handleGetTxStatus(msg Decoder) (serveRequestFn, uint64, uint64, error) {
 func txStatus(b serverBackend, hash common.Hash) light.TxStatus {
 	var stat light.TxStatus
 	// Looking the transaction in txpool first.
-	stat.Status = b.TxPool().Status(hash)
+	stat.Status = b.TxPool().Status([]common.Hash{hash})[0]
 
 	// If the transaction is unknown to the pool, try looking it up locally.
 	if stat.Status == txpool.TxStatusUnknown {

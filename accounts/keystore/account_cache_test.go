@@ -17,12 +17,12 @@
 package keystore
 
 import (
-	"errors"
 	"fmt"
 	"math/rand"
 	"os"
 	"path/filepath"
 	"reflect"
+	"sort"
 	"testing"
 	"time"
 
@@ -30,7 +30,6 @@ import (
 	"github.com/davecgh/go-spew/spew"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
-	"golang.org/x/exp/slices"
 )
 
 var (
@@ -75,7 +74,7 @@ func waitForAccounts(wantAccounts []accounts.Account, ks *KeyStore) error {
 			select {
 			case <-ks.changes:
 			default:
-				return errors.New("wasn't notified of new accounts")
+				return fmt.Errorf("wasn't notified of new accounts")
 			}
 			return nil
 		}
@@ -203,7 +202,7 @@ func TestCacheAddDeleteOrder(t *testing.T) {
 	// Check that the account list is sorted by filename.
 	wantAccounts := make([]accounts.Account, len(accs))
 	copy(wantAccounts, accs)
-	slices.SortFunc(wantAccounts, byURL)
+	sort.Sort(accountsByURL(wantAccounts))
 	list := cache.accounts()
 	if !reflect.DeepEqual(list, wantAccounts) {
 		t.Fatalf("got accounts: %s\nwant %s", spew.Sdump(accs), spew.Sdump(wantAccounts))

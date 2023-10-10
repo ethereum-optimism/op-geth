@@ -17,22 +17,21 @@
 package les
 
 import (
+	"sort"
 	"sync"
 	"sync/atomic"
 
 	"github.com/ethereum/go-ethereum/common/mclock"
 	"github.com/ethereum/go-ethereum/common/prque"
-	"golang.org/x/exp/slices"
 )
 
 // servingQueue allows running tasks in a limited number of threads and puts the
 // waiting tasks in a priority queue
 type servingQueue struct {
-	recentTime, queuedTime     uint64
-	servingTimeDiff            atomic.Uint64
-	burstLimit, burstDropLimit uint64
-	burstDecRate               float64
-	lastUpdate                 mclock.AbsTime
+	recentTime, queuedTime, servingTimeDiff uint64
+	burstLimit, burstDropLimit              uint64
+	burstDecRate                            float64
+	lastUpdate                              mclock.AbsTime
 
 	queueAddCh, queueBestCh chan *servingTask
 	stopThreadCh, quit      chan struct{}
@@ -101,7 +100,7 @@ func (t *servingTask) done() uint64 {
 	t.timeAdded = t.servingTime
 	if t.expTime > diff {
 		t.expTime -= diff
-		t.sq.servingTimeDiff.Add(t.expTime)
+		atomic.AddUint64(&t.sq.servingTimeDiff, t.expTime)
 	} else {
 		t.expTime = 0
 	}
@@ -181,19 +180,35 @@ func (sq *servingQueue) threadController() {
 	}
 }
 
-// peerTasks lists the tasks received from a given peer when selecting peers to freeze
-type peerTasks struct {
-	peer     *clientPeer
-	list     []*servingTask
-	sumTime  uint64
-	priority float64
+type (
+	// peerTasks lists the tasks received from a given peer when selecting peers to freeze
+	peerTasks struct {
+		peer     *clientPeer
+		list     []*servingTask
+		sumTime  uint64
+		priority float64
+	}
+	// peerList is a sortable list of peerTasks
+	peerList []*peerTasks
+)
+
+func (l peerList) Len() int {
+	return len(l)
+}
+
+func (l peerList) Less(i, j int) bool {
+	return l[i].priority < l[j].priority
+}
+
+func (l peerList) Swap(i, j int) {
+	l[i], l[j] = l[j], l[i]
 }
 
 // freezePeers selects the peers with the worst priority queued tasks and freezes
 // them until burstTime goes under burstDropLimit or all peers are frozen
 func (sq *servingQueue) freezePeers() {
 	peerMap := make(map[*clientPeer]*peerTasks)
-	var peerList []*peerTasks
+	var peerList peerList
 	if sq.best != nil {
 		sq.queue.Push(sq.best, sq.best.priority)
 	}
@@ -216,15 +231,7 @@ func (sq *servingQueue) freezePeers() {
 		tasks.list = append(tasks.list, task)
 		tasks.sumTime += task.expTime
 	}
-	slices.SortFunc(peerList, func(a, b *peerTasks) int {
-		if a.priority < b.priority {
-			return -1
-		}
-		if a.priority > b.priority {
-			return 1
-		}
-		return 0
-	})
+	sort.Sort(peerList)
 	drop := true
 	for _, tasks := range peerList {
 		if drop {
@@ -250,7 +257,7 @@ func (sq *servingQueue) freezePeers() {
 
 // updateRecentTime recalculates the recent serving time value
 func (sq *servingQueue) updateRecentTime() {
-	subTime := sq.servingTimeDiff.Swap(0)
+	subTime := atomic.SwapUint64(&sq.servingTimeDiff, 0)
 	now := mclock.Now()
 	dt := now - sq.lastUpdate
 	sq.lastUpdate = now

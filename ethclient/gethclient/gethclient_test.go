@@ -60,7 +60,7 @@ func newTestBackend(t *testing.T) (*node.Node, []*types.Block) {
 	if err != nil {
 		t.Fatalf("can't create new ethereum service: %v", err)
 	}
-	filterSystem := filters.NewFilterSystem(ethservice.APIBackend, filters.Config{})
+	filterSystem := filters.NewFilterSystem(ethservice.APIBackend, filters.Config{AllowPendingTxs: true})
 	n.RegisterAPIs([]rpc.API{{
 		Namespace: "eth",
 		Service:   filters.NewFilterAPI(filterSystem, false),
@@ -94,7 +94,10 @@ func generateTestChain() (*core.Genesis, []*types.Block) {
 
 func TestGethClient(t *testing.T) {
 	backend, _ := newTestBackend(t)
-	client := backend.Attach()
+	client, err := backend.Attach()
+	if err != nil {
+		t.Fatal(err)
+	}
 	defer backend.Close()
 	defer client.Close()
 
@@ -105,9 +108,6 @@ func TestGethClient(t *testing.T) {
 		{
 			"TestGetProof",
 			func(t *testing.T) { testGetProof(t, client) },
-		}, {
-			"TestGetProofCanonicalizeKeys",
-			func(t *testing.T) { testGetProofCanonicalizeKeys(t, client) },
 		}, {
 			"TestGCStats",
 			func(t *testing.T) { testGCStats(t, client) },
@@ -221,7 +221,6 @@ func testGetProof(t *testing.T, client *rpc.Client) {
 	if result.Balance.Cmp(balance) != 0 {
 		t.Fatalf("invalid balance, want: %v got: %v", balance, result.Balance)
 	}
-
 	// test storage
 	if len(result.StorageProof) != 1 {
 		t.Fatalf("invalid storage proof, want 1 proof, got %v proof(s)", len(result.StorageProof))
@@ -232,37 +231,7 @@ func testGetProof(t *testing.T, client *rpc.Client) {
 		t.Fatalf("invalid storage proof value, want: %v, got: %v", slotValue, proof.Value.Bytes())
 	}
 	if proof.Key != testSlot.String() {
-		t.Fatalf("invalid storage proof key, want: %q, got: %q", testSlot.String(), proof.Key)
-	}
-}
-
-func testGetProofCanonicalizeKeys(t *testing.T, client *rpc.Client) {
-	ec := New(client)
-
-	// Tests with non-canon input for storage keys.
-	// Here we check that the storage key is canonicalized.
-	result, err := ec.GetProof(context.Background(), testAddr, []string{"0x0dEadbeef"}, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if result.StorageProof[0].Key != "0xdeadbeef" {
-		t.Fatalf("wrong storage key encoding in proof: %q", result.StorageProof[0].Key)
-	}
-	if result, err = ec.GetProof(context.Background(), testAddr, []string{"0x000deadbeef"}, nil); err != nil {
-		t.Fatal(err)
-	}
-	if result.StorageProof[0].Key != "0xdeadbeef" {
-		t.Fatalf("wrong storage key encoding in proof: %q", result.StorageProof[0].Key)
-	}
-
-	// If the requested storage key is 32 bytes long, it will be returned as is.
-	hashSizedKey := "0x00000000000000000000000000000000000000000000000000000000deadbeef"
-	result, err = ec.GetProof(context.Background(), testAddr, []string{hashSizedKey}, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if result.StorageProof[0].Key != hashSizedKey {
-		t.Fatalf("wrong storage key encoding in proof: %q", result.StorageProof[0].Key)
+		t.Fatalf("invalid storage proof key, want: %v, got: %v", testSlot.String(), proof.Key)
 	}
 }
 
@@ -399,17 +368,17 @@ func testCallContract(t *testing.T, client *rpc.Client) {
 
 func TestOverrideAccountMarshal(t *testing.T) {
 	om := map[common.Address]OverrideAccount{
-		{0x11}: {
+		common.Address{0x11}: OverrideAccount{
 			// Zero-valued nonce is not overriddden, but simply dropped by the encoder.
 			Nonce: 0,
 		},
-		{0xaa}: {
+		common.Address{0xaa}: OverrideAccount{
 			Nonce: 5,
 		},
-		{0xbb}: {
+		common.Address{0xbb}: OverrideAccount{
 			Code: []byte{1},
 		},
-		{0xcc}: {
+		common.Address{0xcc}: OverrideAccount{
 			// 'code', 'balance', 'state' should be set when input is
 			// a non-nil but empty value.
 			Code:    []byte{},

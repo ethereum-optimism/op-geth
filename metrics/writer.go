@@ -3,10 +3,8 @@ package metrics
 import (
 	"fmt"
 	"io"
-	"strings"
+	"sort"
 	"time"
-
-	"golang.org/x/exp/slices"
 )
 
 // Write sorts writes each metric in the given registry periodically to the
@@ -20,28 +18,26 @@ func Write(r Registry, d time.Duration, w io.Writer) {
 // WriteOnce sorts and writes metrics in the given registry to the given
 // io.Writer.
 func WriteOnce(r Registry, w io.Writer) {
-	var namedMetrics []namedMetric
+	var namedMetrics namedMetricSlice
 	r.Each(func(name string, i interface{}) {
 		namedMetrics = append(namedMetrics, namedMetric{name, i})
 	})
-	slices.SortFunc(namedMetrics, namedMetric.cmp)
+
+	sort.Sort(namedMetrics)
 	for _, namedMetric := range namedMetrics {
 		switch metric := namedMetric.m.(type) {
 		case Counter:
 			fmt.Fprintf(w, "counter %s\n", namedMetric.name)
-			fmt.Fprintf(w, "  count:       %9d\n", metric.Snapshot().Count())
+			fmt.Fprintf(w, "  count:       %9d\n", metric.Count())
 		case CounterFloat64:
 			fmt.Fprintf(w, "counter %s\n", namedMetric.name)
-			fmt.Fprintf(w, "  count:       %f\n", metric.Snapshot().Count())
+			fmt.Fprintf(w, "  count:       %f\n", metric.Count())
 		case Gauge:
 			fmt.Fprintf(w, "gauge %s\n", namedMetric.name)
-			fmt.Fprintf(w, "  value:       %9d\n", metric.Snapshot().Value())
+			fmt.Fprintf(w, "  value:       %9d\n", metric.Value())
 		case GaugeFloat64:
 			fmt.Fprintf(w, "gauge %s\n", namedMetric.name)
-			fmt.Fprintf(w, "  value:       %f\n", metric.Snapshot().Value())
-		case GaugeInfo:
-			fmt.Fprintf(w, "gauge %s\n", namedMetric.name)
-			fmt.Fprintf(w, "  value:       %s\n", metric.Snapshot().Value().String())
+			fmt.Fprintf(w, "  value:       %f\n", metric.Value())
 		case Healthcheck:
 			metric.Check()
 			fmt.Fprintf(w, "healthcheck %s\n", namedMetric.name)
@@ -95,6 +91,13 @@ type namedMetric struct {
 	m    interface{}
 }
 
-func (m namedMetric) cmp(other namedMetric) int {
-	return strings.Compare(m.name, other.name)
+// namedMetricSlice is a slice of namedMetrics that implements sort.Interface.
+type namedMetricSlice []namedMetric
+
+func (nms namedMetricSlice) Len() int { return len(nms) }
+
+func (nms namedMetricSlice) Swap(i, j int) { nms[i], nms[j] = nms[j], nms[i] }
+
+func (nms namedMetricSlice) Less(i, j int) bool {
+	return nms[i].name < nms[j].name
 }

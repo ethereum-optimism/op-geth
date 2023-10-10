@@ -25,7 +25,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/rawdb"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
@@ -103,7 +102,7 @@ type Snapshot interface {
 
 	// Account directly retrieves the account associated with a particular hash in
 	// the snapshot slim data format.
-	Account(hash common.Hash) (*types.SlimAccount, error)
+	Account(hash common.Hash) (*Account, error)
 
 	// AccountRLP directly retrieves the account RLP associated with a particular
 	// hash in the snapshot slim data format.
@@ -564,7 +563,7 @@ func diffToDisk(bottom *diffLayer) *diskLayer {
 			// Ensure we don't delete too much data blindly (contract can be
 			// huge). It's ok to flush, the root will go missing in case of a
 			// crash and we'll detect and regenerate the snapshot.
-			if batch.ValueSize() > 64*1024*1024 {
+			if batch.ValueSize() > ethdb.IdealBatchSize {
 				if err := batch.Write(); err != nil {
 					log.Crit("Failed to write storage deletions", "err", err)
 				}
@@ -590,7 +589,7 @@ func diffToDisk(bottom *diffLayer) *diskLayer {
 		// Ensure we don't write too much data blindly. It's ok to flush, the
 		// root will go missing in case of a crash and we'll detect and regen
 		// the snapshot.
-		if batch.ValueSize() > 64*1024*1024 {
+		if batch.ValueSize() > ethdb.IdealBatchSize {
 			if err := batch.Write(); err != nil {
 				log.Crit("Failed to write storage deletions", "err", err)
 			}
@@ -851,22 +850,4 @@ func (t *Tree) DiskRoot() common.Hash {
 	defer t.lock.Unlock()
 
 	return t.diskRoot()
-}
-
-// Size returns the memory usage of the diff layers above the disk layer and the
-// dirty nodes buffered in the disk layer. Currently, the implementation uses a
-// special diff layer (the first) as an aggregator simulating a dirty buffer, so
-// the second return will always be 0. However, this will be made consistent with
-// the pathdb, which will require a second return.
-func (t *Tree) Size() (diffs common.StorageSize, buf common.StorageSize) {
-	t.lock.RLock()
-	defer t.lock.RUnlock()
-
-	var size common.StorageSize
-	for _, layer := range t.layers {
-		if layer, ok := layer.(*diffLayer); ok {
-			size += common.StorageSize(layer.memory)
-		}
-	}
-	return size, 0
 }

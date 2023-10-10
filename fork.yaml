@@ -5,7 +5,7 @@ footer: |
 base:
   name: go-ethereum
   url: https://github.com/ethereum/go-ethereum
-  hash: 3f40e65c484486dea6cff80b7db178985d21a2c6  # v1.13.1
+  hash: e501b3b05db8e169f67dc78b7b59bc352b3c638d
 fork:
   name: op-geth
   url: https://github.com/ethereum-optimism/op-geth
@@ -48,14 +48,12 @@ def:
                 - "core/types/tx_access_list.go"
                 - "core/types/tx_dynamic_fee.go"
                 - "core/types/tx_legacy.go"
-                - "core/types/tx_blob.go"
             - title: "L1 cost computation"
               description: |
                 Transactions must pay an additional L1 cost based on the amount of rollup-data-gas they consume,
                 estimated based on gas-price-oracle information and encoded tx size."
               globs:
                 - "core/vm/evm.go"
-                - "core/evm.go"
                 - "core/types/rollup_l1_cost.go"
                 - "core/state_processor.go"
                 - "core/state_prefetcher.go"
@@ -66,22 +64,34 @@ def:
                 For regular transactions, at the end of the transition, the 1559 burn and L1 cost are routed to vaults.
               globs:
                 - "core/state_transition.go"
-            - title: "Core Error definitions"
-              globs:
-                - "core/error.go"
             - title: "Gaslimit"
               description: |
                 The gaslimit is free to be set by the Engine API caller, instead of enforcing adjustments of the
                 gaslimit in increments of 1/1024 of the previous gaslimit.
                 The gaslimit is changed (and limited) through the `SystemConfig` contract.
               globs:
-                - "consensus/misc/eip1559/eip1559.go"
+                - "consensus/misc/eip1559.go"
             - title: "Consensus tweaks"
               description: |
                 The Engine API is activated at the Merge transition, with a Total Terminal Difficulty (TTD).
                 The rollup starts post-merge, and thus sets the TTD to 0.
               globs:
                 - "consensus/beacon/consensus.go"
+        - title: "Chain config"
+          description: |
+            The rollup functionality is enabled with the `optimism` field in the chain config.
+            The EIP-1559 parameters are configurable to adjust for faster more frequent and smaller blocks.
+            The parameters can be overriden for testing.
+          globs:
+            - "params/config.go"
+            - "params/protocol_params.go"
+            - "core/genesis.go"
+        - title: "Chain config cleanup"
+          description: |
+            The optimism Goerli testnet used clique-config data to make geth internals accept blocks.
+            Post-bedrock the beacon-consensus (i.e. follow Engine API) is now used, and the clique config is removed.
+          globs:
+            - "core/rawdb/accessors_metadata.go"
         - title: "Engine API modifications"
           description: |
             The Engine API is extended to insert transactions into the block and optionally exclude the tx-pool,
@@ -102,32 +112,6 @@ def:
             Transaction queueing and inclusion needs to account for the L1 cost component.
           globs:
             - "core/txpool/*"
-            - "core/txpool/legacypool/*"
-    - title: "Chain Configuration"
-      sub:
-        - title: "Chain config"
-          description: |
-            The rollup functionality is enabled with the `optimism` field in the chain config.
-            The EIP-1559 parameters are configurable to adjust for faster more frequent and smaller blocks.
-            The parameters can be overriden for testing.
-          globs:
-            - "params/config.go"
-            - "params/protocol_params.go"
-            - "core/genesis.go"
-        - title: "Chain config cleanup"
-          description: |
-            The optimism Goerli testnet used clique-config data to make geth internals accept blocks.
-            Post-bedrock the beacon-consensus (i.e. follow Engine API) is now used, and the clique config is removed.
-          globs:
-            - "core/rawdb/accessors_metadata.go"
-        - title: Genesis loading
-          globs:
-            - "core/gen_genesis.go"
-        - title: "Superchain config"
-          description: Testing of the superchain configuration
-          globs:
-            - "core/superchain.go"
-            - "params/superchain.go"
     - title: "Node modifications"
       description: Changes to the node configuration and services.
       sub:
@@ -158,24 +142,6 @@ def:
           globs:
             - "eth/handler.go"
             - "eth/handler_eth.go"
-        - title: Warn on missing hardfork data
-          globs:
-            - "core/blockchain.go"
-        - title: Optional Engine API extensions
-          globs:
-            - "eth/catalyst/superchain.go"
-        - title: Support legacy DBs when snap-syncing
-          description: Snap-sync does not serve unprefixed code by default.
-          globs:
-            - "core/blockchain_reader.go"
-            - "eth/protocols/snap/handler.go"
-        - title: Discv5 node discovery
-          description: Fix discv5 option to allow discv5 to be an active source for node-discovery.
-          globs:
-            - "p2p/server.go"
-        - title: Generated TOML config update
-          globs:
-            - "eth/ethconfig/gen_config.go"
     - title: "User API enhancements"
       description: "Encode the Deposit Tx properties, the L1 costs, and daisy-chain RPC-calls for pre-Bedrock historical data"
       sub:
@@ -186,7 +152,6 @@ def:
           globs:
             - "core/types/receipt.go"
             - "core/types/gen_receipt_json.go"
-            - "core/rawdb/accessors_chain.go"
         - title: "API Backend"
           description: |
             Forward transactions to the sequencer if configured.
@@ -215,27 +180,19 @@ def:
             - "internal/ethapi/transaction_args_test.go"
             - "ethclient/ethclient_test.go"
             - "eth/tracers/api_test.go"
-        - title: Debug API
-          description: Fix Debug API block marshaling to include deposits
-          globs:
-            - "eth/api_debug.go"
-        - title: Eth gasprice suggestions
-          description: gasprice suggestion adjustments to accommodate faster L2 blocks and lower fees.
-          globs:
-            - "eth/gasprice/gasprice.go"
-            - "eth/gasprice/optimism-gasprice.go"
-        - title: API testvector fix
-          description: |
-            Upstream test of broken behavior; in Optimism, a zero signature is valid (pre-bedrock for deposit-txs),
-            and the chain ID formula on signature data must not be used, or an underflow happens.
-          globs:
-            - "internal/ethapi/testdata/eth_getBlockByNumber-tag-pending-fullTx.json"
     - title: "Geth extras"
       description: Extend the tools available in geth to improve external testing and tooling.
       sub:
         - title: Simulated Backend
           globs:
             - "accounts/abi/bind/backends/simulated.go"
+        - title: diff-included testing testing
+          description: |
+            Most of the op-geth changes are tested in the Optimism Monorepo and not part of the geth diff,
+            but some testing like the Deposit TX encoding and API interactions are embedded in the op-geth diff instead.
+          globs:
+            - "core/types/transaction_marshalling_test.go"
+            - "internal/ethapi/api_test.go"
 
 # ignored globally, does not count towards line count
 ignore:

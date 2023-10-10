@@ -44,7 +44,6 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
-	"github.com/ethereum/go-ethereum/trie"
 )
 
 // This nil assignment ensures at compile time that SimulatedBackend implements bind.ContractBackend.
@@ -158,7 +157,7 @@ func NewSimulatedBackendWithOpts(opts ...SimulatedBackendOpt) *SimulatedBackend 
 		opt(config)
 	}
 
-	config.genesis.MustCommit(config.database, trie.NewDatabase(config.database, trie.HashDefaults))
+	config.genesis.MustCommit(config.database)
 	blockchain, _ := core.NewBlockChain(config.database, config.cacheConfig, &config.genesis, nil, config.consensus, config.vmConfig, nil, nil)
 
 	backend := &SimulatedBackend{
@@ -753,7 +752,7 @@ func (b *SimulatedBackend) SendTransaction(ctx context.Context, tx *types.Transa
 	// Get the last block
 	block, err := b.blockByHash(ctx, b.pendingBlock.ParentHash())
 	if err != nil {
-		return errors.New("could not fetch parent")
+		return fmt.Errorf("could not fetch parent")
 	}
 	// Check transaction validity
 	signer := types.MakeSigner(b.blockchain.Config(), block.Number(), block.Time())
@@ -887,7 +886,7 @@ func (b *SimulatedBackend) AdjustTime(adjustment time.Duration) error {
 	// Get the last block
 	block := b.blockchain.GetBlockByHash(b.pendingBlock.ParentHash())
 	if block == nil {
-		return errors.New("could not find parent")
+		return fmt.Errorf("could not find parent")
 	}
 
 	blocks, _ := core.GenerateChain(b.config, block, b.consensus, b.database, 1, func(number int, block *core.BlockGen) {
@@ -964,7 +963,7 @@ func (fb *filterBackend) GetReceipts(ctx context.Context, hash common.Hash) (typ
 }
 
 func (fb *filterBackend) GetLogs(ctx context.Context, hash common.Hash, number uint64) ([][]*types.Log, error) {
-	logs := rawdb.ReadLogs(fb.db, hash, number)
+	logs := rawdb.ReadLogs(fb.db, hash, number, fb.bc.Config())
 	return logs, nil
 }
 

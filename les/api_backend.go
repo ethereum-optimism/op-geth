@@ -57,6 +57,7 @@ func (b *LesApiBackend) CurrentBlock() *types.Header {
 }
 
 func (b *LesApiBackend) SetHead(number uint64) {
+	b.eth.handler.downloader.Cancel()
 	b.eth.blockchain.SetHead(number)
 }
 
@@ -223,11 +224,11 @@ func (b *LesApiBackend) Stats() (pending int, queued int) {
 	return b.eth.txPool.Stats(), 0
 }
 
-func (b *LesApiBackend) TxPoolContent() (map[common.Address][]*types.Transaction, map[common.Address][]*types.Transaction) {
+func (b *LesApiBackend) TxPoolContent() (map[common.Address]types.Transactions, map[common.Address]types.Transactions) {
 	return b.eth.txPool.Content()
 }
 
-func (b *LesApiBackend) TxPoolContentFrom(addr common.Address) ([]*types.Transaction, []*types.Transaction) {
+func (b *LesApiBackend) TxPoolContentFrom(addr common.Address) (types.Transactions, types.Transactions) {
 	return b.eth.txPool.ContentFrom(addr)
 }
 
@@ -263,7 +264,7 @@ func (b *LesApiBackend) SubscribeRemovedLogsEvent(ch chan<- core.RemovedLogsEven
 }
 
 func (b *LesApiBackend) SyncProgress() ethereum.SyncProgress {
-	return ethereum.SyncProgress{}
+	return b.eth.Downloader().Progress()
 }
 
 func (b *LesApiBackend) ProtocolVersion() int {

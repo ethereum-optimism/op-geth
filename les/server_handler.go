@@ -18,7 +18,6 @@ package les
 
 import (
 	"errors"
-	"fmt"
 	"sync"
 	"time"
 
@@ -35,6 +34,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/p2p"
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
 )
 
@@ -116,7 +116,7 @@ func (h *serverHandler) handle(p *clientPeer) error {
 		hash   = head.Hash()
 		number = head.Number.Uint64()
 		td     = h.blockchain.GetTd(hash, number)
-		forkID = forkid.NewID(h.blockchain.Config(), h.blockchain.Genesis(), number, head.Time)
+		forkID = forkid.NewID(h.blockchain.Config(), h.blockchain.Genesis().Hash(), number, head.Time)
 	)
 	if err := p.Handshake(td, hash, number, h.blockchain.Genesis().Hash(), forkID, h.forkFilter, h.server); err != nil {
 		p.Log().Debug("Light Ethereum handshake failed", "err", err)
@@ -358,19 +358,20 @@ func (h *serverHandler) AddTxsSync() bool {
 }
 
 // getAccount retrieves an account from the state based on root.
-func getAccount(triedb *trie.Database, root common.Hash, addr common.Address) (types.StateAccount, error) {
-	trie, err := trie.NewStateTrie(trie.StateTrieID(root), triedb)
+func getAccount(triedb *trie.Database, root, hash common.Hash) (types.StateAccount, error) {
+	trie, err := trie.New(trie.StateTrieID(root), triedb)
 	if err != nil {
 		return types.StateAccount{}, err
 	}
-	acc, err := trie.GetAccount(addr)
+	blob, err := trie.Get(hash[:])
 	if err != nil {
 		return types.StateAccount{}, err
 	}
-	if acc == nil {
-		return types.StateAccount{}, fmt.Errorf("account %#x is not present", addr)
+	var acc types.StateAccount
+	if err = rlp.DecodeBytes(blob, &acc); err != nil {
+		return types.StateAccount{}, err
 	}
-	return *acc, nil
+	return acc, nil
 }
 
 // GetHelperTrie returns the post-processed trie root for the given trie ID and section index
@@ -390,8 +391,7 @@ func (h *serverHandler) GetHelperTrie(typ uint, index uint64) *trie.Trie {
 	if root == (common.Hash{}) {
 		return nil
 	}
-	triedb := trie.NewDatabase(rawdb.NewTable(h.chainDb, prefix), trie.HashDefaults)
-	trie, _ := trie.New(trie.TrieID(root), triedb)
+	trie, _ := trie.New(trie.TrieID(root), trie.NewDatabase(rawdb.NewTable(h.chainDb, prefix)))
 	return trie
 }
 

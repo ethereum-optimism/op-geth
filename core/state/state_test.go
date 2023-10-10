@@ -30,22 +30,21 @@ import (
 	"github.com/ethereum/go-ethereum/trie"
 )
 
-type stateEnv struct {
+type stateTest struct {
 	db    ethdb.Database
 	state *StateDB
 }
 
-func newStateEnv() *stateEnv {
+func newStateTest() *stateTest {
 	db := rawdb.NewMemoryDatabase()
 	sdb, _ := New(types.EmptyRootHash, NewDatabase(db), nil)
-	return &stateEnv{db: db, state: sdb}
+	return &stateTest{db: db, state: sdb}
 }
 
 func TestDump(t *testing.T) {
 	db := rawdb.NewMemoryDatabase()
-	tdb := NewDatabaseWithConfig(db, &trie.Config{Preimages: true})
-	sdb, _ := New(types.EmptyRootHash, tdb, nil)
-	s := &stateEnv{db: db, state: sdb}
+	sdb, _ := New(types.EmptyRootHash, NewDatabaseWithConfig(db, &trie.Config{Preimages: true}), nil)
+	s := &stateTest{db: db, state: sdb}
 
 	// generate a few entries
 	obj1 := s.state.GetOrNewStateObject(common.BytesToAddress([]byte{0x01}))
@@ -58,10 +57,9 @@ func TestDump(t *testing.T) {
 	// write some of them to the trie
 	s.state.updateStateObject(obj1)
 	s.state.updateStateObject(obj2)
-	root, _ := s.state.Commit(0, false)
+	s.state.Commit(false)
 
 	// check that DumpToCollector contains the state objects that are in trie
-	s.state, _ = New(root, tdb, nil)
 	got := string(s.state.Dump(nil))
 	want := `{
     "root": "71edff0130dd2385947095001c73d9e28d862fc286fca2b922ca6f6f3cddfdd2",
@@ -97,9 +95,8 @@ func TestDump(t *testing.T) {
 
 func TestIterativeDump(t *testing.T) {
 	db := rawdb.NewMemoryDatabase()
-	tdb := NewDatabaseWithConfig(db, &trie.Config{Preimages: true})
-	sdb, _ := New(types.EmptyRootHash, tdb, nil)
-	s := &stateEnv{db: db, state: sdb}
+	sdb, _ := New(types.EmptyRootHash, NewDatabaseWithConfig(db, &trie.Config{Preimages: true}), nil)
+	s := &stateTest{db: db, state: sdb}
 
 	// generate a few entries
 	obj1 := s.state.GetOrNewStateObject(common.BytesToAddress([]byte{0x01}))
@@ -114,8 +111,7 @@ func TestIterativeDump(t *testing.T) {
 	// write some of them to the trie
 	s.state.updateStateObject(obj1)
 	s.state.updateStateObject(obj2)
-	root, _ := s.state.Commit(0, false)
-	s.state, _ = New(root, tdb, nil)
+	s.state.Commit(false)
 
 	b := &bytes.Buffer{}
 	s.state.IterativeDump(nil, json.NewEncoder(b))
@@ -133,14 +129,14 @@ func TestIterativeDump(t *testing.T) {
 }
 
 func TestNull(t *testing.T) {
-	s := newStateEnv()
+	s := newStateTest()
 	address := common.HexToAddress("0x823140710bf13990e4500136726d8b55")
 	s.state.CreateAccount(address)
 	//value := common.FromHex("0x823140710bf13990e4500136726d8b55")
 	var value common.Hash
 
 	s.state.SetState(address, common.Hash{}, value)
-	s.state.Commit(0, false)
+	s.state.Commit(false)
 
 	if value := s.state.GetState(address, common.Hash{}); value != (common.Hash{}) {
 		t.Errorf("expected empty current value, got %x", value)
@@ -155,7 +151,7 @@ func TestSnapshot(t *testing.T) {
 	var storageaddr common.Hash
 	data1 := common.BytesToHash([]byte{42})
 	data2 := common.BytesToHash([]byte{43})
-	s := newStateEnv()
+	s := newStateTest()
 
 	// snapshot the genesis state
 	genesis := s.state.Snapshot()
@@ -186,7 +182,7 @@ func TestSnapshot(t *testing.T) {
 }
 
 func TestSnapshotEmpty(t *testing.T) {
-	s := newStateEnv()
+	s := newStateTest()
 	s.state.RevertToSnapshot(s.state.Snapshot())
 }
 
@@ -208,11 +204,11 @@ func TestSnapshot2(t *testing.T) {
 	so0.SetBalance(big.NewInt(42))
 	so0.SetNonce(43)
 	so0.SetCode(crypto.Keccak256Hash([]byte{'c', 'a', 'f', 'e'}), []byte{'c', 'a', 'f', 'e'})
-	so0.selfDestructed = false
+	so0.suicided = false
 	so0.deleted = false
 	state.setStateObject(so0)
 
-	root, _ := state.Commit(0, false)
+	root, _ := state.Commit(false)
 	state, _ = New(root, state.db, state.snaps)
 
 	// and one with deleted == true
@@ -220,7 +216,7 @@ func TestSnapshot2(t *testing.T) {
 	so1.SetBalance(big.NewInt(52))
 	so1.SetNonce(53)
 	so1.SetCode(crypto.Keccak256Hash([]byte{'c', 'a', 'f', 'e', '2'}), []byte{'c', 'a', 'f', 'e', '2'})
-	so1.selfDestructed = true
+	so1.suicided = true
 	so1.deleted = true
 	state.setStateObject(so1)
 
@@ -234,8 +230,8 @@ func TestSnapshot2(t *testing.T) {
 
 	so0Restored := state.getStateObject(stateobjaddr0)
 	// Update lazily-loaded values before comparing.
-	so0Restored.GetState(storageaddr)
-	so0Restored.Code()
+	so0Restored.GetState(state.db, storageaddr)
+	so0Restored.Code(state.db)
 	// non-deleted is equal (restored)
 	compareStateObjects(so0Restored, so0, t)
 

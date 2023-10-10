@@ -6,7 +6,7 @@
 
 GOBIN = ./build/bin
 GO ?= latest
-GORUN = go run
+GORUN = env GO111MODULE=on go run
 
 geth:
 	$(GORUN) build/ci.go install ./cmd/geth
@@ -23,7 +23,7 @@ lint: ## Run linters.
 	$(GORUN) build/ci.go lint
 
 clean:
-	go clean -cache
+	env GO111MODULE=on go clean -cache
 	rm -fr build/_workspace/pkg/ $(GOBIN)/*
 
 # The devtools target installs tools required for 'go generate'.
@@ -36,9 +36,3 @@ devtools:
 	env GOBIN= go install ./cmd/abigen
 	@type "solc" 2> /dev/null || echo 'Please install solc'
 	@type "protoc" 2> /dev/null || echo 'Please install protoc'
-
-forkdiff:
-	docker run --rm \
-		--mount src=$(shell pwd),target=/host-pwd,type=bind \
-		protolambda/forkdiff:latest \
-		-repo /host-pwd/ -fork /host-pwd/fork.yaml -out /host-pwd/forkdiff.html

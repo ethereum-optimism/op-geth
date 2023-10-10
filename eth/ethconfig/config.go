@@ -19,6 +19,7 @@ package ethconfig
 
 import (
 	"errors"
+	"math/big"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -27,9 +28,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/clique"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
 	"github.com/ethereum/go-ethereum/core"
-	"github.com/ethereum/go-ethereum/core/rawdb"
-	"github.com/ethereum/go-ethereum/core/txpool/blobpool"
-	"github.com/ethereum/go-ethereum/core/txpool/legacypool"
+	"github.com/ethereum/go-ethereum/core/txpool"
 	"github.com/ethereum/go-ethereum/eth/downloader"
 	"github.com/ethereum/go-ethereum/eth/gasprice"
 	"github.com/ethereum/go-ethereum/ethdb"
@@ -39,13 +38,12 @@ import (
 
 // FullNodeGPO contains default gasprice oracle settings for full node.
 var FullNodeGPO = gasprice.Config{
-	Blocks:                  20,
-	Percentile:              60,
-	MaxHeaderHistory:        1024,
-	MaxBlockHistory:         1024,
-	MaxPrice:                gasprice.DefaultMaxPrice,
-	IgnorePrice:             gasprice.DefaultIgnorePrice,
-	MinSuggestedPriorityFee: gasprice.DefaultMinSuggestedPriorityFee,
+	Blocks:           20,
+	Percentile:       60,
+	MaxHeaderHistory: 1024,
+	MaxBlockHistory:  1024,
+	MaxPrice:         gasprice.DefaultMaxPrice,
+	IgnorePrice:      gasprice.DefaultIgnorePrice,
 }
 
 // LightClientGPO contains default gasprice oracle settings for light client.
@@ -60,26 +58,25 @@ var LightClientGPO = gasprice.Config{
 
 // Defaults contains default settings for use on the Ethereum main net.
 var Defaults = Config{
-	SyncMode:           downloader.SnapSync,
-	NetworkId:          1,
-	TxLookupLimit:      2350000,
-	TransactionHistory: 2350000,
-	StateHistory:       params.FullImmutabilityThreshold,
-	StateScheme:        rawdb.HashScheme,
-	LightPeers:         100,
-	DatabaseCache:      512,
-	TrieCleanCache:     154,
-	TrieDirtyCache:     256,
-	TrieTimeout:        60 * time.Minute,
-	SnapshotCache:      102,
-	FilterLogCacheSize: 32,
-	Miner:              miner.DefaultConfig,
-	TxPool:             legacypool.DefaultConfig,
-	BlobPool:           blobpool.DefaultConfig,
-	RPCGasCap:          50000000,
-	RPCEVMTimeout:      5 * time.Second,
-	GPO:                FullNodeGPO,
-	RPCTxFeeCap:        1, // 1 ether
+	SyncMode:                downloader.SnapSync,
+	NetworkId:               1,
+	TxLookupLimit:           2350000,
+	LightPeers:              100,
+	UltraLightFraction:      75,
+	DatabaseCache:           512,
+	TrieCleanCache:          154,
+	TrieCleanCacheJournal:   "triecache",
+	TrieCleanCacheRejournal: 60 * time.Minute,
+	TrieDirtyCache:          256,
+	TrieTimeout:             60 * time.Minute,
+	SnapshotCache:           102,
+	FilterLogCacheSize:      32,
+	Miner:                   miner.DefaultConfig,
+	TxPool:                  txpool.DefaultConfig,
+	RPCGasCap:               50000000,
+	RPCEVMTimeout:           5 * time.Second,
+	GPO:                     FullNodeGPO,
+	RPCTxFeeCap:             1, // 1 ether
 }
 
 //go:generate go run github.com/fjl/gencodec -type Config -formats toml -out gen_config.go
@@ -102,11 +99,7 @@ type Config struct {
 	NoPruning  bool // Whether to disable pruning and flush everything to disk
 	NoPrefetch bool // Whether to disable prefetching and only load state on demand
 
-	// Deprecated, use 'TransactionHistory' instead.
-	TxLookupLimit      uint64 `toml:",omitempty"` // The maximum number of blocks from head whose tx indices are reserved.
-	TransactionHistory uint64 `toml:",omitempty"` // The maximum number of blocks from head whose tx indices are reserved.
-	StateHistory       uint64 `toml:",omitempty"` // The maximum number of blocks from head whose state histories are reserved.
-	StateScheme        string `toml:",omitempty"` // State scheme used to store ethereum state and merkle trie nodes on top
+	TxLookupLimit uint64 `toml:",omitempty"` // The maximum number of blocks from head whose tx indices are reserved.
 
 	// RequiredBlocks is a set of block number -> hash mappings which must be in the
 	// canonical chain of all remote peers. Setting the option makes geth verify the
@@ -121,17 +114,24 @@ type Config struct {
 	LightNoPrune     bool `toml:",omitempty"` // Whether to disable light chain pruning
 	LightNoSyncServe bool `toml:",omitempty"` // Whether to serve light clients before syncing
 
+	// Ultra Light client options
+	UltraLightServers      []string `toml:",omitempty"` // List of trusted ultra light servers
+	UltraLightFraction     int      `toml:",omitempty"` // Percentage of trusted servers to accept an announcement
+	UltraLightOnlyAnnounce bool     `toml:",omitempty"` // Whether to only announce headers, or also serve them
+
 	// Database options
 	SkipBcVersionCheck bool `toml:"-"`
 	DatabaseHandles    int  `toml:"-"`
 	DatabaseCache      int
 	DatabaseFreezer    string
 
-	TrieCleanCache int
-	TrieDirtyCache int
-	TrieTimeout    time.Duration
-	SnapshotCache  int
-	Preimages      bool
+	TrieCleanCache          int
+	TrieCleanCacheJournal   string        `toml:",omitempty"` // Disk journal directory for trie cache to survive node restarts
+	TrieCleanCacheRejournal time.Duration `toml:",omitempty"` // Time interval to regenerate the journal for clean cache
+	TrieDirtyCache          int
+	TrieTimeout             time.Duration
+	SnapshotCache           int
+	Preimages               bool
 
 	// This is the number of blocks for which logs will be cached in the filter system.
 	FilterLogCacheSize int
@@ -140,8 +140,7 @@ type Config struct {
 	Miner miner.Config
 
 	// Transaction pool options
-	TxPool   legacypool.Config
-	BlobPool blobpool.Config
+	TxPool txpool.Config
 
 	// Gas Price Oracle options
 	GPO gasprice.Config
@@ -165,20 +164,16 @@ type Config struct {
 	// OverrideCancun (TODO: remove after the fork)
 	OverrideCancun *uint64 `toml:",omitempty"`
 
-	// OverrideVerkle (TODO: remove after the fork)
-	OverrideVerkle *uint64 `toml:",omitempty"`
+	OverrideOptimismBedrock  *big.Int
+	OverrideOptimismRegolith *uint64 `toml:",omitempty"`
+	OverrideOptimism         *bool
 
-	OverrideOptimismCanyon *uint64 `toml:",omitempty"`
-
-	// ApplySuperchainUpgrades requests the node to load chain-configuration from the superchain-registry.
-	ApplySuperchainUpgrades bool `toml:",omitempty"`
-
-	RollupSequencerHTTP                     string
-	RollupHistoricalRPC                     string
-	RollupHistoricalRPCTimeout              time.Duration
-	RollupDisableTxPoolGossip               bool
-	RollupDisableTxPoolAdmission            bool
-	RollupHaltOnIncompatibleProtocolVersion string
+	RollupSequencerHTTP          string
+	RollupHistoricalRPC          string
+	RollupHistoricalRPCTimeout   time.Duration
+	RollupDisableTxPoolGossip    bool
+	RollupDisableTxPoolAdmission bool
+	RollupAllowPendingTxFilters  bool
 }
 
 // CreateConsensusEngine creates a consensus engine for the given chain config.

@@ -40,10 +40,9 @@ type BuildPayloadArgs struct {
 	FeeRecipient common.Address    // The provided recipient address for collecting transaction fee
 	Random       common.Hash       // The provided randomness value
 	Withdrawals  types.Withdrawals // The provided withdrawals
-	BeaconRoot   *common.Hash      // The provided beaconRoot (Cancun)
 
 	NoTxPool     bool                 // Optimism addition: option to disable tx pool contents from being included
-	NodeKit      bool                 // Optimism addition: option to enable NodeKit mode
+	NodeKit     bool                 // Optimism addition: option to enable NodeKit mode
 	Transactions []*types.Transaction // Optimism addition: txs forced into the block via engine API
 	GasLimit     *uint64              // Optimism addition: override gas limit of the block to build
 }
@@ -57,9 +56,6 @@ func (args *BuildPayloadArgs) Id() engine.PayloadID {
 	hasher.Write(args.Random[:])
 	hasher.Write(args.FeeRecipient[:])
 	rlp.Encode(hasher, args.Withdrawals)
-	if args.BeaconRoot != nil {
-		hasher.Write(args.BeaconRoot[:])
-	}
 
 	if args.NoTxPool || len(args.Transactions) > 0 { // extend if extra payload attributes are used
 		binary.Write(hasher, binary.BigEndian, args.NoTxPool)
@@ -87,7 +83,6 @@ type Payload struct {
 	id       engine.PayloadID
 	empty    *types.Block
 	full     *types.Block
-	sidecars []*types.BlobTxSidecar
 	fullFees *big.Int
 	stop     chan struct{}
 	lock     sync.Mutex
@@ -107,7 +102,7 @@ func newPayload(empty *types.Block, id engine.PayloadID) *Payload {
 }
 
 // update updates the full-block with latest built version.
-func (payload *Payload) update(r *newPayloadResult, elapsed time.Duration) {
+func (payload *Payload) update(block *types.Block, fees *big.Int, elapsed time.Duration) {
 	payload.lock.Lock()
 	defer payload.lock.Unlock()
 
@@ -119,23 +114,14 @@ func (payload *Payload) update(r *newPayloadResult, elapsed time.Duration) {
 	// Ensure the newly provided full block has a higher transaction fee.
 	// In post-merge stage, there is no uncle reward anymore and transaction
 	// fee(apart from the mev revenue) is the only indicator for comparison.
-	if payload.full == nil || r.fees.Cmp(payload.fullFees) > 0 {
-		payload.full = r.block
-		payload.fullFees = r.fees
-		payload.sidecars = r.sidecars
+	if payload.full == nil || fees.Cmp(payload.fullFees) > 0 {
+		payload.full = block
+		payload.fullFees = fees
 
-		feesInEther := new(big.Float).Quo(new(big.Float).SetInt(r.fees), big.NewFloat(params.Ether))
-		log.Info("Updated payload",
-			"id", payload.id,
-			"number", r.block.NumberU64(),
-			"hash", r.block.Hash(),
-			"txs", len(r.block.Transactions()),
-			"withdrawals", len(r.block.Withdrawals()),
-			"gas", r.block.GasUsed(),
-			"fees", feesInEther,
-			"root", r.block.Root(),
-			"elapsed", common.PrettyDuration(elapsed),
-		)
+		feesInEther := new(big.Float).Quo(new(big.Float).SetInt(fees), big.NewFloat(params.Ether))
+		log.Info("Updated payload", "id", payload.id, "number", block.NumberU64(), "hash", block.Hash(),
+			"txs", len(block.Transactions()), "gas", block.GasUsed(), "fees", feesInEther,
+			"root", block.Root(), "elapsed", common.PrettyDuration(elapsed))
 	}
 	payload.cond.Broadcast() // fire signal for notifying full block
 }
@@ -152,9 +138,9 @@ func (payload *Payload) Resolve() *engine.ExecutionPayloadEnvelope {
 		close(payload.stop)
 	}
 	if payload.full != nil {
-		return engine.BlockToExecutableData(payload.full, payload.fullFees, payload.sidecars)
+		return engine.BlockToExecutableData(payload.full, payload.fullFees)
 	}
-	return engine.BlockToExecutableData(payload.empty, big.NewInt(0), nil)
+	return engine.BlockToExecutableData(payload.empty, big.NewInt(0))
 }
 
 // ResolveEmpty is basically identical to Resolve, but it expects empty block only.
@@ -163,11 +149,11 @@ func (payload *Payload) ResolveEmpty() *engine.ExecutionPayloadEnvelope {
 	payload.lock.Lock()
 	defer payload.lock.Unlock()
 
-	return engine.BlockToExecutableData(payload.empty, big.NewInt(0), nil)
+	return engine.BlockToExecutableData(payload.empty, big.NewInt(0))
 }
 
 // ResolveFull is basically identical to Resolve, but it expects full block only.
-// Don't call Resolve until ResolveFull returns, otherwise it might block forever.
+// It's only used in tests.
 func (payload *Payload) ResolveFull() *engine.ExecutionPayloadEnvelope {
 	payload.lock.Lock()
 	defer payload.lock.Unlock()
@@ -178,18 +164,9 @@ func (payload *Payload) ResolveFull() *engine.ExecutionPayloadEnvelope {
 			return nil
 		default:
 		}
-		// Wait the full payload construction. Note it might block
-		// forever if Resolve is called in the meantime which
-		// terminates the background construction process.
 		payload.cond.Wait()
 	}
-	// Terminate the background payload construction
-	select {
-	case <-payload.stop:
-	default:
-		close(payload.stop)
-	}
-	return engine.BlockToExecutableData(payload.full, payload.fullFees, payload.sidecars)
+	return engine.BlockToExecutableData(payload.full, payload.fullFees)
 }
 
 // buildPayload builds the payload according to the provided parameters.
@@ -197,31 +174,13 @@ func (w *worker) buildPayload(args *BuildPayloadArgs) (*Payload, error) {
 	// Build the initial version with no transaction included. It should be fast
 	// enough to run. The empty payload can at least make sure there is something
 	// to deliver for not missing slot.
-	// In OP-Stack, the "empty" block is constructed from provided txs only, i.e. no tx-pool usage.
-	emptyParams := &generateParams{
-		timestamp:   args.Timestamp,
-		forceTime:   true,
-		parentHash:  args.Parent,
-		coinbase:    args.FeeRecipient,
-		random:      args.Random,
-		withdrawals: args.Withdrawals,
-		beaconRoot:  args.BeaconRoot,
-		nodekit:     args.NodeKit,
-		noTxs:       true,
-		txs:         args.Transactions,
-		gasLimit:    args.GasLimit,
+	empty, _, err := w.getSealingBlock(args.Parent, args.Timestamp, args.FeeRecipient, args.Random, args.Withdrawals, true, args.NodeKit, args.Transactions, args.GasLimit)
+	if err != nil {
+		return nil, err
 	}
-	empty := w.getSealingBlock(emptyParams)
-	if empty.err != nil {
-		return nil, empty.err
-	}
-
 	// Construct a payload object for return.
-	payload := newPayload(empty.block, args.Id())
+	payload := newPayload(empty, args.Id())
 	if args.NoTxPool { // don't start the background payload updating job if there is no tx pool to pull from
-		// make sure to make it appear as full, otherwise it will wait indefinitely for payload building to complete.
-		payload.full = empty.block
-		payload.fullFees = empty.fees
 		return payload, nil
 	}
 
@@ -238,27 +197,13 @@ func (w *worker) buildPayload(args *BuildPayloadArgs) (*Payload, error) {
 		// by the timestamp parameter.
 		endTimer := time.NewTimer(time.Second * 12)
 
-		fullParams := &generateParams{
-			timestamp:   args.Timestamp,
-			forceTime:   true,
-			parentHash:  args.Parent,
-			coinbase:    args.FeeRecipient,
-			random:      args.Random,
-			withdrawals: args.Withdrawals,
-			beaconRoot:  args.BeaconRoot,
-			nodekit:     false,
-			noTxs:       false,
-			txs:         args.Transactions,
-			gasLimit:    args.GasLimit,
-		}
-
 		for {
 			select {
 			case <-timer.C:
 				start := time.Now()
-				r := w.getSealingBlock(fullParams)
-				if r.err == nil {
-					payload.update(r, time.Since(start))
+				block, fees, err := w.getSealingBlock(args.Parent, args.Timestamp, args.FeeRecipient, args.Random, args.Withdrawals, false, false, args.Transactions, args.GasLimit)
+				if err == nil {
+					payload.update(block, fees, time.Since(start))
 				}
 				timer.Reset(w.recommit)
 			case <-payload.stop:

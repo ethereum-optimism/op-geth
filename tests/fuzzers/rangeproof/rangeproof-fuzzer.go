@@ -21,18 +21,24 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"sort"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/ethdb/memorydb"
 	"github.com/ethereum/go-ethereum/trie"
-	"golang.org/x/exp/slices"
 )
 
 type kv struct {
 	k, v []byte
 	t    bool
 }
+
+type entrySlice []*kv
+
+func (p entrySlice) Len() int           { return len(p) }
+func (p entrySlice) Less(i, j int) bool { return bytes.Compare(p[i].k, p[j].k) < 0 }
+func (p entrySlice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 
 type fuzzer struct {
 	input     io.Reader
@@ -56,7 +62,7 @@ func (f *fuzzer) readInt() uint64 {
 }
 
 func (f *fuzzer) randomTrie(n int) (*trie.Trie, map[string]*kv) {
-	trie := trie.NewEmpty(trie.NewDatabase(rawdb.NewMemoryDatabase(), nil))
+	trie := trie.NewEmpty(trie.NewDatabase(rawdb.NewMemoryDatabase()))
 	vals := make(map[string]*kv)
 	size := f.readInt()
 	// Fill it with some fluff
@@ -91,16 +97,14 @@ func (f *fuzzer) fuzz() int {
 	if f.exhausted {
 		return 0 // input too short
 	}
-	var entries []*kv
+	var entries entrySlice
 	for _, kv := range vals {
 		entries = append(entries, kv)
 	}
 	if len(entries) <= 1 {
 		return 0
 	}
-	slices.SortFunc(entries, func(a, b *kv) int {
-		return bytes.Compare(a.k, b.k)
-	})
+	sort.Sort(entries)
 
 	var ok = 0
 	for {
@@ -113,10 +117,10 @@ func (f *fuzzer) fuzz() int {
 			break
 		}
 		proof := memorydb.New()
-		if err := tr.Prove(entries[start].k, proof); err != nil {
+		if err := tr.Prove(entries[start].k, 0, proof); err != nil {
 			panic(fmt.Sprintf("Failed to prove the first node %v", err))
 		}
-		if err := tr.Prove(entries[end-1].k, proof); err != nil {
+		if err := tr.Prove(entries[end-1].k, 0, proof); err != nil {
 			panic(fmt.Sprintf("Failed to prove the last node %v", err))
 		}
 		var keys [][]byte

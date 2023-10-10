@@ -25,8 +25,8 @@ import (
 )
 
 // Node is a wrapper which contains the encoded blob of the trie node and its
-// node hash. It is general enough that can be used to represent trie node
-// corresponding to different trie implementations.
+// unique hash identifier. It is general enough that can be used to represent
+// trie nodes corresponding to different trie implementations.
 type Node struct {
 	Hash common.Hash // Node hash, empty for deleted node
 	Blob []byte      // Encoded node blob, nil for the deleted node
@@ -42,13 +42,35 @@ func (n *Node) IsDeleted() bool {
 	return n.Hash == (common.Hash{})
 }
 
+// WithPrev wraps the Node with the previous node value attached.
+type WithPrev struct {
+	*Node
+	Prev []byte // Encoded original value, nil means it's non-existent
+}
+
+// Unwrap returns the internal Node object.
+func (n *WithPrev) Unwrap() *Node {
+	return n.Node
+}
+
+// Size returns the total memory size used by this node. It overloads
+// the function in Node by counting the size of previous value as well.
+func (n *WithPrev) Size() int {
+	return n.Node.Size() + len(n.Prev)
+}
+
 // New constructs a node with provided node information.
 func New(hash common.Hash, blob []byte) *Node {
 	return &Node{Hash: hash, Blob: blob}
 }
 
-// NewDeleted constructs a node which is deleted.
-func NewDeleted() *Node { return New(common.Hash{}, nil) }
+// NewWithPrev constructs a node with provided node information.
+func NewWithPrev(hash common.Hash, blob []byte, prev []byte) *WithPrev {
+	return &WithPrev{
+		Node: New(hash, blob),
+		Prev: prev,
+	}
+}
 
 // leaf represents a trie leaf node
 type leaf struct {
@@ -61,7 +83,7 @@ type leaf struct {
 type NodeSet struct {
 	Owner   common.Hash
 	Leaves  []*leaf
-	Nodes   map[string]*Node
+	Nodes   map[string]*WithPrev
 	updates int // the count of updated and inserted nodes
 	deletes int // the count of deleted nodes
 }
@@ -71,52 +93,32 @@ type NodeSet struct {
 func NewNodeSet(owner common.Hash) *NodeSet {
 	return &NodeSet{
 		Owner: owner,
-		Nodes: make(map[string]*Node),
+		Nodes: make(map[string]*WithPrev),
 	}
 }
 
 // ForEachWithOrder iterates the nodes with the order from bottom to top,
 // right to left, nodes with the longest path will be iterated first.
 func (set *NodeSet) ForEachWithOrder(callback func(path string, n *Node)) {
-	var paths []string
+	var paths sort.StringSlice
 	for path := range set.Nodes {
 		paths = append(paths, path)
 	}
-	// Bottom-up, the longest path first
-	sort.Sort(sort.Reverse(sort.StringSlice(paths)))
+	// Bottom-up, longest path first
+	sort.Sort(sort.Reverse(paths))
 	for _, path := range paths {
-		callback(path, set.Nodes[path])
+		callback(path, set.Nodes[path].Unwrap())
 	}
 }
 
 // AddNode adds the provided node into set.
-func (set *NodeSet) AddNode(path []byte, n *Node) {
+func (set *NodeSet) AddNode(path []byte, n *WithPrev) {
 	if n.IsDeleted() {
 		set.deletes += 1
 	} else {
 		set.updates += 1
 	}
 	set.Nodes[string(path)] = n
-}
-
-// Merge adds a set of nodes into the set.
-func (set *NodeSet) Merge(owner common.Hash, nodes map[string]*Node) error {
-	if set.Owner != owner {
-		return fmt.Errorf("nodesets belong to different owner are not mergeable %x-%x", set.Owner, owner)
-	}
-	for path, node := range nodes {
-		prev, ok := set.Nodes[path]
-		if ok {
-			// overwrite happens, revoke the counter
-			if prev.IsDeleted() {
-				set.deletes -= 1
-			} else {
-				set.updates -= 1
-			}
-		}
-		set.AddNode([]byte(path), node)
-	}
-	return nil
 }
 
 // AddLeaf adds the provided leaf node into set. TODO(rjl493456442) how can
@@ -148,11 +150,16 @@ func (set *NodeSet) Summary() string {
 		for path, n := range set.Nodes {
 			// Deletion
 			if n.IsDeleted() {
-				fmt.Fprintf(out, "  [-]: %x\n", path)
+				fmt.Fprintf(out, "  [-]: %x prev: %x\n", path, n.Prev)
 				continue
 			}
-			// Insertion or update
-			fmt.Fprintf(out, "  [+/*]: %x -> %v \n", path, n.Hash)
+			// Insertion
+			if len(n.Prev) == 0 {
+				fmt.Fprintf(out, "  [+]: %x -> %v\n", path, n.Hash)
+				continue
+			}
+			// Update
+			fmt.Fprintf(out, "  [*]: %x -> %v prev: %x\n", path, n.Hash, n.Prev)
 		}
 	}
 	for _, n := range set.Leaves {
@@ -181,19 +188,10 @@ func NewWithNodeSet(set *NodeSet) *MergedNodeSet {
 // Merge merges the provided dirty nodes of a trie into the set. The assumption
 // is held that no duplicated set belonging to the same trie will be merged twice.
 func (set *MergedNodeSet) Merge(other *NodeSet) error {
-	subset, present := set.Sets[other.Owner]
+	_, present := set.Sets[other.Owner]
 	if present {
-		return subset.Merge(other.Owner, other.Nodes)
+		return fmt.Errorf("duplicate trie for owner %#x", other.Owner)
 	}
 	set.Sets[other.Owner] = other
 	return nil
-}
-
-// Flatten returns a two-dimensional map for internal nodes.
-func (set *MergedNodeSet) Flatten() map[common.Hash]map[string]*Node {
-	nodes := make(map[common.Hash]map[string]*Node)
-	for owner, set := range set.Sets {
-		nodes[owner] = set.Nodes
-	}
-	return nodes
 }
