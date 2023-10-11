@@ -24,18 +24,23 @@ jobs:
         - name: Build
           run: make all
 
+        - name: Test
+          run: make test
+
+        - uses: actions/setup-node@v4
+          with:
+            node-version: 18
+
         - name: Run e2e tests
           shell: bash
           run: |
+            export TERM=xterm-256color
             curl -L https://foundry.paradigm.xyz | bash
             source /home/runner/.bashrc
             FOUNDRY_HOME="/home/runner/.foundry/bin"
             PATH="${FOUNDRY_HOME}:${PATH}"
             /home/runner/.foundry/bin/foundryup
             e2e_test/run_all_tests.sh
-
-        - name: Test
-          run: make test
 
   Lint:
     runs-on: ["8-cpu","self-hosted","org"]
