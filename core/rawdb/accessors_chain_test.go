@@ -702,38 +702,56 @@ func TestReadLogs(t *testing.T) {
 	// Create a live block since we need metadata to reconstruct the receipt
 	tx1 := types.NewTransaction(1, common.HexToAddress("0x1"), big.NewInt(1), 1, big.NewInt(1), nil)
 	tx2 := types.NewTransaction(2, common.HexToAddress("0x2"), big.NewInt(2), 2, big.NewInt(2), nil)
+	tx3 := types.NewTransaction(3, common.HexToAddress("0x3"), big.NewInt(3), 3, big.NewInt(3), nil)
 
-	body := &types.Body{Transactions: types.Transactions{tx1, tx2}}
+	body := &types.Body{Transactions: types.Transactions{tx1, tx2, tx3}}
 
-	// Create the two receipts to manage afterwards
+	// Create the three receipts to manage afterwards
 	depositNonce := uint64(math.MaxUint64)
-	receipt1 := &types.Receipt{
+	depositReceipt := types.Receipt{
 		Status:            types.ReceiptStatusFailed,
 		CumulativeGasUsed: 1,
 		Logs: []*types.Log{
 			{Address: common.BytesToAddress([]byte{0x11})},
 			{Address: common.BytesToAddress([]byte{0x01, 0x11})},
 		},
-		TxHash:          tx1.Hash(),
-		ContractAddress: common.BytesToAddress([]byte{0x01, 0x11, 0x11}),
-		GasUsed:         111111,
-		DepositNonce:    &depositNonce,
+		TxHash:                tx1.Hash(),
+		ContractAddress:       common.BytesToAddress([]byte{0x01, 0x11, 0x11}),
+		GasUsed:               111111,
+		DepositNonce:          &depositNonce,
+		DepositReceiptVersion: nil,
 	}
-	receipt1.Bloom = types.CreateBloom(types.Receipts{receipt1})
+	depositReceipt.Bloom = types.CreateBloom(types.Receipts{&depositReceipt})
 
-	receipt2 := &types.Receipt{
-		PostState:         common.Hash{2}.Bytes(),
+	receiptVersion := types.CanyonDepositReceiptVersion
+	versionedDepositReceipt := types.Receipt{
+		Status:            types.ReceiptStatusFailed,
 		CumulativeGasUsed: 2,
 		Logs: []*types.Log{
 			{Address: common.BytesToAddress([]byte{0x22})},
-			{Address: common.BytesToAddress([]byte{0x02, 0x22})},
+			{Address: common.BytesToAddress([]byte{0x01, 0x11})},
 		},
-		TxHash:          tx2.Hash(),
-		ContractAddress: common.BytesToAddress([]byte{0x02, 0x22, 0x22}),
-		GasUsed:         222222,
+		TxHash:                tx2.Hash(),
+		ContractAddress:       common.BytesToAddress([]byte{0x02, 0x22, 0x22}),
+		GasUsed:               222222,
+		DepositNonce:          &depositNonce,
+		DepositReceiptVersion: &receiptVersion,
 	}
-	receipt2.Bloom = types.CreateBloom(types.Receipts{receipt2})
-	receipts := []*types.Receipt{receipt1, receipt2}
+	versionedDepositReceipt.Bloom = types.CreateBloom(types.Receipts{&versionedDepositReceipt})
+
+	receipt := types.Receipt{
+		PostState:         common.Hash{3}.Bytes(),
+		CumulativeGasUsed: 3,
+		Logs: []*types.Log{
+			{Address: common.BytesToAddress([]byte{0x33})},
+			{Address: common.BytesToAddress([]byte{0x03, 0x33})},
+		},
+		TxHash:          tx3.Hash(),
+		ContractAddress: common.BytesToAddress([]byte{0x03, 0x33, 0x33}),
+		GasUsed:         333333,
+	}
+	receipt.Bloom = types.CreateBloom(types.Receipts{&receipt})
+	receipts := []*types.Receipt{&receipt, &depositReceipt, &versionedDepositReceipt}
 
 	hash := common.BytesToHash([]byte{0x03, 0x14})
 	// Check that no receipt entries are in a pristine database
@@ -750,14 +768,13 @@ func TestReadLogs(t *testing.T) {
 	if len(logs) == 0 {
 		t.Fatalf("no logs returned")
 	}
-	if have, want := len(logs), 2; have != want {
+	if have, want := len(logs), 3; have != want {
 		t.Fatalf("unexpected number of logs returned, have %d want %d", have, want)
 	}
-	if have, want := len(logs[0]), 2; have != want {
-		t.Fatalf("unexpected number of logs[0] returned, have %d want %d", have, want)
-	}
-	if have, want := len(logs[1]), 2; have != want {
-		t.Fatalf("unexpected number of logs[1] returned, have %d want %d", have, want)
+	for i := range logs {
+		if have, want := len(logs[i]), 2; have != want {
+			t.Fatalf("unexpected number of logs[%d] returned, have %d want %d", i, have, want)
+		}
 	}
 
 	for i, pr := range receipts {
