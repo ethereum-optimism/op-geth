@@ -101,6 +101,19 @@ type BlockContext struct {
 	BaseFee     *big.Int       // Provides information for BASEFEE (0 if vm runs with NoBaseFee flag and 0 gas price)
 	BlobBaseFee *big.Int       // Provides information for BLOBBASEFEE (0 if vm runs with NoBaseFee flag and 0 blob gas price)
 	Random      *common.Hash   // Provides information for PREVRANDAO
+
+	// Celo specific information
+	ExchangeRates map[common.Address]*big.Rat
+}
+
+func (bc BlockContext) IsCurrencyWhitelisted(feeCurrency *common.Address) bool {
+	if feeCurrency == nil {
+		return true
+	}
+
+	// Check if fee currency is registered
+	_, ok := bc.ExchangeRates[*feeCurrency]
+	return ok
 }
 
 // TxContext provides the EVM with information about a transaction.
