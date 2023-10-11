@@ -2303,17 +2303,21 @@ func NewDebugAPI(b Backend) *DebugAPI {
 	return &DebugAPI{b: b}
 }
 
-func (api *DebugAPI) ClearUnderpriced() {
+func (api *DebugAPI) ClearUnderpriced() error {
 	if cl, ok := api.b.(interface{ ClearUnderpriced() }); ok {
 		cl.ClearUnderpriced()
+		return nil
+	} else {
+		return errors.New("API backend unable to clear underpriced txs")
 	}
 }
 
-func (api *DebugAPI) ListUnderpriced() []common.Hash {
+func (api *DebugAPI) ListUnderpriced() ([]common.Hash, error) {
 	if cl, ok := api.b.(interface{ ListUnderpriced() []common.Hash }); ok {
-		return cl.ListUnderpriced()
+		return cl.ListUnderpriced(), nil
+	} else {
+		return nil, errors.New("API backend unable to list underpriced txs")
 	}
-	return nil
 }
 
 // GetRawHeader retrieves the RLP encoding for a single header.

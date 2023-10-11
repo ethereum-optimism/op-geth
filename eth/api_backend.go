@@ -54,6 +54,14 @@ type EthAPIBackend struct {
 	gpo                 *gasprice.Oracle
 }
 
+func (b *EthAPIBackend) ClearUnderpriced() {
+	b.eth.ClearUnderpriced()
+}
+
+func (b *EthAPIBackend) ListUnderpriced() []common.Hash {
+	return b.eth.ListUnderpriced()
+}
+
 // ChainConfig returns the active chain configuration.
 func (b *EthAPIBackend) ChainConfig() *params.ChainConfig {
 	return b.eth.blockchain.Config()
