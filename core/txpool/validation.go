@@ -62,7 +62,8 @@ type ValidationOptions struct {
 //
 // This check is public to allow different transaction pools to check the basic
 // rules without duplicating code and running the risk of missed updates.
-func ValidateTransaction(tx *types.Transaction, head *types.Header, signer types.Signer, opts *ValidationOptions) error {
+// ONLY TO BE CALLED FROM "CeloValidateTransaction"
+func ValidateTransaction(tx *types.Transaction, head *types.Header, signer types.Signer, opts *CeloValidationOptions) error {
 	// No unauthenticated deposits allowed in the transaction pool.
 	// This is for spam protection, not consensus,
 	// as the external engine-API user authenticates deposits.
@@ -70,7 +71,7 @@ func ValidateTransaction(tx *types.Transaction, head *types.Header, signer types
 		return core.ErrTxTypeNotSupported
 	}
 	// Ensure transactions not implemented by the calling pool are rejected
-	if opts.Accept&(1<<tx.Type()) == 0 {
+	if opts.Accepts(tx.Type()) {
 		return fmt.Errorf("%w: tx type %v not supported by this pool", core.ErrTxTypeNotSupported, tx.Type())
 	}
 	// Before performing any expensive validations, sanity check that the tx is

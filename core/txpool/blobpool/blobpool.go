@@ -1024,13 +1024,14 @@ func (p *BlobPool) SetGasTip(tip *big.Int) {
 func (p *BlobPool) validateTx(tx *types.Transaction) error {
 	// Ensure the transaction adheres to basic pool filters (type, size, tip) and
 	// consensus rules
-	baseOpts := &txpool.ValidationOptions{
-		Config:  p.chain.Config(),
-		Accept:  1 << types.BlobTxType,
-		MaxSize: txMaxSize,
-		MinTip:  p.gasTip.ToBig(),
+	baseOpts := &txpool.CeloValidationOptions{
+		Config:    p.chain.Config(),
+		AcceptMap: txpool.NewAcceptMap(types.BlobTxType),
+		MaxSize:   txMaxSize,
+		MinTip:    p.gasTip.ToBig(),
 	}
-	if err := txpool.ValidateTransaction(tx, p.head, p.signer, baseOpts); err != nil {
+	var fcv txpool.FeeCurrencyValidator = nil // TODO: create with proper value
+	if err := txpool.CeloValidateTransaction(tx, p.head, p.signer, baseOpts, fcv); err != nil {
 		return err
 	}
 	// Ensure the transaction adheres to the stateful pool filters (nonce, balance)

@@ -603,19 +603,21 @@ func (pool *LegacyPool) local() map[common.Address]types.Transactions {
 // This check is meant as an early check which only needs to be performed once,
 // and does not require the pool mutex to be held.
 func (pool *LegacyPool) validateTxBasics(tx *types.Transaction, local bool) error {
-	opts := &txpool.ValidationOptions{
+	opts := &txpool.CeloValidationOptions{
 		Config: pool.chainconfig,
-		Accept: 0 |
-			1<<types.LegacyTxType |
-			1<<types.AccessListTxType |
-			1<<types.DynamicFeeTxType,
+		AcceptMap: txpool.NewAcceptMap(
+			types.LegacyTxType,
+			types.AccessListTxType,
+			types.DynamicFeeTxType,
+			types.CeloDynamicFeeTxType),
 		MaxSize: txMaxSize,
 		MinTip:  pool.gasTip.Load(),
 	}
 	if local {
 		opts.MinTip = new(big.Int)
 	}
-	if err := txpool.ValidateTransaction(tx, pool.currentHead.Load(), pool.signer, opts); err != nil {
+	var fcv txpool.FeeCurrencyValidator = nil // TODO: create with proper value
+	if err := txpool.CeloValidateTransaction(tx, pool.currentHead.Load(), pool.signer, opts, fcv); err != nil {
 		return err
 	}
 	return nil
@@ -1474,6 +1476,9 @@ func (pool *LegacyPool) promoteExecutables(accounts []common.Address) []*types.T
 				balance = new(big.Int).Sub(balance, l1Cost) // negative big int is fine
 			}
 		}
+		// CELO: drop all transactions that no longer have a whitelisted currency
+		var fcv txpool.FeeCurrencyValidator = nil // TODO: create proper instance
+		celoFilterWhitelisted(pool.currentHead.Load().Number, list, pool.all, fcv)
 		// Drop all transactions that are too costly (low balance or out of gas)
 		drops, _ := list.Filter(balance, gasLimit)
 		for _, tx := range drops {
