@@ -40,7 +40,7 @@ type ChainContext interface {
 }
 
 // NewEVMBlockContext creates a new context for use in the EVM.
-func NewEVMBlockContext(header *types.Header, chain ChainContext, author *common.Address, config *params.ChainConfig, statedb types.StateGetter) vm.BlockContext {
+func NewEVMBlockContext(header *types.Header, chain ChainContext, author *common.Address, config *params.ChainConfig, statedb vm.StateDB) vm.BlockContext {
 	var (
 		beneficiary common.Address
 		baseFee     *big.Int
@@ -63,7 +63,7 @@ func NewEVMBlockContext(header *types.Header, chain ChainContext, author *common
 	if header.Difficulty.Sign() == 0 {
 		random = &header.MixDigest
 	}
-	return vm.BlockContext{
+	blockContext := vm.BlockContext{
 		CanTransfer: CanTransfer,
 		Transfer:    Transfer,
 		GetHash:     GetHashFn(header, chain),
@@ -77,6 +77,10 @@ func NewEVMBlockContext(header *types.Header, chain ChainContext, author *common
 		Random:      random,
 		L1CostFunc:  types.NewL1CostFunc(config, statedb),
 	}
+
+	setCeloFieldsInBlockContext(&blockContext, header, config, statedb)
+
+	return blockContext
 }
 
 // NewEVMTxContext creates a new transaction context for a single transaction.
