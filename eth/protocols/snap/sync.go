@@ -37,11 +37,11 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
-	"github.com/ethereum/go-ethereum/light"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p/msgrate"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
+	"github.com/ethereum/go-ethereum/trie/trienode"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -738,8 +738,8 @@ func (s *Syncer) loadSyncStatus() {
 						s.accountBytes += common.StorageSize(len(key) + len(value))
 					},
 				}
-				task.genTrie = trie.NewStackTrie(func(owner common.Hash, path []byte, hash common.Hash, val []byte) {
-					rawdb.WriteTrieNode(task.genBatch, owner, path, hash, val, s.scheme)
+				task.genTrie = trie.NewStackTrie(func(path []byte, hash common.Hash, val []byte) {
+					rawdb.WriteTrieNode(task.genBatch, common.Hash{}, path, hash, val, s.scheme)
 				})
 				for accountHash, subtasks := range task.SubTasks {
 					for _, subtask := range subtasks {
@@ -751,9 +751,10 @@ func (s *Syncer) loadSyncStatus() {
 								s.storageBytes += common.StorageSize(len(key) + len(value))
 							},
 						}
-						subtask.genTrie = trie.NewStackTrieWithOwner(func(owner common.Hash, path []byte, hash common.Hash, val []byte) {
+						owner := accountHash // local assignment for stacktrie writer closure
+						subtask.genTrie = trie.NewStackTrie(func(path []byte, hash common.Hash, val []byte) {
 							rawdb.WriteTrieNode(subtask.genBatch, owner, path, hash, val, s.scheme)
-						}, accountHash)
+						})
 					}
 				}
 			}
@@ -810,8 +811,8 @@ func (s *Syncer) loadSyncStatus() {
 			Last:     last,
 			SubTasks: make(map[common.Hash][]*storageTask),
 			genBatch: batch,
-			genTrie: trie.NewStackTrie(func(owner common.Hash, path []byte, hash common.Hash, val []byte) {
-				rawdb.WriteTrieNode(batch, owner, path, hash, val, s.scheme)
+			genTrie: trie.NewStackTrie(func(path []byte, hash common.Hash, val []byte) {
+				rawdb.WriteTrieNode(batch, common.Hash{}, path, hash, val, s.scheme)
 			}),
 		})
 		log.Debug("Created account sync task", "from", next, "last", last)
@@ -2004,14 +2005,15 @@ func (s *Syncer) processStorageResponse(res *storageResponse) {
 							s.storageBytes += common.StorageSize(len(key) + len(value))
 						},
 					}
+					owner := account // local assignment for stacktrie writer closure
 					tasks = append(tasks, &storageTask{
 						Next:     common.Hash{},
 						Last:     r.End(),
 						root:     acc.Root,
 						genBatch: batch,
-						genTrie: trie.NewStackTrieWithOwner(func(owner common.Hash, path []byte, hash common.Hash, val []byte) {
+						genTrie: trie.NewStackTrie(func(path []byte, hash common.Hash, val []byte) {
 							rawdb.WriteTrieNode(batch, owner, path, hash, val, s.scheme)
-						}, account),
+						}),
 					})
 					for r.Next() {
 						batch := ethdb.HookedBatch{
@@ -2025,9 +2027,9 @@ func (s *Syncer) processStorageResponse(res *storageResponse) {
 							Last:     r.End(),
 							root:     acc.Root,
 							genBatch: batch,
-							genTrie: trie.NewStackTrieWithOwner(func(owner common.Hash, path []byte, hash common.Hash, val []byte) {
+							genTrie: trie.NewStackTrie(func(path []byte, hash common.Hash, val []byte) {
 								rawdb.WriteTrieNode(batch, owner, path, hash, val, s.scheme)
-							}, account),
+							}),
 						})
 					}
 					for _, task := range tasks {
@@ -2072,9 +2074,10 @@ func (s *Syncer) processStorageResponse(res *storageResponse) {
 		slots += len(res.hashes[i])
 
 		if i < len(res.hashes)-1 || res.subTask == nil {
-			tr := trie.NewStackTrieWithOwner(func(owner common.Hash, path []byte, hash common.Hash, val []byte) {
-				rawdb.WriteTrieNode(batch, owner, path, hash, val, s.scheme)
-			}, account)
+			// no need to make local reassignment of account: this closure does not outlive the loop
+			tr := trie.NewStackTrie(func(path []byte, hash common.Hash, val []byte) {
+				rawdb.WriteTrieNode(batch, account, path, hash, val, s.scheme)
+			})
 			for j := 0; j < len(res.hashes[i]); j++ {
 				tr.Update(res.hashes[i][j][:], res.slots[i][j])
 			}
@@ -2394,11 +2397,11 @@ func (s *Syncer) OnAccounts(peer SyncPeer, id uint64, hashes []common.Hash, acco
 	for i, key := range hashes {
 		keys[i] = common.CopyBytes(key[:])
 	}
-	nodes := make(light.NodeList, len(proof))
+	nodes := make(trienode.ProofList, len(proof))
 	for i, node := range proof {
 		nodes[i] = node
 	}
-	proofdb := nodes.NodeSet()
+	proofdb := nodes.Set()
 
 	var end []byte
 	if len(keys) > 0 {
@@ -2639,7 +2642,7 @@ func (s *Syncer) OnStorage(peer SyncPeer, id uint64, hashes [][]common.Hash, slo
 		for j, key := range hashes[i] {
 			keys[j] = common.CopyBytes(key[:])
 		}
-		nodes := make(light.NodeList, 0, len(proof))
+		nodes := make(trienode.ProofList, 0, len(proof))
 		if i == len(hashes)-1 {
 			for _, node := range proof {
 				nodes = append(nodes, node)
@@ -2658,7 +2661,7 @@ func (s *Syncer) OnStorage(peer SyncPeer, id uint64, hashes [][]common.Hash, slo
 		} else {
 			// A proof was attached, the response is only partial, check that the
 			// returned data is indeed part of the storage trie
-			proofdb := nodes.NodeSet()
+			proofdb := nodes.Set()
 
 			var end []byte
 			if len(keys) > 0 {
