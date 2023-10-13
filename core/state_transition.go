@@ -26,7 +26,11 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/params"
+
+	"golang.org/x/crypto/sha3"
 )
+
+const BVM_ETH_ADDR = "0xdEAddEaDdeadDEadDEADDEAddEADDEAddead1111"
 
 // ExecutionResult includes all output after executing given evm
 // message no matter the execution itself is successful or not.
@@ -144,26 +148,27 @@ type Message struct {
 	IsSystemTx    bool                // IsSystemTx indicates the message, if also a deposit, does not emit gas usage.
 	IsDepositTx   bool                // IsDepositTx indicates the message is force-included and can persist a mint.
 	Mint          *big.Int            // Mint is the amount to mint before EVM processing, or nil if there is no minting.
+	ETHValue      *big.Int            // ETHValue is the amount to mint BVM_ETH before EVM processing, or nil if there is no minting.
 	RollupDataGas types.RollupGasData // RollupDataGas indicates the rollup cost of the message, 0 if not a rollup or no cost.
 }
 
 // TransactionToMessage converts a transaction into a Message.
 func TransactionToMessage(tx *types.Transaction, s types.Signer, baseFee *big.Int) (*Message, error) {
 	msg := &Message{
-		Nonce:         tx.Nonce(),
-		GasLimit:      tx.Gas(),
-		GasPrice:      new(big.Int).Set(tx.GasPrice()),
-		GasFeeCap:     new(big.Int).Set(tx.GasFeeCap()),
-		GasTipCap:     new(big.Int).Set(tx.GasTipCap()),
-		To:            tx.To(),
-		Value:         tx.Value(),
-		Data:          tx.Data(),
-		AccessList:    tx.AccessList(),
-		IsSystemTx:    tx.IsSystemTx(),
-		IsDepositTx:   tx.IsDepositTx(),
-		Mint:          tx.Mint(),
-		RollupDataGas: tx.RollupDataGas(),
-
+		Nonce:             tx.Nonce(),
+		GasLimit:          tx.Gas(),
+		GasPrice:          new(big.Int).Set(tx.GasPrice()),
+		GasFeeCap:         new(big.Int).Set(tx.GasFeeCap()),
+		GasTipCap:         new(big.Int).Set(tx.GasTipCap()),
+		To:                tx.To(),
+		Value:             tx.Value(),
+		Data:              tx.Data(),
+		AccessList:        tx.AccessList(),
+		IsSystemTx:        tx.IsSystemTx(),
+		IsDepositTx:       tx.IsDepositTx(),
+		Mint:              tx.Mint(),
+		RollupDataGas:     tx.RollupDataGas(),
+		ETHValue:          tx.ETHValue(),
 		SkipAccountChecks: false,
 	}
 	// If baseFee provided, set gasPrice to effectiveGasPrice.
@@ -347,6 +352,12 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 	if mint := st.msg.Mint; mint != nil {
 		st.state.AddBalance(st.msg.From, mint)
 	}
+	//add eth value
+	if ethValue := st.msg.ETHValue; ethValue != nil && ethValue.Cmp(big.NewInt(0)) != 0 {
+		st.addBVMETHBalance(ethValue)
+		st.addBVMETHTotalSupply(ethValue)
+		st.generateBVMETHMintEvent(*st.msg.To, ethValue)
+	}
 	snap := st.state.Snapshot()
 
 	result, err := st.innerTransitionDb()
@@ -525,4 +536,53 @@ func (st *StateTransition) refundGas(refundQuotient uint64) {
 // gasUsed returns the amount of gas used up by the state transition.
 func (st *StateTransition) gasUsed() uint64 {
 	return st.initialGas - st.gasRemaining
+}
+
+func (st *StateTransition) addBVMETHBalance(ethValue *big.Int) {
+	bvmEth := common.HexToAddress(BVM_ETH_ADDR)
+	key := getBVMETHBalanceKey(*st.msg.To)
+	value := st.state.GetState(bvmEth, key)
+	bal := value.Big()
+	bal = bal.Add(bal, ethValue)
+	st.state.SetState(bvmEth, key, common.BigToHash(bal))
+}
+
+func (st *StateTransition) addBVMETHTotalSupply(ethValue *big.Int) {
+	bvmEth := common.HexToAddress(BVM_ETH_ADDR)
+	key := getBVMETHTotalSupplyKey()
+	value := st.state.GetState(bvmEth, key)
+	bal := value.Big()
+	bal = bal.Add(bal, ethValue)
+	st.state.SetState(bvmEth, key, common.BigToHash(bal))
+}
+
+func getBVMETHBalanceKey(addr common.Address) common.Hash {
+	position := common.Big0
+	hasher := sha3.NewLegacyKeccak256()
+	hasher.Write(common.LeftPadBytes(addr.Bytes(), 32))
+	hasher.Write(common.LeftPadBytes(position.Bytes(), 32))
+	digest := hasher.Sum(nil)
+	return common.BytesToHash(digest)
+}
+
+func getBVMETHTotalSupplyKey() common.Hash {
+	return common.BytesToHash(common.Big2.Bytes())
+}
+
+func (st *StateTransition) generateBVMETHMintEvent(mintAddress common.Address, mintValue *big.Int) {
+	// keccak("Mint(address,uint256)") = "0x0f6798a560793a54c3bcfe86a93cde1e73087d944c0ea20544137d4121396885"
+	methodHash := common.HexToHash("0x0f6798a560793a54c3bcfe86a93cde1e73087d944c0ea20544137d4121396885")
+	topics := make([]common.Hash, 2)
+	topics[0] = methodHash
+	topics[1] = mintAddress.Hash()
+	//data means the mint amount in MINT EVENT.
+	d := common.HexToHash(common.Bytes2Hex(mintValue.Bytes())).Bytes()
+	st.evm.StateDB.AddLog(&types.Log{
+		Address: common.HexToAddress(BVM_ETH_ADDR),
+		Topics:  topics,
+		Data:    d,
+		// This is a non-consensus field, but assigned here because
+		// core/state doesn't know the current block number.
+		BlockNumber: st.evm.Context.BlockNumber.Uint64(),
+	})
 }

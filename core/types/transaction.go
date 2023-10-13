@@ -326,11 +326,20 @@ func (tx *Transaction) SourceHash() common.Hash {
 	return common.Hash{}
 }
 
-// Mint returns the ETH to mint in the deposit tx.
+// Mint returns the MNT to mint in the deposit tx.
 // This returns nil if there is nothing to mint, or if this is not a deposit tx.
 func (tx *Transaction) Mint() *big.Int {
 	if dep, ok := tx.inner.(*DepositTx); ok {
 		return dep.Mint
+	}
+	return nil
+}
+
+// ETHValue returns the BVM_ETH to mint in the deposit tx.
+// This returns nil if there is nothing to mint, or if this is not a deposit tx.
+func (tx *Transaction) ETHValue() *big.Int {
+	if dep, ok := tx.inner.(*DepositTx); ok {
+		return dep.EthValue
 	}
 	return nil
 }

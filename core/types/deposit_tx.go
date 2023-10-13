@@ -39,6 +39,8 @@ type DepositTx struct {
 	Gas uint64
 	// Field indicating if this transaction is exempt from the L2 gas limit.
 	IsSystemTransaction bool
+	// EthValue means L2 BVM_ETH mint tag, nil means that there is no need to mint BVM_ETH.
+	EthValue *big.Int `rlp:"nil"`
 	// Normal Tx data
 	Data []byte
 }
@@ -54,12 +56,16 @@ func (tx *DepositTx) copy() TxData {
 		Gas:                 tx.Gas,
 		IsSystemTransaction: tx.IsSystemTransaction,
 		Data:                common.CopyBytes(tx.Data),
+		EthValue:            nil,
 	}
 	if tx.Mint != nil {
 		cpy.Mint = new(big.Int).Set(tx.Mint)
 	}
 	if tx.Value != nil {
 		cpy.Value.Set(tx.Value)
+	}
+	if tx.EthValue != nil {
+		cpy.EthValue = new(big.Int).Set(tx.EthValue)
 	}
 	return cpy
 }
