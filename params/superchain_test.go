@@ -59,8 +59,69 @@ func TestProtocolVersion_Compare(t *testing.T) {
 			B:   HumanProtocolVersion{0, 1, 3, 3, 3, [8]byte{3}},
 			Cmp: EmptyVersion,
 		},
+		{
+			A:   HumanProtocolVersion{0, 4, 0, 0, 0, [8]byte{}},
+			B:   HumanProtocolVersion{0, 4, 0, 0, 1, [8]byte{}},
+			Cmp: AheadMajor,
+		},
+		{
+			A:   HumanProtocolVersion{0, 4, 1, 0, 0, [8]byte{}},
+			B:   HumanProtocolVersion{0, 4, 1, 0, 1, [8]byte{}},
+			Cmp: AheadMinor,
+		},
+		{
+			A:   HumanProtocolVersion{0, 4, 0, 1, 0, [8]byte{}},
+			B:   HumanProtocolVersion{0, 4, 0, 1, 1, [8]byte{}},
+			Cmp: AheadPatch,
+		},
+		{
+			A:   HumanProtocolVersion{0, 4, 0, 0, 2, [8]byte{}},
+			B:   HumanProtocolVersion{0, 4, 0, 0, 1, [8]byte{}},
+			Cmp: AheadPrerelease,
+		},
+		{
+			A:   HumanProtocolVersion{0, 4, 1, 0, 1, [8]byte{}},
+			B:   HumanProtocolVersion{0, 4, 0, 0, 0, [8]byte{}},
+			Cmp: AheadPatch,
+		},
+		{
+			A:   HumanProtocolVersion{0, 4, 0, 1, 1, [8]byte{}},
+			B:   HumanProtocolVersion{0, 4, 0, 0, 0, [8]byte{}},
+			Cmp: AheadPrerelease,
+		},
+		{
+			A:   HumanProtocolVersion{0, 4, 1, 1, 1, [8]byte{}},
+			B:   HumanProtocolVersion{0, 4, 0, 0, 0, [8]byte{}},
+			Cmp: AheadMinor,
+		},
+		{
+			A:   HumanProtocolVersion{0, 4, 0, 2, 1, [8]byte{}},
+			B:   HumanProtocolVersion{0, 4, 0, 0, 0, [8]byte{}},
+			Cmp: AheadPatch,
+		},
+		{
+			A:   HumanProtocolVersion{0, 5, 0, 1, 1, [8]byte{}},
+			B:   HumanProtocolVersion{0, 4, 0, 0, 0, [8]byte{}},
+			Cmp: AheadMajor,
+		},
+		{
+			A:   HumanProtocolVersion{0, 1, 0, 0, 1, [8]byte{}},
+			B:   HumanProtocolVersion{0, 0, 9, 0, 0, [8]byte{}},
+			Cmp: AheadMinor,
+		},
+		{
+			A:   HumanProtocolVersion{0, 0, 1, 0, 1, [8]byte{}},
+			B:   HumanProtocolVersion{0, 0, 0, 9, 0, [8]byte{}},
+			Cmp: AheadPatch,
+		},
+		{
+			A:   HumanProtocolVersion{0, 1, ^uint32(0), 0, 1, [8]byte{}},
+			B:   HumanProtocolVersion{0, 0, 1, 0, 0, [8]byte{}},
+			Cmp: InvalidVersion,
+		},
 	}
 	for i, tc := range testCases {
+		tc := tc // not a parallel sub-test, but better than a flake
 		t.Run(fmt.Sprintf("case_%d", i), func(t *testing.T) {
 			a := ProtocolVersionV0{tc.A.Build, tc.A.Major, tc.A.Minor, tc.A.Patch, tc.A.Prerelease}.Encode()
 			a[0] = tc.A.VersionType
