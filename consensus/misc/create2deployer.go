@@ -8,7 +8,12 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 )
 
-var create2DeployerAddress = common.HexToAddress("0x13b0D85CcB8bf860b6b79AF3029fCA081AE9beF2")
+// create2Deployer is already deployed to Base goerli at 0x13b0D85CcB8bf860b6b79AF3029fCA081AE9beF2,
+// so we deploy it to 0x13b0D85CcB8bf860b6b79AF3029fCA081AE9beF1 for hardfork testing purposes
+var create2DeployerAddresses = map[uint64]common.Address{
+	params.BaseGoerliChainID:  common.HexToAddress("0x13b0D85CcB8bf860b6b79AF3029fCA081AE9beF1"),
+	params.BaseMainnetChainID: common.HexToAddress("0x13b0D85CcB8bf860b6b79AF3029fCA081AE9beF2"),
+}
 var create2DeployerCodeHash = common.HexToHash("0xb0550b5b431e30d38000efb7107aaa0ade03d48a7198a140edda9d27134468b2")
 var create2DeployerCode []byte
 
@@ -21,11 +26,12 @@ func init() {
 }
 
 func EnsureCreate2Deployer(c *params.ChainConfig, timestamp uint64, db vm.StateDB) {
-	if !c.IsOptimism() ||
-		c.ChainID.Uint64() != params.BaseMainnetChainID ||
-		c.CanyonTime == nil || *c.CanyonTime != timestamp ||
-		db.GetCodeSize(create2DeployerAddress) > 0 {
+	if !c.IsOptimism() || c.CanyonTime == nil || *c.CanyonTime != timestamp {
 		return
 	}
-	db.SetCode(create2DeployerAddress, create2DeployerCode)
+	address, ok := create2DeployerAddresses[c.ChainID.Uint64()]
+	if !ok || db.GetCodeSize(address) > 0 {
+		return
+	}
+	db.SetCode(address, create2DeployerCode)
 }
