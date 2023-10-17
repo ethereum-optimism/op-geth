@@ -103,9 +103,30 @@ var (
 	}
 	nonce                   = uint64(1234)
 	depositReceiptWithNonce = &Receipt{
-		Status:            ReceiptStatusFailed,
-		CumulativeGasUsed: 1,
-		DepositNonce:      &nonce,
+		Status:                ReceiptStatusFailed,
+		CumulativeGasUsed:     1,
+		DepositNonce:          &nonce,
+		DepositReceiptVersion: nil,
+		Logs: []*Log{
+			{
+				Address: common.BytesToAddress([]byte{0x11}),
+				Topics:  []common.Hash{common.HexToHash("dead"), common.HexToHash("beef")},
+				Data:    []byte{0x01, 0x00, 0xff},
+			},
+			{
+				Address: common.BytesToAddress([]byte{0x01, 0x11}),
+				Topics:  []common.Hash{common.HexToHash("dead"), common.HexToHash("beef")},
+				Data:    []byte{0x01, 0x00, 0xff},
+			},
+		},
+		Type: DepositTxType,
+	}
+	version                           = CanyonDepositReceiptVersion
+	depositReceiptWithNonceAndVersion = &Receipt{
+		Status:                ReceiptStatusFailed,
+		CumulativeGasUsed:     1,
+		DepositNonce:          &nonce,
+		DepositReceiptVersion: &version,
 		Logs: []*Log{
 			{
 				Address: common.BytesToAddress([]byte{0x11}),
@@ -192,11 +213,18 @@ var (
 			Value: big.NewInt(6),
 			Gas:   50,
 		}),
+		NewTx(&DepositTx{
+			To:    nil, // contract creation
+			Value: big.NewInt(6),
+			Gas:   60,
+		}),
 	}
-	depNonce    = uint64(7)
-	blockNumber = big.NewInt(1)
-	blockTime   = uint64(2)
-	blockHash   = common.BytesToHash([]byte{0x03, 0x14})
+	depNonce1                   = uint64(7)
+	depNonce2                   = uint64(8)
+	blockNumber                 = big.NewInt(1)
+	blockTime                   = uint64(2)
+	blockHash                   = common.BytesToHash([]byte{0x03, 0x14})
+	canyonDepositReceiptVersion = CanyonDepositReceiptVersion
 
 	// Create the corresponding receipts
 	receipts = Receipts{
@@ -362,14 +390,51 @@ var (
 					Index:       5,
 				},
 			},
-			TxHash:            txs[7].Hash(),
-			ContractAddress:   common.HexToAddress("0x3bb898b4bbe24f68a4e9be46cfe72d1787fd74f4"),
-			GasUsed:           50,
-			EffectiveGasPrice: big.NewInt(0),
-			BlockHash:         blockHash,
-			BlockNumber:       blockNumber,
-			TransactionIndex:  7,
-			DepositNonce:      &depNonce,
+			TxHash:                txs[7].Hash(),
+			ContractAddress:       common.HexToAddress("0x3bb898b4bbe24f68a4e9be46cfe72d1787fd74f4"),
+			GasUsed:               50,
+			EffectiveGasPrice:     big.NewInt(0),
+			BlockHash:             blockHash,
+			BlockNumber:           blockNumber,
+			TransactionIndex:      7,
+			DepositNonce:          &depNonce1,
+			DepositReceiptVersion: nil,
+		},
+		&Receipt{
+			Type:              DepositTxType,
+			PostState:         common.Hash{5}.Bytes(),
+			CumulativeGasUsed: 60 + 50 + 28,
+			Logs: []*Log{
+				{
+					Address: common.BytesToAddress([]byte{0x33}),
+					Topics:  []common.Hash{common.HexToHash("dead"), common.HexToHash("beef")},
+					// derived fields:
+					BlockNumber: blockNumber.Uint64(),
+					TxHash:      txs[8].Hash(),
+					TxIndex:     8,
+					BlockHash:   blockHash,
+					Index:       6,
+				},
+				{
+					Address: common.BytesToAddress([]byte{0x03, 0x33}),
+					Topics:  []common.Hash{common.HexToHash("dead"), common.HexToHash("beef")},
+					// derived fields:
+					BlockNumber: blockNumber.Uint64(),
+					TxHash:      txs[8].Hash(),
+					TxIndex:     8,
+					BlockHash:   blockHash,
+					Index:       7,
+				},
+			},
+			TxHash:                txs[8].Hash(),
+			ContractAddress:       common.HexToAddress("0x117814af22cb83d8ad6e8489e9477d28265bc105"),
+			GasUsed:               60,
+			EffectiveGasPrice:     big.NewInt(0),
+			BlockHash:             blockHash,
+			BlockNumber:           blockNumber,
+			TransactionIndex:      8,
+			DepositNonce:          &depNonce2,
+			DepositReceiptVersion: &canyonDepositReceiptVersion,
 		},
 	}
 )
@@ -745,6 +810,53 @@ func TestBedrockDepositReceiptUnchanged(t *testing.T) {
 	require.EqualValues(t, receipt.Logs, parsed.Logs)
 	// And still shouldn't have a nonce
 	require.Nil(t, parsed.DepositNonce)
+	// ..or a deposit nonce
+	require.Nil(t, parsed.DepositReceiptVersion)
+}
+
+// Regolith introduced an inconsistency in behavior between EncodeIndex and MarshalBinary for a
+// deposit transaction receipt. TestReceiptEncodeIndexBugIsEnshrined makes sure this difference is
+// preserved for backwards compatibility purposes, but also that there is no discrepancy for the
+// post-Canyon encoding.
+func TestReceiptEncodeIndexBugIsEnshrined(t *testing.T) {
+	// Check that a post-Regolith, pre-Canyon receipt produces the expected difference between
+	// EncodeIndex and MarshalBinary.
+	buf := new(bytes.Buffer)
+	receipts := Receipts{depositReceiptWithNonce}
+	receipts.EncodeIndex(0, buf)
+	indexBytes := buf.Bytes()
+
+	regularBytes, _ := receipts[0].MarshalBinary()
+
+	require.NotEqual(t, indexBytes, regularBytes)
+
+	// Confirm the buggy encoding is as expected, which means it should encode as if it had no
+	// nonce specified (like that of a non-deposit receipt, whose encoding would differ only in the
+	// type byte).
+	buf.Reset()
+	tempReceipt := *depositReceiptWithNonce
+	tempReceipt.Type = eip1559Receipt.Type
+	buggyBytes, _ := tempReceipt.MarshalBinary()
+
+	require.Equal(t, indexBytes[1:], buggyBytes[1:])
+
+	// check that the post-Canyon encoding has no differences between EncodeIndex and
+	// MarshalBinary.
+	buf.Reset()
+	receipts = Receipts{depositReceiptWithNonceAndVersion}
+	receipts.EncodeIndex(0, buf)
+	indexBytes = buf.Bytes()
+
+	regularBytes, _ = receipts[0].MarshalBinary()
+
+	require.Equal(t, indexBytes, regularBytes)
+
+	// Check that bumping the nonce post-canyon changes the hash
+	bumpedReceipt := *depositReceiptWithNonceAndVersion
+	bumpedNonce := nonce + 1
+	bumpedReceipt.DepositNonce = &bumpedNonce
+	bumpedBytes, _ := bumpedReceipt.MarshalBinary()
+	require.NotEqual(t, regularBytes, bumpedBytes)
 }
 
 func TestRoundTripReceipt(t *testing.T) {
@@ -757,6 +869,7 @@ func TestRoundTripReceipt(t *testing.T) {
 		{name: "EIP1559", rcpt: eip1559Receipt},
 		{name: "DepositNoNonce", rcpt: depositReceiptNoNonce},
 		{name: "DepositWithNonce", rcpt: depositReceiptWithNonce},
+		{name: "DepositWithNonceAndVersion", rcpt: depositReceiptWithNonceAndVersion},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -767,6 +880,8 @@ func TestRoundTripReceipt(t *testing.T) {
 			err = d.UnmarshalBinary(data)
 			require.NoError(t, err)
 			require.Equal(t, test.rcpt, d)
+			require.Equal(t, test.rcpt.DepositNonce, d.DepositNonce)
+			require.Equal(t, test.rcpt.DepositReceiptVersion, d.DepositReceiptVersion)
 		})
 
 		t.Run(fmt.Sprintf("%sRejectExtraData", test.name), func(t *testing.T) {
@@ -790,6 +905,7 @@ func TestRoundTripReceiptForStorage(t *testing.T) {
 		{name: "EIP1559", rcpt: eip1559Receipt},
 		{name: "DepositNoNonce", rcpt: depositReceiptNoNonce},
 		{name: "DepositWithNonce", rcpt: depositReceiptWithNonce},
+		{name: "DepositWithNonceAndVersion", rcpt: depositReceiptWithNonceAndVersion},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -804,6 +920,7 @@ func TestRoundTripReceiptForStorage(t *testing.T) {
 			require.Equal(t, test.rcpt.CumulativeGasUsed, d.CumulativeGasUsed)
 			require.Equal(t, test.rcpt.Logs, d.Logs)
 			require.Equal(t, test.rcpt.DepositNonce, d.DepositNonce)
+			require.Equal(t, test.rcpt.DepositReceiptVersion, d.DepositReceiptVersion)
 		})
 	}
 }
