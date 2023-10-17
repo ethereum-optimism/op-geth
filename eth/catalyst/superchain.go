@@ -60,5 +60,7 @@ func LogProtocolVersionSupport(logger log.Logger, local, other params.ProtocolVe
 		logger.Warn(fmt.Sprintf("Failed to recognize %s protocol version signal version-type", name))
 	case params.EmptyVersion:
 		logger.Debug(fmt.Sprintf("No %s protocol version available to check", name))
+	case params.InvalidVersion:
+		logger.Warn(fmt.Sprintf("Invalid protocol version comparison with %s", name))
 	}
 }

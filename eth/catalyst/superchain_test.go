@@ -39,6 +39,7 @@ func TestSignalSuperchainV1(t *testing.T) {
 }
 
 func TestSignalSuperchainV1Halt(t *testing.T) {
+	// Note: depending on the params.OPStackSupport some types of bumps are not possible with active prerelease
 	testCases := []struct {
 		cfg  string
 		bump string
@@ -56,6 +57,7 @@ func TestSignalSuperchainV1Halt(t *testing.T) {
 		{"patch", "patch", true},
 	}
 	for _, tc := range testCases {
+		tc := tc
 		t.Run(tc.cfg+"_"+tc.bump, func(t *testing.T) {
 			genesis, preMergeBlocks := generateMergeChain(2, false)
 			ethcfg := &ethconfig.Config{Genesis: genesis, SyncMode: downloader.FullSync, TrieTimeout: time.Minute, TrieDirtyCache: 256, TrieCleanCache: 256}
@@ -64,6 +66,24 @@ func TestSignalSuperchainV1Halt(t *testing.T) {
 			defer n.Close() // close at the end, regardless of any prior (failed) closing
 			api := NewConsensusAPI(ethservice)
 			_, build, major, minor, patch, preRelease := params.OPStackSupport.Parse()
+			if preRelease != 0 { // transform back from prerelease, so we can do a clean version bump
+				if patch != 0 {
+					patch -= 1
+				} else if minor != 0 {
+					// can't patch-bump e.g. v3.1.0-1, the prerelease forces a minor bump:
+					// v3.0.999 is lower than the prerelease, v3.1.1-1 is a prerelease of v3.1.1.
+					if tc.bump == "patch" {
+						t.Skip()
+					}
+					minor -= 1
+				} else if major != 0 {
+					if tc.bump == "minor" || tc.bump == "patch" { // can't minor-bump or patch-bump
+						t.Skip()
+					}
+					major -= 1
+				}
+				preRelease = 0
+			}
 			majorSignal, minorSignal, patchSignal := major, minor, patch
 			switch tc.bump {
 			case "major":
@@ -84,14 +104,14 @@ func TestSignalSuperchainV1Halt(t *testing.T) {
 				t.Fatalf("expected %s but got %s", params.OPStackSupport, out)
 			}
 			closeErr := n.Close()
-			if tc.halt {
+			if !tc.halt {
 				// assert no halt by closing, and not getting any error
-				if closeErr == nil {
+				if closeErr != nil {
 					t.Fatalf("expected not to have closed already, but just closed without error")
 				}
 			} else {
-				// assert halt by closing again, and seeing if things error
-				if closeErr == node.ErrNodeStopped {
+				// assert halt by closing again, and seeing if we are not stopped already
+				if closeErr != node.ErrNodeStopped {
 					t.Fatalf("expected to have already closed and get a ErrNodeStopped error, but got %v", closeErr)
 				}
 			}
