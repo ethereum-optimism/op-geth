@@ -69,7 +69,6 @@ func TestSignalSuperchainV1Halt(t *testing.T) {
 			if preRelease != 0 { // transform back from prerelease, so we can do a clean version bump
 				if patch != 0 {
 					patch -= 1
-					preRelease = 0
 				} else if minor != 0 {
 					// can't patch-bump e.g. v3.1.0-1, the prerelease forces a minor bump:
 					// v3.0.999 is lower than the prerelease, v3.1.1-1 is a prerelease of v3.1.1.
