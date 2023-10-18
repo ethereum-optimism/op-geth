@@ -16,6 +16,8 @@ var NonWhitelistedFeeCurrencyError = errors.New("Fee currency given is not white
 // block number.
 type FeeCurrencyValidator interface {
 	IsWhitelisted(feeCurrency *common.Address, at *big.Int) bool
+	// Balance returns the feeCurrency balance of the address specified, in the given state.
+	// If feeCurrency is nil, the native currency balance has to be returned.
 	Balance(st *state.StateDB, address common.Address, feeCurrency *common.Address) *big.Int
 }
 

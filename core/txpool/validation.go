@@ -241,13 +241,10 @@ func ValidateTransactionWithState(tx *types.Transaction, signer types.Signer, op
 		}
 	}
 	// Ensure the transactor has enough funds to cover the transaction costs
-	var balance, cost *big.Int
-	if FeeCurrencyTx(tx) {
+	var (
 		balance = opts.FeeCurrencyValidator.Balance(opts.State, from, tx.FeeCurrency())
-	} else {
-		balance = opts.State.GetBalance(from)
-	}
-	cost = tx.Cost()
+		cost    = tx.Cost()
+	)
 	if opts.L1CostFn != nil {
 		if l1Cost := opts.L1CostFn(tx.RollupDataGas()); l1Cost != nil { // add rollup cost
 			cost = cost.Add(cost, l1Cost)

@@ -311,6 +311,9 @@ type BlobPool struct {
 	eventScope event.SubscriptionScope // Event scope to track and mass unsubscribe on termination
 
 	lock sync.RWMutex // Mutex protecting the pool during reorg handling
+
+	// Celo
+	feeCurrencyValidator txpool.FeeCurrencyValidator
 }
 
 // New creates a new blob transaction pool to gather, sort and filter inbound
@@ -1035,7 +1038,7 @@ func (p *BlobPool) validateTx(tx *types.Transaction) error {
 		return err
 	}
 	// Ensure the transaction adheres to the stateful pool filters (nonce, balance)
-	stateOpts := &txpool.ValidationOptionsWithState{
+	stateOpts := &txpool.CeloValidationOptionsWithState{
 		State: p.state,
 
 		FirstNonceGap: func(addr common.Address) uint64 {
@@ -1064,6 +1067,7 @@ func (p *BlobPool) validateTx(tx *types.Transaction) error {
 			}
 			return nil
 		},
+		FeeCurrencyValidator: p.feeCurrencyValidator,
 	}
 	if err := txpool.ValidateTransactionWithState(tx, p.signer, stateOpts); err != nil {
 		return err
