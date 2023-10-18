@@ -21,6 +21,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
+	"github.com/ethereum/go-ethereum/consensus/misc/eip4844"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/params"
@@ -41,6 +42,7 @@ func NewEVMBlockContext(header *types.Header, chain ChainContext, author *common
 	var (
 		beneficiary common.Address
 		baseFee     *big.Int
+		blobBaseFee *big.Int
 		random      *common.Hash
 	)
 
@@ -53,22 +55,25 @@ func NewEVMBlockContext(header *types.Header, chain ChainContext, author *common
 	if header.BaseFee != nil {
 		baseFee = new(big.Int).Set(header.BaseFee)
 	}
+	if header.ExcessBlobGas != nil {
+		blobBaseFee = eip4844.CalcBlobFee(*header.ExcessBlobGas)
+	}
 	if header.Difficulty.Cmp(common.Big0) == 0 {
 		random = &header.MixDigest
 	}
 	return vm.BlockContext{
-		CanTransfer:   CanTransfer,
-		Transfer:      Transfer,
-		GetHash:       GetHashFn(header, chain),
-		Coinbase:      beneficiary,
-		BlockNumber:   new(big.Int).Set(header.Number),
-		Time:          header.Time,
-		Difficulty:    new(big.Int).Set(header.Difficulty),
-		BaseFee:       baseFee,
-		GasLimit:      header.GasLimit,
-		Random:        random,
-		ExcessBlobGas: header.ExcessBlobGas,
-		L1CostFunc:    types.NewL1CostFunc(config, statedb),
+		CanTransfer: CanTransfer,
+		Transfer:    Transfer,
+		GetHash:     GetHashFn(header, chain),
+		Coinbase:    beneficiary,
+		BlockNumber: new(big.Int).Set(header.Number),
+		Time:        header.Time,
+		Difficulty:  new(big.Int).Set(header.Difficulty),
+		BaseFee:     baseFee,
+		BlobBaseFee: blobBaseFee,
+		GasLimit:    header.GasLimit,
+		Random:      random,
+		L1CostFunc:  types.NewL1CostFunc(config, statedb),
 	}
 }
 
