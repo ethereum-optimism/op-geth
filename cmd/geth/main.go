@@ -310,6 +310,9 @@ func prepare(ctx *cli.Context) {
      to 0, and discovery is disabled.
 `)
 
+	case ctx.IsSet(utils.BetaOPNetworkFlag.Name):
+		log.Info("Starting geth on an OP network...", "network", ctx.String(utils.BetaOPNetworkFlag.Name))
+
 	case !ctx.IsSet(utils.NetworkIdFlag.Name):
 		log.Info("Starting Geth on Ethereum mainnet...")
 	}
@@ -321,7 +324,14 @@ func prepare(ctx *cli.Context) {
 			!ctx.IsSet(utils.GoerliFlag.Name) &&
 			!ctx.IsSet(utils.DeveloperFlag.Name) {
 			// Nope, we're really on mainnet. Bump that cache up!
+			// Note: If we don't set the OPNetworkFlag and have already initialized the database, we may hit this case.
 			log.Info("Bumping default cache on mainnet", "provided", ctx.Int(utils.CacheFlag.Name), "updated", 4096)
+			ctx.Set(utils.CacheFlag.Name, strconv.Itoa(4096))
+		}
+	} else if ctx.String(utils.SyncModeFlag.Name) != "light" && !ctx.IsSet(utils.CacheFlag.Name) && ctx.IsSet(utils.BetaOPNetworkFlag.Name) {
+		// We haven't set the cache, but may used the OP network flag we may be on an OP stack mainnet.
+		if strings.Contains(ctx.String(utils.BetaOPNetworkFlag.Name), "mainnet") {
+			log.Info("Bumping default cache on mainnet", "provided", ctx.Int(utils.CacheFlag.Name), "updated", 4096, "network", ctx.String(utils.BetaOPNetworkFlag.Name))
 			ctx.Set(utils.CacheFlag.Name, strconv.Itoa(4096))
 		}
 	}

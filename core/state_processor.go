@@ -141,9 +141,15 @@ func applyTransaction(msg *Message, config *params.ChainConfig, gp *GasPool, sta
 	receipt.GasUsed = result.UsedGas
 
 	if msg.IsDepositTx && config.IsOptimismRegolith(evm.Context.Time) {
-		// The actual nonce for deposit transactions is only recorded from Regolith onwards.
-		// Before the Regolith fork the DepositNonce must remain nil
+		// The actual nonce for deposit transactions is only recorded from Regolith onwards and
+		// otherwise must be nil.
 		receipt.DepositNonce = &nonce
+		// The DepositReceiptVersion for deposit transactions is only recorded from Canyon onwards
+		// and otherwise must be nil.
+		if config.IsOptimismCanyon(evm.Context.Time) {
+			receipt.DepositReceiptVersion = new(uint64)
+			*receipt.DepositReceiptVersion = types.CanyonDepositReceiptVersion
+		}
 	}
 	if tx.Type() == types.BlobTxType {
 		receipt.BlobGasUsed = uint64(len(tx.BlobHashes()) * params.BlobTxBlobGasPerBlob)
