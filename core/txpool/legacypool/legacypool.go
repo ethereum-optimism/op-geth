@@ -1476,16 +1476,15 @@ func (pool *LegacyPool) promoteExecutables(accounts []common.Address) []*types.T
 		celoFilterWhitelisted(pool.currentHead.Load().Number, list, pool.all, pool.feeCurrencyValidator)
 		// Drop all transactions that are too costly (low balance or out of gas)
 
-		balance := pool.currentState.GetBalance(addr)
+		var l1Cost *big.Int
 		if !list.Empty() && pool.l1CostFn != nil {
 			// Reduce the cost-cap by L1 rollup cost of the first tx if necessary. Other txs will get filtered out afterwards.
 			el := list.txs.FirstElement()
-			if l1Cost := pool.l1CostFn(el.RollupDataGas()); l1Cost != nil {
-				balance = new(big.Int).Sub(balance, l1Cost) // negative big int is fine
-			}
+			l1Cost = pool.l1CostFn(el.RollupDataGas())
 		}
-
-		drops, _ := list.Filter(balance, gasLimit)
+		// Drop all transactions that are too costly (low balance or out of gas), and queue any invalids back for later
+		drops, _ := celoFilterBalance(l1Cost, gasLimit, list,
+			pool.feeCurrencyValidator)
 		for _, tx := range drops {
 			hash := tx.Hash()
 			pool.all.Remove(hash)
