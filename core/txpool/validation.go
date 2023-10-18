@@ -222,7 +222,7 @@ type ValidationOptionsWithState struct {
 //
 // This check is public to allow different transaction pools to check the stateful
 // rules without duplicating code and running the risk of missed updates.
-func ValidateTransactionWithState(tx *types.Transaction, signer types.Signer, opts *ValidationOptionsWithState) error {
+func ValidateTransactionWithState(tx *types.Transaction, signer types.Signer, opts *CeloValidationOptionsWithState) error {
 	// Ensure the transaction adheres to nonce ordering
 	from, err := signer.Sender(tx) // already validated (and cached), but cleaner to check
 	if err != nil {
@@ -241,10 +241,13 @@ func ValidateTransactionWithState(tx *types.Transaction, signer types.Signer, op
 		}
 	}
 	// Ensure the transactor has enough funds to cover the transaction costs
-	var (
+	var balance, cost *big.Int
+	if FeeCurrencyTx(tx) {
+		balance = opts.FeeCurrencyValidator.Balance(opts.State, from, tx.FeeCurrency())
+	} else {
 		balance = opts.State.GetBalance(from)
-		cost    = tx.Cost()
-	)
+	}
+	cost = tx.Cost()
 	if opts.L1CostFn != nil {
 		if l1Cost := opts.L1CostFn(tx.RollupDataGas()); l1Cost != nil { // add rollup cost
 			cost = cost.Add(cost, l1Cost)

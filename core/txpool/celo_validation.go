@@ -5,6 +5,7 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/params"
 )
@@ -15,6 +16,7 @@ var NonWhitelistedFeeCurrencyError = errors.New("Fee currency given is not white
 // block number.
 type FeeCurrencyValidator interface {
 	IsWhitelisted(feeCurrency *common.Address, at *big.Int) bool
+	Balance(st *state.StateDB, address common.Address, feeCurrency *common.Address) *big.Int
 }
 
 // AcceptMap is a set of accepted transaction types for a transaction subpool.
@@ -77,4 +79,36 @@ func FeeCurrencyTxType(t uint8) bool {
 // gas fee currency.
 func FeeCurrencyTx(tx *types.Transaction) bool {
 	return FeeCurrencyTxType(tx.Type()) && tx.FeeCurrency() != nil
+}
+
+// See: txpool.ValidationOptionsWithState
+type CeloValidationOptionsWithState struct {
+	State *state.StateDB // State database to check nonces and balances against
+
+	// FirstNonceGap is an optional callback to retrieve the first nonce gap in
+	// the list of pooled transactions of a specific account. If this method is
+	// set, nonce gaps will be checked and forbidden. If this method is not set,
+	// nonce gaps will be ignored and permitted.
+	FirstNonceGap func(addr common.Address) uint64
+
+	// UsedAndLeftSlots is a mandatory callback to retrieve the number of tx slots
+	// used and the number still permitted for an account. New transactions will
+	// be rejected once the number of remaining slots reaches zero.
+	UsedAndLeftSlots func(addr common.Address) (int, int)
+
+	// ExistingExpenditure is a mandatory callback to retrieve the cummulative
+	// cost of the already pooled transactions to check for overdrafts.
+	ExistingExpenditure func(addr common.Address) *big.Int
+
+	// ExistingCost is a mandatory callback to retrieve an already pooled
+	// transaction's cost with the given nonce to check for overdrafts.
+	ExistingCost func(addr common.Address, nonce uint64) *big.Int
+
+	// L1CostFn is an optional extension, to validate L1 rollup costs of a tx
+	L1CostFn L1CostFunc
+
+	// Celo
+
+	// FeeCurrencyValidator allows for balance check of non native fee currencies.
+	FeeCurrencyValidator FeeCurrencyValidator
 }
