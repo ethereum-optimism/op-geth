@@ -392,8 +392,10 @@ func (c *CliqueConfig) String() string {
 
 // OptimismConfig is the optimism config.
 type OptimismConfig struct {
-	EIP1559Elasticity  uint64 `json:"eip1559Elasticity"`
-	EIP1559Denominator uint64 `json:"eip1559Denominator"`
+	EIP1559Elasticity            uint64 `json:"eip1559Elasticity"`
+	EIP1559Denominator           uint64 `json:"eip1559Denominator"`
+	EIP1559DenominatorPostCanyon uint64 `json:"eip1559DenominatorPostCanyon"`
+	L2BlockTime                  uint64 `json:"l2BlockTime"`
 }
 
 // String implements the stringer interface, returning the optimism fee config details.
@@ -798,8 +800,11 @@ func (c *ChainConfig) checkCompatible(newcfg *ChainConfig, headNumber *big.Int, 
 }
 
 // BaseFeeChangeDenominator bounds the amount the base fee can change between blocks.
-func (c *ChainConfig) BaseFeeChangeDenominator() uint64 {
+func (c *ChainConfig) BaseFeeChangeDenominator(parentTime uint64) uint64 {
 	if c.Optimism != nil {
+		if c.IsCanyon(parentTime + c.Optimism.L2BlockTime) {
+			return c.Optimism.EIP1559DenominatorPostCanyon
+		}
 		return c.Optimism.EIP1559Denominator
 	}
 	return DefaultBaseFeeChangeDenominator

@@ -75,8 +75,10 @@ func LoadOPStackChainConfig(chainID uint64) (*ChainConfig, error) {
 		Ethash:                        nil,
 		Clique:                        nil,
 		Optimism: &OptimismConfig{
-			EIP1559Elasticity:  6,
-			EIP1559Denominator: 50,
+			EIP1559Elasticity:            6,
+			EIP1559Denominator:           50,
+			EIP1559DenominatorPostCanyon: 250,
+			L2BlockTime:                  2, // TODO: Make sure to override this if this is set in the superchain registry
 		},
 	}
 
