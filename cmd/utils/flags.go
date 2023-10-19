@@ -916,9 +916,10 @@ var (
 		Category: flags.RollupCategory,
 	}
 	RollupSuperchainUpgradesFlag = &cli.BoolFlag{
-		Name:     "beta.rollup.superchain-upgrades",
-		Usage:    "Beta feature: apply superchain-registry config changes to the local chain-configuration",
-		Category: flags.EthCategory,
+		Name:     "rollup.superchain-upgrades",
+		Aliases:  []string{"beta.rollup.superchain-upgrades"},
+		Usage:    "Apply superchain-registry config changes to the local chain-configuration",
+		Category: flags.RollupCategory,
 	}
 
 	// Metrics flags
