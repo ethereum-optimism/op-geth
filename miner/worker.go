@@ -549,60 +549,75 @@ func (w *worker) mainLoop() {
 		}
 	}()
 
+	logTime := func(workType string, action func()) {
+		start := time.Now()
+		defer func() {
+			elapsed := time.Since(start)
+			log.Trace("Completed work", "type", workType, "elapsed", common.PrettyDuration(elapsed))
+		}()
+		action()
+	}
+
 	for {
 		select {
 		case req := <-w.newWorkCh:
-			w.commitWork(req.interrupt, req.timestamp)
+			logTime("newWork", func() {
+				w.commitWork(req.interrupt, req.timestamp)
+			})
 
 		case req := <-w.getWorkCh:
-			req.result <- w.generateWork(req.params)
+			logTime("getWork", func() {
+				req.result <- w.generateWork(req.params)
+			})
 
 		case ev := <-w.txsCh:
-			if w.chainConfig.Optimism != nil && !w.config.RollupComputePendingBlock {
-				continue // don't update the pending-block snapshot if we are not computing the pending block
-			}
-			// Apply transactions to the pending state if we're not sealing
-			//
-			// Note all transactions received may not be continuous with transactions
-			// already included in the current sealing block. These transactions will
-			// be automatically eliminated.
-			if !w.isRunning() && w.current != nil {
-				// If block is already full, abort
-				if gp := w.current.gasPool; gp != nil && gp.Gas() < params.TxGas {
-					continue
+			logTime("txsCh", func() {
+				if w.chainConfig.Optimism != nil && !w.config.RollupComputePendingBlock {
+					return // don't update the pending-block snapshot if we are not computing the pending block
 				}
-				txs := make(map[common.Address][]*txpool.LazyTransaction, len(ev.Txs))
-				for _, tx := range ev.Txs {
-					acc, _ := types.Sender(w.current.signer, tx)
-					txs[acc] = append(txs[acc], &txpool.LazyTransaction{
-						Pool:      w.eth.TxPool(), // We don't know where this came from, yolo resolve from everywhere
-						Hash:      tx.Hash(),
-						Tx:        nil, // Do *not* set this! We need to resolve it later to pull blobs in
-						Time:      tx.Time(),
-						GasFeeCap: tx.GasFeeCap(),
-						GasTipCap: tx.GasTipCap(),
-						Gas:       tx.Gas(),
-						BlobGas:   tx.BlobGas(),
-					})
-				}
-				txset := newTransactionsByPriceAndNonce(w.current.signer, txs, w.current.header.BaseFee)
-				tcount := w.current.tcount
-				w.commitTransactions(w.current, txset, nil)
+				// Apply transactions to the pending state if we're not sealing
+				//
+				// Note all transactions received may not be continuous with transactions
+				// already included in the current sealing block. These transactions will
+				// be automatically eliminated.
+				if !w.isRunning() && w.current != nil {
+					// If block is already full, abort
+					if gp := w.current.gasPool; gp != nil && gp.Gas() < params.TxGas {
+						return
+					}
+					txs := make(map[common.Address][]*txpool.LazyTransaction, len(ev.Txs))
+					for _, tx := range ev.Txs {
+						acc, _ := types.Sender(w.current.signer, tx)
+						txs[acc] = append(txs[acc], &txpool.LazyTransaction{
+							Pool:      w.eth.TxPool(), // We don't know where this came from, yolo resolve from everywhere
+							Hash:      tx.Hash(),
+							Tx:        nil, // Do *not* set this! We need to resolve it later to pull blobs in
+							Time:      tx.Time(),
+							GasFeeCap: tx.GasFeeCap(),
+							GasTipCap: tx.GasTipCap(),
+							Gas:       tx.Gas(),
+							BlobGas:   tx.BlobGas(),
+						})
+					}
+					txset := newTransactionsByPriceAndNonce(w.current.signer, txs, w.current.header.BaseFee)
+					tcount := w.current.tcount
+					w.commitTransactions(w.current, txset, nil)
 
-				// Only update the snapshot if any new transactions were added
-				// to the pending block
-				if tcount != w.current.tcount {
-					w.updateSnapshot(w.current)
+					// Only update the snapshot if any new transactions were added
+					// to the pending block
+					if tcount != w.current.tcount {
+						w.updateSnapshot(w.current)
+					}
+				} else {
+					// Special case, if the consensus engine is 0 period clique(dev mode),
+					// submit sealing work here since all empty submission will be rejected
+					// by clique. Of course the advance sealing(empty submission) is disabled.
+					if w.chainConfig.Clique != nil && w.chainConfig.Clique.Period == 0 {
+						w.commitWork(nil, time.Now().Unix())
+					}
 				}
-			} else {
-				// Special case, if the consensus engine is 0 period clique(dev mode),
-				// submit sealing work here since all empty submission will be rejected
-				// by clique. Of course the advance sealing(empty submission) is disabled.
-				if w.chainConfig.Clique != nil && w.chainConfig.Clique.Period == 0 {
-					w.commitWork(nil, time.Now().Unix())
-				}
-			}
-			w.newTxs.Add(int32(len(ev.Txs)))
+				w.newTxs.Add(int32(len(ev.Txs)))
+			})
 
 		// System stopped
 		case <-w.exitCh:
