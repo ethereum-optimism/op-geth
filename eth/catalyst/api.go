@@ -228,8 +228,18 @@ func checkAttribute(active func(*big.Int, uint64) bool, exists bool, block *big.
 }
 
 func (api *ConsensusAPI) forkchoiceUpdated(update engine.ForkchoiceStateV1, payloadAttributes *engine.PayloadAttributes) (engine.ForkChoiceResponse, error) {
+	start := time.Now()
+	timings := []interface{}{"method", "ForkchoiceUpdated"}
+	recordElapsed := func(stage string) {
+		timings = append(timings, stage, common.PrettyDuration(time.Since(start)))
+	}
+	defer func() {
+		recordElapsed("complete")
+		log.Trace("Engine API request complete", timings...)
+	}()
 	api.forkchoiceLock.Lock()
 	defer api.forkchoiceLock.Unlock()
+	recordElapsed("lockAcquired")
 
 	log.Trace("Engine API request received", "method", "ForkchoiceUpdated", "head", update.HeadBlockHash, "finalized", update.FinalizedBlockHash, "safe", update.SafeBlockHash)
 	if update.HeadBlockHash == (common.Hash{}) {
@@ -327,6 +337,7 @@ func (api *ConsensusAPI) forkchoiceUpdated(update engine.ForkchoiceStateV1, payl
 		return valid(nil), nil
 	}
 	api.eth.SetSynced()
+	recordElapsed("headUpdated")
 
 	// If the beacon client also advertised a finalized block, mark the local
 	// chain final and completely in PoS mode.
@@ -346,6 +357,7 @@ func (api *ConsensusAPI) forkchoiceUpdated(update engine.ForkchoiceStateV1, payl
 		// Set the finalized block
 		api.eth.BlockChain().SetFinalized(finalBlock.Header())
 	}
+	recordElapsed("finalizedUpdated")
 	// Check if the safe block hash is in our canonical tree, if not somethings wrong
 	if update.SafeBlockHash != (common.Hash{}) {
 		safeBlock := api.eth.BlockChain().GetBlockByHash(update.SafeBlockHash)
@@ -360,6 +372,7 @@ func (api *ConsensusAPI) forkchoiceUpdated(update engine.ForkchoiceStateV1, payl
 		// Set the safe block
 		api.eth.BlockChain().SetSafe(safeBlock.Header())
 	}
+	recordElapsed("safeUpdated")
 	// If payload generation was requested, create a new block to be potentially
 	// sealed by the beacon client. The payload will be requested later, and we
 	// will replace it arbitrarily many times in between.
@@ -397,6 +410,7 @@ func (api *ConsensusAPI) forkchoiceUpdated(update engine.ForkchoiceStateV1, payl
 			log.Error("Failed to build payload", "err", err)
 			return valid(nil), engine.InvalidPayloadAttributes.With(err)
 		}
+		recordElapsed("buildPayload")
 		api.localBlocks.put(id, payload)
 		return valid(&id), nil
 	}
