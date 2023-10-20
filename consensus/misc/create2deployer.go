@@ -16,11 +16,14 @@ import (
 // file applies the contract code to the canonical address manually in the Canyon
 // hardfork.
 
-// create2deployer is already deployed to Base goerli at 0x13b0D85CcB8bf860b6b79AF3029fCA081AE9beF2,
+// create2deployer is already deployed to Base testnets at 0x13b0D85CcB8bf860b6b79AF3029fCA081AE9beF2,
 // so we deploy it to 0x13b0D85CcB8bf860b6b79AF3029fCA081AE9beF1 for hardfork testing purposes
 var create2DeployerAddresses = map[uint64]common.Address{
-	params.BaseGoerliChainID:  common.HexToAddress("0x13b0D85CcB8bf860b6b79AF3029fCA081AE9beF1"),
-	params.BaseMainnetChainID: common.HexToAddress("0x13b0D85CcB8bf860b6b79AF3029fCA081AE9beF2"),
+	11763071:                  common.HexToAddress("0x13b0D85CcB8bf860b6b79AF3029fCA081AE9beF1"), // Base Goerli devnet
+	params.BaseGoerliChainID:  common.HexToAddress("0x13b0D85CcB8bf860b6b79AF3029fCA081AE9beF1"), // Base Goerli testnet
+	11763072:                  common.HexToAddress("0x13b0D85CcB8bf860b6b79AF3029fCA081AE9beF1"), // Base Sepolia devnet
+	84532:                     common.HexToAddress("0x13b0D85CcB8bf860b6b79AF3029fCA081AE9beF1"), // Base Sepolia testnet
+	params.BaseMainnetChainID: common.HexToAddress("0x13b0D85CcB8bf860b6b79AF3029fCA081AE9beF2"), // Base mainnet
 }
 var create2DeployerCodeHash = common.HexToHash("0xb0550b5b431e30d38000efb7107aaa0ade03d48a7198a140edda9d27134468b2")
 var create2DeployerCode []byte
