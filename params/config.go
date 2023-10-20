@@ -32,11 +32,12 @@ var (
 )
 
 const (
-	OPMainnetChainID  = 10
-	OPGoerliChainID   = 420
-	BaseGoerliChainID = 84531
-	devnetChainID     = 997
-	chaosnetChainID   = 888
+	OPMainnetChainID   = 10
+	OPGoerliChainID    = 420
+	BaseMainnetChainID = 8453
+	BaseGoerliChainID  = 84531
+	devnetChainID      = 997
+	chaosnetChainID    = 888
 )
 
 // OP Stack chain config
@@ -494,6 +495,9 @@ func (c *ChainConfig) Description() string {
 	}
 	if c.RegolithTime != nil {
 		banner += fmt.Sprintf(" - Regolith:                    @%-10v\n", *c.RegolithTime)
+	}
+	if c.CanyonTime != nil {
+		banner += fmt.Sprintf(" - Canyon:                      @%-10v\n", *c.CanyonTime)
 	}
 	return banner
 }
