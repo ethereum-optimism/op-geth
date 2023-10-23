@@ -157,9 +157,11 @@ var (
 		Category: flags.EthCategory,
 	}
 
-	BetaOPNetworkFlag = &cli.StringFlag{
-		Name:     "beta.op-network",
-		Usage:    "Beta feature: pick an OP Stack network configuration",
+	OPNetworkFlag = &cli.StringFlag{
+		Name:    "op-network",
+		Aliases: []string{"beta.op-network"},
+		Usage: "Select a pre-configured OP-Stack network (warning: op-mainnet and op-goerli require special sync," +
+			" datadir is recommended), options: " + strings.Join(params.OPStackChainNames(), ", "),
 		Category: flags.EthCategory,
 	}
 
@@ -914,9 +916,10 @@ var (
 		Category: flags.RollupCategory,
 	}
 	RollupSuperchainUpgradesFlag = &cli.BoolFlag{
-		Name:     "beta.rollup.superchain-upgrades",
-		Usage:    "Beta feature: apply superchain-registry config changes to the local chain-configuration",
-		Category: flags.EthCategory,
+		Name:     "rollup.superchain-upgrades",
+		Aliases:  []string{"beta.rollup.superchain-upgrades"},
+		Usage:    "Apply superchain-registry config changes to the local chain-configuration",
+		Category: flags.RollupCategory,
 	}
 
 	// Metrics flags
@@ -1023,7 +1026,7 @@ var (
 		HoleskyFlag,
 	}
 	// NetworkFlags is the flag group of all built-in supported networks.
-	NetworkFlags = append([]cli.Flag{MainnetFlag, BetaOPNetworkFlag}, TestnetFlags...)
+	NetworkFlags = append([]cli.Flag{MainnetFlag, OPNetworkFlag}, TestnetFlags...)
 
 	// DatabaseFlags is the flag group of all database flags.
 	DatabaseFlags = []cli.Flag{
@@ -1050,8 +1053,8 @@ func MakeDataDir(ctx *cli.Context) string {
 		if ctx.Bool(HoleskyFlag.Name) {
 			return filepath.Join(path, "holesky")
 		}
-		if ctx.IsSet(BetaOPNetworkFlag.Name) {
-			return filepath.Join(path, ctx.String(BetaOPNetworkFlag.Name))
+		if ctx.IsSet(OPNetworkFlag.Name) {
+			return filepath.Join(path, ctx.String(OPNetworkFlag.Name))
 		}
 		return path
 	}
@@ -1565,8 +1568,8 @@ func SetDataDir(ctx *cli.Context, cfg *node.Config) {
 		cfg.DataDir = filepath.Join(node.DefaultDataDir(), "sepolia")
 	case ctx.Bool(HoleskyFlag.Name) && cfg.DataDir == node.DefaultDataDir():
 		cfg.DataDir = filepath.Join(node.DefaultDataDir(), "holesky")
-	case ctx.IsSet(BetaOPNetworkFlag.Name) && cfg.DataDir == node.DefaultDataDir():
-		cfg.DataDir = filepath.Join(node.DefaultDataDir(), ctx.String(BetaOPNetworkFlag.Name))
+	case ctx.IsSet(OPNetworkFlag.Name) && cfg.DataDir == node.DefaultDataDir():
+		cfg.DataDir = filepath.Join(node.DefaultDataDir(), ctx.String(OPNetworkFlag.Name))
 	}
 }
 
@@ -1732,7 +1735,7 @@ func CheckExclusive(ctx *cli.Context, args ...interface{}) {
 // SetEthConfig applies eth-related command line flags to the config.
 func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 	// Avoid conflicting network flags
-	CheckExclusive(ctx, MainnetFlag, DeveloperFlag, GoerliFlag, SepoliaFlag, HoleskyFlag, BetaOPNetworkFlag)
+	CheckExclusive(ctx, MainnetFlag, DeveloperFlag, GoerliFlag, SepoliaFlag, HoleskyFlag, OPNetworkFlag)
 	CheckExclusive(ctx, LightServeFlag, SyncModeFlag, "light")
 	CheckExclusive(ctx, DeveloperFlag, ExternalSignerFlag) // Can't use both ephemeral unlocked and external signer
 
@@ -1973,7 +1976,7 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 		if !ctx.IsSet(MinerGasPriceFlag.Name) {
 			cfg.Miner.GasPrice = big.NewInt(1)
 		}
-	case ctx.IsSet(BetaOPNetworkFlag.Name):
+	case ctx.IsSet(OPNetworkFlag.Name):
 		genesis := MakeGenesis(ctx)
 		if !ctx.IsSet(NetworkIdFlag.Name) {
 			cfg.NetworkId = genesis.Config.ChainID.Uint64()
@@ -2232,8 +2235,8 @@ func MakeGenesis(ctx *cli.Context) *core.Genesis {
 		genesis = core.DefaultSepoliaGenesisBlock()
 	case ctx.Bool(GoerliFlag.Name):
 		genesis = core.DefaultGoerliGenesisBlock()
-	case ctx.IsSet(BetaOPNetworkFlag.Name):
-		name := ctx.String(BetaOPNetworkFlag.Name)
+	case ctx.IsSet(OPNetworkFlag.Name):
+		name := ctx.String(OPNetworkFlag.Name)
 		ch, err := params.OPStackChainIDByName(name)
 		if err != nil {
 			Fatalf("failed to load OP-Stack chain %q: %v", name, err)
