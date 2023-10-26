@@ -488,6 +488,18 @@ func TestReceiptJSON(t *testing.T) {
 		if err != nil {
 			t.Fatal("error unmarshaling receipt from json:", err)
 		}
+
+		// Make sure marshal/unmarshal doesn't affect receipt hash root computation by comparing
+		// the output of EncodeIndex
+		rsBefore := Receipts([]*Receipt{receipts[i]})
+		rsAfter := Receipts([]*Receipt{&r})
+
+		encBefore, encAfter := bytes.Buffer{}, bytes.Buffer{}
+		rsBefore.EncodeIndex(0, &encBefore)
+		rsAfter.EncodeIndex(0, &encAfter)
+		if !bytes.Equal(encBefore.Bytes(), encAfter.Bytes()) {
+			t.Errorf("%v: EncodeIndex differs after JSON marshal/unmarshal", i)
+		}
 	}
 }
 
