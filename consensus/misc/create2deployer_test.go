@@ -34,6 +34,12 @@ func TestEnsureCreate2Deployer(t *testing.T) {
 			applied:   true,
 		},
 		{
+			name:       "code already exists",
+			timestamp:  canyonTime,
+			codeExists: true,
+			applied:    true,
+		},
+		{
 			name:      "pre canyon",
 			timestamp: canyonTime - 1,
 			applied:   false,
@@ -50,12 +56,6 @@ func TestEnsureCreate2Deployer(t *testing.T) {
 			},
 			timestamp: canyonTime,
 			applied:   false,
-		},
-		{
-			name:       "code already exists",
-			timestamp:  canyonTime,
-			codeExists: true,
-			applied:    false,
 		},
 	}
 	for _, tt := range tests {
