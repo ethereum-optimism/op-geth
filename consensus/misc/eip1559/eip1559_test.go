@@ -61,9 +61,9 @@ func opConfig() *params.ChainConfig {
 	ct := uint64(10)
 	config.CanyonTime = &ct
 	config.Optimism = &params.OptimismConfig{
-		EIP1559Elasticity:            6,
-		EIP1559Denominator:           50,
-		EIP1559DenominatorPostCanyon: 250,
+		EIP1559Elasticity:        6,
+		EIP1559Denominator:       50,
+		EIP1559DenominatorCanyon: 250,
 	}
 	return config
 }

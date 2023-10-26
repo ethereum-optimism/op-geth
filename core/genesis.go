@@ -313,6 +313,7 @@ func SetupGenesisBlockWithOverride(db ethdb.Database, triedb *trie.Database, gen
 			}
 			if overrides != nil && overrides.OverrideOptimismCanyon != nil {
 				config.CanyonTime = overrides.OverrideOptimismCanyon
+				config.ShanghaiTime = overrides.OverrideOptimismCanyon
 			}
 		}
 	}

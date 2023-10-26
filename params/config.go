@@ -393,9 +393,9 @@ func (c *CliqueConfig) String() string {
 
 // OptimismConfig is the optimism config.
 type OptimismConfig struct {
-	EIP1559Elasticity            uint64 `json:"eip1559Elasticity"`
-	EIP1559Denominator           uint64 `json:"eip1559Denominator"`
-	EIP1559DenominatorPostCanyon uint64 `json:"eip1559DenominatorPostCanyon"`
+	EIP1559Elasticity        uint64 `json:"eip1559Elasticity"`
+	EIP1559Denominator       uint64 `json:"eip1559Denominator"`
+	EIP1559DenominatorCanyon uint64 `json:"eip1559DenominatorCanyon"`
 }
 
 // String implements the stringer interface, returning the optimism fee config details.
@@ -807,7 +807,7 @@ func (c *ChainConfig) checkCompatible(newcfg *ChainConfig, headNumber *big.Int, 
 func (c *ChainConfig) BaseFeeChangeDenominator(time uint64) uint64 {
 	if c.Optimism != nil {
 		if c.IsCanyon(time) {
-			return c.Optimism.EIP1559DenominatorPostCanyon
+			return c.Optimism.EIP1559DenominatorCanyon
 		}
 		return c.Optimism.EIP1559Denominator
 	}
