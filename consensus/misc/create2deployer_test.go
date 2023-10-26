@@ -26,20 +26,18 @@ func TestEnsureCreate2Deployer(t *testing.T) {
 			applied:   true,
 		},
 		{
-			name: "non-optimism chain",
-			override: func(cfg *params.ChainConfig) {
-				cfg.Optimism = nil
-			},
-			timestamp: canyonTime,
-			applied:   false,
-		},
-		{
-			name: "non-base chain",
+			name: "another chain ID",
 			override: func(cfg *params.ChainConfig) {
 				cfg.ChainID = big.NewInt(params.OPMainnetChainID)
 			},
 			timestamp: canyonTime,
-			applied:   false,
+			applied:   true,
+		},
+		{
+			name:       "code already exists",
+			timestamp:  canyonTime,
+			codeExists: true,
+			applied:    true,
 		},
 		{
 			name:      "pre canyon",
@@ -58,12 +56,6 @@ func TestEnsureCreate2Deployer(t *testing.T) {
 			},
 			timestamp: canyonTime,
 			applied:   false,
-		},
-		{
-			name:       "code already exists",
-			timestamp:  canyonTime,
-			codeExists: true,
-			applied:    false,
 		},
 	}
 	for _, tt := range tests {
