@@ -286,7 +286,7 @@ func SetupGenesisBlockWithOverride(db ethdb.Database, triedb *trie.Database, gen
 		if config != nil {
 			// If applying the superchain-registry to a known OP-Stack chain,
 			// then override the local chain-config with that from the registry.
-			if overrides != nil && overrides.ApplySuperchainUpgrades && config.IsOptimism() && config.ChainID != nil && genesis.Config.ChainID.IsUint64() {
+			if overrides != nil && overrides.ApplySuperchainUpgrades && config.IsOptimism() && config.ChainID != nil && config.ChainID.IsUint64() {
 				if _, ok := superchain.OPChains[config.ChainID.Uint64()]; ok {
 					conf, err := params.LoadOPStackChainConfig(config.ChainID.Uint64())
 					if err != nil {
