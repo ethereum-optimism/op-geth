@@ -105,6 +105,8 @@ func LoadOPStackChainConfig(chainID uint64) (*ChainConfig, error) {
 		out.BedrockBlock = big.NewInt(105235063)
 	case BaseGoerliChainID:
 		out.RegolithTime = &BaseGoerliRegolithTime
+	case baseGoerliDevnetChainID:
+		out.RegolithTime = &baseGoerliDevnetRegolithTime
 	case devnetChainID:
 		out.RegolithTime = &devnetRegolithTime
 		out.Optimism.EIP1559Elasticity = 10
