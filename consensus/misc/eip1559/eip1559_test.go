@@ -55,6 +55,19 @@ func config() *params.ChainConfig {
 	return config
 }
 
+func opConfig() *params.ChainConfig {
+	config := copyConfig(params.TestChainConfig)
+	config.LondonBlock = big.NewInt(5)
+	ct := uint64(10)
+	config.CanyonTime = &ct
+	config.Optimism = &params.OptimismConfig{
+		EIP1559Elasticity:        6,
+		EIP1559Denominator:       50,
+		EIP1559DenominatorCanyon: 250,
+	}
+	return config
+}
+
 // TestBlockGasLimits tests the gasLimit checks for blocks both across
 // the EIP-1559 boundary and post-1559 blocks
 func TestBlockGasLimits(t *testing.T) {
@@ -124,7 +137,40 @@ func TestCalcBaseFee(t *testing.T) {
 			GasUsed:  test.parentGasUsed,
 			BaseFee:  big.NewInt(test.parentBaseFee),
 		}
-		if have, want := CalcBaseFee(config(), parent), big.NewInt(test.expectedBaseFee); have.Cmp(want) != 0 {
+		if have, want := CalcBaseFee(config(), parent, 0), big.NewInt(test.expectedBaseFee); have.Cmp(want) != 0 {
+			t.Errorf("test %d: have %d  want %d, ", i, have, want)
+		}
+	}
+}
+
+// TestCalcBaseFeeOptimism assumes all blocks are 1559-blocks but tests the Canyon activation
+func TestCalcBaseFeeOptimism(t *testing.T) {
+	tests := []struct {
+		parentBaseFee   int64
+		parentGasLimit  uint64
+		parentGasUsed   uint64
+		expectedBaseFee int64
+		postCanyon      bool
+	}{
+		{params.InitialBaseFee, 30_000_000, 5_000_000, params.InitialBaseFee, false}, // usage == target
+		{params.InitialBaseFee, 30_000_000, 4_000_000, 996000000, false},             // usage below target
+		{params.InitialBaseFee, 30_000_000, 10_000_000, 1020000000, false},           // usage above target
+		{params.InitialBaseFee, 30_000_000, 5_000_000, params.InitialBaseFee, true},  // usage == target
+		{params.InitialBaseFee, 30_000_000, 4_000_000, 999200000, true},              // usage below target
+		{params.InitialBaseFee, 30_000_000, 10_000_000, 1004000000, true},            // usage above target
+	}
+	for i, test := range tests {
+		parent := &types.Header{
+			Number:   common.Big32,
+			GasLimit: test.parentGasLimit,
+			GasUsed:  test.parentGasUsed,
+			BaseFee:  big.NewInt(test.parentBaseFee),
+			Time:     6,
+		}
+		if test.postCanyon {
+			parent.Time = 8
+		}
+		if have, want := CalcBaseFee(opConfig(), parent, parent.Time+2), big.NewInt(test.expectedBaseFee); have.Cmp(want) != 0 {
 			t.Errorf("test %d: have %d  want %d, ", i, have, want)
 		}
 	}

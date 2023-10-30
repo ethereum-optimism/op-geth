@@ -32,12 +32,13 @@ var (
 )
 
 const (
-	OPMainnetChainID   = 10
-	OPGoerliChainID    = 420
-	BaseMainnetChainID = 8453
-	BaseGoerliChainID  = 84531
-	devnetChainID      = 997
-	chaosnetChainID    = 888
+	OPMainnetChainID        = 10
+	OPGoerliChainID         = 420
+	BaseMainnetChainID      = 8453
+	BaseGoerliChainID       = 84531
+	baseGoerliDevnetChainID = 11763071
+	devnetChainID           = 997
+	chaosnetChainID         = 888
 )
 
 // OP Stack chain config
@@ -46,6 +47,8 @@ var (
 	OptimismGoerliRegolithTime = uint64(1679079600)
 	// May 4, 2023 @ 5:00:00 pm UTC
 	BaseGoerliRegolithTime = uint64(1683219600)
+	// Apr 21, 2023 @ 6:30:00 pm UTC
+	baseGoerliDevnetRegolithTime = uint64(1682101800)
 	// March 5, 2023 @ 2:48:00 am UTC
 	devnetRegolithTime = uint64(1677984480)
 	// August 16, 2023 @ 3:34:22 am UTC
@@ -393,8 +396,9 @@ func (c *CliqueConfig) String() string {
 
 // OptimismConfig is the optimism config.
 type OptimismConfig struct {
-	EIP1559Elasticity  uint64 `json:"eip1559Elasticity"`
-	EIP1559Denominator uint64 `json:"eip1559Denominator"`
+	EIP1559Elasticity        uint64 `json:"eip1559Elasticity"`
+	EIP1559Denominator       uint64 `json:"eip1559Denominator"`
+	EIP1559DenominatorCanyon uint64 `json:"eip1559DenominatorCanyon"`
 }
 
 // String implements the stringer interface, returning the optimism fee config details.
@@ -802,8 +806,12 @@ func (c *ChainConfig) checkCompatible(newcfg *ChainConfig, headNumber *big.Int, 
 }
 
 // BaseFeeChangeDenominator bounds the amount the base fee can change between blocks.
-func (c *ChainConfig) BaseFeeChangeDenominator() uint64 {
+// The time parameters is the timestamp of the block to determine if Canyon is active or not
+func (c *ChainConfig) BaseFeeChangeDenominator(time uint64) uint64 {
 	if c.Optimism != nil {
+		if c.IsCanyon(time) {
+			return c.Optimism.EIP1559DenominatorCanyon
+		}
 		return c.Optimism.EIP1559Denominator
 	}
 	return DefaultBaseFeeChangeDenominator
