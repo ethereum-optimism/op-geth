@@ -1,0 +1,44 @@
+name: Check Build
+on:
+  pull_request:
+    branches:
+      - main
+      - develop
+      - 'releases/**'
+    paths:
+      - '**'
+jobs:
+  CheckBuild:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@main
+        with:
+          submodules: recursive
+          token: ${{ secrets.NEW_PAT }}
+      - name: Setup Go
+        uses: actions/setup-go@v2
+        with:
+          golang-version: 1.19
+      - name: Setup Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 8
+      - name: Setup yarn
+        id: yarn-cache-dir-path
+        run: |
+          npm install -g yarn
+          echo "::set-output name=dir::$(yarn cache dir)"
+      - name: Setup  Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+      - name: Checking Make Build
+        run: |
+          unset NVM_DIR
+          sudo apt update
+          sudo apt install -y build-essential  coreutils libuv1 libudev-dev libusb-1.0-0-dev
+          make geth
+
+

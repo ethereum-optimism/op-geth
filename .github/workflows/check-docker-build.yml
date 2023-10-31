@@ -1,0 +1,39 @@
+name: Check Docker Build
+on:
+  pull_request:
+    branches:
+      - main
+      - develop
+      - 'releases/**'
+    paths:
+      - '**Dockerfile'
+jobs:
+  CheckBuild:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@main
+        with:
+          submodules: recursive
+          token: ${{ secrets.PAT }}
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Checking Docker Build
+        run: |
+          URL="https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/files"
+          response=$(curl -H 'authorization: Bearer ${{ secrets.PAT }}' -H "Accept: application/vnd.github.v3+json" -s -X GET -G $URL)
+          UPDATEFILE_DIR=$(echo "${response}" | jq -r '.[] | .filename')
+          echo $UPDATEFILE_DIR
+          for i in ${UPDATEFILE_DIR}
+          do
+            if [[ $i == *"Dockerfile" ]]
+            then
+               echo "if"
+               image=$(echo $i | tr '[:upper:]' '[:lower:]')
+               cmd="docker build -f $i -t $image:v1 ."
+               echo -e "\e[32m$cmd\e[0m"
+               $cmd
+            else
+               echo "no dockerfile to build"
+            fi
+          done
