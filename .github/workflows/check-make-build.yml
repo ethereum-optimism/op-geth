@@ -15,7 +15,7 @@ jobs:
         uses: actions/checkout@main
         with:
           submodules: recursive
-          token: ${{ secrets.NEW_PAT }}
+          token: ${{ secrets.PAT }}
       - name: Setup Go
         uses: actions/setup-go@v2
         with:
