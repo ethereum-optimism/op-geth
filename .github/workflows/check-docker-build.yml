@@ -24,6 +24,6 @@ jobs:
           response=$(curl -H 'authorization: Bearer ${{ secrets.PAT }}' -H "Accept: application/vnd.github.v3+json" -s -X GET -G $URL)
           UPDATEFILE_DIR=$(echo "${response}" | jq -r '.[] | .filename')
           echo $UPDATEFILE_DIR
-          cmd="docker build -f $i -t $image:v1 ."
+          cmd="docker build -f Dockerfile -t test:v1 ."
           echo -e "\e[32m$cmd\e[0m"
           $cmd
