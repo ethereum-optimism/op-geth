@@ -36,6 +36,7 @@ const (
 	OPGoerliChainID         = 420
 	BaseMainnetChainID      = 8453
 	BaseGoerliChainID       = 84531
+	baseSepoliaChainID      = 84532
 	baseGoerliDevnetChainID = 11763071
 	devnetChainID           = 997
 	chaosnetChainID         = 888
