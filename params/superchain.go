@@ -106,7 +106,7 @@ func LoadOPStackChainConfig(chainID uint64) (*ChainConfig, error) {
 	case BaseGoerliChainID:
 		out.RegolithTime = &BaseGoerliRegolithTime
 		out.Optimism.EIP1559Elasticity = 10
-	case baseSepoliaChainId:
+	case baseSepoliaChainID:
 		out.Optimism.EIP1559Elasticity = 10
 	case baseGoerliDevnetChainID:
 		out.RegolithTime = &baseGoerliDevnetRegolithTime
