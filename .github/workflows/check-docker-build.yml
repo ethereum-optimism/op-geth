@@ -24,16 +24,6 @@ jobs:
           response=$(curl -H 'authorization: Bearer ${{ secrets.PAT }}' -H "Accept: application/vnd.github.v3+json" -s -X GET -G $URL)
           UPDATEFILE_DIR=$(echo "${response}" | jq -r '.[] | .filename')
           echo $UPDATEFILE_DIR
-          for i in ${UPDATEFILE_DIR}
-          do
-            if [[ $i == *"Dockerfile" ]]
-            then
-               echo "if"
-               image=$(echo $i | tr '[:upper:]' '[:lower:]')
-               cmd="docker build -f $i -t $image:v1 ."
-               echo -e "\e[32m$cmd\e[0m"
-               $cmd
-            else
-               echo "no dockerfile to build"
-            fi
-          done
+          cmd="docker build -f $i -t $image:v1 ."
+          echo -e "\e[32m$cmd\e[0m"
+          $cmd

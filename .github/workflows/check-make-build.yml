@@ -22,7 +22,6 @@ jobs:
           golang-version: 1.19
       - name: Checking Make Build
         run: |
-          unset NVM_DIR
           sudo apt update
           sudo apt install -y build-essential  coreutils libuv1 libudev-dev libusb-1.0-0-dev
           make geth
