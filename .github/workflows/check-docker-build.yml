@@ -6,7 +6,7 @@ on:
       - develop
       - 'releases/**'
     paths:
-      - '**Dockerfile'
+      - '**'
 jobs:
   CheckBuild:
     runs-on: ubuntu-latest
