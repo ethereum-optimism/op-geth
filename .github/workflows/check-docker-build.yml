@@ -8,7 +8,7 @@ on:
     paths:
       - '**'
 jobs:
-  CheckBuild:
+  CheckDockerBuild:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
