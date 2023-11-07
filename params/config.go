@@ -38,6 +38,7 @@ const (
 	BaseGoerliChainID       = 84531
 	baseSepoliaChainID      = 84532
 	baseGoerliDevnetChainID = 11763071
+	pgnSepoliaChainID       = 58008
 	devnetChainID           = 997
 	chaosnetChainID         = 888
 )
