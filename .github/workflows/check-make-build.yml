@@ -1,0 +1,29 @@
+name: Check Make Build
+on:
+  pull_request:
+    branches:
+      - main
+      - develop
+      - 'releases/**'
+    paths:
+      - '**'
+jobs:
+  CheckMakeBuild:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@main
+        with:
+          submodules: recursive
+          token: ${{ secrets.PAT }}
+      - name: Setup Go
+        uses: actions/setup-go@v2
+        with:
+          golang-version: 1.19
+      - name: Checking Make Build
+        run: |
+          sudo apt update
+          sudo apt install -y build-essential  coreutils libuv1 libudev-dev libusb-1.0-0-dev
+          make geth
+
+
