@@ -207,6 +207,13 @@ var genesisForHistorical = &core.Genesis{
 	BaseFee:   big.NewInt(params.InitialBaseFee),
 }
 
+var depositTx = types.NewTx(&types.DepositTx{
+	Value: big.NewInt(12),
+	Gas:   params.TxGas + 2000,
+	To:    &common.Address{2},
+	Data:  make([]byte, 500),
+})
+
 var testTx1 = types.MustSignNewTx(testKey, types.LatestSigner(genesis.Config), &types.LegacyTx{
 	Nonce:    0,
 	Value:    big.NewInt(12),
@@ -319,6 +326,9 @@ func generateTestChain(enableHistoricalState bool) []*types.Block {
 		g.SetExtra([]byte("test"))
 		if i == 1 {
 			// Test transactions are included in block #2.
+			if enableHistoricalState {
+				g.AddTx(depositTx)
+			}
 			g.AddTx(testTx1)
 			g.AddTx(testTx2)
 		}
