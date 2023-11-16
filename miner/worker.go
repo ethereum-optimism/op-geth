@@ -80,6 +80,7 @@ var (
 	errBlockInterruptedByNewHead  = errors.New("new head arrived while building block")
 	errBlockInterruptedByRecommit = errors.New("recommit interrupt while building block")
 	errBlockInterruptedByTimeout  = errors.New("timeout while building block")
+	errBlockInterruptedByResolve  = errors.New("payload resolution while building block")
 )
 
 // environment is the worker's current environment and holds all
@@ -144,6 +145,7 @@ const (
 	commitInterruptNewHead
 	commitInterruptResubmit
 	commitInterruptTimeout
+	commitInterruptResolve
 )
 
 // newWorkReq represents a request for new sealing work submitting with relative interrupt notifier.
@@ -937,8 +939,9 @@ type generateParams struct {
 	beaconRoot  *common.Hash      // The beacon root (cancun field).
 	noTxs       bool              // Flag whether an empty block without any transaction is expected
 
-	txs      types.Transactions // Deposit transactions to include at the start of the block
-	gasLimit *uint64            // Optional gas limit override
+	txs       types.Transactions // Deposit transactions to include at the start of the block
+	gasLimit  *uint64            // Optional gas limit override
+	interrupt *atomic.Int32      // Optional interruption signal to pass down to worker.generateWork
 }
 
 // prepareWork constructs the sealing task according to the given parameters,
@@ -1086,7 +1089,11 @@ func (w *worker) generateWork(genParams *generateParams) *newPayloadResult {
 
 	// forced transactions done, fill rest of block with transactions
 	if !genParams.noTxs {
-		interrupt := new(atomic.Int32)
+		// use shared interrupt if present
+		interrupt := genParams.interrupt
+		if interrupt == nil {
+			interrupt = new(atomic.Int32)
+		}
 		timer := time.AfterFunc(w.newpayloadTimeout, func() {
 			interrupt.Store(commitInterruptTimeout)
 		})
@@ -1095,6 +1102,9 @@ func (w *worker) generateWork(genParams *generateParams) *newPayloadResult {
 		err := w.fillTransactions(interrupt, work)
 		if errors.Is(err, errBlockInterruptedByTimeout) {
 			log.Warn("Block building is interrupted", "allowance", common.PrettyDuration(w.newpayloadTimeout))
+		} else if errors.Is(err, errBlockInterruptedByResolve) {
+			timer.Stop() // don't need timeout interruption any more
+			log.Info("Block building got interrupted by payload resolution")
 		}
 	}
 	block, err := w.engine.FinalizeAndAssemble(w.chain, work.header, work.state, work.txs, nil, work.receipts, genParams.withdrawals)
@@ -1135,6 +1145,10 @@ func (w *worker) commitWork(interrupt *atomic.Int32, timestamp int64) {
 	}
 	// Fill pending transactions from the txpool into the block.
 	err = w.fillTransactions(interrupt, work)
+	// TODO: Why does this switch not need to do anything about a errBlockInterruptedByTimeout signal?
+	//   Is it because the commitWork path is only entered by signals from the newWork loop, so
+	//   errBlockInterruptedByTimeout cannot be the cause for interruption here?
+	//   So we can also safely ignore the new errBlockInterruptedByResolve signal here?
 	switch {
 	case err == nil:
 		// The entire block is filled, decrease resubmit interval in case
@@ -1264,6 +1278,8 @@ func signalToErr(signal int32) error {
 		return errBlockInterruptedByRecommit
 	case commitInterruptTimeout:
 		return errBlockInterruptedByTimeout
+	case commitInterruptResolve:
+		return errBlockInterruptedByResolve
 	default:
 		panic(fmt.Errorf("undefined signal %d", signal))
 	}

@@ -38,6 +38,7 @@ func TestBuildPayload(t *testing.T) {
 	defer w.close()
 
 	timestamp := uint64(time.Now().Unix())
+	// TODO: Add NoTxPool = true test case
 	args := &BuildPayloadArgs{
 		Parent:       b.chain.CurrentBlock().Hash(),
 		Timestamp:    timestamp,
