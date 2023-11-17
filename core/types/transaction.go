@@ -58,6 +58,8 @@ type Transaction struct {
 	size atomic.Value
 	from atomic.Value
 
+	metaTxParams atomic.Value
+
 	// cache of RollupGasData details to compute the gas the tx takes on L1 for its share of rollup data
 	rollupGas atomic.Value
 }

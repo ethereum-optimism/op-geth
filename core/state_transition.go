@@ -25,12 +25,14 @@ import (
 	cmath "github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
-
 	"golang.org/x/crypto/sha3"
 )
 
-const BVM_ETH_ADDR = "0xdEAddEaDdeadDEadDEADDEAddEADDEAddead1111"
+var (
+	BVM_ETH_ADDR = common.HexToAddress("0xdEAddEaDdeadDEadDEADDEAddEADDEAddead1111")
+)
 
 // ExecutionResult includes all output after executing given evm
 // message no matter the execution itself is successful or not.
@@ -149,11 +151,16 @@ type Message struct {
 	IsDepositTx   bool                // IsDepositTx indicates the message is force-included and can persist a mint.
 	Mint          *big.Int            // Mint is the amount to mint before EVM processing, or nil if there is no minting.
 	ETHValue      *big.Int            // ETHValue is the amount to mint BVM_ETH before EVM processing, or nil if there is no minting.
+	MetaTxParams  *types.MetaTxParams // MetaTxParams contains necessary parameter to sponsor gas fee for msg.From.
 	RollupDataGas types.RollupGasData // RollupDataGas indicates the rollup cost of the message, 0 if not a rollup or no cost.
 }
 
 // TransactionToMessage converts a transaction into a Message.
 func TransactionToMessage(tx *types.Transaction, s types.Signer, baseFee *big.Int) (*Message, error) {
+	metaTxParams, err := types.DecodeAndVerifyMetaTxParams(tx)
+	if err != nil {
+		return nil, err
+	}
 	msg := &Message{
 		Nonce:             tx.Nonce(),
 		GasLimit:          tx.Gas(),
@@ -169,13 +176,13 @@ func TransactionToMessage(tx *types.Transaction, s types.Signer, baseFee *big.In
 		Mint:              tx.Mint(),
 		RollupDataGas:     tx.RollupDataGas(),
 		ETHValue:          tx.ETHValue(),
+		MetaTxParams:      metaTxParams,
 		SkipAccountChecks: false,
 	}
 	// If baseFee provided, set gasPrice to effectiveGasPrice.
 	if baseFee != nil {
 		msg.GasPrice = cmath.BigMin(msg.GasPrice.Add(msg.GasTipCap, baseFee), msg.GasFeeCap)
 	}
-	var err error
 	msg.From, err = types.Sender(s, tx)
 	return msg, err
 }
@@ -241,6 +248,9 @@ func (st *StateTransition) to() common.Address {
 }
 
 func (st *StateTransition) buyGas() error {
+	if err := st.applyMetaTransaction(); err != nil {
+		return err
+	}
 	mgval := new(big.Int).SetUint64(st.msg.GasLimit)
 	mgval = mgval.Mul(mgval, st.msg.GasPrice)
 	var l1Cost *big.Int
@@ -259,16 +269,51 @@ func (st *StateTransition) buyGas() error {
 			balanceCheck.Add(balanceCheck, l1Cost)
 		}
 	}
-	if have, want := st.state.GetBalance(st.msg.From), balanceCheck; have.Cmp(want) < 0 {
-		return fmt.Errorf("%w: address %v have %v want %v", ErrInsufficientFunds, st.msg.From.Hex(), have, want)
+
+	if st.msg.MetaTxParams != nil {
+		pureGasFeeValue := new(big.Int).Sub(balanceCheck, st.msg.Value)
+		sponsorAmount, selfPayAmount := types.CalculateSponsorPercentAmount(st.msg.MetaTxParams, pureGasFeeValue)
+		if have, want := st.state.GetBalance(st.msg.MetaTxParams.GasFeeSponsor), sponsorAmount; have.Cmp(want) < 0 {
+			return fmt.Errorf("%w: gas fee sponsor %v have %v want %v", ErrInsufficientFunds, st.msg.MetaTxParams.GasFeeSponsor.Hex(), have, want)
+		}
+		selfPayAmount = new(big.Int).Add(selfPayAmount, st.msg.Value)
+		if have, want := st.state.GetBalance(st.msg.From), selfPayAmount; have.Cmp(want) < 0 {
+			return fmt.Errorf("%w: address %v have %v want %v", ErrInsufficientFunds, st.msg.From.Hex(), have, want)
+		}
+	} else {
+		if have, want := st.state.GetBalance(st.msg.From), balanceCheck; have.Cmp(want) < 0 {
+			return fmt.Errorf("%w: address %v have %v want %v", ErrInsufficientFunds, st.msg.From.Hex(), have, want)
+		}
 	}
+
 	if err := st.gp.SubGas(st.msg.GasLimit); err != nil {
 		return err
 	}
 	st.gasRemaining += st.msg.GasLimit
 
 	st.initialGas = st.msg.GasLimit
-	st.state.SubBalance(st.msg.From, mgval)
+	if st.msg.MetaTxParams != nil {
+		sponsorAmount, selfPayAmount := types.CalculateSponsorPercentAmount(st.msg.MetaTxParams, mgval)
+		st.state.SubBalance(st.msg.MetaTxParams.GasFeeSponsor, sponsorAmount)
+		st.state.SubBalance(st.msg.From, selfPayAmount)
+		log.Debug("BuyGas for metaTx",
+			"sponsor", st.msg.MetaTxParams.GasFeeSponsor.String(), "amount", sponsorAmount.String(),
+			"user", st.msg.From.String(), "amount", selfPayAmount.String())
+	} else {
+		st.state.SubBalance(st.msg.From, mgval)
+	}
+	return nil
+}
+
+func (st *StateTransition) applyMetaTransaction() error {
+	if st.msg.MetaTxParams == nil {
+		return nil
+	}
+	if st.msg.MetaTxParams.ExpireHeight < st.evm.Context.BlockNumber.Uint64() {
+		return types.ErrExpiredMetaTx
+	}
+
+	st.msg.Data = st.msg.MetaTxParams.Payload
 	return nil
 }
 
@@ -526,7 +571,16 @@ func (st *StateTransition) refundGas(refundQuotient uint64) {
 
 	// Return ETH for remaining gas, exchanged at the original rate.
 	remaining := new(big.Int).Mul(new(big.Int).SetUint64(st.gasRemaining), st.msg.GasPrice)
-	st.state.AddBalance(st.msg.From, remaining)
+	if st.msg.MetaTxParams != nil {
+		sponsorRefundAmount, selfRefundAmount := types.CalculateSponsorPercentAmount(st.msg.MetaTxParams, remaining)
+		st.state.AddBalance(st.msg.MetaTxParams.GasFeeSponsor, sponsorRefundAmount)
+		st.state.AddBalance(st.msg.From, selfRefundAmount)
+		log.Debug("RefundGas for metaTx",
+			"sponsor", st.msg.MetaTxParams.GasFeeSponsor.String(), "refundAmount", sponsorRefundAmount.String(),
+			"user", st.msg.From.String(), "refundAmount", selfRefundAmount.String())
+	} else {
+		st.state.AddBalance(st.msg.From, remaining)
+	}
 
 	// Also return remaining gas to the block gas counter so it is
 	// available for the next transaction.
@@ -539,21 +593,19 @@ func (st *StateTransition) gasUsed() uint64 {
 }
 
 func (st *StateTransition) addBVMETHBalance(ethValue *big.Int) {
-	bvmEth := common.HexToAddress(BVM_ETH_ADDR)
 	key := getBVMETHBalanceKey(*st.msg.To)
-	value := st.state.GetState(bvmEth, key)
+	value := st.state.GetState(BVM_ETH_ADDR, key)
 	bal := value.Big()
 	bal = bal.Add(bal, ethValue)
-	st.state.SetState(bvmEth, key, common.BigToHash(bal))
+	st.state.SetState(BVM_ETH_ADDR, key, common.BigToHash(bal))
 }
 
 func (st *StateTransition) addBVMETHTotalSupply(ethValue *big.Int) {
-	bvmEth := common.HexToAddress(BVM_ETH_ADDR)
 	key := getBVMETHTotalSupplyKey()
-	value := st.state.GetState(bvmEth, key)
+	value := st.state.GetState(BVM_ETH_ADDR, key)
 	bal := value.Big()
 	bal = bal.Add(bal, ethValue)
-	st.state.SetState(bvmEth, key, common.BigToHash(bal))
+	st.state.SetState(BVM_ETH_ADDR, key, common.BigToHash(bal))
 }
 
 func getBVMETHBalanceKey(addr common.Address) common.Hash {
@@ -578,7 +630,7 @@ func (st *StateTransition) generateBVMETHMintEvent(mintAddress common.Address, m
 	//data means the mint amount in MINT EVENT.
 	d := common.HexToHash(common.Bytes2Hex(mintValue.Bytes())).Bytes()
 	st.evm.StateDB.AddLog(&types.Log{
-		Address: common.HexToAddress(BVM_ETH_ADDR),
+		Address: BVM_ETH_ADDR,
 		Topics:  topics,
 		Data:    d,
 		// This is a non-consensus field, but assigned here because
