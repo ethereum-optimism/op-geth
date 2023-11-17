@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"os"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -536,6 +537,26 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 	}
 }
 
+var (
+	timingThresholdNewWork = readThrEnv("NEWWORK", 250*time.Millisecond)
+	timingThresholdGetWork = readThrEnv("GETWORK", 10*time.Millisecond)
+	timingThresholdTxs     = readThrEnv("TXS", 10*time.Millisecond)
+)
+
+func readThrEnv(envSuffix string, defaultThr time.Duration) time.Duration {
+	envStr := "GETH_TIMING_THR_" + envSuffix
+	thrEnv, ok := os.LookupEnv(envStr)
+	if !ok {
+		return defaultThr
+	}
+	thr, err := time.ParseDuration(thrEnv)
+	if err != nil {
+		return defaultThr
+	}
+	log.Info("Miner loop timing threshold read from env.", "threshold", thr, "env", envStr)
+	return thr
+}
+
 // mainLoop is responsible for generating and submitting sealing work based on
 // the received event. It can support two modes: automatically generate task and
 // submit it or return task according to given parameters for various proposes.
@@ -549,75 +570,76 @@ func (w *worker) mainLoop() {
 		}
 	}()
 
-	logTime := func(workType string, action func()) {
+	logTime := func(workType string, threshold time.Duration) func() {
 		start := time.Now()
-		defer func() {
+		return func() {
 			elapsed := time.Since(start)
-			log.Trace("Completed work", "type", workType, "elapsed", common.PrettyDuration(elapsed))
-		}()
-		action()
+			if elapsed > threshold {
+				log.Debug("Completed work", "type", workType, "elapsed", common.PrettyDuration(elapsed))
+			}
+		}
 	}
 
 	for {
 		select {
 		case req := <-w.newWorkCh:
-			logTime("newWork", func() {
-				w.commitWork(req.interrupt, req.timestamp)
-			})
+			done := logTime("newWork", timingThresholdNewWork)
+			w.commitWork(req.interrupt, req.timestamp)
+			done()
 
 		case req := <-w.getWorkCh:
-			logTime("getWork", func() {
-				req.result <- w.generateWork(req.params)
-			})
+			done := logTime("getWork", timingThresholdGetWork)
+			req.result <- w.generateWork(req.params)
+			done()
 
 		case ev := <-w.txsCh:
-			logTime("txsCh", func() {
-				if w.chainConfig.Optimism != nil && !w.config.RollupComputePendingBlock {
-					return // don't update the pending-block snapshot if we are not computing the pending block
+			done := logTime("txsCh", timingThresholdTxs)
+			if w.chainConfig.Optimism != nil && !w.config.RollupComputePendingBlock {
+				continue // don't update the pending-block snapshot if we are not computing the pending block
+			}
+			// Apply transactions to the pending state if we're not sealing
+			//
+			// Note all transactions received may not be continuous with transactions
+			// already included in the current sealing block. These transactions will
+			// be automatically eliminated.
+			if !w.isRunning() && w.current != nil {
+				// If block is already full, abort
+				if gp := w.current.gasPool; gp != nil && gp.Gas() < params.TxGas {
+					continue
 				}
-				// Apply transactions to the pending state if we're not sealing
-				//
-				// Note all transactions received may not be continuous with transactions
-				// already included in the current sealing block. These transactions will
-				// be automatically eliminated.
-				if !w.isRunning() && w.current != nil {
-					// If block is already full, abort
-					if gp := w.current.gasPool; gp != nil && gp.Gas() < params.TxGas {
-						return
-					}
-					txs := make(map[common.Address][]*txpool.LazyTransaction, len(ev.Txs))
-					for _, tx := range ev.Txs {
-						acc, _ := types.Sender(w.current.signer, tx)
-						txs[acc] = append(txs[acc], &txpool.LazyTransaction{
-							Pool:      w.eth.TxPool(), // We don't know where this came from, yolo resolve from everywhere
-							Hash:      tx.Hash(),
-							Tx:        nil, // Do *not* set this! We need to resolve it later to pull blobs in
-							Time:      tx.Time(),
-							GasFeeCap: tx.GasFeeCap(),
-							GasTipCap: tx.GasTipCap(),
-							Gas:       tx.Gas(),
-							BlobGas:   tx.BlobGas(),
-						})
-					}
-					txset := newTransactionsByPriceAndNonce(w.current.signer, txs, w.current.header.BaseFee)
-					tcount := w.current.tcount
-					w.commitTransactions(w.current, txset, nil)
+				txs := make(map[common.Address][]*txpool.LazyTransaction, len(ev.Txs))
+				for _, tx := range ev.Txs {
+					acc, _ := types.Sender(w.current.signer, tx)
+					txs[acc] = append(txs[acc], &txpool.LazyTransaction{
+						Pool:      w.eth.TxPool(), // We don't know where this came from, yolo resolve from everywhere
+						Hash:      tx.Hash(),
+						Tx:        nil, // Do *not* set this! We need to resolve it later to pull blobs in
+						Time:      tx.Time(),
+						GasFeeCap: tx.GasFeeCap(),
+						GasTipCap: tx.GasTipCap(),
+						Gas:       tx.Gas(),
+						BlobGas:   tx.BlobGas(),
+					})
+				}
+				txset := newTransactionsByPriceAndNonce(w.current.signer, txs, w.current.header.BaseFee)
+				tcount := w.current.tcount
+				w.commitTransactions(w.current, txset, nil)
 
-					// Only update the snapshot if any new transactions were added
-					// to the pending block
-					if tcount != w.current.tcount {
-						w.updateSnapshot(w.current)
-					}
-				} else {
-					// Special case, if the consensus engine is 0 period clique(dev mode),
-					// submit sealing work here since all empty submission will be rejected
-					// by clique. Of course the advance sealing(empty submission) is disabled.
-					if w.chainConfig.Clique != nil && w.chainConfig.Clique.Period == 0 {
-						w.commitWork(nil, time.Now().Unix())
-					}
+				// Only update the snapshot if any new transactions were added
+				// to the pending block
+				if tcount != w.current.tcount {
+					w.updateSnapshot(w.current)
 				}
-				w.newTxs.Add(int32(len(ev.Txs)))
-			})
+			} else {
+				// Special case, if the consensus engine is 0 period clique(dev mode),
+				// submit sealing work here since all empty submission will be rejected
+				// by clique. Of course the advance sealing(empty submission) is disabled.
+				if w.chainConfig.Clique != nil && w.chainConfig.Clique.Period == 0 {
+					w.commitWork(nil, time.Now().Unix())
+				}
+			}
+			w.newTxs.Add(int32(len(ev.Txs)))
+			done()
 
 		// System stopped
 		case <-w.exitCh:

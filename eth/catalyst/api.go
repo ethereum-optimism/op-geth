@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"os"
 	"sync"
 	"time"
 
@@ -227,6 +228,21 @@ func checkAttribute(active func(*big.Int, uint64) bool, exists bool, block *big.
 	return nil
 }
 
+var timingThresholdForkchoiceUpdated = func() time.Duration {
+	const defaultThr = 10 * time.Millisecond
+	const envStr = "GETH_TIMING_THR_FORKCHOICEUPDATED"
+	thrEnv, ok := os.LookupEnv(envStr)
+	if !ok {
+		return defaultThr
+	}
+	thr, err := time.ParseDuration(thrEnv)
+	if err != nil {
+		return defaultThr
+	}
+	log.Info("ForkchoiceUpdated timing threshold read from env.", "threshold", thr, "env", envStr)
+	return thr
+}()
+
 func (api *ConsensusAPI) forkchoiceUpdated(update engine.ForkchoiceStateV1, payloadAttributes *engine.PayloadAttributes) (engine.ForkChoiceResponse, error) {
 	start := time.Now()
 	timings := []interface{}{"method", "ForkchoiceUpdated"}
@@ -235,8 +251,11 @@ func (api *ConsensusAPI) forkchoiceUpdated(update engine.ForkchoiceStateV1, payl
 	}
 	defer func() {
 		recordElapsed("complete")
-		log.Trace("Engine API request complete", timings...)
+		if time.Since(start) > timingThresholdForkchoiceUpdated {
+			log.Debug("Engine API request complete", timings...)
+		}
 	}()
+
 	api.forkchoiceLock.Lock()
 	defer api.forkchoiceLock.Unlock()
 	recordElapsed("lockAcquired")
