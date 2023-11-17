@@ -30,6 +30,12 @@ import (
 )
 
 func TestBuildPayload(t *testing.T) {
+	t.Run("with-tx-pool", func(t *testing.T) { testBuildPayload(t, false) })
+	t.Run("no-tx-pool", func(t *testing.T) { testBuildPayload(t, true) })
+}
+
+func testBuildPayload(t *testing.T, noTxPool bool) {
+	t.Helper()
 	var (
 		db        = rawdb.NewMemoryDatabase()
 		recipient = common.HexToAddress("0xdeadbeef")
@@ -38,12 +44,12 @@ func TestBuildPayload(t *testing.T) {
 	defer w.close()
 
 	timestamp := uint64(time.Now().Unix())
-	// TODO: Add NoTxPool = true test case
 	args := &BuildPayloadArgs{
 		Parent:       b.chain.CurrentBlock().Hash(),
 		Timestamp:    timestamp,
 		Random:       common.Hash{},
 		FeeRecipient: recipient,
+		NoTxPool:     noTxPool,
 	}
 	payload, err := w.buildPayload(args)
 	if err != nil {
@@ -64,14 +70,20 @@ func TestBuildPayload(t *testing.T) {
 			t.Fatal("Unexpect fee recipient")
 		}
 		if len(payload.Transactions) != txs {
-			t.Fatal("Unexpect transaction set")
+			t.Fatalf("Unexpect transaction set: got %d, expected %d", len(payload.Transactions), txs)
 		}
 	}
-	empty := payload.ResolveEmpty()
-	verify(empty, 0)
 
-	full := payload.ResolveFull()
-	verify(full, len(pendingTxs))
+	if noTxPool {
+		// we only build the empty block when ignoring the tx pool
+		empty := payload.ResolveEmpty()
+		verify(empty, 0)
+		full := payload.ResolveFull()
+		verify(full, 0)
+	} else {
+		full := payload.ResolveFull()
+		verify(full, len(pendingTxs))
+	}
 
 	// Ensure resolve can be called multiple times and the
 	// result should be unchanged

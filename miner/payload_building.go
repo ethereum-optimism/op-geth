@@ -155,7 +155,7 @@ func (payload *Payload) Resolve() *engine.ExecutionPayloadEnvelope {
 	defer payload.lock.Unlock()
 
 	// Interrupt payload generation
-	payload.interrupt.Store(commitInterruptResolve)
+	payload.interruptWorker()
 	// TODO: Since we don't wait for the next payload update via payload.cond.Wait(),
 	//   like we do in ResolveFull, we probably wouldn't see the result here,
 	//   even though it would be ready very soon.
@@ -190,9 +190,6 @@ func (payload *Payload) ResolveFull() *engine.ExecutionPayloadEnvelope {
 	payload.lock.Lock()
 	defer payload.lock.Unlock()
 
-	// Interrupt payload generation
-	payload.interrupt.Store(commitInterruptResolve)
-
 	if payload.full == nil {
 		select {
 		case <-payload.stop:
@@ -203,6 +200,9 @@ func (payload *Payload) ResolveFull() *engine.ExecutionPayloadEnvelope {
 		// forever if Resolve is called in the meantime which
 		// terminates the background construction process.
 		payload.cond.Wait()
+	} else {
+		// Interrupt payload generation only if at least one full block has already been built completely.
+		payload.interruptWorker()
 	}
 	// Terminate the background payload construction
 	select {
@@ -211,6 +211,10 @@ func (payload *Payload) ResolveFull() *engine.ExecutionPayloadEnvelope {
 		close(payload.stop)
 	}
 	return engine.BlockToExecutableData(payload.full, payload.fullFees, payload.sidecars)
+}
+
+func (payload *Payload) interruptWorker() {
+	payload.interrupt.Store(commitInterruptResolve)
 }
 
 func (w *worker) emptyBlock(args *BuildPayloadArgs) *newPayloadResult {
@@ -243,6 +247,9 @@ func (w *worker) buildPayload(args *BuildPayloadArgs) (*Payload, error) {
 		//    we synchronously build the empty block, but when we do have a tx pool,
 		//    we build even the first block async. This behavior is less consistent,
 		//    but makes payload resolution easier.
+		//    On 2nd thought, I think it makes sense to keep this behavior because we use the NoTxPool case
+		//    when the block's timestamp is out of the sequencer drift window, so getPayload
+		//    can then immediately be called after forkchoiceUpdated.
 		empty := w.emptyBlock(args)
 		if empty.err != nil {
 			return nil, empty.err
