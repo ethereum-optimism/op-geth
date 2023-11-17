@@ -944,6 +944,31 @@ type generateParams struct {
 	interrupt *atomic.Int32      // Optional interruption signal to pass down to worker.generateWork
 }
 
+// validateParams validates the given parameters.
+// It currently checks that the parent block is known and that the timestamp is valid,
+// i.e., after the parent block's timestamp.
+func (w *worker) validateParams(genParams *generateParams) error {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+
+	// Find the parent block for sealing task
+	parent := w.chain.CurrentBlock()
+	if genParams.parentHash != (common.Hash{}) {
+		block := w.chain.GetBlockByHash(genParams.parentHash)
+		if block == nil {
+			return fmt.Errorf("missing parent %v", genParams.parentHash)
+		}
+		parent = block.Header()
+	}
+	// Sanity check the timestamp correctness, recap the timestamp
+	// to parent+1 if the mutation is allowed.
+	timestamp := genParams.timestamp
+	if genParams.forceTime && parent.Time >= timestamp {
+		return fmt.Errorf("invalid timestamp, parent %d given %d", parent.Time, timestamp)
+	}
+	return nil
+}
+
 // prepareWork constructs the sealing task according to the given parameters,
 // either based on the last chain head or specified parent. In this function
 // the pending transactions are not filled yet, only the empty task returned.

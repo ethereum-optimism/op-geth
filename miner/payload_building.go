@@ -261,8 +261,26 @@ func (w *worker) buildPayload(args *BuildPayloadArgs) (*Payload, error) {
 		return payload, nil
 	}
 
+	fullParams := &generateParams{
+		timestamp:   args.Timestamp,
+		forceTime:   true,
+		parentHash:  args.Parent,
+		coinbase:    args.FeeRecipient,
+		random:      args.Random,
+		withdrawals: args.Withdrawals,
+		beaconRoot:  args.BeaconRoot,
+		noTxs:       false,
+		txs:         args.Transactions,
+		gasLimit:    args.GasLimit,
+	}
+
+	if err := w.validateParams(fullParams); err != nil {
+		return nil, err
+	}
+
 	// If we use the TxPool, skip empty block production.
 	payload := newPayload(nil, args.Id())
+	fullParams.interrupt = payload.interrupt
 
 	// Spin up a routine for updating the payload in background. This strategy
 	// can maximum the revenue for including transactions with highest fee.
@@ -281,20 +299,6 @@ func (w *worker) buildPayload(args *BuildPayloadArgs) (*Payload, error) {
 		// by the timestamp parameter.
 		endTimer := time.NewTimer(time.Second * 12)
 		defer endTimer.Stop()
-
-		fullParams := &generateParams{
-			timestamp:   args.Timestamp,
-			forceTime:   true,
-			parentHash:  args.Parent,
-			coinbase:    args.FeeRecipient,
-			random:      args.Random,
-			withdrawals: args.Withdrawals,
-			beaconRoot:  args.BeaconRoot,
-			noTxs:       false,
-			txs:         args.Transactions,
-			gasLimit:    args.GasLimit,
-			interrupt:   payload.interrupt,
-		}
 
 		for {
 			select {
