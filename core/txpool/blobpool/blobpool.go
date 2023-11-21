@@ -315,6 +315,9 @@ type BlobPool struct {
 	insertFeed   event.Feed // Event feed to send out new tx events on pool inclusion (reorg included)
 
 	lock sync.RWMutex // Mutex protecting the pool during reorg handling
+
+	// Celo
+	feeCurrencyValidator txpool.FeeCurrencyValidator
 }
 
 // New creates a new blob transaction pool to gather, sort and filter inbound
@@ -331,6 +334,8 @@ func New(config Config, chain BlockChain) *BlobPool {
 		lookup: make(map[common.Hash]uint64),
 		index:  make(map[common.Address][]*blobTxMeta),
 		spent:  make(map[common.Address]*uint256.Int),
+
+		feeCurrencyValidator: txpool.NewFeeCurrencyValidator(),
 	}
 }
 
@@ -1081,13 +1086,14 @@ func (p *BlobPool) SetGasTip(tip *big.Int) {
 func (p *BlobPool) validateTx(tx *types.Transaction) error {
 	// Ensure the transaction adheres to basic pool filters (type, size, tip) and
 	// consensus rules
-	baseOpts := &txpool.ValidationOptions{
-		Config:  p.chain.Config(),
-		Accept:  1 << types.BlobTxType,
-		MaxSize: txMaxSize,
-		MinTip:  p.gasTip.ToBig(),
+	baseOpts := &txpool.CeloValidationOptions{
+		Config:    p.chain.Config(),
+		AcceptSet: txpool.NewAcceptSet(types.BlobTxType),
+		MaxSize:   txMaxSize,
+		MinTip:    p.gasTip.ToBig(),
 	}
-	if err := txpool.ValidateTransaction(tx, p.head, p.signer, baseOpts); err != nil {
+	var fcv txpool.FeeCurrencyValidator = nil // TODO: create with proper value
+	if err := txpool.CeloValidateTransaction(tx, p.head, p.signer, baseOpts, p.state, fcv); err != nil {
 		return err
 	}
 	// Ensure the transaction adheres to the stateful pool filters (nonce, balance)
@@ -1121,7 +1127,14 @@ func (p *BlobPool) validateTx(tx *types.Transaction) error {
 			return nil
 		},
 	}
-	if err := txpool.ValidateTransactionWithState(tx, p.signer, stateOpts); err != nil {
+
+	// Adapt to celo validation options
+	celoOpts := &txpool.CeloValidationOptionsWithState{
+		ValidationOptionsWithState: *stateOpts,
+		FeeCurrencyValidator:       p.feeCurrencyValidator,
+	}
+
+	if err := txpool.ValidateTransactionWithState(tx, p.signer, celoOpts); err != nil {
 		return err
 	}
 	// If the transaction replaces an existing one, ensure that price bumps are
