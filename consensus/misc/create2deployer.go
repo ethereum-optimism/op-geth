@@ -28,8 +28,9 @@ func init() {
 	create2DeployerCode = code
 }
 
-func EnsureCreate2Deployer(c *params.ChainConfig, timestamp uint64, db vm.StateDB) {
-	if !c.IsOptimism() || c.CanyonTime == nil || *c.CanyonTime != timestamp {
+func EnsureCreate2Deployer(c *params.ChainConfig, parentTimestamp, timestamp uint64, db vm.StateDB) {
+	// only ensure if Canyon is active, and if we just passed the fork-boundary or if this is genesis.
+	if !(c.IsOptimism() && c.IsCanyon(timestamp) && (!c.IsCanyon(parentTimestamp) || parentTimestamp == 0)) {
 		return
 	}
 	log.Info("Setting Create2Deployer code", "address", create2DeployerAddress, "codeHash", create2DeployerCodeHash)

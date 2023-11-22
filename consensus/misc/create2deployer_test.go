@@ -16,38 +16,68 @@ func TestEnsureCreate2Deployer(t *testing.T) {
 	var tests = []struct {
 		name       string
 		override   func(cfg *params.ChainConfig)
+		parentTime uint64
 		timestamp  uint64
 		codeExists bool
 		applied    bool
 	}{
 		{
-			name:      "at hardfork",
-			timestamp: canyonTime,
-			applied:   true,
+			name:       "at hardfork at genesis",
+			parentTime: 0,
+			timestamp:  canyonTime,
+			applied:    true,
+		},
+		{
+			name:       "at hardfork exactly",
+			parentTime: canyonTime - 2,
+			timestamp:  canyonTime,
+			applied:    true,
+		},
+		{
+			name:       "at hardfork unaligned",
+			parentTime: canyonTime - 1,
+			timestamp:  canyonTime + 1,
+			applied:    true,
 		},
 		{
 			name: "another chain ID",
 			override: func(cfg *params.ChainConfig) {
 				cfg.ChainID = big.NewInt(params.OPMainnetChainID)
 			},
-			timestamp: canyonTime,
-			applied:   true,
+			parentTime: canyonTime - 2,
+			timestamp:  canyonTime,
+			applied:    true,
 		},
 		{
 			name:       "code already exists",
+			parentTime: canyonTime - 2,
 			timestamp:  canyonTime,
 			codeExists: true,
 			applied:    true,
 		},
 		{
-			name:      "pre canyon",
-			timestamp: canyonTime - 1,
-			applied:   false,
+			name:       "pre canyon",
+			parentTime: canyonTime - 2,
+			timestamp:  canyonTime - 1,
+			applied:    false,
 		},
 		{
-			name:      "post hardfork",
-			timestamp: canyonTime + 1,
-			applied:   false,
+			name:       "post hardfork by 1",
+			parentTime: canyonTime,
+			timestamp:  canyonTime + 1,
+			applied:    false,
+		},
+		{
+			name:       "post hardfork",
+			parentTime: canyonTime,
+			timestamp:  canyonTime + 2,
+			applied:    false,
+		},
+		{
+			name:       "post hardfork a while",
+			parentTime: canyonTime + 1,
+			timestamp:  canyonTime + 3,
+			applied:    false,
 		},
 		{
 			name: "canyon not configured",
@@ -71,7 +101,7 @@ func TestEnsureCreate2Deployer(t *testing.T) {
 			state := &stateDb{
 				codeExists: tt.codeExists,
 			}
-			EnsureCreate2Deployer(&cfg, tt.timestamp, state)
+			EnsureCreate2Deployer(&cfg, tt.parentTime, tt.timestamp, state)
 			assert.Equal(t, tt.applied, state.codeSet)
 		})
 	}

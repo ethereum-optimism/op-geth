@@ -1071,8 +1071,8 @@ func (w *worker) generateWork(genParams *generateParams) *newPayloadResult {
 	if work.gasPool == nil {
 		work.gasPool = new(core.GasPool).AddGas(work.header.GasLimit)
 	}
-
-	misc.EnsureCreate2Deployer(w.chainConfig, work.header.Time, work.state)
+	parent := w.chain.GetHeaderByHash(work.header.ParentHash)
+	misc.EnsureCreate2Deployer(w.chainConfig, parent.Time, work.header.Time, work.state)
 
 	for _, tx := range genParams.txs {
 		from, _ := types.Sender(work.signer, tx)
