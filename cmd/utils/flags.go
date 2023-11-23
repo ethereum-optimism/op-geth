@@ -267,6 +267,11 @@ var (
 		Usage:    "Manually specify the Optimsim Canyon fork timestamp, overriding the bundled setting",
 		Category: flags.EthCategory,
 	}
+	OverrideOptimismInterop = &cli.Uint64Flag{
+		Name:     "override.interop",
+		Usage:    "Manually specify the Optimsim Interop feature-set fork timestamp, overriding the bundled setting",
+		Category: flags.EthCategory,
+	}
 	SyncModeFlag = &flags.TextMarshalerFlag{
 		Name:     "syncmode",
 		Usage:    `Blockchain sync mode ("snap", "full" or "light")`,

@@ -259,6 +259,7 @@ type ChainOverrides struct {
 	// optimism
 	OverrideOptimismCanyon  *uint64
 	ApplySuperchainUpgrades bool
+	OverrideOptimismInterop *uint64
 }
 
 // SetupGenesisBlock writes or updates the genesis block in db.
@@ -317,6 +318,9 @@ func SetupGenesisBlockWithOverride(db ethdb.Database, triedb *trie.Database, gen
 				if config.Optimism != nil && config.Optimism.EIP1559DenominatorCanyon == 0 {
 					config.Optimism.EIP1559DenominatorCanyon = 250
 				}
+			}
+			if overrides != nil && overrides.OverrideOptimismInterop != nil {
+				config.InteropTime = overrides.OverrideOptimismInterop
 			}
 		}
 	}
