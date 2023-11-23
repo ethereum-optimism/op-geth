@@ -16,13 +16,12 @@ require (
 	github.com/cockroachdb/errors v1.8.1
 	github.com/cockroachdb/pebble v0.0.0-20230928194634-aa077af62593
 	github.com/consensys/gnark-crypto v0.12.1
-	github.com/crate-crypto/go-kzg-4844 v0.3.0
+	github.com/crate-crypto/go-kzg-4844 v0.7.0
 	github.com/davecgh/go-spew v1.1.1
 	github.com/deckarep/golang-set/v2 v2.1.0
-	github.com/docker/docker v24.0.5+incompatible
 	github.com/dop251/goja v0.0.0-20230806174421-c933cf95e127
 	github.com/ethereum-optimism/superchain-registry/superchain v0.0.0-20231030223232-e16eae11e492
-	github.com/ethereum/c-kzg-4844 v0.3.1
+	github.com/ethereum/c-kzg-4844 v0.4.0
 	github.com/fatih/color v1.13.0
 	github.com/fjl/gencodec v0.0.0-20230517082657-f9840df7b83e
 	github.com/fjl/memsize v0.0.0-20190710130421-bcb5799ab5e5
@@ -143,7 +142,6 @@ require (
 	golang.org/x/net v0.17.0 // indirect
 	google.golang.org/protobuf v1.27.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	gotest.tools/v3 v3.5.1 // indirect
 	rsc.io/tmplfunc v0.0.3 // indirect
 )
 
