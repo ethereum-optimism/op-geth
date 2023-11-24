@@ -35,7 +35,6 @@ func TestBuildPayload(t *testing.T) {
 }
 
 func testBuildPayload(t *testing.T, noTxPool bool) {
-	t.Helper()
 	var (
 		db        = rawdb.NewMemoryDatabase()
 		recipient = common.HexToAddress("0xdeadbeef")
@@ -51,11 +50,18 @@ func testBuildPayload(t *testing.T, noTxPool bool) {
 		FeeRecipient: recipient,
 		NoTxPool:     noTxPool,
 	}
-	payload, err := w.buildPayload(args)
+	// payload resolution now interrupts block building, so we have to
+	// wait for the payloading building process to build its first block
+	tdone := make(chan struct{}, 1)
+	payload, err := w.buildPayload(args, tdone)
 	if err != nil {
 		t.Fatalf("Failed to build payload %v", err)
 	}
 	verify := func(outer *engine.ExecutionPayloadEnvelope, txs int) {
+		t.Helper()
+		if outer == nil {
+			t.Fatal("ExecutionPayloadEnvelope is nil")
+		}
 		payload := outer.ExecutionPayload
 		if payload.ParentHash != b.chain.CurrentBlock().Hash() {
 			t.Fatal("Unexpect parent hash")
@@ -81,6 +87,7 @@ func testBuildPayload(t *testing.T, noTxPool bool) {
 		full := payload.ResolveFull()
 		verify(full, 0)
 	} else {
+		<-tdone
 		full := payload.ResolveFull()
 		verify(full, len(pendingTxs))
 	}
