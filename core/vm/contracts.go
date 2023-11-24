@@ -17,10 +17,12 @@
 package vm
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"io"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -30,7 +32,11 @@ import (
 	"github.com/ethereum/go-ethereum/crypto/bls12381"
 	"github.com/ethereum/go-ethereum/crypto/bn256"
 	"github.com/ethereum/go-ethereum/crypto/kzg4844"
+	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/ethereum/go-ethereum/trie"
+	"github.com/holiman/uint256"
 	"golang.org/x/crypto/ripemd160"
 )
 
@@ -107,6 +113,19 @@ var PrecompiledContractsCancun = map[common.Address]PrecompiledContract{
 	common.BytesToAddress([]byte{0x0a}): &kzgPointEvaluation{},
 }
 
+var PrecompiledContractsInterop = map[common.Address]PrecompiledContract{
+	common.BytesToAddress([]byte{1}):    &ecrecover{},
+	common.BytesToAddress([]byte{2}):    &sha256hash{},
+	common.BytesToAddress([]byte{3}):    &ripemd160hash{},
+	common.BytesToAddress([]byte{4}):    &dataCopy{},
+	common.BytesToAddress([]byte{5}):    &bigModExp{eip2565: true},
+	common.BytesToAddress([]byte{6}):    &bn256AddIstanbul{},
+	common.BytesToAddress([]byte{7}):    &bn256ScalarMulIstanbul{},
+	common.BytesToAddress([]byte{8}):    &bn256PairingIstanbul{},
+	common.BytesToAddress([]byte{9}):    &blake2F{},
+	common.BytesToAddress([]byte{0x21}): &treeProofVerification{},
+}
+
 // PrecompiledContractsBLS contains the set of pre-compiled Ethereum
 // contracts specified in EIP-2537. These are exported for testing purposes.
 var PrecompiledContractsBLS = map[common.Address]PrecompiledContract{
@@ -122,6 +141,7 @@ var PrecompiledContractsBLS = map[common.Address]PrecompiledContract{
 }
 
 var (
+	PrecompiledAddressesInterop   []common.Address
 	PrecompiledAddressesCancun    []common.Address
 	PrecompiledAddressesBerlin    []common.Address
 	PrecompiledAddressesIstanbul  []common.Address
@@ -145,11 +165,16 @@ func init() {
 	for k := range PrecompiledContractsCancun {
 		PrecompiledAddressesCancun = append(PrecompiledAddressesCancun, k)
 	}
+	for k := range PrecompiledContractsInterop {
+		PrecompiledAddressesInterop = append(PrecompiledAddressesInterop, k)
+	}
 }
 
 // ActivePrecompiles returns the precompiles enabled with the current configuration.
 func ActivePrecompiles(rules params.Rules) []common.Address {
 	switch {
+	case rules.IsOptimismInterop:
+		return PrecompiledAddressesInterop
 	case rules.IsCancun:
 		return PrecompiledAddressesCancun
 	case rules.IsBerlin:
@@ -1134,4 +1159,151 @@ func kZGToVersionedHash(kzg kzg4844.Commitment) common.Hash {
 	h[0] = blobCommitmentVersionKZG
 
 	return h
+}
+
+// treeProofVerification implements tree verification, akin to verkle verification in EIP-7545,
+// to be merged into one EIP potentially.
+//
+// Different types/versions of tree proofs can be verified.
+// Currently only single-branch MPT verification is supported.
+type treeProofVerification struct{}
+
+// RequiredGas estimates the gas required for running precompile.
+func (b *treeProofVerification) RequiredGas(input []byte) uint64 {
+	errorCost := uint64(1000)
+	if len(input) == 0 { // burn gas for incorrectly calling the precompile
+		return errorCost
+	}
+	version := input[0]
+	switch version {
+	case 0:
+		// verkle cost
+		return errorCost
+	case 1:
+		// TODO: should this depend on the length of the proof, or do we just enforce a max proof depth?
+		// MPT verification cost
+		return 100_000
+	default:
+		return errorCost
+	}
+}
+
+var (
+	errEmptyTreeProof         = errors.New("empty tree proof")
+	errUnsupportedVerkleProof = errors.New("verkle proof is not supported")
+	errUnrecognizedTreeProof  = errors.New("unrecognized tree proof")
+	errTreeProofTooShort      = errors.New("proof too short")
+)
+
+// Run executes the state verification precompile.
+// The return-data will be a single byte, always 1 if valid.
+// If the proof is invalid, the pre-compile will revert with an error.
+func (b *treeProofVerification) Run(input []byte) ([]byte, error) {
+	if len(input) == 0 {
+		return nil, errEmptyTreeProof
+	}
+	version := input[0]
+	switch version {
+	case 0: // reserved for verkle precompile
+		return nil, errUnsupportedVerkleProof
+	case 1:
+		err := mptProof(input[1:])
+		if err != nil {
+			return nil, err
+		}
+		return []byte{1}, nil
+	default:
+		return nil, errUnrecognizedTreeProof
+	}
+}
+
+// proofStream provides a DB-getter for MPT verification,
+// without supporting arbitrary ordering of nodes that form the MPT proof witness.
+// Instead, the request is matched against the first value in the stream,
+// and an error is returned if it does not match.
+type proofStream struct {
+	s *rlp.Stream
+}
+
+func (p *proofStream) Has(key []byte) (bool, error) {
+	return false, errors.New("key lookup not supported")
+}
+
+func (p *proofStream) Get(requestedKey []byte) ([]byte, error) {
+	encodedNode, err := p.s.Raw()
+	if err != nil {
+		return nil, err
+	}
+	nodeKey := encodedNode
+	if len(encodedNode) >= 32 { // small MPT nodes are not hashed
+		nodeKey = crypto.Keccak256(encodedNode)
+	}
+	if bytes.Equal(nodeKey, requestedKey) {
+		return encodedNode, nil
+	}
+	return nil, fmt.Errorf("node %x in stream with key %x does match requested key %x", encodedNode, nodeKey, requestedKey)
+}
+
+var _ ethdb.KeyValueReader = (*proofStream)(nil)
+
+// args:
+// root        - bytes32
+// pathLength  - uint256 (big-endian, must be <= 32)
+// pathData    - bytes32 (left-padded if smaller than 32 bytes)
+// valueLength - uint256 (big-endian, must be <= 32)
+// valueData   - bytes32 (left-padded if smaller than 32 bytes)
+// trailing call-data: RLP MPT node entries
+func mptProof(data []byte) error {
+	if len(data) < 32*5 {
+		return errTreeProofTooShort
+	}
+	var root [32]byte
+	var pathLength uint256.Int
+	var pathData [32]byte
+	var valueLength uint256.Int
+	var valueData [32]byte
+
+	copy(root[:], data[:32])
+	data = data[32:]
+
+	pathLength.SetBytes32(data[:32])
+	data = data[32:]
+
+	copy(pathData[:], data[:32])
+	data = data[32:]
+
+	valueLength.SetBytes32(data[:32])
+	data = data[32:]
+
+	copy(valueData[:], data[:32])
+	data = data[32:]
+
+	if !pathLength.IsUint64() || pathLength.Uint64() > 32 {
+		return fmt.Errorf("path too long: %d", pathLength)
+	}
+	if !valueLength.IsUint64() || valueLength.Uint64() > 32 {
+		return fmt.Errorf("value too long: %d", valueLength)
+	}
+	path := pathData[32-pathLength.Uint64():]
+	value := valueData[32-valueLength.Uint64():]
+
+	// The remaining bytes are all MPT nodes.
+	// Each MPT node is RLP encoded, and thus already contains the length.
+	// We turn it into a "DB" that provides the first value, and if it does not match the request, fail.
+	// This way we guarantee the proof is mono-morph (has a single valid encoding)
+	input := &io.LimitedReader{R: bytes.NewReader(data), N: int64(len(data))}
+	proof := &proofStream{s: rlp.NewStream(input, uint64(len(data)))}
+	// returns the RLP encoded value
+	verifiedVal, err := trie.VerifyProofStrictKey(root, path, proof)
+	if err != nil {
+		return fmt.Errorf("failed to verify path %x against root %x: %w", path, root, err)
+	}
+	if input.N != 0 {
+		return fmt.Errorf("not all proof bytes have been read, %d left, proof is not mono-morph", input.N)
+	}
+	// check if it matches
+	if bytes.Equal(value, verifiedVal) {
+		return nil
+	}
+	return fmt.Errorf("expected value %x does not match verified value %x", value, verifiedVal)
 }

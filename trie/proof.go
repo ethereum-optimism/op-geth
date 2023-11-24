@@ -114,7 +114,19 @@ func (t *StateTrie) Prove(key []byte, proofDb ethdb.KeyValueWriter) error {
 // VerifyProof checks merkle proofs. The given proof must contain the value for
 // key in a trie with the given root hash. VerifyProof returns an error if the
 // proof contains invalid trie nodes or the wrong value.
+// Warning: VerifyProof does not verify the key has been fully read.
 func VerifyProof(rootHash common.Hash, key []byte, proofDb ethdb.KeyValueReader) (value []byte, err error) {
+	value, err = VerifyProofStrictKey(rootHash, key, proofDb)
+	if errors.Is(err, UnreadKeyErr) {
+		err = nil
+	}
+	return
+}
+
+var UnreadKeyErr = errors.New("key has not been fully traversed")
+
+// VerifyProofStrictKey checks a merkle proof like VerifyProof, and ensures the key has been fully read.
+func VerifyProofStrictKey(rootHash common.Hash, key []byte, proofDb ethdb.KeyValueReader) (value []byte, err error) {
 	key = keybytesToHex(key)
 	wantHash := rootHash
 	for i := 0; ; i++ {
@@ -135,6 +147,9 @@ func VerifyProof(rootHash common.Hash, key []byte, proofDb ethdb.KeyValueReader)
 			key = keyrest
 			copy(wantHash[:], cld)
 		case valueNode:
+			if len(keyrest) != 0 {
+				return cld, UnreadKeyErr
+			}
 			return cld, nil
 		}
 	}

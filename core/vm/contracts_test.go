@@ -19,12 +19,16 @@ package vm
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"testing"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/rawdb"
+	"github.com/ethereum/go-ethereum/trie"
+	"github.com/holiman/uint256"
 )
 
 // precompiledTest defines the input/output pairs for precompiled contract tests.
@@ -394,4 +398,119 @@ func BenchmarkPrecompiledBLS12381G2MultiExpWorstCase(b *testing.B) {
 		NoBenchmark: false,
 	}
 	benchmarkPrecompiled("0f", testcase, b)
+}
+
+type proofEncoder struct {
+	out [][]byte
+}
+
+func (e *proofEncoder) Put(key []byte, value []byte) error {
+	e.out = append(e.out, bytes.Clone(value))
+	return nil
+}
+
+func (e *proofEncoder) Delete(key []byte) error {
+	return errors.New("key deletion is not supported")
+}
+
+func (e *proofEncoder) encodePrecompileCall(root [32]byte, key []byte, value []byte) []byte {
+	u256 := func(v int) []byte {
+		dat := uint256.NewInt(uint64(v)).Bytes32()
+		return dat[:]
+	}
+	padB32 := func(v []byte) []byte {
+		var out [32]byte
+		copy(out[32-len(v):], v)
+		return out[:]
+	}
+
+	data := make([]byte, 0, 32*5)
+	data = append(data, root[:]...)
+	data = append(data, u256(len(key))...)
+	data = append(data, padB32(key)...)
+	data = append(data, u256(len(value))...)
+	data = append(data, padB32(value)...)
+
+	for _, node := range e.out {
+		data = append(data, node...)
+	}
+	return data
+}
+
+func TestTreeVerificationPrecompileSimple(t *testing.T) {
+	db := rawdb.NewMemoryDatabase()
+	tdb := trie.NewDatabase(db, &trie.Config{})
+	tr := trie.NewEmpty(tdb)
+	// From the eth wiki: ('do', 'verb'), ('dog', 'puppy'), ('doge', 'coin'), ('horse', 'stallion')
+	tr.MustUpdate([]byte("do"), []byte("verb"))
+	tr.MustUpdate([]byte("dog"), []byte("puppy"))
+	tr.MustUpdate([]byte("doge"), []byte("coin"))
+	tr.MustUpdate([]byte("horse"), []byte("stallion"))
+	root := tr.Hash()
+
+	for _, tc := range []struct {
+		claim string
+		key   string
+		val   string
+		ok    bool
+	}{
+		// success cases
+		{"do", "do", "verb", true},
+		{"dog", "dog", "puppy", true},
+		{"doge", "doge", "coin", true},
+		{"horse", "horse", "stallion", true},
+		// wrong key, valid proof, overlapping branch
+		{"do", "dog", "puppy", false},
+		{"dog", "do", "verb", false},
+		// wrong key, valid proof, other branch
+		{"do", "horse", "stallion", false},
+	} {
+		tc := tc
+		t.Run(tc.claim+"_"+tc.key+"_"+tc.val, func(t *testing.T) {
+			claim := []byte(tc.claim)
+			key := []byte(tc.key)
+			value := []byte(tc.val)
+
+			enc := &proofEncoder{}
+			if err := tr.Prove(key, enc); err != nil {
+				t.Fatal(err)
+			}
+			data := enc.encodePrecompileCall(root, claim, value)
+
+			err := mptProof(data)
+			if err != nil {
+				if tc.ok {
+					t.Fatal("unexpected err:", err)
+				}
+			} else {
+				if !tc.ok {
+					t.Fatal("expected error, but got none")
+				}
+			}
+		})
+	}
+}
+
+func TestTreeVerificationPrecompileStorageLike(t *testing.T) {
+	db := rawdb.NewMemoryDatabase()
+	tdb := trie.NewDatabase(db, &trie.Config{})
+	tr := trie.NewEmpty(tdb)
+	kA := common.Hash{0xa}
+	kB := common.Hash{0xb}
+	vA := common.Hash{0x1}
+	vB := common.Hash{0x2}
+	tr.MustUpdate(kA[:], vA[:])
+	tr.MustUpdate(kB[:], vB[:])
+
+	root := tr.Hash()
+
+	enc := &proofEncoder{}
+	if err := tr.Prove(kB[:], enc); err != nil {
+		t.Fatal(err)
+	}
+	data := enc.encodePrecompileCall(root, kB[:], vB[:])
+	err := mptProof(data)
+	if err != nil {
+		t.Fatal(err)
+	}
 }

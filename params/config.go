@@ -647,6 +647,9 @@ func (c *ChainConfig) IsOptimismRegolith(time uint64) bool {
 func (c *ChainConfig) IsOptimismCanyon(time uint64) bool {
 	return c.IsOptimism() && c.IsCanyon(time)
 }
+func (c *ChainConfig) IsOptimismInterop(time uint64) bool {
+	return c.IsOptimism() && c.IsInterop(time)
+}
 
 // IsOptimismPreBedrock returns true iff this is an optimism node & bedrock is not yet active
 func (c *ChainConfig) IsOptimismPreBedrock(num *big.Int) bool {
@@ -972,6 +975,7 @@ type Rules struct {
 	IsVerkle                                                bool
 	IsOptimismBedrock, IsOptimismRegolith                   bool
 	IsOptimismCanyon                                        bool
+	IsOptimismInterop                                       bool
 }
 
 // Rules ensures c's ChainID is not nil.
@@ -1001,5 +1005,6 @@ func (c *ChainConfig) Rules(num *big.Int, isMerge bool, timestamp uint64) Rules 
 		IsOptimismBedrock:  c.IsOptimismBedrock(num),
 		IsOptimismRegolith: c.IsOptimismRegolith(timestamp),
 		IsOptimismCanyon:   c.IsOptimismCanyon(timestamp),
+		IsOptimismInterop:  c.IsOptimismInterop(timestamp),
 	}
 }
