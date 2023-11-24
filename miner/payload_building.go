@@ -90,10 +90,10 @@ type Payload struct {
 	sidecars []*types.BlobTxSidecar
 	fullFees *big.Int
 	stop     chan struct{}
-	lock     sync.Mutex
-	cond     *sync.Cond
 
+	stopOnce  sync.Once
 	interrupt *atomic.Int32 // interrup signal shared with worker
+	done      chan struct{} // signal by builder routine to be done
 }
 
 // newPayload initializes the payload object.
@@ -104,22 +104,19 @@ func newPayload(empty *types.Block, id engine.PayloadID) *Payload {
 		stop:  make(chan struct{}),
 
 		interrupt: new(atomic.Int32),
+		done:      make(chan struct{}),
 	}
 	log.Info("Starting work on payload", "id", payload.id)
-	payload.cond = sync.NewCond(&payload.lock)
 	return payload
 }
 
 // update updates the full-block with latest built version.
 func (payload *Payload) update(r *newPayloadResult, elapsed time.Duration) {
-	payload.lock.Lock()
-	defer payload.lock.Unlock()
-
-	select {
-	case <-payload.stop:
-		return // reject stale update
-	default:
+	if r.err != nil {
+		log.Error("Error building payload.", "err", r.err)
+		return
 	}
+
 	// Ensure the newly provided full block has a higher transaction fee.
 	// In post-merge stage, there is no uncle reward anymore and transaction
 	// fee(apart from the mev revenue) is the only indicator for comparison.
@@ -141,116 +138,72 @@ func (payload *Payload) update(r *newPayloadResult, elapsed time.Duration) {
 			"elapsed", common.PrettyDuration(elapsed),
 		)
 	}
-	payload.cond.Broadcast() // fire signal for notifying full block
 }
 
 // Resolve returns the latest built payload and also terminates the background
 // thread for updating payload. It's safe to be called multiple times.
 func (payload *Payload) Resolve() *engine.ExecutionPayloadEnvelope {
-	// If we have a tx pool (NoTxPool == false), we didn't build an empty block at all.
-	if payload.empty == nil {
-		return payload.ResolveFull()
-	}
-	payload.lock.Lock()
-	defer payload.lock.Unlock()
-
-	// Interrupt payload generation
-	payload.interruptWorker()
-	// TODO: Since we don't wait for the next payload update via payload.cond.Wait(),
-	//   like we do in ResolveFull, we probably wouldn't see the result here,
-	//   even though it would be ready very soon.
-
-	select {
-	case <-payload.stop:
-	default:
-		close(payload.stop)
-	}
-	if payload.full != nil {
-		return engine.BlockToExecutableData(payload.full, payload.fullFees, payload.sidecars)
-	}
-
-	return payload.resolveEmpty()
+	return payload.resolve(false)
 }
 
 // ResolveEmpty is basically identical to Resolve, but it expects empty block only.
 // It's only used in tests.
 func (payload *Payload) ResolveEmpty() *engine.ExecutionPayloadEnvelope {
-	payload.lock.Lock()
-	defer payload.lock.Unlock()
-	return payload.resolveEmpty()
-}
-
-func (payload *Payload) resolveEmpty() *engine.ExecutionPayloadEnvelope {
 	return engine.BlockToExecutableData(payload.empty, big.NewInt(0), nil)
 }
 
 // ResolveFull is basically identical to Resolve, but it expects full block only.
 // Don't call Resolve until ResolveFull returns, otherwise it might block forever.
 func (payload *Payload) ResolveFull() *engine.ExecutionPayloadEnvelope {
-	payload.lock.Lock()
-	defer payload.lock.Unlock()
+	return payload.resolve(true)
+}
 
-	if payload.full == nil {
-		select {
-		case <-payload.stop:
-			return nil
-		default:
-		}
-		// Wait the full payload construction. Note it might block
-		// forever if Resolve is called in the meantime which
-		// terminates the background construction process.
-		payload.cond.Wait()
+func (payload *Payload) resolve(fullOnly bool) *engine.ExecutionPayloadEnvelope {
+	payload.interruptWorkerWait()
+
+	if payload.full != nil {
+		return engine.BlockToExecutableData(payload.full, payload.fullFees, payload.sidecars)
+	} else if !fullOnly && payload.empty != nil {
+		return engine.BlockToExecutableData(payload.empty, big.NewInt(0), nil)
 	} else {
-		// Interrupt payload generation only if at least one full block has already been built completely.
-		payload.interruptWorker()
+		return nil
 	}
-	// Terminate the background payload construction
-	select {
-	case <-payload.stop:
-	default:
+}
+
+// interruptWorkerWait sets an interrupt for any potentially ongoing
+// block building process and signals stop to the block updating routine.
+// It then waits for the block updating routine to return.
+// interruptWorkerWait is safe to be called concurrently.
+func (payload *Payload) interruptWorkerWait() {
+	// Concurrent Resolve calls should only stop once.
+	payload.stopOnce.Do(func() {
+		log.Debug("Interrupt payload building.", "id", payload.id)
+		payload.interrupt.Store(commitInterruptResolve)
 		close(payload.stop)
-	}
-	return engine.BlockToExecutableData(payload.full, payload.fullFees, payload.sidecars)
-}
-
-func (payload *Payload) interruptWorker() {
-	payload.interrupt.Store(commitInterruptResolve)
-}
-
-func (w *worker) emptyBlock(args *BuildPayloadArgs) *newPayloadResult {
-	// Build the initial version with no transaction included. It should be fast
-	// enough to run. The empty payload can at least make sure there is something
-	// to deliver for not missing slot.
-	emptyParams := &generateParams{
-		timestamp:   args.Timestamp,
-		forceTime:   true,
-		parentHash:  args.Parent,
-		coinbase:    args.FeeRecipient,
-		random:      args.Random,
-		withdrawals: args.Withdrawals,
-		beaconRoot:  args.BeaconRoot,
-		noTxs:       true,
-		txs:         args.Transactions,
-		gasLimit:    args.GasLimit,
-	}
-
-	empty := w.getSealingBlock(emptyParams)
-	return empty
+	})
+	<-payload.done
 }
 
 // buildPayload builds the payload according to the provided parameters.
-func (w *worker) buildPayload(args *BuildPayloadArgs) (*Payload, error) {
-	// In OP-Stack, the "empty" block is constructed from provided txs only, i.e. no tx-pool usage.
+func (w *worker) buildPayload(args *BuildPayloadArgs, tdone chan struct{}) (*Payload, error) {
 	if args.NoTxPool { // don't start the background payload updating job if there is no tx pool to pull from
-		// TODO: Do we also want to move the empty block generation in the NoTxPool case
-		//    into the goroutine below? In the current version and NoTxPool case,
-		//    we synchronously build the empty block, but when we do have a tx pool,
-		//    we build even the first block async. This behavior is less consistent,
-		//    but makes payload resolution easier.
-		//    On 2nd thought, I think it makes sense to keep this behavior because we use the NoTxPool case
-		//    when the block's timestamp is out of the sequencer drift window, so getPayload
-		//    can then immediately be called after forkchoiceUpdated.
-		empty := w.emptyBlock(args)
+		// Build the initial version with no transaction included. It should be fast
+		// enough to run. The empty payload can at least make sure there is something
+		// to deliver for not missing slot.
+		// In OP-Stack, the "empty" block is constructed from provided txs only, i.e. no tx-pool usage.
+		emptyParams := &generateParams{
+			timestamp:   args.Timestamp,
+			forceTime:   true,
+			parentHash:  args.Parent,
+			coinbase:    args.FeeRecipient,
+			random:      args.Random,
+			withdrawals: args.Withdrawals,
+			beaconRoot:  args.BeaconRoot,
+			noTxs:       true,
+			txs:         args.Transactions,
+			gasLimit:    args.GasLimit,
+		}
+		empty := w.getSealingBlock(emptyParams)
 		if empty.err != nil {
 			return nil, empty.err
 		}
@@ -258,6 +211,7 @@ func (w *worker) buildPayload(args *BuildPayloadArgs) (*Payload, error) {
 		// make sure to make it appear as full, otherwise it will wait indefinitely for payload building to complete.
 		payload.full = empty.block
 		payload.fullFees = empty.fees
+		close(payload.done) // unblocks Resolve
 		return payload, nil
 	}
 
@@ -274,21 +228,19 @@ func (w *worker) buildPayload(args *BuildPayloadArgs) (*Payload, error) {
 		gasLimit:    args.GasLimit,
 	}
 
+	// Since we skip building the empty block when using the tx pool, we need to explicitly
+	// validate the BuildPayloadArgs here.
 	if err := w.validateParams(fullParams); err != nil {
 		return nil, err
 	}
 
-	// If we use the TxPool, skip empty block production.
 	payload := newPayload(nil, args.Id())
+	// set shared interrupt
 	fullParams.interrupt = payload.interrupt
 
 	// Spin up a routine for updating the payload in background. This strategy
 	// can maximum the revenue for including transactions with highest fee.
 	go func() {
-		// TODO(old): call payload.update here, with empty if notxpool, with first full if txpool
-		// Meta: most important is that we guarantee to always build a block
-		// -> the timer below starts at 0, so one block is always immediately built.
-
 		// Setup the timer for re-building the payload. The initial clock is kept
 		// for triggering process immediately.
 		timer := time.NewTimer(0)
@@ -300,15 +252,25 @@ func (w *worker) buildPayload(args *BuildPayloadArgs) (*Payload, error) {
 		endTimer := time.NewTimer(time.Second * 12)
 		defer endTimer.Stop()
 
+		// Resolution signals shutdown to payload builder routine via payload.stop.
+		// Routine then signals that it's done via payload.done.
+		defer close(payload.done)
+
 		for {
 			select {
 			case <-timer.C:
 				start := time.Now()
+				// getSealingBlock is interrupted by shared interrupt
 				r := w.getSealingBlock(fullParams)
-				if r.err == nil {
-					payload.update(r, time.Since(start))
-				}
+				// update handles error case
+				payload.update(r, time.Since(start))
 				timer.Reset(w.recommit)
+
+				// needed for test synchronization to guarantee at least one full block build
+				select {
+				case tdone <- struct{}{}:
+				default:
+				}
 			case <-payload.stop:
 				log.Info("Stopping work on payload", "id", payload.id, "reason", "delivery")
 				return

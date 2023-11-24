@@ -1170,10 +1170,6 @@ func (w *worker) commitWork(interrupt *atomic.Int32, timestamp int64) {
 	}
 	// Fill pending transactions from the txpool into the block.
 	err = w.fillTransactions(interrupt, work)
-	// TODO: Why does this switch not need to do anything about a errBlockInterruptedByTimeout signal?
-	//   Is it because the commitWork path is only entered by signals from the newWork loop, so
-	//   errBlockInterruptedByTimeout cannot be the cause for interruption here?
-	//   So we can also safely ignore the new errBlockInterruptedByResolve signal here?
 	switch {
 	case err == nil:
 		// The entire block is filled, decrease resubmit interval in case
