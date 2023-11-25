@@ -32,6 +32,8 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
+var IsPayloadBuildingTest = false
+
 // BuildPayloadArgs contains the provided parameters for building payload.
 // Check engine-api specification for more details.
 // https://github.com/ethereum/execution-apis/blob/main/src/engine/cancun.md#payloadattributesv3
@@ -178,14 +180,16 @@ func (payload *Payload) interruptWorkerWait() {
 	// Concurrent Resolve calls should only stop once.
 	payload.stopOnce.Do(func() {
 		log.Debug("Interrupt payload building.", "id", payload.id)
-		payload.interrupt.Store(commitInterruptResolve)
+		if !IsPayloadBuildingTest {
+			payload.interrupt.Store(commitInterruptResolve)
+		}
 		close(payload.stop)
 	})
 	<-payload.done
 }
 
 // buildPayload builds the payload according to the provided parameters.
-func (w *worker) buildPayload(args *BuildPayloadArgs, tdone chan struct{}) (*Payload, error) {
+func (w *worker) buildPayload(args *BuildPayloadArgs) (*Payload, error) {
 	if args.NoTxPool { // don't start the background payload updating job if there is no tx pool to pull from
 		// Build the initial version with no transaction included. It should be fast
 		// enough to run. The empty payload can at least make sure there is something
@@ -256,21 +260,27 @@ func (w *worker) buildPayload(args *BuildPayloadArgs, tdone chan struct{}) (*Pay
 		// Routine then signals that it's done via payload.done.
 		defer close(payload.done)
 
+		updatePayload := func() {
+			start := time.Now()
+			// getSealingBlock is interrupted by shared interrupt
+			r := w.getSealingBlock(fullParams)
+			// update handles error case
+			payload.update(r, time.Since(start))
+			timer.Reset(w.recommit)
+		}
+
+		if IsPayloadBuildingTest {
+			// engine api tests assume that getPayload can be called immediately after calling
+			// forkchoiceUpdated. This races with closing the payload building process `stop`
+			// channel and setting the interrupt, so in tests we always build one full
+			// payload.
+			updatePayload()
+		}
+
 		for {
 			select {
 			case <-timer.C:
-				start := time.Now()
-				// getSealingBlock is interrupted by shared interrupt
-				r := w.getSealingBlock(fullParams)
-				// update handles error case
-				payload.update(r, time.Since(start))
-				timer.Reset(w.recommit)
-
-				// needed for test synchronization to guarantee at least one full block build
-				select {
-				case tdone <- struct{}{}:
-				default:
-				}
+				updatePayload()
 			case <-payload.stop:
 				log.Info("Stopping work on payload", "id", payload.id, "reason", "delivery")
 				return

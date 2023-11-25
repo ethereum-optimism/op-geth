@@ -30,6 +30,7 @@ import (
 )
 
 func TestBuildPayload(t *testing.T) {
+	IsPayloadBuildingTest = true
 	t.Run("with-tx-pool", func(t *testing.T) { testBuildPayload(t, false) })
 	t.Run("no-tx-pool", func(t *testing.T) { testBuildPayload(t, true) })
 }
@@ -52,8 +53,7 @@ func testBuildPayload(t *testing.T, noTxPool bool) {
 	}
 	// payload resolution now interrupts block building, so we have to
 	// wait for the payloading building process to build its first block
-	tdone := make(chan struct{}, 1)
-	payload, err := w.buildPayload(args, tdone)
+	payload, err := w.buildPayload(args)
 	if err != nil {
 		t.Fatalf("Failed to build payload %v", err)
 	}
@@ -87,7 +87,6 @@ func testBuildPayload(t *testing.T, noTxPool bool) {
 		full := payload.ResolveFull()
 		verify(full, 0)
 	} else {
-		<-tdone
 		full := payload.ResolveFull()
 		verify(full, len(pendingTxs))
 	}
