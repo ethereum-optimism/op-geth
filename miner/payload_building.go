@@ -118,6 +118,7 @@ func (payload *Payload) update(r *newPayloadResult, elapsed time.Duration) {
 		log.Error("Error building payload.", "err", r.err)
 		return
 	}
+	log.Debug("New payload update", "id", payload.id, "elapsed", common.PrettyDuration(elapsed))
 
 	// Ensure the newly provided full block has a higher transaction fee.
 	// In post-merge stage, there is no uncle reward anymore and transaction
@@ -256,17 +257,25 @@ func (w *worker) buildPayload(args *BuildPayloadArgs) (*Payload, error) {
 		endTimer := time.NewTimer(time.Second * 12)
 		defer endTimer.Stop()
 
+		timeout := time.Now().Add(2 * time.Second)
+
 		// Resolution signals shutdown to payload builder routine via payload.stop.
 		// Routine then signals that it's done via payload.done.
-		defer close(payload.done)
+		stopReason := "delivery"
+		defer func() {
+			log.Info("Stopping work on payload", "id", payload.id, "reason", stopReason)
+			close(payload.done)
+		}()
 
-		updatePayload := func() {
+		updatePayload := func() time.Duration {
 			start := time.Now()
 			// getSealingBlock is interrupted by shared interrupt
 			r := w.getSealingBlock(fullParams)
+			dur := time.Since(start)
 			// update handles error case
-			payload.update(r, time.Since(start))
+			payload.update(r, dur)
 			timer.Reset(w.recommit)
+			return dur
 		}
 
 		if IsPayloadBuildingTest {
@@ -277,15 +286,28 @@ func (w *worker) buildPayload(args *BuildPayloadArgs) (*Payload, error) {
 			updatePayload()
 		}
 
+		var lastDuration time.Duration
 		for {
 			select {
 			case <-timer.C:
-				updatePayload()
+				// We have to prioritize the stop signal because the recommit timer
+				// might have fired while stop also got closed.
+				select {
+				case <-payload.stop:
+					return
+				default:
+				}
+				// Assuming last payload building duration as lower bound for next one,
+				// skip new update if we're too close to the timeout anyways.
+				if lastDuration > 0 && time.Now().Add(lastDuration).After(timeout) {
+					stopReason = "near-timeout"
+					return
+				}
+				lastDuration = updatePayload()
 			case <-payload.stop:
-				log.Info("Stopping work on payload", "id", payload.id, "reason", "delivery")
 				return
 			case <-endTimer.C:
-				log.Info("Stopping work on payload", "id", payload.id, "reason", "timeout")
+				stopReason = "timeout"
 				return
 			}
 		}
