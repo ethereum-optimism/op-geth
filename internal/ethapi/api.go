@@ -52,6 +52,10 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
+var (
+	gasBuffer = uint64(120)
+)
+
 // EthereumAPI provides an API to access Ethereum related information.
 type EthereumAPI struct {
 	b Backend
@@ -1043,7 +1047,7 @@ func (diff *BlockOverrides) Apply(blockCtx *vm.BlockContext) {
 	}
 }
 
-func DoCall(ctx context.Context, b Backend, args TransactionArgs, blockNrOrHash rpc.BlockNumberOrHash, overrides *StateOverride, timeout time.Duration, globalGasCap uint64) (*core.ExecutionResult, error) {
+func DoCall(ctx context.Context, b Backend, args TransactionArgs, blockNrOrHash rpc.BlockNumberOrHash, overrides *StateOverride, timeout time.Duration, globalGasCap uint64, runMode core.RunMode, gasPriceForEstimate *hexutil.Big) (*core.ExecutionResult, error) {
 	defer func(start time.Time) { log.Debug("Executing EVM call finished", "runtime", time.Since(start)) }(time.Now())
 
 	state, header, err := b.StateAndHeaderByNumberOrHash(ctx, blockNrOrHash)
@@ -1066,7 +1070,7 @@ func DoCall(ctx context.Context, b Backend, args TransactionArgs, blockNrOrHash 
 	defer cancel()
 
 	// Get a new instance of the EVM.
-	msg, err := args.ToMessage(globalGasCap, header.BaseFee)
+	msg, err := args.ToMessage(globalGasCap, header.BaseFee, runMode, gasPriceForEstimate)
 	if err != nil {
 		return nil, err
 	}
@@ -1082,7 +1086,7 @@ func DoCall(ctx context.Context, b Backend, args TransactionArgs, blockNrOrHash 
 	}()
 
 	// Execute the message.
-	gp := new(core.GasPool).AddGas(math.MaxUint64)
+	gp := new(core.GasPool).AddGas(core.DefaultMantleBlockGasLimit)
 	result, err := core.ApplyMessage(evm, msg, gp)
 	if err := vmError(); err != nil {
 		return nil, err
@@ -1153,7 +1157,7 @@ func (s *BlockChainAPI) Call(ctx context.Context, args TransactionArgs, blockNrO
 		}
 	}
 
-	result, err := DoCall(ctx, s.b, args, blockNrOrHash, overrides, s.b.RPCEVMTimeout(), s.b.RPCGasCap())
+	result, err := DoCall(ctx, s.b, args, blockNrOrHash, overrides, s.b.RPCEVMTimeout(), s.b.RPCGasCap(), core.EthcallMode, args.GasPrice)
 	if err != nil {
 		return nil, err
 	}
@@ -1200,6 +1204,21 @@ func DoEstimateGas(ctx context.Context, b Backend, args TransactionArgs, blockNr
 	} else {
 		feeCap = common.Big0
 	}
+
+	runMode := core.GasEstimationMode
+	if args.GasPrice == nil && args.MaxFeePerGas == nil && args.MaxPriorityFeePerGas == nil {
+		runMode = core.GasEstimationWithSkipCheckBalanceMode
+	}
+
+	// Normalize the gasPrice used for estimateGas
+	gasPriceForEstimateGas, err := b.SuggestGasTipCap(ctx)
+	if err != nil {
+		return 0, errors.New("failed to get suggestGasTipCap")
+	}
+	if head := b.CurrentHeader(); head.BaseFee != nil {
+		gasPriceForEstimateGas.Add(gasPriceForEstimateGas, head.BaseFee)
+	}
+
 	// Recap the highest gas limit with account's available balance.
 	if feeCap.BitLen() != 0 {
 		state, _, err := b.StateAndHeaderByNumberOrHash(ctx, blockNrOrHash)
@@ -1232,13 +1251,21 @@ func DoEstimateGas(ctx context.Context, b Backend, args TransactionArgs, blockNr
 		log.Warn("Caller gas above allowance, capping", "requested", hi, "cap", gasCap)
 		hi = gasCap
 	}
+	// Recap the highest gas allowance with suggested gasPrice.
+	if runMode == core.GasEstimationMode {
+		gasCap, err = calculateGasWithAllowance(ctx, b, args, blockNrOrHash, gasPriceForEstimateGas, gasCap)
+		if err != nil {
+			return 0, err
+		}
+		hi = gasCap
+	}
 	cap = hi
 
 	// Create a helper to check if a gas allowance results in an executable transaction
 	executable := func(gas uint64) (bool, *core.ExecutionResult, error) {
 		args.Gas = (*hexutil.Uint64)(&gas)
 
-		result, err := DoCall(ctx, b, args, blockNrOrHash, nil, 0, gasCap)
+		result, err := DoCall(ctx, b, args, blockNrOrHash, nil, 0, gasCap, runMode, (*hexutil.Big)(gasPriceForEstimateGas))
 		if err != nil {
 			if errors.Is(err, core.ErrIntrinsicGas) {
 				return true, nil, nil // Special case, raise gas limit
@@ -1281,7 +1308,30 @@ func DoEstimateGas(ctx context.Context, b Backend, args TransactionArgs, blockNr
 			return 0, fmt.Errorf("gas required exceeds allowance (%d)", cap)
 		}
 	}
-	return hexutil.Uint64(hi), nil
+	return hexutil.Uint64(hi * gasBuffer / 100), nil
+}
+
+func calculateGasWithAllowance(ctx context.Context, b Backend, args TransactionArgs, blockNrOrHash rpc.BlockNumberOrHash, gasPriceForEstimate *big.Int, gasCap uint64) (uint64, error) {
+	state, _, err := b.StateAndHeaderByNumberOrHash(ctx, blockNrOrHash)
+	if err != nil {
+		return 0, err
+	}
+	balance := state.GetBalance(*args.From) // from can't be nil
+	available := new(big.Int).Set(balance)
+	if args.Value != nil {
+		if args.Value.ToInt().Cmp(available) >= 0 {
+			return 0, core.ErrInsufficientFundsForTransfer
+		}
+		available.Sub(available, args.Value.ToInt())
+	}
+
+	allowanceGas := new(big.Int).Div(available, gasPriceForEstimate)
+
+	if allowanceGas.Uint64() < gasCap {
+		return allowanceGas.Uint64(), nil
+	}
+
+	return gasCap, nil
 }
 
 // EstimateGas returns an estimate of the amount of gas needed to execute the
@@ -1646,7 +1696,7 @@ func AccessList(ctx context.Context, b Backend, blockNrOrHash rpc.BlockNumberOrH
 		statedb := db.Copy()
 		// Set the accesslist to the last al
 		args.AccessList = &accessList
-		msg, err := args.ToMessage(b.RPCGasCap(), header.BaseFee)
+		msg, err := args.ToMessage(b.RPCGasCap(), header.BaseFee, core.EthcallMode, args.GasPrice)
 		if err != nil {
 			return nil, 0, nil, err
 		}
@@ -1857,6 +1907,7 @@ func (s *TransactionAPI) GetTransactionReceipt(ctx context.Context, hash common.
 		fields["l1GasUsed"] = (*hexutil.Big)(receipt.L1GasUsed)
 		fields["l1Fee"] = (*hexutil.Big)(receipt.L1Fee)
 		fields["l1FeeScalar"] = receipt.FeeScalar.String()
+		fields["tokenRatio"] = (*hexutil.Big)(receipt.TokenRatio)
 	}
 	if s.b.ChainConfig().Optimism != nil && tx.IsDepositTx() && receipt.DepositNonce != nil {
 		fields["depositNonce"] = hexutil.Uint64(*receipt.DepositNonce)

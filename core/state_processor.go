@@ -107,6 +107,9 @@ func applyTransaction(msg *Message, config *params.ChainConfig, gp *GasPool, sta
 		nonce = statedb.GetNonce(msg.From)
 	}
 
+	// used to record l1 fee
+	l1BaseFee, overhead, scalar, scaled, tokenRatio := types.DeriveL1GasInfo(statedb)
+
 	// Apply the transaction to the current state (included in the env).
 	result, err := ApplyMessage(evm, msg, gp)
 	if err != nil {
@@ -137,6 +140,16 @@ func applyTransaction(msg *Message, config *params.ChainConfig, gp *GasPool, sta
 		// The actual nonce for deposit transactions is only recorded from Regolith onwards.
 		// Before the Regolith fork the DepositNonce must remain nil
 		receipt.DepositNonce = &nonce
+	}
+
+	// used to record calculating l1 fee for txs from Layer2
+	if !msg.IsDepositTx {
+		gas := tx.RollupDataGas().DataGas(evm.Context.Time, config)
+		receipt.L1GasUsed = new(big.Int).Add(new(big.Int).SetUint64(gas), overhead)
+		receipt.L1GasPrice = l1BaseFee
+		receipt.L1Fee = types.L1Cost(gas, l1BaseFee, overhead, scalar, tokenRatio)
+		receipt.FeeScalar = scaled
+		receipt.TokenRatio = tokenRatio
 	}
 
 	// If the transaction created a contract, store the creation address in the receipt.

@@ -151,6 +151,10 @@ var defaultCacheConfig = &CacheConfig{
 	SnapshotWait:   true,
 }
 
+const (
+	DefaultMantleBlockGasLimit = 0x4000000000000
+)
+
 // BlockChain represents the canonical chain given a database with a genesis
 // block. The Blockchain manages chain imports, reverts, chain reorganisations.
 //

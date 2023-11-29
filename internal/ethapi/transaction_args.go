@@ -200,7 +200,7 @@ func (args *TransactionArgs) setLondonFeeDefaults(ctx context.Context, head *typ
 // ToMessage converts the transaction arguments to the Message type used by the
 // core evm. This method is used in calls and traces that do not require a real
 // live transaction.
-func (args *TransactionArgs) ToMessage(globalGasCap uint64, baseFee *big.Int) (*core.Message, error) {
+func (args *TransactionArgs) ToMessage(globalGasCap uint64, baseFee *big.Int, runMode core.RunMode, gasPriceForEstimate *hexutil.Big) (*core.Message, error) {
 	// Reject invalid combinations of pre- and post-1559 fee styles
 	if args.GasPrice != nil && (args.MaxFeePerGas != nil || args.MaxPriorityFeePerGas != nil) {
 		return nil, errors.New("both gasPrice and (maxFeePerGas or maxPriorityFeePerGas) specified")
@@ -255,6 +255,13 @@ func (args *TransactionArgs) ToMessage(globalGasCap uint64, baseFee *big.Int) (*
 			}
 		}
 	}
+
+	// use suggested gasPrice for estimateGas to calculate gasUsed
+	if runMode == core.GasEstimationMode {
+		gasPrice = gasPriceForEstimate.ToInt()
+		gasFeeCap = gasPriceForEstimate.ToInt()
+	}
+
 	value := new(big.Int)
 	if args.Value != nil {
 		value = args.Value.ToInt()
@@ -281,6 +288,7 @@ func (args *TransactionArgs) ToMessage(globalGasCap uint64, baseFee *big.Int) (*
 		AccessList:        accessList,
 		MetaTxParams:      metaTxParams,
 		SkipAccountChecks: true,
+		RunMode:           runMode,
 	}
 	return msg, nil
 }

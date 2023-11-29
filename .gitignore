@@ -28,6 +28,8 @@ build/_vendor/pkg
 /build/bin/
 /geth*.zip
 
+vendor
+
 # travis
 profile.tmp
 profile.cov

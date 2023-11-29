@@ -75,11 +75,12 @@ type Receipt struct {
 	BlockNumber      *big.Int    `json:"blockNumber,omitempty"`
 	TransactionIndex uint        `json:"transactionIndex"`
 
-	// OVM legacy: extend receipts with their L1 price (if a rollup tx)
+	// Optimism: extend receipts with their L1 price (if a rollup tx)
 	L1GasPrice *big.Int   `json:"l1GasPrice,omitempty"`
 	L1GasUsed  *big.Int   `json:"l1GasUsed,omitempty"`
 	L1Fee      *big.Int   `json:"l1Fee,omitempty"`
 	FeeScalar  *big.Float `json:"l1FeeScalar,omitempty"`
+	TokenRatio *big.Int   `json:"tokenRatio,omitempty"`
 }
 
 type receiptMarshaling struct {
@@ -96,6 +97,7 @@ type receiptMarshaling struct {
 	L1GasUsed  *hexutil.Big
 	L1Fee      *hexutil.Big
 	FeeScalar  *big.Float
+	TokenRatio *hexutil.Big
 }
 
 // receiptRLP is the consensus encoding of a receipt.
@@ -120,10 +122,17 @@ type depositReceiptRlp struct {
 type storedReceiptRLP struct {
 	PostStateOrStatus []byte
 	CumulativeGasUsed uint64
-	Logs              []*Log
+	Logs              []*LogForStorage
 	// DepositNonce was introduced in Regolith to store the actual nonce used by deposit transactions.
 	// Must be nil for any transactions prior to Regolith or that aren't deposit transactions.
 	DepositNonce *uint64 `rlp:"optional"`
+
+	// used to record calculating l1 fee for txs from Layer2
+	L1GasUsed  *big.Int `rlp:"optional"`
+	L1GasPrice *big.Int `rlp:"optional"`
+	L1Fee      *big.Int `rlp:"optional"`
+	FeeScalar  string   `rlp:"optional"`
+	TokenRatio *big.Int `rlp:"optional"`
 }
 
 // LegacyOptimismStoredReceiptRLP is the pre bedrock storage encoding of a
@@ -363,23 +372,27 @@ type ReceiptForStorage Receipt
 
 // EncodeRLP implements rlp.Encoder, and flattens all content fields of a receipt
 // into an RLP stream.
-func (r *ReceiptForStorage) EncodeRLP(_w io.Writer) error {
-	w := rlp.NewEncoderBuffer(_w)
-	outerList := w.List()
-	w.WriteBytes((*Receipt)(r).statusEncoding())
-	w.WriteUint64(r.CumulativeGasUsed)
-	logList := w.List()
-	for _, log := range r.Logs {
-		if err := rlp.Encode(w, log); err != nil {
-			return err
-		}
+func (r *ReceiptForStorage) EncodeRLP(w io.Writer) error {
+	feeScalar := ""
+	if r.FeeScalar != nil {
+		feeScalar = r.FeeScalar.String()
 	}
-	w.ListEnd(logList)
-	if r.DepositNonce != nil {
-		w.WriteUint64(*r.DepositNonce)
+	enc := &storedReceiptRLP{
+		PostStateOrStatus: (*Receipt)(r).statusEncoding(),
+		CumulativeGasUsed: r.CumulativeGasUsed,
+		Logs:              make([]*LogForStorage, len(r.Logs)),
+		DepositNonce:      r.DepositNonce,
+		L1GasUsed:         r.L1GasUsed,
+		L1GasPrice:        r.L1GasPrice,
+		L1Fee:             r.L1Fee,
+		FeeScalar:         feeScalar,
+		TokenRatio:        r.TokenRatio,
 	}
-	w.ListEnd(outerList)
-	return w.Flush()
+
+	for i, log := range r.Logs {
+		enc.Logs[i] = (*LogForStorage)(log)
+	}
+	return rlp.Encode(w, enc)
 }
 
 // DecodeRLP implements rlp.Decoder, and loads both consensus and implementation
@@ -436,11 +449,30 @@ func decodeStoredReceiptRLP(r *ReceiptForStorage, blob []byte) error {
 		return err
 	}
 	r.CumulativeGasUsed = stored.CumulativeGasUsed
-	r.Logs = stored.Logs
+	r.Logs = make([]*Log, len(stored.Logs))
+	for i, log := range stored.Logs {
+		r.Logs[i] = (*Log)(log)
+	}
 	r.Bloom = CreateBloom(Receipts{(*Receipt)(r)})
 	if stored.DepositNonce != nil {
 		r.DepositNonce = stored.DepositNonce
 	}
+
+	scalar := new(big.Float)
+	if stored.FeeScalar != "" {
+		var ok bool
+		scalar, ok = scalar.SetString(stored.FeeScalar)
+		if !ok {
+			return errors.New("cannot parse fee scalar")
+		}
+	}
+
+	r.L1GasUsed = stored.L1GasUsed
+	r.L1GasPrice = stored.L1GasPrice
+	r.L1Fee = stored.L1Fee
+	r.FeeScalar = scalar
+	r.TokenRatio = stored.TokenRatio
+
 	return nil
 }
 
@@ -499,7 +531,7 @@ func (rs Receipts) DeriveFields(config *params.ChainConfig, hash common.Hash, nu
 			// Deriving the signer is expensive, only do if it's actually needed
 			from, _ := Sender(signer, txs[i])
 			nonce := txs[i].Nonce()
-			if rs[i].DepositNonce != nil {
+			if txs[i].IsDepositTx() && rs[i].DepositNonce != nil {
 				nonce = *rs[i].DepositNonce
 			}
 			rs[i].ContractAddress = crypto.CreateAddress(from, nonce)
@@ -522,28 +554,6 @@ func (rs Receipts) DeriveFields(config *params.ChainConfig, hash common.Hash, nu
 			rs[i].Logs[j].TxIndex = uint(i)
 			rs[i].Logs[j].Index = logIndex
 			logIndex++
-		}
-	}
-	if config.Optimism != nil && len(txs) >= 2 { // need at least an info tx and a non-info tx
-		if data := txs[0].Data(); len(data) >= 4+32*8 { // function selector + 8 arguments to setL1BlockValues
-			l1Basefee := new(big.Int).SetBytes(data[4+32*2 : 4+32*3]) // arg index 2
-			overhead := new(big.Int).SetBytes(data[4+32*6 : 4+32*7])  // arg index 6
-			scalar := new(big.Int).SetBytes(data[4+32*7 : 4+32*8])    // arg index 7
-			fscalar := new(big.Float).SetInt(scalar)                  // legacy: format fee scalar as big Float
-			fdivisor := new(big.Float).SetUint64(1_000_000)           // 10**6, i.e. 6 decimals
-			feeScalar := new(big.Float).Quo(fscalar, fdivisor)
-			for i := 0; i < len(rs); i++ {
-				if !txs[i].IsDepositTx() {
-					gas := txs[i].RollupDataGas().DataGas(time, config)
-					rs[i].L1GasPrice = l1Basefee
-					// GasUsed reported in receipt should include the overhead
-					rs[i].L1GasUsed = new(big.Int).Add(new(big.Int).SetUint64(gas), overhead)
-					rs[i].L1Fee = L1Cost(gas, l1Basefee, overhead, scalar)
-					rs[i].FeeScalar = feeScalar
-				}
-			}
-		} else {
-			return fmt.Errorf("L1 info tx only has %d bytes, cannot read gas price parameters", len(data))
 		}
 	}
 

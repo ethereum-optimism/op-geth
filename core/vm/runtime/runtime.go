@@ -17,10 +17,10 @@
 package runtime
 
 import (
-	"math"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -74,7 +74,7 @@ func setDefaults(cfg *Config) {
 		cfg.Difficulty = new(big.Int)
 	}
 	if cfg.GasLimit == 0 {
-		cfg.GasLimit = math.MaxUint64
+		cfg.GasLimit = core.DefaultMantleBlockGasLimit
 	}
 	if cfg.GasPrice == nil {
 		cfg.GasPrice = new(big.Int)
