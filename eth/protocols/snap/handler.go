@@ -133,7 +133,7 @@ func HandleMessage(backend Backend, peer *Peer) error {
 	// Read the next message from the remote peer, and ensure it's fully consumed
 	msg, err := peer.rw.ReadMsg()
 	if err != nil {
-		return err
+		return fmt.Errorf("read error: %w", err)
 	}
 	if msg.Size > maxMessageSize {
 		return fmt.Errorf("%w: %v > %v", errMsgTooLarge, msg.Size, maxMessageSize)
