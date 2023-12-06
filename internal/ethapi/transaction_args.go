@@ -260,6 +260,7 @@ func (args *TransactionArgs) ToMessage(globalGasCap uint64, baseFee *big.Int, ru
 	if runMode == core.GasEstimationMode || runMode == core.GasEstimationWithSkipCheckBalanceMode {
 		gasPrice = gasPriceForEstimate.ToInt()
 		gasFeeCap = gasPriceForEstimate.ToInt()
+		gasTipCap = gasPriceForEstimate.ToInt()
 	}
 
 	value := new(big.Int)
