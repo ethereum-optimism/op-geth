@@ -1225,7 +1225,20 @@ func DoEstimateGas(ctx context.Context, b Backend, args TransactionArgs, blockNr
 		if err != nil {
 			return 0, err
 		}
+
 		balance := state.GetBalance(*args.From) // from can't be nil
+		metaTxParams, err := types.DecodeMetaTxParams(args.data())
+		if err != nil {
+			return 0, err
+		}
+		if metaTxParams != nil {
+			sponsorAmount, _ := types.CalculateSponsorPercentAmount(metaTxParams, feeCap)
+			sponsorBalance := state.GetBalance(metaTxParams.GasFeeSponsor)
+			if sponsorBalance.Cmp(sponsorAmount) <= 0 {
+				return 0, types.ErrSponsorBalanceNotEnough
+			}
+			balance = new(big.Int).Add(balance, sponsorAmount)
+		}
 		available := new(big.Int).Set(balance)
 		if args.Value != nil {
 			if args.Value.ToInt().Cmp(available) >= 0 {
@@ -1317,6 +1330,19 @@ func calculateGasWithAllowance(ctx context.Context, b Backend, args TransactionA
 		return 0, err
 	}
 	balance := state.GetBalance(*args.From) // from can't be nil
+	metaTxParams, err := types.DecodeMetaTxParams(args.data())
+	if err != nil {
+		return 0, err
+	}
+	if metaTxParams != nil {
+		feeCap := new(big.Int).Mul(gasPriceForEstimate, big.NewInt(0).SetUint64(gasCap))
+		sponsorAmount, _ := types.CalculateSponsorPercentAmount(metaTxParams, feeCap)
+		sponsorBalance := state.GetBalance(metaTxParams.GasFeeSponsor)
+		if sponsorBalance.Cmp(sponsorAmount) <= 0 {
+			return 0, types.ErrSponsorBalanceNotEnough
+		}
+		balance = new(big.Int).Add(balance, sponsorAmount)
+	}
 	available := new(big.Int).Set(balance)
 	if args.Value != nil {
 		if args.Value.ToInt().Cmp(available) >= 0 {

@@ -516,7 +516,7 @@ func (st *StateTransition) innerTransitionDb() (*ExecutionResult, error) {
 	st.gasRemaining -= gas
 
 	var l1Gas uint64
-	if !st.msg.IsDepositTx && !st.msg.IsSystemTx && st.msg.RunMode != GasEstimationWithSkipCheckBalanceMode {
+	if !st.msg.IsDepositTx && !st.msg.IsSystemTx {
 		if st.msg.GasPrice.Cmp(common.Big0) > 0 && l1Cost != nil {
 			l1Gas = new(big.Int).Div(l1Cost, st.msg.GasPrice).Uint64()
 			if st.msg.GasLimit < l1Gas {

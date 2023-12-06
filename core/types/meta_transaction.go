@@ -23,6 +23,7 @@ var (
 	ErrInvalidGasFeeSponsorSig = errors.New("invalid gas fee sponsor signature")
 	ErrGasFeeSponsorMismatch   = errors.New("gas fee sponsor address is mismatch with signature")
 	ErrInvalidSponsorPercent   = errors.New("invalid sponsor percent, expected range [0, 100]")
+	ErrSponsorBalanceNotEnough = errors.New("sponsor doesn't have enough balance")
 )
 
 type MetaTxParams struct {

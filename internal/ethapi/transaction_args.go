@@ -257,7 +257,7 @@ func (args *TransactionArgs) ToMessage(globalGasCap uint64, baseFee *big.Int, ru
 	}
 
 	// use suggested gasPrice for estimateGas to calculate gasUsed
-	if runMode == core.GasEstimationMode {
+	if runMode == core.GasEstimationMode || runMode == core.GasEstimationWithSkipCheckBalanceMode {
 		gasPrice = gasPriceForEstimate.ToInt()
 		gasFeeCap = gasPriceForEstimate.ToInt()
 	}

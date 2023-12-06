@@ -704,7 +704,7 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 
 		sponsorBalance := pool.currentState.GetBalance(metaTxParams.GasFeeSponsor)
 		if sponsorBalance.Cmp(sponsorAmount) < 0 {
-			return core.ErrInsufficientFunds
+			return types.ErrSponsorBalanceNotEnough
 		}
 		selfBalance := pool.currentState.GetBalance(from)
 		if selfBalance.Cmp(selfPayAmount) < 0 {
@@ -745,7 +745,9 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 	if err != nil {
 		return err
 	}
-	if tx.Gas() < intrGas {
+	tokenRatio := pool.currentState.GetState(types.L1BlockAddr, types.TokenRatioSlot).Big().Uint64()
+
+	if tx.Gas() < intrGas*tokenRatio {
 		return core.ErrIntrinsicGas
 	}
 	return nil
