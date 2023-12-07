@@ -1933,7 +1933,9 @@ func (s *TransactionAPI) GetTransactionReceipt(ctx context.Context, hash common.
 		fields["l1GasUsed"] = (*hexutil.Big)(receipt.L1GasUsed)
 		fields["l1Fee"] = (*hexutil.Big)(receipt.L1Fee)
 		fields["l1FeeScalar"] = receipt.FeeScalar.String()
-		fields["tokenRatio"] = (*hexutil.Big)(receipt.TokenRatio)
+		if receipt.TokenRatio != nil {
+			fields["tokenRatio"] = (*hexutil.Big)(receipt.TokenRatio)
+		}
 	}
 	if s.b.ChainConfig().Optimism != nil && tx.IsDepositTx() && receipt.DepositNonce != nil {
 		fields["depositNonce"] = hexutil.Uint64(*receipt.DepositNonce)

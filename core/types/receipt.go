@@ -147,6 +147,12 @@ type LegacyOptimismStoredReceiptRLP struct {
 	L1GasPrice        *big.Int
 	L1Fee             *big.Int
 	FeeScalar         string
+
+	// DAGasUsed,DAGasPrice,DAFee These values are not used to collect fee,
+	// so decode from ledger, but not exposed outside.
+	DAGasUsed  *big.Int
+	DAGasPrice *big.Int
+	DAFee      *big.Int
 }
 
 // LogForStorage is a wrapper around a Log that handles
