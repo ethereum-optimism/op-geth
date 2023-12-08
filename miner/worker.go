@@ -872,13 +872,16 @@ func (w *worker) applyTransaction(env *environment, tx *types.Transaction) (*typ
 }
 
 func (w *worker) commitTransactions(env *environment, txs *transactionsByPriceAndNonce, interrupt *atomic.Int32) error {
+	recordElapsed, recordDone := methodDurationLogger("commitTransactions")
+	defer recordDone()
+
 	gasLimit := env.header.GasLimit
 	if env.gasPool == nil {
 		env.gasPool = new(core.GasPool).AddGas(gasLimit)
 	}
 	var coalescedLogs []*types.Log
 
-	for {
+	for i := 0; ; i++ {
 		// Check interruption signal and abort building if it's fired.
 		if interrupt != nil {
 			if signal := interrupt.Load(); signal != commitInterruptNone {
@@ -928,6 +931,7 @@ func (w *worker) commitTransactions(env *environment, txs *transactionsByPriceAn
 		env.state.SetTxContext(tx.Hash(), env.tcount)
 
 		logs, err := w.commitTransaction(env, tx)
+		recordElapsed(fmt.Sprintf("commit-%d", i))
 		switch {
 		case errors.Is(err, core.ErrNonceTooLow):
 			// New head notification data race between the transaction pool and miner, shift
@@ -1127,9 +1131,42 @@ func (w *worker) fillTransactions(interrupt *atomic.Int32, env *environment) err
 	return nil
 }
 
+var timingThresholdWorkerCall = func() time.Duration {
+	const defaultThr = 10 * time.Millisecond
+	const envStr = "GETH_TIMING_THR_WORKER"
+	thrEnv, ok := os.LookupEnv(envStr)
+	if !ok {
+		return defaultThr
+	}
+	thr, err := time.ParseDuration(thrEnv)
+	if err != nil {
+		return defaultThr
+	}
+	log.Info("Worker request timing threshold read from env.", "threshold", thr, "env", envStr)
+	return thr
+}()
+
+func methodDurationLogger(method string) (recordElapsed func(string), recordDone func()) {
+	start := time.Now()
+	timings := []any{"method", method}
+	return func(stage string) {
+			timings = append(timings, stage, common.PrettyDuration(time.Since(start)))
+		},
+		func() {
+			recordElapsed("complete")
+			if time.Since(start) > timingThresholdWorkerCall {
+				log.Debug("Worker request complete", timings...)
+			}
+		}
+}
+
 // generateWork generates a sealing block based on the given parameters.
 func (w *worker) generateWork(genParams *generateParams) *newPayloadResult {
+	recordElapsed, recordDone := methodDurationLogger("generateWork")
+	defer recordDone()
+
 	work, err := w.prepareWork(genParams)
+	recordElapsed("prepareWork")
 	if err != nil {
 		return &newPayloadResult{err: err}
 	}
@@ -1139,6 +1176,7 @@ func (w *worker) generateWork(genParams *generateParams) *newPayloadResult {
 	}
 
 	misc.EnsureCreate2Deployer(w.chainConfig, work.header.Time, work.state)
+	recordElapsed("EnsureCreate2Deployer")
 
 	for _, tx := range genParams.txs {
 		from, _ := types.Sender(work.signer, tx)
@@ -1149,6 +1187,7 @@ func (w *worker) generateWork(genParams *generateParams) *newPayloadResult {
 		}
 		work.tcount++
 	}
+	recordElapsed("commitTransactions")
 
 	// forced transactions done, fill rest of block with transactions
 	if !genParams.noTxs {
@@ -1170,11 +1209,13 @@ func (w *worker) generateWork(genParams *generateParams) *newPayloadResult {
 			log.Info("Block building got interrupted by payload resolution")
 		}
 	}
+	recordElapsed("fillTransactions")
 	if intr := genParams.interrupt; intr != nil && genParams.isUpdate && intr.Load() != commitInterruptNone {
 		return &newPayloadResult{err: errInterruptedUpdate}
 	}
 
 	block, err := w.engine.FinalizeAndAssemble(w.chain, work.header, work.state, work.txs, nil, work.receipts, genParams.withdrawals)
+	recordElapsed("FinalizeAndAssemble")
 	if err != nil {
 		return &newPayloadResult{err: err}
 	}

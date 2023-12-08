@@ -228,9 +228,9 @@ func checkAttribute(active func(*big.Int, uint64) bool, exists bool, block *big.
 	return nil
 }
 
-var timingThresholdForkchoiceUpdated = func() time.Duration {
+var timingThresholdEngineCall = func() time.Duration {
 	const defaultThr = 10 * time.Millisecond
-	const envStr = "GETH_TIMING_THR_FORKCHOICEUPDATED"
+	const envStr = "GETH_TIMING_THR_ENGINE"
 	thrEnv, ok := os.LookupEnv(envStr)
 	if !ok {
 		return defaultThr
@@ -239,22 +239,27 @@ var timingThresholdForkchoiceUpdated = func() time.Duration {
 	if err != nil {
 		return defaultThr
 	}
-	log.Info("ForkchoiceUpdated timing threshold read from env.", "threshold", thr, "env", envStr)
+	log.Info("Engine API call timing threshold read from env.", "threshold", thr, "env", envStr)
 	return thr
 }()
 
-func (api *ConsensusAPI) forkchoiceUpdated(update engine.ForkchoiceStateV1, payloadAttributes *engine.PayloadAttributes) (engine.ForkChoiceResponse, error) {
+func methodDurationLogger(method string) (recordElapsed func(string), recordDone func()) {
 	start := time.Now()
-	timings := []interface{}{"method", "ForkchoiceUpdated"}
-	recordElapsed := func(stage string) {
-		timings = append(timings, stage, common.PrettyDuration(time.Since(start)))
-	}
-	defer func() {
-		recordElapsed("complete")
-		if time.Since(start) > timingThresholdForkchoiceUpdated {
-			log.Debug("Engine API request complete", timings...)
+	timings := []any{"method", method}
+	return func(stage string) {
+			timings = append(timings, stage, common.PrettyDuration(time.Since(start)))
+		},
+		func() {
+			recordElapsed("complete")
+			if time.Since(start) > timingThresholdEngineCall {
+				log.Debug("Engine API request complete", timings...)
+			}
 		}
-	}()
+}
+
+func (api *ConsensusAPI) forkchoiceUpdated(update engine.ForkchoiceStateV1, payloadAttributes *engine.PayloadAttributes) (engine.ForkChoiceResponse, error) {
+	recordElapsed, recordDone := methodDurationLogger("ForkchoiceUpdated")
+	defer recordDone()
 
 	api.forkchoiceLock.Lock()
 	defer api.forkchoiceLock.Unlock()
@@ -540,6 +545,8 @@ func (api *ConsensusAPI) NewPayloadV3(params engine.ExecutableData, versionedHas
 }
 
 func (api *ConsensusAPI) newPayload(params engine.ExecutableData, versionedHashes []common.Hash, beaconRoot *common.Hash) (engine.PayloadStatusV1, error) {
+	recordElapsed, recordDone := methodDurationLogger("NewPayload")
+	defer recordDone()
 	// The locking here is, strictly, not required. Without these locks, this can happen:
 	//
 	// 1. NewPayload( execdata-N ) is invoked from the CL. It goes all the way down to
@@ -555,6 +562,7 @@ func (api *ConsensusAPI) newPayload(params engine.ExecutableData, versionedHashe
 	// check whether we already have the block locally.
 	api.newPayloadLock.Lock()
 	defer api.newPayloadLock.Unlock()
+	recordElapsed("lockAcquired")
 
 	log.Trace("Engine API request received", "method", "NewPayload", "number", params.Number, "hash", params.BlockHash)
 	block, err := engine.ExecutableDataToBlock(params, versionedHashes, beaconRoot)
@@ -574,6 +582,7 @@ func (api *ConsensusAPI) newPayload(params engine.ExecutableData, versionedHashe
 		hash := block.Hash()
 		return engine.PayloadStatusV1{Status: engine.VALID, LatestValidHash: &hash}, nil
 	}
+	recordElapsed("checkLocal")
 	// If this block was rejected previously, keep rejecting it
 	if res := api.checkInvalidAncestor(block.Hash(), block.Hash()); res != nil {
 		return *res, nil
@@ -588,6 +597,7 @@ func (api *ConsensusAPI) newPayload(params engine.ExecutableData, versionedHashe
 	if parent == nil {
 		return api.delayPayloadImport(block)
 	}
+	recordElapsed("checkParent")
 	// We have an existing parent, do some sanity checks to avoid the beacon client
 	// triggering too early
 	var (
@@ -595,6 +605,7 @@ func (api *ConsensusAPI) newPayload(params engine.ExecutableData, versionedHashe
 		ttd  = api.eth.BlockChain().Config().TerminalTotalDifficulty
 		gptd = api.eth.BlockChain().GetTd(parent.ParentHash(), parent.NumberU64()-1)
 	)
+	recordElapsed("sanityChecks")
 	if ptd.Cmp(ttd) < 0 {
 		log.Warn("Ignoring pre-merge payload", "number", params.Number, "hash", params.BlockHash, "td", ptd, "ttd", ttd)
 		return engine.INVALID_TERMINAL_BLOCK, nil
@@ -619,6 +630,7 @@ func (api *ConsensusAPI) newPayload(params engine.ExecutableData, versionedHashe
 		log.Warn("State not available, ignoring new payload")
 		return engine.PayloadStatusV1{Status: engine.ACCEPTED}, nil
 	}
+	recordElapsed("checkParent2")
 	log.Trace("Inserting block without sethead", "hash", block.Hash(), "number", block.Number)
 	if err := api.eth.BlockChain().InsertBlockWithoutSetHead(block); err != nil {
 		log.Warn("NewPayloadV1: inserting block failed", "error", err)
@@ -630,6 +642,7 @@ func (api *ConsensusAPI) newPayload(params engine.ExecutableData, versionedHashe
 
 		return api.invalid(err, parent.Header()), nil
 	}
+	recordElapsed("InsertBlockWithoutSetHead")
 	// We've accepted a valid payload from the beacon client. Mark the local
 	// chain transitions to notify other subsystems (e.g. downloader) of the
 	// behavioral change.
