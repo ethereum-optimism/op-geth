@@ -92,10 +92,12 @@ type Payload struct {
 	sidecars []*types.BlobTxSidecar
 	fullFees *big.Int
 	stop     chan struct{}
+	lock     sync.Mutex
+	cond     *sync.Cond
 
+	err       error
 	stopOnce  sync.Once
 	interrupt *atomic.Int32 // interrup signal shared with worker
-	done      chan struct{} // signal by builder routine to be done
 }
 
 // newPayload initializes the payload object.
@@ -106,16 +108,28 @@ func newPayload(empty *types.Block, id engine.PayloadID) *Payload {
 		stop:  make(chan struct{}),
 
 		interrupt: new(atomic.Int32),
-		done:      make(chan struct{}),
 	}
 	log.Info("Starting work on payload", "id", payload.id)
+	payload.cond = sync.NewCond(&payload.lock)
 	return payload
 }
 
 // update updates the full-block with latest built version.
 func (payload *Payload) update(r *newPayloadResult, elapsed time.Duration) {
+	payload.lock.Lock()
+	defer payload.lock.Unlock()
+
+	select {
+	case <-payload.stop:
+		return // reject stale update
+	default:
+	}
+
+	defer payload.cond.Broadcast() // fire signal for notifying any full block result
+
 	if r.err != nil {
-		log.Error("Error building payload.", "err", r.err)
+		log.Warn("Error building payload update", "id", payload.id, "err", r.err)
+		payload.err = r.err // record latest error
 		return
 	}
 	log.Debug("New payload update", "id", payload.id, "elapsed", common.PrettyDuration(elapsed))
@@ -152,6 +166,9 @@ func (payload *Payload) Resolve() *engine.ExecutionPayloadEnvelope {
 // ResolveEmpty is basically identical to Resolve, but it expects empty block only.
 // It's only used in tests.
 func (payload *Payload) ResolveEmpty() *engine.ExecutionPayloadEnvelope {
+	payload.lock.Lock()
+	defer payload.lock.Unlock()
+
 	return engine.BlockToExecutableData(payload.empty, big.NewInt(0), nil)
 }
 
@@ -161,23 +178,38 @@ func (payload *Payload) ResolveFull() *engine.ExecutionPayloadEnvelope {
 	return payload.resolve(true)
 }
 
-func (payload *Payload) resolve(fullOnly bool) *engine.ExecutionPayloadEnvelope {
-	payload.interruptWorkerWait()
+func (payload *Payload) resolve(onlyFull bool) *engine.ExecutionPayloadEnvelope {
+	payload.lock.Lock()
+	defer payload.lock.Unlock()
+
+	if payload.full == nil && (onlyFull || payload.empty == nil) {
+		select {
+		case <-payload.stop:
+			return nil
+		default:
+		}
+		// Wait the full payload construction. Note it might block
+		// forever if Resolve is called in the meantime which
+		// terminates the background construction process.
+		payload.cond.Wait()
+	}
+
+	payload.stopBuilding()
 
 	if payload.full != nil {
 		return engine.BlockToExecutableData(payload.full, payload.fullFees, payload.sidecars)
-	} else if !fullOnly && payload.empty != nil {
+	} else if !onlyFull && payload.empty != nil {
 		return engine.BlockToExecutableData(payload.empty, big.NewInt(0), nil)
-	} else {
-		return nil
+	} else if err := payload.err; err != nil {
+		log.Error("Error building any payload", "id", payload.id, "err", err)
 	}
+	return nil
 }
 
-// interruptWorkerWait sets an interrupt for any potentially ongoing
+// stopBuilding sets an interrupt for any potentially ongoing
 // block building process and signals stop to the block updating routine.
-// It then waits for the block updating routine to return.
-// interruptWorkerWait is safe to be called concurrently.
-func (payload *Payload) interruptWorkerWait() {
+// stopBuilding is safe to be called concurrently.
+func (payload *Payload) stopBuilding() {
 	// Concurrent Resolve calls should only stop once.
 	payload.stopOnce.Do(func() {
 		log.Debug("Interrupt payload building.", "id", payload.id)
@@ -186,7 +218,6 @@ func (payload *Payload) interruptWorkerWait() {
 		}
 		close(payload.stop)
 	})
-	<-payload.done
 }
 
 // buildPayload builds the payload according to the provided parameters.
@@ -216,7 +247,7 @@ func (w *worker) buildPayload(args *BuildPayloadArgs) (*Payload, error) {
 		// make sure to make it appear as full, otherwise it will wait indefinitely for payload building to complete.
 		payload.full = empty.block
 		payload.fullFees = empty.fees
-		close(payload.done) // unblocks Resolve
+		payload.cond.Broadcast() // unblocks Resolve
 		return payload, nil
 	}
 
@@ -251,20 +282,22 @@ func (w *worker) buildPayload(args *BuildPayloadArgs) (*Payload, error) {
 		timer := time.NewTimer(0)
 		defer timer.Stop()
 
+		start := time.Now()
+		const blockTime = 2 * time.Second // OP default block time
 		// Setup the timer for terminating the process if SECONDS_PER_SLOT (12s in
 		// the Mainnet configuration) have passed since the point in time identified
 		// by the timestamp parameter.
-		endTimer := time.NewTimer(time.Second * 12)
+		endTimer := time.NewTimer(blockTime)
 		defer endTimer.Stop()
 
-		timeout := time.Now().Add(2 * time.Second)
+		timeout := time.Now().Add(blockTime)
 
-		// Resolution signals shutdown to payload builder routine via payload.stop.
-		// Routine then signals that it's done via payload.done.
 		stopReason := "delivery"
 		defer func() {
-			log.Info("Stopping work on payload", "id", payload.id, "reason", stopReason)
-			close(payload.done)
+			log.Info("Stopping work on payload",
+				"id", payload.id,
+				"reason", stopReason,
+				"elapsed", time.Since(start).Milliseconds())
 		}()
 
 		updatePayload := func() time.Duration {
