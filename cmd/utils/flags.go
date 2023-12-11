@@ -925,6 +925,7 @@ var (
 		Aliases:  []string{"beta.rollup.superchain-upgrades"},
 		Usage:    "Apply superchain-registry config changes to the local chain-configuration",
 		Category: flags.RollupCategory,
+		Value:    true,
 	}
 
 	// Metrics flags
