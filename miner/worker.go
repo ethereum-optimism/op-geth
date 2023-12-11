@@ -942,6 +942,7 @@ type generateParams struct {
 	txs       types.Transactions // Deposit transactions to include at the start of the block
 	gasLimit  *uint64            // Optional gas limit override
 	interrupt *atomic.Int32      // Optional interruption signal to pass down to worker.generateWork
+	isUpdate  bool               // Optional flag indicating that this is building a discardable update
 }
 
 // validateParams validates the given parameters.
@@ -1132,6 +1133,10 @@ func (w *worker) generateWork(genParams *generateParams) *newPayloadResult {
 			log.Info("Block building got interrupted by payload resolution")
 		}
 	}
+	if intr := genParams.interrupt; intr != nil && genParams.isUpdate && intr.Load() != commitInterruptNone {
+		return &newPayloadResult{err: errInterruptedUpdate}
+	}
+
 	block, err := w.engine.FinalizeAndAssemble(w.chain, work.header, work.state, work.txs, nil, work.receipts, genParams.withdrawals)
 	if err != nil {
 		return &newPayloadResult{err: err}

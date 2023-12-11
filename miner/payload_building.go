@@ -19,6 +19,7 @@ package miner
 import (
 	"crypto/sha256"
 	"encoding/binary"
+	"errors"
 	"math/big"
 	"sync"
 	"sync/atomic"
@@ -114,6 +115,8 @@ func newPayload(empty *types.Block, id engine.PayloadID) *Payload {
 	return payload
 }
 
+var errInterruptedUpdate = errors.New("interrupted payload update")
+
 // update updates the full-block with latest built version.
 func (payload *Payload) update(r *newPayloadResult, elapsed time.Duration) {
 	payload.lock.Lock()
@@ -127,7 +130,10 @@ func (payload *Payload) update(r *newPayloadResult, elapsed time.Duration) {
 
 	defer payload.cond.Broadcast() // fire signal for notifying any full block result
 
-	if r.err != nil {
+	if errors.Is(r.err, errInterruptedUpdate) {
+		log.Debug("Ignoring interrupted payload update", "id", payload.id)
+		return
+	} else if r.err != nil {
 		log.Warn("Error building payload update", "id", payload.id, "err", r.err)
 		payload.err = r.err // record latest error
 		return
@@ -307,6 +313,10 @@ func (w *worker) buildPayload(args *BuildPayloadArgs) (*Payload, error) {
 			dur := time.Since(start)
 			// update handles error case
 			payload.update(r, dur)
+			if r.err == nil {
+				// after first successful pass, we're updating
+				fullParams.isUpdate = true
+			}
 			timer.Reset(w.recommit)
 			return dur
 		}
