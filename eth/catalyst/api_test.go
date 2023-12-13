@@ -51,10 +51,6 @@ import (
 	"github.com/mattn/go-colorable"
 )
 
-func init() {
-	miner.IsPayloadBuildingTest = true
-}
-
 var (
 	// testKey is a private key to use for funding a tester account.
 	testKey, _ = crypto.HexToECDSA("b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291")
@@ -206,8 +202,7 @@ func TestEth2PrepareAndGetPayload(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error preparing payload, err=%v", err)
 	}
-	// give the payload some time to be built
-	time.Sleep(100 * time.Millisecond)
+	waitForPayloadToBuild()
 	payloadID := (&miner.BuildPayloadArgs{
 		Parent:       fcState.HeadBlockHash,
 		Timestamp:    blockParams.Timestamp,
@@ -639,8 +634,7 @@ func TestNewPayloadOnInvalidChain(t *testing.T) {
 			if resp.PayloadStatus.Status != engine.VALID {
 				t.Fatalf("error preparing payload, invalid status: %v", resp.PayloadStatus.Status)
 			}
-			// give the payload some time to be built
-			time.Sleep(50 * time.Millisecond)
+			waitForPayloadToBuild()
 			if payload, err = api.GetPayloadV1(*resp.PayloadID); err != nil {
 				t.Fatalf("can't get payload: %v", err)
 			}
@@ -1650,4 +1644,9 @@ func TestParentBeaconBlockRoot(t *testing.T) {
 	if root := db.GetState(params.BeaconRootsStorageAddress, rootIdx); root != *blockParams.BeaconRoot {
 		t.Fatalf("incorrect root stored: want %s, got %s", *blockParams.BeaconRoot, root)
 	}
+}
+
+func waitForPayloadToBuild() {
+	// give the payload some time to be built
+	time.Sleep(1 * time.Second)
 }

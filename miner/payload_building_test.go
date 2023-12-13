@@ -30,7 +30,6 @@ import (
 )
 
 func TestBuildPayload(t *testing.T) {
-	IsPayloadBuildingTest = true
 	t.Run("with-tx-pool", func(t *testing.T) { testBuildPayload(t, false) })
 	t.Run("no-tx-pool", func(t *testing.T) { testBuildPayload(t, true) })
 }

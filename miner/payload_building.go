@@ -33,8 +33,6 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
-var IsPayloadBuildingTest = false
-
 // BuildPayloadArgs contains the provided parameters for building payload.
 // Check engine-api specification for more details.
 // https://github.com/ethereum/execution-apis/blob/main/src/engine/cancun.md#payloadattributesv3
@@ -98,7 +96,7 @@ type Payload struct {
 
 	err       error
 	stopOnce  sync.Once
-	interrupt *atomic.Int32 // interrup signal shared with worker
+	interrupt *atomic.Int32 // interrupt signal shared with worker
 }
 
 // newPayload initializes the payload object.
@@ -219,9 +217,7 @@ func (payload *Payload) stopBuilding() {
 	// Concurrent Resolve calls should only stop once.
 	payload.stopOnce.Do(func() {
 		log.Debug("Interrupt payload building.", "id", payload.id)
-		if !IsPayloadBuildingTest {
-			payload.interrupt.Store(commitInterruptResolve)
-		}
+		payload.interrupt.Store(commitInterruptResolve)
 		close(payload.stop)
 	})
 }
@@ -319,14 +315,6 @@ func (w *worker) buildPayload(args *BuildPayloadArgs) (*Payload, error) {
 			}
 			timer.Reset(w.recommit)
 			return dur
-		}
-
-		if IsPayloadBuildingTest {
-			// engine api tests assume that getPayload can be called immediately after calling
-			// forkchoiceUpdated. This races with closing the payload building process `stop`
-			// channel and setting the interrupt, so in tests we always build one full
-			// payload.
-			updatePayload()
 		}
 
 		var lastDuration time.Duration
