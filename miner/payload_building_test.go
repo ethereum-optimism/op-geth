@@ -17,6 +17,7 @@
 package miner
 
 import (
+	"math/big"
 	"reflect"
 	"testing"
 	"time"
@@ -30,17 +31,28 @@ import (
 )
 
 func TestBuildPayload(t *testing.T) {
-	t.Run("with-tx-pool", func(t *testing.T) { testBuildPayload(t, false) })
-	t.Run("no-tx-pool", func(t *testing.T) { testBuildPayload(t, true) })
+	t.Run("no-tx-pool", func(t *testing.T) { testBuildPayload(t, true, false) })
+	// no-tx-pool case with interrupt not interesting because no-tx-pool doesn't run
+	// the builder routine
+	t.Run("with-tx-pool", func(t *testing.T) { testBuildPayload(t, false, false) })
+	t.Run("with-tx-pool-interrupt", func(t *testing.T) { testBuildPayload(t, false, true) })
 }
 
-func testBuildPayload(t *testing.T, noTxPool bool) {
+func testBuildPayload(t *testing.T, noTxPool, interrupt bool) {
 	var (
 		db        = rawdb.NewMemoryDatabase()
 		recipient = common.HexToAddress("0xdeadbeef")
 	)
 	w, b := newTestWorker(t, params.TestChainConfig, ethash.NewFaker(), db, 0)
 	defer w.close()
+
+	const numInterruptTxs = 256
+	if interrupt {
+		// when doing interrupt testing, create a large pool so interruption will
+		// definitely be visible.
+		txs := genTxs(1, numInterruptTxs)
+		b.txPool.Add(txs, true, false)
+	}
 
 	timestamp := uint64(time.Now().Unix())
 	args := &BuildPayloadArgs{
@@ -74,8 +86,10 @@ func testBuildPayload(t *testing.T, noTxPool bool) {
 		if payload.FeeRecipient != recipient {
 			t.Fatal("Unexpect fee recipient")
 		}
-		if len(payload.Transactions) != txs {
+		if !interrupt && len(payload.Transactions) != txs {
 			t.Fatalf("Unexpect transaction set: got %d, expected %d", len(payload.Transactions), txs)
+		} else if interrupt && len(payload.Transactions) >= txs {
+			t.Fatalf("Unexpect transaction set: got %d, expected less than %d", len(payload.Transactions), txs)
 		}
 	}
 
@@ -85,7 +99,13 @@ func testBuildPayload(t *testing.T, noTxPool bool) {
 		verify(empty, 0)
 		full := payload.ResolveFull()
 		verify(full, 0)
-	} else {
+	} else if interrupt {
+		full := payload.ResolveFull()
+		verify(full, len(pendingTxs)+numInterruptTxs)
+	} else { // tx-pool and no interrupt
+		// wait to fully build the first block
+		// if we call ResolveFull too fast, it interrupts it and doesn't add any tx
+		time.Sleep(time.Second)
 		full := payload.ResolveFull()
 		verify(full, len(pendingTxs))
 	}
@@ -97,6 +117,22 @@ func testBuildPayload(t *testing.T, noTxPool bool) {
 	if !reflect.DeepEqual(dataOne, dataTwo) {
 		t.Fatal("Unexpected payload data")
 	}
+}
+
+func genTxs(startNonce, count uint64) types.Transactions {
+	txs := make(types.Transactions, 0, count)
+	signer := types.LatestSigner(params.TestChainConfig)
+	for nonce := startNonce; nonce < startNonce+count; nonce++ {
+		txs = append(txs, types.MustSignNewTx(testBankKey, signer, &types.AccessListTx{
+			ChainID:  params.TestChainConfig.ChainID,
+			Nonce:    nonce,
+			To:       &testUserAddress,
+			Value:    big.NewInt(1000),
+			Gas:      params.TxGas,
+			GasPrice: big.NewInt(params.InitialBaseFee),
+		}))
+	}
+	return txs
 }
 
 func TestPayloadId(t *testing.T) {

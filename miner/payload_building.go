@@ -186,6 +186,10 @@ func (payload *Payload) resolve(onlyFull bool) *engine.ExecutionPayloadEnvelope 
 	payload.lock.Lock()
 	defer payload.lock.Unlock()
 
+	// We interrupt any active building block to prevent it from adding more transactions,
+	// and if it is an update, don't attempt to seal the block.
+	payload.interruptBuilding()
+
 	if payload.full == nil && (onlyFull || payload.empty == nil) {
 		select {
 		case <-payload.stop:
@@ -198,6 +202,7 @@ func (payload *Payload) resolve(onlyFull bool) *engine.ExecutionPayloadEnvelope 
 		payload.cond.Wait()
 	}
 
+	// Now we can signal the building routine to stop.
 	payload.stopBuilding()
 
 	if payload.full != nil {
@@ -210,14 +215,32 @@ func (payload *Payload) resolve(onlyFull bool) *engine.ExecutionPayloadEnvelope 
 	return nil
 }
 
-// stopBuilding sets an interrupt for any potentially ongoing
-// block building process and signals stop to the block updating routine.
+// interruptBuilding sets an interrupt for a potentially ongoing
+// block building process.
+// This will prevent it from adding new transactions to the block, and if it is
+// building an update, the block will also not be sealed, as we would discard
+// the update anyways.
+// interruptBuilding is safe to be called concurrently.
+func (payload *Payload) interruptBuilding() {
+	// Set the interrupt if not interrupted already.
+	// It's ok if it has either already been interrupted by payload resolution earlier,
+	// or by the timeout timer set to commitInterruptTimeout.
+	if payload.interrupt.CompareAndSwap(commitInterruptNone, commitInterruptResolve) {
+		log.Debug("Interrupted payload building.", "id", payload.id)
+	} else {
+		log.Debug("Payload building already interrupted.",
+			"id", payload.id, "interrupt", payload.interrupt.Load())
+	}
+}
+
+// stopBuilding signals to the block updating routine to stop. An ongoing payload
+// building job will still complete. It can be interrupted to stop filling new
+// transactions with interruptBuilding.
 // stopBuilding is safe to be called concurrently.
 func (payload *Payload) stopBuilding() {
 	// Concurrent Resolve calls should only stop once.
 	payload.stopOnce.Do(func() {
-		log.Debug("Interrupt payload building.", "id", payload.id)
-		payload.interrupt.Store(commitInterruptResolve)
+		log.Debug("Stop payload building.", "id", payload.id)
 		close(payload.stop)
 	})
 }
