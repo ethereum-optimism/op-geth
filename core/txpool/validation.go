@@ -245,7 +245,7 @@ func ValidateTransactionWithState(tx *types.Transaction, signer types.Signer, op
 		cost    = tx.Cost()
 	)
 	if opts.L1CostFn != nil {
-		if l1Cost := opts.L1CostFn(tx.RollupDataGas()); l1Cost != nil { // add rollup cost
+		if l1Cost := opts.L1CostFn(tx.RollupCostData()); l1Cost != nil { // add rollup cost
 			cost = cost.Add(cost, l1Cost)
 		}
 	}

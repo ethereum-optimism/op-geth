@@ -30,7 +30,7 @@ import (
 	"github.com/ethereum/go-ethereum/metrics"
 )
 
-type L1CostFunc func(dataGas types.RollupGasData) *big.Int
+type L1CostFunc func(dataGas types.RollupCostData) *big.Int
 
 // TxStatus is the current status of a transaction as seen by the pool.
 type TxStatus uint
