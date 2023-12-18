@@ -91,6 +91,22 @@ func (q *payloadQueue) get(id engine.PayloadID, full bool) *engine.ExecutionPayl
 	return nil
 }
 
+// waitFull waits until the first full payload has been built for the specified payload id
+// The method returns immediately if the payload is unknown.
+func (q *payloadQueue) waitFull(id engine.PayloadID) {
+	q.lock.RLock()
+	defer q.lock.RUnlock()
+
+	for _, item := range q.payloads {
+		if item == nil {
+			return // no more items
+		}
+		if item.id == id {
+			item.payload.WaitFull()
+		}
+	}
+}
+
 // has checks if a particular payload is already tracked.
 func (q *payloadQueue) has(id engine.PayloadID) bool {
 	q.lock.RLock()
