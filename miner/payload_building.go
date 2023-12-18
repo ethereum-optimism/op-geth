@@ -182,6 +182,12 @@ func (payload *Payload) ResolveFull() *engine.ExecutionPayloadEnvelope {
 	return payload.resolve(true)
 }
 
+func (payload *Payload) WaitFull() {
+	payload.lock.Lock()
+	defer payload.lock.Unlock()
+	payload.cond.Wait()
+}
+
 func (payload *Payload) resolve(onlyFull bool) *engine.ExecutionPayloadEnvelope {
 	payload.lock.Lock()
 	defer payload.lock.Unlock()

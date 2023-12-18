@@ -198,11 +198,11 @@ func TestEth2PrepareAndGetPayload(t *testing.T) {
 		SafeBlockHash:      common.Hash{},
 		FinalizedBlockHash: common.Hash{},
 	}
-	_, err := api.ForkchoiceUpdatedV1(fcState, &blockParams)
+	resp, err := api.ForkchoiceUpdatedV1(fcState, &blockParams)
 	if err != nil {
 		t.Fatalf("error preparing payload, err=%v", err)
 	}
-	waitForPayloadToBuild()
+	waitForApiPayloadToBuild(api, resp)
 	payloadID := (&miner.BuildPayloadArgs{
 		Parent:       fcState.HeadBlockHash,
 		Timestamp:    blockParams.Timestamp,
@@ -634,7 +634,7 @@ func TestNewPayloadOnInvalidChain(t *testing.T) {
 			if resp.PayloadStatus.Status != engine.VALID {
 				t.Fatalf("error preparing payload, invalid status: %v", resp.PayloadStatus.Status)
 			}
-			waitForPayloadToBuild()
+			waitForApiPayloadToBuild(api, resp)
 			if payload, err = api.GetPayloadV1(*resp.PayloadID); err != nil {
 				t.Fatalf("can't get payload: %v", err)
 			}
@@ -682,7 +682,7 @@ func assembleBlock(api *ConsensusAPI, parentHash common.Hash, params *engine.Pay
 	if err != nil {
 		return nil, err
 	}
-	waitForPayloadToBuild()
+	waitForPayloadToBuild(payload)
 	return payload.ResolveFull().ExecutionPayload, nil
 }
 
@@ -921,7 +921,7 @@ func TestNewPayloadOnInvalidTerminalBlock(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error preparing payload, err=%v", err)
 	}
-	waitForPayloadToBuild()
+	waitForPayloadToBuild(payload)
 	data := *payload.Resolve().ExecutionPayload
 	// We need to recompute the blockhash, since the miner computes a wrong (correct) blockhash
 	txs, _ := decodeTransactions(data.Transactions)
@@ -1648,7 +1648,10 @@ func TestParentBeaconBlockRoot(t *testing.T) {
 	}
 }
 
-func waitForPayloadToBuild() {
-	// give the payload some time to be built
-	time.Sleep(1 * time.Second)
+func waitForPayloadToBuild(payload *miner.Payload) {
+	payload.WaitFull()
+}
+
+func waitForApiPayloadToBuild(api *ConsensusAPI, resp engine.ForkChoiceResponse) {
+	api.localBlocks.waitFull(*resp.PayloadID)
 }
