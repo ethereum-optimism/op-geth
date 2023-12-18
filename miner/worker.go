@@ -948,7 +948,9 @@ type generateParams struct {
 // validateParams validates the given parameters.
 // It currently checks that the parent block is known and that the timestamp is valid,
 // i.e., after the parent block's timestamp.
-func (w *worker) validateParams(genParams *generateParams) error {
+// It returns an upper bound of the payload building duration as computed
+// by the difference in block timestamps between the parent and genParams.
+func (w *worker) validateParams(genParams *generateParams) (time.Duration, error) {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
 
@@ -957,17 +959,22 @@ func (w *worker) validateParams(genParams *generateParams) error {
 	if genParams.parentHash != (common.Hash{}) {
 		block := w.chain.GetBlockByHash(genParams.parentHash)
 		if block == nil {
-			return fmt.Errorf("missing parent %v", genParams.parentHash)
+			return 0, fmt.Errorf("missing parent %v", genParams.parentHash)
 		}
 		parent = block.Header()
 	}
-	// Sanity check the timestamp correctness, recap the timestamp
-	// to parent+1 if the mutation is allowed.
-	timestamp := genParams.timestamp
-	if genParams.forceTime && parent.Time >= timestamp {
-		return fmt.Errorf("invalid timestamp, parent %d given %d", parent.Time, timestamp)
+
+	// Sanity check the timestamp correctness
+	blockTime := int64(genParams.timestamp) - int64(parent.Time)
+	if blockTime <= 0 && genParams.forceTime {
+		return 0, fmt.Errorf("invalid timestamp, parent %d given %d", parent.Time, genParams.timestamp)
 	}
-	return nil
+
+	// minimum payload build time of 2s
+	if blockTime < 2 {
+		blockTime = 2
+	}
+	return time.Duration(blockTime) * time.Second, nil
 }
 
 // prepareWork constructs the sealing task according to the given parameters,
@@ -1123,13 +1130,12 @@ func (w *worker) generateWork(genParams *generateParams) *newPayloadResult {
 		timer := time.AfterFunc(w.newpayloadTimeout, func() {
 			interrupt.Store(commitInterruptTimeout)
 		})
-		defer timer.Stop()
 
 		err := w.fillTransactions(interrupt, work)
+		timer.Stop() // don't need timeout interruption any more
 		if errors.Is(err, errBlockInterruptedByTimeout) {
 			log.Warn("Block building is interrupted", "allowance", common.PrettyDuration(w.newpayloadTimeout))
 		} else if errors.Is(err, errBlockInterruptedByResolve) {
-			timer.Stop() // don't need timeout interruption any more
 			log.Info("Block building got interrupted by payload resolution")
 		}
 	}

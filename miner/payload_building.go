@@ -297,7 +297,8 @@ func (w *worker) buildPayload(args *BuildPayloadArgs) (*Payload, error) {
 
 	// Since we skip building the empty block when using the tx pool, we need to explicitly
 	// validate the BuildPayloadArgs here.
-	if err := w.validateParams(fullParams); err != nil {
+	blockTime, err := w.validateParams(fullParams)
+	if err != nil {
 		return nil, err
 	}
 
@@ -314,10 +315,8 @@ func (w *worker) buildPayload(args *BuildPayloadArgs) (*Payload, error) {
 		defer timer.Stop()
 
 		start := time.Now()
-		const blockTime = 2 * time.Second // OP default block time
-		// Setup the timer for terminating the process if SECONDS_PER_SLOT (12s in
-		// the Mainnet configuration) have passed since the point in time identified
-		// by the timestamp parameter.
+		// Setup the timer for terminating the payload building process as determined
+		// by validateParams.
 		endTimer := time.NewTimer(blockTime)
 		defer endTimer.Stop()
 
