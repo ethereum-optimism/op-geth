@@ -28,6 +28,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/ethereum/go-ethereum/beacon/engine"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -202,7 +204,6 @@ func TestEth2PrepareAndGetPayload(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error preparing payload, err=%v", err)
 	}
-	waitForApiPayloadToBuild(api, resp)
 	payloadID := (&miner.BuildPayloadArgs{
 		Parent:       fcState.HeadBlockHash,
 		Timestamp:    blockParams.Timestamp,
@@ -210,6 +211,8 @@ func TestEth2PrepareAndGetPayload(t *testing.T) {
 		Random:       blockParams.Random,
 		BeaconRoot:   blockParams.BeaconRoot,
 	}).Id()
+	require.Equal(t, payloadID, *resp.PayloadID)
+	require.NoError(t, waitForApiPayloadToBuild(api, *resp.PayloadID))
 	execData, err := api.GetPayloadV1(payloadID)
 	if err != nil {
 		t.Fatalf("error getting payload, err=%v", err)
@@ -634,7 +637,7 @@ func TestNewPayloadOnInvalidChain(t *testing.T) {
 			if resp.PayloadStatus.Status != engine.VALID {
 				t.Fatalf("error preparing payload, invalid status: %v", resp.PayloadStatus.Status)
 			}
-			waitForApiPayloadToBuild(api, resp)
+			require.NoError(t, waitForApiPayloadToBuild(api, *resp.PayloadID))
 			if payload, err = api.GetPayloadV1(*resp.PayloadID); err != nil {
 				t.Fatalf("can't get payload: %v", err)
 			}
@@ -1082,6 +1085,8 @@ func TestWithdrawals(t *testing.T) {
 		Withdrawals:  blockParams.Withdrawals,
 		BeaconRoot:   blockParams.BeaconRoot,
 	}).Id()
+	require.Equal(t, payloadID, *resp.PayloadID)
+	require.NoError(t, waitForApiPayloadToBuild(api, payloadID))
 	execData, err := api.GetPayloadV2(payloadID)
 	if err != nil {
 		t.Fatalf("error getting payload, err=%v", err)
@@ -1116,7 +1121,7 @@ func TestWithdrawals(t *testing.T) {
 		},
 	}
 	fcState.HeadBlockHash = execData.ExecutionPayload.BlockHash
-	_, err = api.ForkchoiceUpdatedV2(fcState, &blockParams)
+	resp, err = api.ForkchoiceUpdatedV2(fcState, &blockParams)
 	if err != nil {
 		t.Fatalf("error preparing payload, err=%v", err)
 	}
@@ -1130,6 +1135,8 @@ func TestWithdrawals(t *testing.T) {
 		Withdrawals:  blockParams.Withdrawals,
 		BeaconRoot:   blockParams.BeaconRoot,
 	}).Id()
+	require.Equal(t, payloadID, *resp.PayloadID)
+	require.NoError(t, waitForApiPayloadToBuild(api, payloadID))
 	execData, err = api.GetPayloadV2(payloadID)
 	if err != nil {
 		t.Fatalf("error getting payload, err=%v", err)
@@ -1242,7 +1249,7 @@ func TestNilWithdrawals(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		_, err := api.ForkchoiceUpdatedV2(fcState, &test.blockParams)
+		resp, err := api.ForkchoiceUpdatedV2(fcState, &test.blockParams)
 		if test.wantErr {
 			if err == nil {
 				t.Fatal("wanted error on fcuv2 with invalid withdrawals")
@@ -1260,7 +1267,10 @@ func TestNilWithdrawals(t *testing.T) {
 			FeeRecipient: test.blockParams.SuggestedFeeRecipient,
 			Random:       test.blockParams.Random,
 			BeaconRoot:   test.blockParams.BeaconRoot,
+			Withdrawals:  test.blockParams.Withdrawals,
 		}).Id()
+		require.Equal(t, payloadID, *resp.PayloadID)
+		require.NoError(t, waitForApiPayloadToBuild(api, payloadID))
 		execData, err := api.GetPayloadV2(payloadID)
 		if err != nil {
 			t.Fatalf("error getting payload, err=%v", err)
@@ -1609,6 +1619,8 @@ func TestParentBeaconBlockRoot(t *testing.T) {
 		Withdrawals:  blockParams.Withdrawals,
 		BeaconRoot:   blockParams.BeaconRoot,
 	}).Id()
+	require.Equal(t, payloadID, *resp.PayloadID)
+	require.NoError(t, waitForApiPayloadToBuild(api, *resp.PayloadID))
 	execData, err := api.GetPayloadV3(payloadID)
 	if err != nil {
 		t.Fatalf("error getting payload, err=%v", err)
@@ -1652,6 +1664,6 @@ func waitForPayloadToBuild(payload *miner.Payload) {
 	payload.WaitFull()
 }
 
-func waitForApiPayloadToBuild(api *ConsensusAPI, resp engine.ForkChoiceResponse) {
-	api.localBlocks.waitFull(*resp.PayloadID)
+func waitForApiPayloadToBuild(api *ConsensusAPI, id engine.PayloadID) error {
+	return api.localBlocks.waitFull(id)
 }

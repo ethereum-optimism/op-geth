@@ -103,9 +103,7 @@ func testBuildPayload(t *testing.T, noTxPool, interrupt bool) {
 		full := payload.ResolveFull()
 		verify(full, len(pendingTxs)+numInterruptTxs)
 	} else { // tx-pool and no interrupt
-		// wait to fully build the first block
-		// if we call ResolveFull too fast, it interrupts it and doesn't add any tx
-		time.Sleep(time.Second)
+		payload.WaitFull()
 		full := payload.ResolveFull()
 		verify(full, len(pendingTxs))
 	}
