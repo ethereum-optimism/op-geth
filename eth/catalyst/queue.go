@@ -17,6 +17,7 @@
 package catalyst
 
 import (
+	"errors"
 	"sync"
 
 	"github.com/ethereum/go-ethereum/beacon/engine"
@@ -93,18 +94,20 @@ func (q *payloadQueue) get(id engine.PayloadID, full bool) *engine.ExecutionPayl
 
 // waitFull waits until the first full payload has been built for the specified payload id
 // The method returns immediately if the payload is unknown.
-func (q *payloadQueue) waitFull(id engine.PayloadID) {
+func (q *payloadQueue) waitFull(id engine.PayloadID) error {
 	q.lock.RLock()
 	defer q.lock.RUnlock()
 
 	for _, item := range q.payloads {
 		if item == nil {
-			return // no more items
+			return errors.New("unknown payload")
 		}
 		if item.id == id {
 			item.payload.WaitFull()
+			return nil
 		}
 	}
+	return errors.New("unknown payload")
 }
 
 // has checks if a particular payload is already tracked.
