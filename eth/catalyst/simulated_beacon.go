@@ -165,6 +165,9 @@ func (c *SimulatedBeacon) sealBlock(withdrawals []*types.Withdrawal) error {
 		return errors.New("chain rewind prevented invocation of payload creation")
 	}
 
+	if err := c.engineAPI.localBlocks.waitFull(*fcResponse.PayloadID); err != nil {
+		return err
+	}
 	envelope, err := c.engineAPI.getPayload(*fcResponse.PayloadID, true)
 	if err != nil {
 		return err
