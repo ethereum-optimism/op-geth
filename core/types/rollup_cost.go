@@ -46,6 +46,7 @@ type StateGetter interface {
 
 // L1CostFunc is used in the state transition to determine the L1 data fee charged to the sender of
 // non-Deposit transactions.
+// It returns nil if no L1 data fee is charged.
 type L1CostFunc func(rcd RollupCostData, blockTime uint64) *big.Int
 
 // l1CostFunc is an internal version of L1CostFunc that also returns the gasUsed for use in
@@ -60,14 +61,17 @@ var (
 
 var L1BlockAddr = common.HexToAddress("0x4200000000000000000000000000000000000015")
 
-// NewL1CostFunc returns a function used for calculating L1 fee cost.
+// NewL1CostFunc returns a function used for calculating L1 fee cost, or nil if this is not an
+// op-stack chain.
 func NewL1CostFunc(config *params.ChainConfig, statedb StateGetter) L1CostFunc {
+	if config.Optimism == nil {
+		return nil
+	}
 	forBlock := ^uint64(0)
 	var cachedFunc l1CostFunc
 	return func(rollupCostData RollupCostData, blockTime uint64) *big.Int {
 		if rollupCostData == (RollupCostData{}) {
-			// just in case a deposit tx comes through we always should return 0
-			return new(big.Int)
+			return nil // Do not charge if there is no rollup cost-data (e.g. RPC call or deposit).
 		}
 		if forBlock != blockTime {
 			// Note: The following variables are not initialized from the state DB until this point
@@ -96,6 +100,9 @@ var (
 
 func newL1CostFunc(l1Basefee, overhead, scalar *big.Int, isRegolith bool) l1CostFunc {
 	return func(rollupCostData RollupCostData) (fee, gasUsed *big.Int) {
+		if rollupCostData == (RollupCostData{}) {
+			return nil, nil // Do not charge if there is no rollup cost-data (e.g. RPC call or deposit)
+		}
 		gas := rollupCostData.zeroes * params.TxDataZeroGas
 		if isRegolith {
 			gas += rollupCostData.ones * params.TxDataNonZeroGasEIP2028

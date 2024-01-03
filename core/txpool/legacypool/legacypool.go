@@ -1445,9 +1445,10 @@ func (pool *LegacyPool) reset(oldHead, newHead *types.Header) {
 	pool.currentState = statedb
 	pool.pendingNonces = newNoncer(statedb)
 
-	costFn := types.NewL1CostFunc(pool.chainconfig, statedb)
-	pool.l1CostFn = func(rollupCostData types.RollupCostData) *big.Int {
-		return costFn(rollupCostData, newHead.Time)
+	if costFn := types.NewL1CostFunc(pool.chainconfig, statedb); costFn != nil {
+		pool.l1CostFn = func(rollupCostData types.RollupCostData) *big.Int {
+			return costFn(rollupCostData, newHead.Time)
+		}
 	}
 
 	// Inject any transactions discarded due to reorgs
