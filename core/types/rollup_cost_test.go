@@ -5,9 +5,10 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/stretchr/testify/require"
 )
 
 var (
@@ -24,10 +25,12 @@ var (
 	bedrockFee  = big.NewInt(11326000000000)
 	regolithFee = big.NewInt(3710000000000)
 	ecotoneFee  = big.NewInt(960900) // (480/16)*(2*16*1000 + 3*10) == 960900
+	fjordFee    = big.NewInt(992930)
 
 	bedrockGas  = big.NewInt(1618)
 	regolithGas = big.NewInt(530) // 530  = 1618 - (16*68)
 	ecotoneGas  = big.NewInt(480)
+	fjordGas    = big.NewInt(496)
 )
 
 func TestBedrockL1CostFunc(t *testing.T) {
@@ -45,10 +48,22 @@ func TestBedrockL1CostFunc(t *testing.T) {
 }
 
 func TestEcotoneL1CostFunc(t *testing.T) {
-	costFunc := newL1CostFuncEcotone(baseFee, blobBaseFee, baseFeeScalar, blobBaseFeeScalar)
-	c, g := costFunc(emptyTx.RollupCostData())
-	require.Equal(t, ecotoneGas, g)
-	require.Equal(t, ecotoneFee, c)
+	fjordTime := uint64(1)
+	config := &params.ChainConfig{
+		FjordTime: &fjordTime,
+	}
+
+	costFunc0 := newL1CostFuncEcotone(config, 0, baseFee, blobBaseFee, baseFeeScalar, blobBaseFeeScalar)
+	costFunc1 := newL1CostFuncEcotone(config, 1, baseFee, blobBaseFee, baseFeeScalar, blobBaseFeeScalar)
+
+	c0, g0 := costFunc0(emptyTx.RollupCostData())
+	c1, g1 := costFunc1(emptyTx.RollupCostData())
+
+	require.Equal(t, ecotoneGas, g0)
+	require.Equal(t, ecotoneFee, c0)
+
+	require.Equal(t, fjordGas, g1)
+	require.Equal(t, fjordFee, c1)
 }
 
 func TestExtractBedrockGasParams(t *testing.T) {
@@ -85,17 +100,19 @@ func TestExtractBedrockGasParams(t *testing.T) {
 
 func TestExtractEcotoneGasParams(t *testing.T) {
 	zeroTime := uint64(0)
+	fjordTime := uint64(1)
 	// create a config where ecotone upgrade is active
 	config := &params.ChainConfig{
 		Optimism:     params.OptimismTestConfig.Optimism,
 		RegolithTime: &zeroTime,
 		EcotoneTime:  &zeroTime,
+		FjordTime:    &fjordTime,
 	}
-	require.True(t, config.IsOptimismEcotone(0))
+	require.True(t, config.IsOptimismEcotone(zeroTime))
 
 	data := getEcotoneL1Attributes(baseFee, blobBaseFee, baseFeeScalar, blobBaseFeeScalar)
 
-	_, costFunc, _, err := extractL1GasParams(config, 0, data)
+	_, costFunc, _, err := extractL1GasParams(config, zeroTime, data)
 	require.NoError(t, err)
 
 	c, g := costFunc(emptyTx.RollupCostData())
@@ -103,9 +120,17 @@ func TestExtractEcotoneGasParams(t *testing.T) {
 	require.Equal(t, ecotoneGas, g)
 	require.Equal(t, ecotoneFee, c)
 
+	_, costFunc, _, err = extractL1GasParams(config, fjordTime, data)
+	require.NoError(t, err)
+
+	c, g = costFunc(emptyTx.RollupCostData())
+
+	require.Equal(t, fjordGas, g)
+	require.Equal(t, fjordFee, c)
+
 	// make sure wrong amont of data results in error
 	data = append(data, 0x00) // tack on garbage byte
-	_, _, err = extractL1GasParamsEcotone(data)
+	_, _, err = extractL1GasParamsEcotone(config, zeroTime, data)
 	require.Error(t, err)
 }
 

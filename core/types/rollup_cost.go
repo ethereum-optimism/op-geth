@@ -79,7 +79,8 @@ var (
 // RollupCostData is a transaction structure that caches data for quickly computing the data
 // availablility costs for the transaction.
 type RollupCostData struct {
-	zeroes, ones uint64
+	zeroes, ones   uint64
+	compressedSize uint64
 }
 
 type StateGetter interface {
@@ -102,6 +103,7 @@ func NewRollupCostData(data []byte) (out RollupCostData) {
 			out.ones++
 		}
 	}
+	out.compressedSize = uint64(FlzCompressLen(data))
 	return out
 }
 
@@ -146,7 +148,7 @@ func NewL1CostFunc(config *params.ChainConfig, statedb StateGetter) L1CostFunc {
 					offset := scalarSectionStart
 					l1BaseFeeScalar := new(big.Int).SetBytes(l1FeeScalars[offset : offset+4])
 					l1BlobBaseFeeScalar := new(big.Int).SetBytes(l1FeeScalars[offset+4 : offset+8])
-					cachedFunc = newL1CostFuncEcotone(l1BaseFee, l1BlobBaseFee, l1BaseFeeScalar, l1BlobBaseFeeScalar)
+					cachedFunc = newL1CostFuncEcotone(config, blockTime, l1BaseFee, l1BlobBaseFee, l1BaseFeeScalar, l1BlobBaseFeeScalar)
 				}
 			}
 		}
@@ -187,9 +189,15 @@ func newL1CostFuncBedrockHelper(l1BaseFee, overhead, scalar *big.Int, isRegolith
 
 // newL1CostFuncEcotone returns an l1 cost function suitable for the Ecotone upgrade except for the
 // very first block of the upgrade.
-func newL1CostFuncEcotone(l1BaseFee, l1BlobBaseFee, l1BaseFeeScalar, l1BlobBaseFeeScalar *big.Int) l1CostFunc {
+func newL1CostFuncEcotone(config *params.ChainConfig, time uint64, l1BaseFee, l1BlobBaseFee, l1BaseFeeScalar, l1BlobBaseFeeScalar *big.Int) l1CostFunc {
+	isFjord := config.IsFjord(time)
 	return func(costData RollupCostData) (fee, calldataGasUsed *big.Int) {
-		calldataGas := (costData.zeroes * params.TxDataZeroGas) + (costData.ones * params.TxDataNonZeroGasEIP2028)
+		calldataGas := uint64(0)
+		if isFjord {
+			calldataGas = costData.compressedSize * params.TxDataNonZeroGasEIP2028
+		} else {
+			calldataGas = (costData.zeroes * params.TxDataZeroGas) + (costData.ones * params.TxDataNonZeroGasEIP2028)
+		}
 		calldataGasUsed = new(big.Int).SetUint64(calldataGas)
 
 		// Ecotone L1 cost function:
@@ -224,7 +232,7 @@ func extractL1GasParams(config *params.ChainConfig, time uint64, data []byte) (l
 		// edge case: for the very first Ecotone block we still need to use the Bedrock
 		// function. We detect this edge case by seeing if the function selector is the old one
 		if len(data) >= 4 && !bytes.Equal(data[0:4], BedrockL1AttributesSelector) {
-			l1BaseFee, costFunc, err = extractL1GasParamsEcotone(data)
+			l1BaseFee, costFunc, err = extractL1GasParamsEcotone(config, time, data)
 			return
 		}
 	}
@@ -246,7 +254,7 @@ func extractL1GasParams(config *params.ChainConfig, time uint64, data []byte) (l
 
 // extractEcotoneL1GasParams extracts the gas parameters necessary to compute gas from L1 attribute
 // info calldata after the Ecotone upgrade, but not for the very first Ecotone block.
-func extractL1GasParamsEcotone(data []byte) (l1BaseFee *big.Int, costFunc l1CostFunc, err error) {
+func extractL1GasParamsEcotone(config *params.ChainConfig, time uint64, data []byte) (l1BaseFee *big.Int, costFunc l1CostFunc, err error) {
 	if len(data) != 164 {
 		return nil, nil, fmt.Errorf("expected 164 L1 info bytes, got %d", len(data))
 	}
@@ -266,7 +274,7 @@ func extractL1GasParamsEcotone(data []byte) (l1BaseFee *big.Int, costFunc l1Cost
 	l1BlobBaseFee := new(big.Int).SetBytes(data[68:100])
 	l1BaseFeeScalar := new(big.Int).SetBytes(data[4:8])
 	l1BlobBaseFeeScalar := new(big.Int).SetBytes(data[8:12])
-	costFunc = newL1CostFuncEcotone(l1BaseFee, l1BlobBaseFee, l1BaseFeeScalar, l1BlobBaseFeeScalar)
+	costFunc = newL1CostFuncEcotone(config, time, l1BaseFee, l1BlobBaseFee, l1BaseFeeScalar, l1BlobBaseFeeScalar)
 	return
 }
 
@@ -282,4 +290,79 @@ func l1CostHelper(gasWithOverhead, l1BaseFee, scalar *big.Int) *big.Int {
 	fee := new(big.Int).Set(gasWithOverhead)
 	fee.Mul(fee, l1BaseFee).Mul(fee, scalar).Div(fee, oneMillion)
 	return fee
+}
+
+// FlzCompressLen returns the length of the data after compression through FastLZ, based on
+// https://github.com/Vectorized/solady/blob/5315d937d79b335c668896d7533ac603adac5315/js/solady.js
+func FlzCompressLen(ib []byte) uint32 {
+	n := uint32(0)
+	ht := make([]uint32, 8192)
+	u24 := func(i uint32) uint32 {
+		return uint32(ib[i]) | (uint32(ib[i+1]) << 8) | (uint32(ib[i+2]) << 16)
+	}
+	cmp := func(p uint32, q uint32, e uint32) uint32 {
+		l := uint32(0)
+		for e -= q; l < e; l++ {
+			if ib[p+l] != ib[q+l] {
+				e = 0
+			}
+		}
+		return l
+	}
+	literals := func(r uint32) {
+		n += 0x21 * (r / 0x20)
+		r %= 0x20
+		if r != 0 {
+			n += r + 1
+		}
+	}
+	match := func(l uint32) {
+		l--
+		n += 3 * (l / 262)
+		if l%262 >= 6 {
+			n += 3
+		} else {
+			n += 2
+		}
+	}
+	hash := func(v uint32) uint32 {
+		return ((2654435769 * v) >> 19) & 0x1fff
+	}
+	setNextHash := func(ip uint32) uint32 {
+		ht[hash(u24(ip))] = ip
+		return ip + 1
+	}
+	a := uint32(0)
+	ipLimit := uint32(len(ib)) - 13
+	for ip := a + 2; ip < ipLimit; {
+		r := uint32(0)
+		d := uint32(0)
+		for {
+			s := u24(ip)
+			h := hash(s)
+			r = ht[h]
+			ht[h] = ip
+			d = ip - r
+			if ip >= ipLimit {
+				break
+			}
+			ip++
+			if d <= 0x1fff && s == u24(r) {
+				break
+			}
+		}
+		if ip >= ipLimit {
+			break
+		}
+		ip--
+		if ip > a {
+			literals(ip - a)
+		}
+		l := cmp(r+3, ip+3, ipLimit+9)
+		match(l)
+		ip = setNextHash(setNextHash(ip + l))
+		a = ip
+	}
+	literals(uint32(len(ib)) - a)
+	return n
 }
