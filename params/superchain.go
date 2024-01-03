@@ -71,6 +71,7 @@ func LoadOPStackChainConfig(chainID uint64) (*ChainConfig, error) {
 		BedrockBlock:                  common.Big0,
 		RegolithTime:                  &genesisActivation,
 		CanyonTime:                    superchainConfig.Config.CanyonTime,
+		EcotoneTime:                   superchainConfig.Config.EcotoneTime,
 		TerminalTotalDifficulty:       common.Big0,
 		TerminalTotalDifficultyPassed: true,
 		Ethash:                        nil,

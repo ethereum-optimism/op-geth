@@ -337,7 +337,7 @@ func (l *list) Add(tx *types.Transaction, priceBump uint64, l1CostFn txpool.L1Co
 	// Add new tx cost to totalcost
 	l.totalcost.Add(l.totalcost, tx.Cost())
 	if l1CostFn != nil {
-		if l1Cost := l1CostFn(tx.RollupDataGas()); l1Cost != nil { // add rollup cost
+		if l1Cost := l1CostFn(tx.RollupCostData()); l1Cost != nil { // add rollup cost
 			l.totalcost.Add(l.totalcost, l1Cost)
 		}
 	}

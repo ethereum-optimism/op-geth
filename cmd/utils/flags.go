@@ -264,7 +264,12 @@ var (
 	}
 	OverrideOptimismCanyon = &flags.BigFlag{
 		Name:     "override.canyon",
-		Usage:    "Manually specify the Optimsim Canyon fork timestamp, overriding the bundled setting",
+		Usage:    "Manually specify the Optimism Canyon fork timestamp, overriding the bundled setting",
+		Category: flags.EthCategory,
+	}
+	OverrideOptimismEcotone = &flags.BigFlag{
+		Name:     "override.ecotone",
+		Usage:    "Manually specify the Optimism Ecotone fork timestamp, overriding the bundled setting",
 		Category: flags.EthCategory,
 	}
 	OverrideOptimismInterop = &cli.Uint64Flag{
