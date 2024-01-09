@@ -458,7 +458,6 @@ func (api *ConsensusAPI) getPayload(payloadID engine.PayloadID, full bool) (*eng
 	if data == nil {
 		return nil, engine.UnknownPayload
 	}
-
 	return data, nil
 }
 
