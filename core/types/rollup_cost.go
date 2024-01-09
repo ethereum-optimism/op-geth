@@ -194,14 +194,14 @@ func newL1CostFuncEcotone(l1Basefee, l1BlobBasefee, l1BasefeeScalar, l1BlobBasef
 
 		// Ecotone L1 cost function:
 		//
-		//   (gas/16)*(l1Basefee*16*l1BasefeeScalar + l1BlobBasefee*l1BlobBasefeeScalar)/1e6
+		//   (calldataGas/16)*(l1Basefee*16*l1BasefeeScalar + l1BlobBasefee*l1BlobBasefeeScalar)/1e6
 		//
-		// We divide "gas" by 16 to change from units of calldata gas to "estimated # of bytes when
-		// compressed".
+		// We divide "calldataGas" by 16 to change from units of calldata gas to "estimated # of bytes when
+		// compressed". Known as "compressedTxSize" in the spec.
 		//
 		// Function is actually computed as follows for better precision under integer arithmetic:
 		//
-		//   gas*(l1Basefee*16*l1BasefeeScalar + l1BlobBasefee*l1BlobBasefeeScalar)/16e6
+		//   calldataGas*(l1Basefee*16*l1BasefeeScalar + l1BlobBasefee*l1BlobBasefeeScalar)/16e6
 
 		calldataCostPerByte := new(big.Int).Set(l1Basefee)
 		calldataCostPerByte = calldataCostPerByte.Mul(calldataCostPerByte, sixteen)
