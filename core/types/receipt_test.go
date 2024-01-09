@@ -34,6 +34,13 @@ import (
 )
 
 var (
+	ecotoneTestConfig = func() *params.ChainConfig {
+		conf := *params.OptimismTestConfig // copy the config
+		time := uint64(0)
+		conf.EcotoneTime = &time
+		return &conf
+	}()
+
 	legacyReceipt = &Receipt{
 		Status:            ReceiptStatusFailed,
 		CumulativeGasUsed: 1,
@@ -683,30 +690,20 @@ func clearComputedFieldsOnLogs(logs []*Log) []*Log {
 	return l
 }
 
-func TestDeriveOptimismTxReceipt(t *testing.T) {
-	to4 := common.HexToAddress("0x4")
+func getOptimismTxReceipts(
+	t *testing.T, l1AttributesPayload []byte,
+	l1GasPrice, l1GasUsed *big.Int, feeScalar *big.Float, l1Fee *big.Int) ([]*Transaction, []*Receipt) {
+	//to4 := common.HexToAddress("0x4")
 	// Create a few transactions to have receipts for
 	txs := Transactions{
 		NewTx(&DepositTx{
 			To:    nil, // contract creation
 			Value: big.NewInt(6),
 			Gas:   50,
-			// System config with L1Scalar=2_000_000 (becomes 2 after division), L1Overhead=2500, L1BaseFee=5000
-			Data: common.Hex2Bytes("015d8eb900000000000000000000000000000000000000000000000026b39534042076f70000000000000000000000000000000000000000000000007e33b7c4995967580000000000000000000000000000000000000000000000000000000000001388547dea8ff339566349ed0ef6384876655d1b9b955e36ac165c6b8ab69b9af5cd0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000123400000000000000000000000000000000000000000000000000000000000009c400000000000000000000000000000000000000000000000000000000001e8480"),
+			Data:  l1AttributesPayload,
 		}),
-		NewTx(&DynamicFeeTx{
-			To:        &to4,
-			Nonce:     4,
-			Value:     big.NewInt(4),
-			Gas:       4,
-			GasTipCap: big.NewInt(44),
-			GasFeeCap: big.NewInt(1045),
-			Data:      []byte{0, 1, 255, 0},
-		}),
+		emptyTx,
 	}
-	depNonce := uint64(7)
-	blockNumber := big.NewInt(1)
-	blockHash := common.BytesToHash([]byte{0x03, 0x14})
 
 	// Create the corresponding receipts
 	receipts := Receipts{
@@ -741,26 +738,38 @@ func TestDeriveOptimismTxReceipt(t *testing.T) {
 			BlockHash:         blockHash,
 			BlockNumber:       blockNumber,
 			TransactionIndex:  0,
-			DepositNonce:      &depNonce,
+			DepositNonce:      &depNonce1,
 		},
 		&Receipt{
-			Type:              DynamicFeeTxType,
+			Type:              LegacyTxType,
+			EffectiveGasPrice: big.NewInt(0),
 			PostState:         common.Hash{4}.Bytes(),
 			CumulativeGasUsed: 10,
 			Logs:              []*Log{},
 			// derived fields:
-			TxHash:            txs[1].Hash(),
-			GasUsed:           18446744073709551561,
-			EffectiveGasPrice: big.NewInt(1044),
-			BlockHash:         blockHash,
-			BlockNumber:       blockNumber,
-			TransactionIndex:  1,
-			L1GasPrice:        big.NewInt(5000),
-			L1GasUsed:         big.NewInt(3976),
-			L1Fee:             big.NewInt(39760000),
-			FeeScalar:         big.NewFloat(2),
+			TxHash:           txs[1].Hash(),
+			GasUsed:          18446744073709551561,
+			BlockHash:        blockHash,
+			BlockNumber:      blockNumber,
+			TransactionIndex: 1,
+			L1GasPrice:       l1GasPrice,
+			L1GasUsed:        l1GasUsed,
+			L1Fee:            l1Fee,
+			FeeScalar:        feeScalar,
 		},
 	}
+	return txs, receipts
+}
+
+func TestDeriveOptimismBedrockTxReceipts(t *testing.T) {
+	// Bedrock style l1 attributes with L1Scalar=7_000_000 (becomes 7 after division), L1Overhead=50, L1BaseFee=1000*1e6
+	payload := common.Hex2Bytes("015d8eb900000000000000000000000000000000000000000000000000000000000004d200000000000000000000000000000000000000000000000000000000000004d2000000000000000000000000000000000000000000000000000000003b9aca0000000000000000000000000000000000000000000000000000000000000004d200000000000000000000000000000000000000000000000000000000000004d200000000000000000000000000000000000000000000000000000000000004d2000000000000000000000000000000000000000000000000000000000000003200000000000000000000000000000000000000000000000000000000006acfc0015d8eb900000000000000000000000000000000000000000000000000000000000004d200000000000000000000000000000000000000000000000000000000000004d2000000000000000000000000000000000000000000000000000000003b9aca0000000000000000000000000000000000000000000000000000000000000004d200000000000000000000000000000000000000000000000000000000000004d200000000000000000000000000000000000000000000000000000000000004d2000000000000000000000000000000000000000000000000000000000000003200000000000000000000000000000000000000000000000000000000006acfc0")
+	// the parameters we use below are defined in rollup_test.go
+	l1GasPrice := basefee
+	l1GasUsed := bedrockGas
+	feeScalar := big.NewFloat(float64(scalar.Uint64() / 1e6))
+	l1Fee := bedrockFee
+	txs, receipts := getOptimismTxReceipts(t, payload, l1GasPrice, l1GasUsed, feeScalar, l1Fee)
 
 	// Re-derive receipts.
 	basefee := big.NewInt(1000)
@@ -769,7 +778,43 @@ func TestDeriveOptimismTxReceipt(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DeriveFields(...) = %v, want <nil>", err)
 	}
+	checkBedrockReceipts(t, receipts, derivedReceipts)
 
+	// Should get same result with the Ecotone config because it will assume this is "first ecotone block"
+	// if it sees the bedrock style L1 attributes.
+	err = Receipts(derivedReceipts).DeriveFields(ecotoneTestConfig, blockHash, blockNumber.Uint64(), 0, basefee, nil, txs)
+	if err != nil {
+		t.Fatalf("DeriveFields(...) = %v, want <nil>", err)
+	}
+	checkBedrockReceipts(t, receipts, derivedReceipts)
+}
+
+func TestDeriveOptimismEcotoneTxReceipts(t *testing.T) {
+	// Ecotone style l1 attributes with basefeeScalar=2, blobBasfeeScalar=3, baseFee=1000*1e6, blobBasefee=10*1e6
+	payload := common.Hex2Bytes("440a5e20000000020000000300000000000004d200000000000004d200000000000004d2000000000000000000000000000000000000000000000000000000003b9aca00000000000000000000000000000000000000000000000000000000000098968000000000000000000000000000000000000000000000000000000000000004d200000000000000000000000000000000000000000000000000000000000004d2")
+	// the parameters we use below are defined in rollup_test.go
+	l1GasPrice := basefee
+	l1GasUsed := ecotoneGas
+	l1Fee := ecotoneFee
+	txs, receipts := getOptimismTxReceipts(t, payload, l1GasPrice, l1GasUsed, nil /*feeScalar*/, l1Fee)
+
+	// Re-derive receipts.
+	basefee := big.NewInt(1000)
+	derivedReceipts := clearComputedFieldsOnReceipts(receipts)
+	// Should error out if we try to process this with a pre-Ecotone config
+	err := Receipts(derivedReceipts).DeriveFields(params.OptimismTestConfig, blockHash, blockNumber.Uint64(), 0, basefee, nil, txs)
+	if err == nil {
+		t.Fatalf("expected error from deriving ecotone receipts with pre-ecotone config, got none")
+	}
+
+	err = Receipts(derivedReceipts).DeriveFields(ecotoneTestConfig, blockHash, blockNumber.Uint64(), 0, basefee, nil, txs)
+	if err != nil {
+		t.Fatalf("DeriveFields(...) = %v, want <nil>", err)
+	}
+	diffReceipts(t, receipts, derivedReceipts)
+}
+
+func diffReceipts(t *testing.T, receipts, derivedReceipts []*Receipt) {
 	// Check diff of receipts against derivedReceipts.
 	r1, err := json.MarshalIndent(receipts, "", "  ")
 	if err != nil {
@@ -783,6 +828,10 @@ func TestDeriveOptimismTxReceipt(t *testing.T) {
 	if d != "" {
 		t.Fatal("receipts differ:", d)
 	}
+}
+
+func checkBedrockReceipts(t *testing.T, receipts, derivedReceipts []*Receipt) {
+	diffReceipts(t, receipts, derivedReceipts)
 
 	// Check that we preserved the invariant: l1Fee = l1GasPrice * l1GasUsed * l1FeeScalar
 	// but with more difficult int math...
