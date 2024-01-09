@@ -65,8 +65,8 @@ func LoadOPStackChainConfig(chainID uint64) (*ChainConfig, error) {
 		ArrowGlacierBlock:             common.Big0,
 		GrayGlacierBlock:              common.Big0,
 		MergeNetsplitBlock:            common.Big0,
-		ShanghaiTime:                  superchainConfig.Config.CanyonTime, // Shanghai activates with Canyon
-		CancunTime:                    nil,
+		ShanghaiTime:                  superchainConfig.Config.CanyonTime,  // Shanghai activates with Canyon
+		CancunTime:                    superchainConfig.Config.EcotoneTime, // Cancun activates with Ecotone
 		PragueTime:                    nil,
 		BedrockBlock:                  common.Big0,
 		RegolithTime:                  &genesisActivation,
