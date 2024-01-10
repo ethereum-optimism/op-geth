@@ -2232,28 +2232,34 @@ func TestCeloTransaction_RoundTripRpcJSON(t *testing.T) {
 	)
 	t.Parallel()
 	for i, tt := range tests {
-		var tx2 types.Transaction
 		tx, err := types.SignNewTx(key, signer, tt)
 		if err != nil {
 			t.Fatalf("test %d: signing failed: %v", i, err)
 		}
+
 		// Regular transaction
-		if data, err := json.Marshal(tx); err != nil {
-			t.Fatalf("test %d: marshalling failed; %v", i, err)
-		} else if err = tx2.UnmarshalJSON(data); err != nil {
-			t.Fatalf("test %d: sunmarshal failed: %v", i, err)
-		} else if want, have := tx.Hash(), tx2.Hash(); want != have {
-			t.Fatalf("test %d: stx changed, want %x have %x", i, want, have)
+		{
+			var tx2 types.Transaction
+			if data, err := json.Marshal(tx); err != nil {
+				t.Fatalf("test %d: marshalling failed; %v", i, err)
+			} else if err = tx2.UnmarshalJSON(data); err != nil {
+				t.Fatalf("test %d: sunmarshal failed: %v", i, err)
+			} else if want, have := tx.Hash(), tx2.Hash(); want != have {
+				t.Fatalf("test %d: stx changed, want %x have %x", i, want, have)
+			}
 		}
 
 		//  rpcTransaction
-		rpcTx := newRPCTransaction(tx, common.Hash{}, 0, 0, 0, nil, config, nil)
-		if data, err := json.Marshal(rpcTx); err != nil {
-			t.Fatalf("test %d: marshalling failed; %v", i, err)
-		} else if err = tx2.UnmarshalJSON(data); err != nil {
-			t.Fatalf("test %d: unmarshal failed: %v", i, err)
-		} else if want, have := tx.Hash(), tx2.Hash(); want != have {
-			t.Fatalf("test %d: tx changed, want %x have %x", i, want, have)
+		{
+			var tx2 types.Transaction
+			rpcTx := newRPCTransaction(tx, common.Hash{}, 0, 0, 0, nil, config, nil)
+			if data, err := json.Marshal(rpcTx); err != nil {
+				t.Fatalf("test %d: marshalling failed; %v", i, err)
+			} else if err = tx2.UnmarshalJSON(data); err != nil {
+				t.Fatalf("test %d: unmarshal failed: %v", i, err)
+			} else if want, have := tx.Hash(), tx2.Hash(); want != have {
+				t.Fatalf("test %d: tx changed, want %x have %x", i, want, have)
+			}
 		}
 	}
 }
