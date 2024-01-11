@@ -11,13 +11,13 @@ import (
 )
 
 var (
-	basefee  = big.NewInt(1000 * 1e6)
+	baseFee  = big.NewInt(1000 * 1e6)
 	overhead = big.NewInt(50)
 	scalar   = big.NewInt(7 * 1e6)
 
-	blobBasefee       = big.NewInt(10 * 1e6)
-	basefeeScalar     = big.NewInt(2)
-	blobBasefeeScalar = big.NewInt(3)
+	blobBaseFee       = big.NewInt(10 * 1e6)
+	baseFeeScalar     = big.NewInt(2)
+	blobBaseFeeScalar = big.NewInt(3)
 
 	// below are the expected cost func outcomes for the above parameter settings on the emptyTx
 	// which is defined in transaction_test.go
@@ -31,8 +31,8 @@ var (
 )
 
 func TestBedrockL1CostFunc(t *testing.T) {
-	costFunc0 := newL1CostFuncBedrockHelper(basefee, overhead, scalar, false /*isRegolith*/)
-	costFunc1 := newL1CostFuncBedrockHelper(basefee, overhead, scalar, true)
+	costFunc0 := newL1CostFuncBedrockHelper(baseFee, overhead, scalar, false /*isRegolith*/)
+	costFunc1 := newL1CostFuncBedrockHelper(baseFee, overhead, scalar, true)
 
 	c0, g0 := costFunc0(emptyTx.RollupCostData()) // pre-Regolith
 	c1, g1 := costFunc1(emptyTx.RollupCostData())
@@ -45,7 +45,7 @@ func TestBedrockL1CostFunc(t *testing.T) {
 }
 
 func TestEcotoneL1CostFunc(t *testing.T) {
-	costFunc := newL1CostFuncEcotone(basefee, blobBasefee, basefeeScalar, blobBasefeeScalar)
+	costFunc := newL1CostFuncEcotone(baseFee, blobBaseFee, baseFeeScalar, blobBaseFeeScalar)
 	c, g := costFunc(emptyTx.RollupCostData())
 	require.Equal(t, ecotoneGas, g)
 	require.Equal(t, ecotoneFee, c)
@@ -58,7 +58,7 @@ func TestExtractBedrockGasParams(t *testing.T) {
 		RegolithTime: &regolithTime,
 	}
 
-	data := getBedrockL1Attributes(basefee, overhead, scalar)
+	data := getBedrockL1Attributes(baseFee, overhead, scalar)
 
 	_, costFuncPreRegolith, _, err := extractL1GasParams(config, regolithTime-1, data)
 	require.NoError(t, err)
@@ -93,7 +93,7 @@ func TestExtractEcotoneGasParams(t *testing.T) {
 	}
 	require.True(t, config.IsOptimismEcotone(0))
 
-	data := getEcotoneL1Attributes(basefee, blobBasefee, basefeeScalar, blobBasefeeScalar)
+	data := getEcotoneL1Attributes(baseFee, blobBaseFee, baseFeeScalar, blobBaseFeeScalar)
 
 	_, costFunc, _, err := extractL1GasParams(config, 0, data)
 	require.NoError(t, err)
@@ -121,7 +121,7 @@ func TestFirstBlockEcotoneGasParams(t *testing.T) {
 	}
 	require.True(t, config.IsOptimismEcotone(0))
 
-	data := getBedrockL1Attributes(basefee, overhead, scalar)
+	data := getBedrockL1Attributes(baseFee, overhead, scalar)
 
 	_, oldCostFunc, _, err := extractL1GasParams(config, 0, data)
 	require.NoError(t, err)
@@ -129,14 +129,14 @@ func TestFirstBlockEcotoneGasParams(t *testing.T) {
 	require.Equal(t, regolithFee, c)
 }
 
-func getBedrockL1Attributes(basefee, overhead, scalar *big.Int) []byte {
+func getBedrockL1Attributes(baseFee, overhead, scalar *big.Int) []byte {
 	uint256 := make([]byte, 32)
 	ignored := big.NewInt(1234)
 	data := []byte{}
 	data = append(data, BedrockL1AttributesSelector...)
 	data = append(data, ignored.FillBytes(uint256)...)  // arg 0
 	data = append(data, ignored.FillBytes(uint256)...)  // arg 1
-	data = append(data, basefee.FillBytes(uint256)...)  // arg 2
+	data = append(data, baseFee.FillBytes(uint256)...)  // arg 2
 	data = append(data, ignored.FillBytes(uint256)...)  // arg 3
 	data = append(data, ignored.FillBytes(uint256)...)  // arg 4
 	data = append(data, ignored.FillBytes(uint256)...)  // arg 5
@@ -145,45 +145,45 @@ func getBedrockL1Attributes(basefee, overhead, scalar *big.Int) []byte {
 	return data
 }
 
-func getEcotoneL1Attributes(basefee, blobBasefee, basefeeScalar, blobBasefeeScalar *big.Int) []byte {
+func getEcotoneL1Attributes(baseFee, blobBaseFee, baseFeeScalar, blobBaseFeeScalar *big.Int) []byte {
 	ignored := big.NewInt(1234)
 	data := []byte{}
 	uint256 := make([]byte, 32)
 	uint64 := make([]byte, 8)
 	uint32 := make([]byte, 4)
 	data = append(data, EcotoneL1AttributesSelector...)
-	data = append(data, basefeeScalar.FillBytes(uint32)...)
-	data = append(data, blobBasefeeScalar.FillBytes(uint32)...)
+	data = append(data, baseFeeScalar.FillBytes(uint32)...)
+	data = append(data, blobBaseFeeScalar.FillBytes(uint32)...)
 	data = append(data, ignored.FillBytes(uint64)...)
 	data = append(data, ignored.FillBytes(uint64)...)
 	data = append(data, ignored.FillBytes(uint64)...)
-	data = append(data, basefee.FillBytes(uint256)...)
-	data = append(data, blobBasefee.FillBytes(uint256)...)
+	data = append(data, baseFee.FillBytes(uint256)...)
+	data = append(data, blobBaseFee.FillBytes(uint256)...)
 	data = append(data, ignored.FillBytes(uint256)...)
 	data = append(data, ignored.FillBytes(uint256)...)
 	return data
 }
 
 type testStateGetter struct {
-	basefee, blobBasefee, overhead, scalar *big.Int
-	basefeeScalar, blobBasefeeScalar       uint32
+	baseFee, blobBaseFee, overhead, scalar *big.Int
+	baseFeeScalar, blobBaseFeeScalar       uint32
 }
 
 func (sg *testStateGetter) GetState(addr common.Address, slot common.Hash) common.Hash {
 	buf := common.Hash{}
 	switch slot {
-	case L1BasefeeSlot:
-		sg.basefee.FillBytes(buf[:])
+	case L1BaseFeeSlot:
+		sg.baseFee.FillBytes(buf[:])
 	case OverheadSlot:
 		sg.overhead.FillBytes(buf[:])
 	case ScalarSlot:
 		sg.scalar.FillBytes(buf[:])
-	case L1BlobBasefeeSlot:
-		sg.blobBasefee.FillBytes(buf[:])
+	case L1BlobBaseFeeSlot:
+		sg.blobBaseFee.FillBytes(buf[:])
 	case L1FeeScalarsSlot:
 		offset := scalarSectionStart
-		binary.BigEndian.PutUint32(buf[offset:offset+4], sg.basefeeScalar)
-		binary.BigEndian.PutUint32(buf[offset+4:offset+8], sg.blobBasefeeScalar)
+		binary.BigEndian.PutUint32(buf[offset:offset+4], sg.baseFeeScalar)
+		binary.BigEndian.PutUint32(buf[offset+4:offset+8], sg.blobBaseFeeScalar)
 	default:
 		panic("unknown slot")
 	}
@@ -198,12 +198,12 @@ func TestNewL1CostFunc(t *testing.T) {
 		Optimism: params.OptimismTestConfig.Optimism,
 	}
 	statedb := &testStateGetter{
-		basefee:           basefee,
+		baseFee:           baseFee,
 		overhead:          overhead,
 		scalar:            scalar,
-		blobBasefee:       blobBasefee,
-		basefeeScalar:     uint32(basefeeScalar.Uint64()),
-		blobBasefeeScalar: uint32(blobBasefeeScalar.Uint64()),
+		blobBaseFee:       blobBaseFee,
+		baseFeeScalar:     uint32(baseFeeScalar.Uint64()),
+		blobBaseFeeScalar: uint32(blobBaseFeeScalar.Uint64()),
 	}
 
 	costFunc := NewL1CostFunc(config, statedb)
@@ -235,9 +235,9 @@ func TestNewL1CostFunc(t *testing.T) {
 
 	// emptyTx fee w/ ecotone config, but simulate first ecotone block by blowing away the ecotone
 	// params. Should result in regolith fee.
-	statedb.basefeeScalar = 0
-	statedb.blobBasefeeScalar = 0
-	statedb.blobBasefee = new(big.Int)
+	statedb.baseFeeScalar = 0
+	statedb.blobBaseFeeScalar = 0
+	statedb.blobBaseFee = new(big.Int)
 	costFunc = NewL1CostFunc(config, statedb)
 	fee = costFunc(emptyTx.RollupCostData(), time)
 	require.NotNil(t, fee)
