@@ -458,10 +458,10 @@ func TestDecodeEmptyTypedReceipt(t *testing.T) {
 // Tests that receipt data can be correctly derived from the contextual infos
 func TestDeriveFields(t *testing.T) {
 	// Re-derive receipts.
-	basefee := big.NewInt(1000)
+	baseFee := big.NewInt(1000)
 	blobGasPrice := big.NewInt(920)
 	derivedReceipts := clearComputedFieldsOnReceipts(receipts)
-	err := Receipts(derivedReceipts).DeriveFields(params.TestChainConfig, blockHash, blockNumber.Uint64(), blockTime, basefee, blobGasPrice, txs)
+	err := Receipts(derivedReceipts).DeriveFields(params.TestChainConfig, blockHash, blockNumber.Uint64(), blockTime, baseFee, blobGasPrice, txs)
 	if err != nil {
 		t.Fatalf("DeriveFields(...) = %v, want <nil>", err)
 	}
@@ -765,16 +765,16 @@ func TestDeriveOptimismBedrockTxReceipts(t *testing.T) {
 	// Bedrock style l1 attributes with L1Scalar=7_000_000 (becomes 7 after division), L1Overhead=50, L1BaseFee=1000*1e6
 	payload := common.Hex2Bytes("015d8eb900000000000000000000000000000000000000000000000000000000000004d200000000000000000000000000000000000000000000000000000000000004d2000000000000000000000000000000000000000000000000000000003b9aca0000000000000000000000000000000000000000000000000000000000000004d200000000000000000000000000000000000000000000000000000000000004d200000000000000000000000000000000000000000000000000000000000004d2000000000000000000000000000000000000000000000000000000000000003200000000000000000000000000000000000000000000000000000000006acfc0015d8eb900000000000000000000000000000000000000000000000000000000000004d200000000000000000000000000000000000000000000000000000000000004d2000000000000000000000000000000000000000000000000000000003b9aca0000000000000000000000000000000000000000000000000000000000000004d200000000000000000000000000000000000000000000000000000000000004d200000000000000000000000000000000000000000000000000000000000004d2000000000000000000000000000000000000000000000000000000000000003200000000000000000000000000000000000000000000000000000000006acfc0")
 	// the parameters we use below are defined in rollup_test.go
-	l1GasPrice := basefee
+	l1GasPrice := baseFee
 	l1GasUsed := bedrockGas
 	feeScalar := big.NewFloat(float64(scalar.Uint64() / 1e6))
 	l1Fee := bedrockFee
 	txs, receipts := getOptimismTxReceipts(t, payload, l1GasPrice, l1GasUsed, feeScalar, l1Fee)
 
 	// Re-derive receipts.
-	basefee := big.NewInt(1000)
+	baseFee := big.NewInt(1000)
 	derivedReceipts := clearComputedFieldsOnReceipts(receipts)
-	err := Receipts(derivedReceipts).DeriveFields(params.OptimismTestConfig, blockHash, blockNumber.Uint64(), 0, basefee, nil, txs)
+	err := Receipts(derivedReceipts).DeriveFields(params.OptimismTestConfig, blockHash, blockNumber.Uint64(), 0, baseFee, nil, txs)
 	if err != nil {
 		t.Fatalf("DeriveFields(...) = %v, want <nil>", err)
 	}
@@ -782,7 +782,7 @@ func TestDeriveOptimismBedrockTxReceipts(t *testing.T) {
 
 	// Should get same result with the Ecotone config because it will assume this is "first ecotone block"
 	// if it sees the bedrock style L1 attributes.
-	err = Receipts(derivedReceipts).DeriveFields(ecotoneTestConfig, blockHash, blockNumber.Uint64(), 0, basefee, nil, txs)
+	err = Receipts(derivedReceipts).DeriveFields(ecotoneTestConfig, blockHash, blockNumber.Uint64(), 0, baseFee, nil, txs)
 	if err != nil {
 		t.Fatalf("DeriveFields(...) = %v, want <nil>", err)
 	}
@@ -790,24 +790,24 @@ func TestDeriveOptimismBedrockTxReceipts(t *testing.T) {
 }
 
 func TestDeriveOptimismEcotoneTxReceipts(t *testing.T) {
-	// Ecotone style l1 attributes with basefeeScalar=2, blobBasfeeScalar=3, baseFee=1000*1e6, blobBasefee=10*1e6
+	// Ecotone style l1 attributes with baseFeeScalar=2, blobBaseFeeScalar=3, baseFee=1000*1e6, blobBaseFee=10*1e6
 	payload := common.Hex2Bytes("440a5e20000000020000000300000000000004d200000000000004d200000000000004d2000000000000000000000000000000000000000000000000000000003b9aca00000000000000000000000000000000000000000000000000000000000098968000000000000000000000000000000000000000000000000000000000000004d200000000000000000000000000000000000000000000000000000000000004d2")
 	// the parameters we use below are defined in rollup_test.go
-	l1GasPrice := basefee
+	l1GasPrice := baseFee
 	l1GasUsed := ecotoneGas
 	l1Fee := ecotoneFee
 	txs, receipts := getOptimismTxReceipts(t, payload, l1GasPrice, l1GasUsed, nil /*feeScalar*/, l1Fee)
 
 	// Re-derive receipts.
-	basefee := big.NewInt(1000)
+	baseFee := big.NewInt(1000)
 	derivedReceipts := clearComputedFieldsOnReceipts(receipts)
 	// Should error out if we try to process this with a pre-Ecotone config
-	err := Receipts(derivedReceipts).DeriveFields(params.OptimismTestConfig, blockHash, blockNumber.Uint64(), 0, basefee, nil, txs)
+	err := Receipts(derivedReceipts).DeriveFields(params.OptimismTestConfig, blockHash, blockNumber.Uint64(), 0, baseFee, nil, txs)
 	if err == nil {
 		t.Fatalf("expected error from deriving ecotone receipts with pre-ecotone config, got none")
 	}
 
-	err = Receipts(derivedReceipts).DeriveFields(ecotoneTestConfig, blockHash, blockNumber.Uint64(), 0, basefee, nil, txs)
+	err = Receipts(derivedReceipts).DeriveFields(ecotoneTestConfig, blockHash, blockNumber.Uint64(), 0, baseFee, nil, txs)
 	if err != nil {
 		t.Fatalf("DeriveFields(...) = %v, want <nil>", err)
 	}
