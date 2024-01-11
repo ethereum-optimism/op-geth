@@ -58,6 +58,7 @@ var (
 // is only used for necessary consensus checks. The legacy consensus engine can be any
 // engine implements the consensus interface (except the beacon itself).
 type Beacon struct {
+	// For migrated OP chains (OP mainnet, OP Goerli), ethone is a dummy legacy pre-Bedrock consensus
 	ethone consensus.Engine // Original consensus engine used in eth1, e.g. ethash or clique
 }
 

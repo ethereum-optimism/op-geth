@@ -2,23 +2,28 @@ package beacon
 
 import (
 	"fmt"
+	"math/big"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rpc"
-	"math/big"
 )
 
-type OpLegacy struct {
-}
+type OpLegacy struct{}
 
 func (o *OpLegacy) Author(header *types.Header) (common.Address, error) {
 	return header.Coinbase, nil
 }
 
 func (o *OpLegacy) VerifyHeader(chain consensus.ChainHeaderReader, header *types.Header) error {
-	return nil // legacy chain is verified by block-hash reverse sync
+	// redundant check to guarantee DB consistency
+	parent := chain.GetHeader(header.ParentHash, header.Number.Uint64()-1)
+	if parent == nil {
+		return consensus.ErrUnknownAncestor
+	}
+	return nil // legacy chain is verified by block-hash reverse sync otherwise
 }
 
 func (o *OpLegacy) VerifyHeaders(chain consensus.ChainHeaderReader, headers []*types.Header) (chan<- struct{}, <-chan error) {
