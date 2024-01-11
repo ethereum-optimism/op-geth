@@ -570,7 +570,7 @@ func (rs Receipts) DeriveFields(config *params.ChainConfig, hash common.Hash, nu
 		}
 	}
 	if config.Optimism != nil && len(txs) >= 2 { // need at least an info tx and a non-info tx
-		l1Basefee, costFunc, feeScalar, err := extractL1GasParams(config, time, txs[0].Data())
+		l1BaseFee, costFunc, feeScalar, err := extractL1GasParams(config, time, txs[0].Data())
 		if err != nil {
 			return err
 		}
@@ -578,7 +578,7 @@ func (rs Receipts) DeriveFields(config *params.ChainConfig, hash common.Hash, nu
 			if txs[i].IsDepositTx() {
 				continue
 			}
-			rs[i].L1GasPrice = l1Basefee
+			rs[i].L1GasPrice = l1BaseFee
 			rs[i].L1Fee, rs[i].L1GasUsed = costFunc(txs[i].RollupCostData())
 			rs[i].FeeScalar = feeScalar
 		}
