@@ -507,6 +507,9 @@ func (c *ChainConfig) Description() string {
 	if c.CanyonTime != nil {
 		banner += fmt.Sprintf(" - Canyon:                      @%-10v\n", *c.CanyonTime)
 	}
+	if c.EcotoneTime != nil {
+		banner += fmt.Sprintf(" - Ecotone:                     @%-10v\n", *c.EcotoneTime)
+	}
 	if c.InteropTime != nil {
 		banner += fmt.Sprintf(" - Interop:                     @%-10v\n", *c.InteropTime)
 	}
