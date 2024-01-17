@@ -2031,7 +2031,9 @@ func marshalReceipt(receipt *types.Receipt, blockHash common.Hash, blockNumber u
 		fields["l1GasPrice"] = (*hexutil.Big)(receipt.L1GasPrice)
 		fields["l1GasUsed"] = (*hexutil.Big)(receipt.L1GasUsed)
 		fields["l1Fee"] = (*hexutil.Big)(receipt.L1Fee)
-		fields["l1FeeScalar"] = receipt.FeeScalar.String()
+		if receipt.FeeScalar != nil { // removed in Ecotone
+			fields["l1FeeScalar"] = receipt.FeeScalar.String()
+		}
 	}
 	if chainConfig.Optimism != nil && tx.IsDepositTx() && receipt.DepositNonce != nil {
 		fields["depositNonce"] = hexutil.Uint64(*receipt.DepositNonce)
