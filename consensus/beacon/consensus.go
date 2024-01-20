@@ -462,6 +462,10 @@ func (beacon *Beacon) InnerEngine() consensus.Engine {
 	return beacon.ethone
 }
 
+func (beacon *Beacon) SwapInner(inner consensus.Engine) {
+	beacon.ethone = inner
+}
+
 // SetThreads updates the mining threads. Delegate the call
 // to the eth1 engine if it's threaded.
 func (beacon *Beacon) SetThreads(threads int) {
@@ -478,13 +482,9 @@ func (beacon *Beacon) SetThreads(threads int) {
 // If the parentHash is not stored in the database a UnknownAncestor error is returned.
 func IsTTDReached(chain consensus.ChainHeaderReader, parentHash common.Hash, parentNumber uint64) (bool, error) {
 	if cfg := chain.Config(); cfg.Optimism != nil {
-		num := parentNumber
-		if num == ^(uint64(0)) { // caller can (intentionally?!) underflow on parent-of-block 0 case.
-			num = 0
-		}
-		if cfg.IsBedrock(new(big.Int).SetUint64(num)) {
-			return true, nil
-		}
+		// If OP-Stack then bedrock activation number determines when TTD (eth Merge) has been reached.
+		// Note: some tests/utils will set parentNumber == max_uint64 as "parent" of the genesis block, this is fine.
+		return cfg.IsBedrock(new(big.Int).SetUint64(parentNumber + 1)), nil
 	}
 	if chain.Config().TerminalTotalDifficulty == nil {
 		return false, nil

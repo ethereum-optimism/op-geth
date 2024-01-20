@@ -29,6 +29,8 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/consensus"
+	"github.com/ethereum/go-ethereum/consensus/beacon"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 
 	"github.com/ethereum/go-ethereum"
@@ -286,8 +288,21 @@ func newMockHistoricalBackend(t *testing.T) string {
 func newTestBackend(t *testing.T, enableHistoricalState bool) (*node.Node, []*types.Block) {
 	histAddr := newMockHistoricalBackend(t)
 
-	// Generate test chain.
-	blocks := generateTestChain(enableHistoricalState)
+	var consensusEngine consensus.Engine
+	var actualGenesis *core.Genesis
+	var chainLength int
+	if enableHistoricalState {
+		actualGenesis = genesisForHistorical
+		consensusEngine = beacon.New(ethash.NewFaker())
+		chainLength = 10
+	} else {
+		actualGenesis = genesis
+		consensusEngine = ethash.NewFaker()
+		chainLength = 2
+	}
+
+	// Generate test chain
+	blocks := generateTestChain(consensusEngine, actualGenesis, chainLength)
 
 	// Create node
 	n, err := node.New(&node.Config{})
@@ -295,12 +310,6 @@ func newTestBackend(t *testing.T, enableHistoricalState bool) (*node.Node, []*ty
 		t.Fatalf("can't create new node: %v", err)
 	}
 	// Create Ethereum Service
-	var actualGenesis *core.Genesis
-	if enableHistoricalState {
-		actualGenesis = genesisForHistorical
-	} else {
-		actualGenesis = genesis
-	}
 	config := &ethconfig.Config{Genesis: actualGenesis}
 	if enableHistoricalState {
 		config.RollupHistoricalRPC = histAddr
@@ -310,6 +319,9 @@ func newTestBackend(t *testing.T, enableHistoricalState bool) (*node.Node, []*ty
 	if err != nil {
 		t.Fatalf("can't create new ethereum service: %v", err)
 	}
+	if enableHistoricalState { // swap to the pre-bedrock consensus-engine that we used to generate the historical blocks
+		ethservice.BlockChain().Engine().(*beacon.Beacon).SwapInner(ethash.NewFaker())
+	}
 	// Import the test chain.
 	if err := n.Start(); err != nil {
 		t.Fatalf("can't start test node: %v", err)
@@ -317,30 +329,29 @@ func newTestBackend(t *testing.T, enableHistoricalState bool) (*node.Node, []*ty
 	if _, err := ethservice.BlockChain().InsertChain(blocks[1:]); err != nil {
 		t.Fatalf("can't import test blocks: %v", err)
 	}
+	if enableHistoricalState {
+		// Now that we have a filled DB, swap the pre-Bedrock consensus to OpLegacy,
+		// which does not support re-processing of pre-bedrock data.
+		ethservice.Engine().(*beacon.Beacon).SwapInner(&beacon.OpLegacy{})
+	}
 	return n, blocks
 }
 
-func generateTestChain(enableHistoricalState bool) []*types.Block {
+func generateTestChain(consensusEngine consensus.Engine, genesis *core.Genesis, length int) []*types.Block {
 	generate := func(i int, g *core.BlockGen) {
 		g.OffsetTime(5)
 		g.SetExtra([]byte("test"))
 		if i == 1 {
 			// Test transactions are included in block #2.
-			if enableHistoricalState {
+			if genesis.Config.Optimism != nil && genesis.Config.IsBedrock(big.NewInt(1)) {
 				g.AddTx(depositTx)
 			}
 			g.AddTx(testTx1)
 			g.AddTx(testTx2)
 		}
 	}
-	var actualGenesis *core.Genesis
-	if enableHistoricalState {
-		actualGenesis = genesisForHistorical
-	} else {
-		actualGenesis = genesis
-	}
-	_, blocks, _ := core.GenerateChainWithGenesis(actualGenesis, ethash.NewFaker(), 2, generate)
-	return append([]*types.Block{actualGenesis.ToBlock()}, blocks...)
+	_, blocks, _ := core.GenerateChainWithGenesis(genesis, consensusEngine, length, generate)
+	return append([]*types.Block{genesis.ToBlock()}, blocks...)
 }
 
 func TestEthClientHistoricalBackend(t *testing.T) {

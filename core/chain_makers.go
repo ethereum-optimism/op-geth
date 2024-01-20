@@ -319,7 +319,7 @@ func GenerateChain(config *params.ChainConfig, parent *types.Block, engine conse
 		// to a chain, so the difficulty will be left unset (nil). Set it here to the
 		// correct value.
 		if b.header.Difficulty == nil {
-			if config.TerminalTotalDifficulty == nil {
+			if config.TerminalTotalDifficulty == nil && !config.IsOptimismBedrock(b.header.Number) {
 				// Clique chain
 				b.header.Difficulty = big.NewInt(2)
 			} else {

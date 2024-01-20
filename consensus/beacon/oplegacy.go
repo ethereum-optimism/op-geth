@@ -29,8 +29,8 @@ func (o *OpLegacy) VerifyHeader(chain consensus.ChainHeaderReader, header *types
 func (o *OpLegacy) VerifyHeaders(chain consensus.ChainHeaderReader, headers []*types.Header) (chan<- struct{}, <-chan error) {
 	quit := make(chan struct{}, 1)
 	result := make(chan error, len(headers))
-	for range headers {
-		result <- nil
+	for _, h := range headers {
+		result <- o.VerifyHeader(chain, h)
 	}
 	return quit, result
 }
