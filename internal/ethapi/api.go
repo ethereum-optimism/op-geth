@@ -2208,6 +2208,17 @@ func NewDebugAPI(b Backend) *DebugAPI {
 	return &DebugAPI{b: b}
 }
 
+// DebugAPI is the collection of Ethereum APIs exposed over the debugging
+// namespace.
+type OverlayAPI struct {
+	b Backend
+}
+
+// NewDebugAPI creates a new instance of DebugAPI.
+func NewOverlayAPI(b Backend) *DebugAPI {
+	return &DebugAPI{b: b}
+}
+
 // GetRawHeader retrieves the RLP encoding for a single header.
 func (api *DebugAPI) GetRawHeader(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (hexutil.Bytes, error) {
 	var hash common.Hash
