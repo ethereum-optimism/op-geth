@@ -1388,6 +1388,12 @@ func (s *StateDB) convertAccountSet(set map[common.Address]*types.StateAccount) 
 	return ret
 }
 
+// OpenStorageTrie opens the storage trie for the storage root of the provided address.
+func (s *StateDB) OpenStorageTrie(addr common.Address) (Trie, error) {
+	storageRoot := s.GetStorageRoot(addr)
+	return s.db.OpenStorageTrie(s.originalRoot, addr, storageRoot, s.trie)
+}
+
 // copySet returns a deep-copied set.
 func copySet[k comparable](set map[k][]byte) map[k][]byte {
 	copied := make(map[k][]byte, len(set))
