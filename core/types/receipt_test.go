@@ -34,8 +34,16 @@ import (
 )
 
 var (
+	bedrockGenesisTestConfig = func() *params.ChainConfig {
+		conf := *params.AllCliqueProtocolChanges // copy the config
+		conf.Clique = nil
+		conf.TerminalTotalDifficultyPassed = true
+		conf.BedrockBlock = big.NewInt(0)
+		conf.Optimism = &params.OptimismConfig{EIP1559Elasticity: 50, EIP1559Denominator: 10}
+		return &conf
+	}()
 	ecotoneTestConfig = func() *params.ChainConfig {
-		conf := *params.OptimismTestConfig // copy the config
+		conf := *bedrockGenesisTestConfig // copy the config
 		time := uint64(0)
 		conf.EcotoneTime = &time
 		return &conf
@@ -774,7 +782,7 @@ func TestDeriveOptimismBedrockTxReceipts(t *testing.T) {
 	// Re-derive receipts.
 	baseFee := big.NewInt(1000)
 	derivedReceipts := clearComputedFieldsOnReceipts(receipts)
-	err := Receipts(derivedReceipts).DeriveFields(params.OptimismTestConfig, blockHash, blockNumber.Uint64(), 0, baseFee, nil, txs)
+	err := Receipts(derivedReceipts).DeriveFields(bedrockGenesisTestConfig, blockHash, blockNumber.Uint64(), 0, baseFee, nil, txs)
 	if err != nil {
 		t.Fatalf("DeriveFields(...) = %v, want <nil>", err)
 	}
@@ -802,7 +810,7 @@ func TestDeriveOptimismEcotoneTxReceipts(t *testing.T) {
 	baseFee := big.NewInt(1000)
 	derivedReceipts := clearComputedFieldsOnReceipts(receipts)
 	// Should error out if we try to process this with a pre-Ecotone config
-	err := Receipts(derivedReceipts).DeriveFields(params.OptimismTestConfig, blockHash, blockNumber.Uint64(), 0, baseFee, nil, txs)
+	err := Receipts(derivedReceipts).DeriveFields(bedrockGenesisTestConfig, blockHash, blockNumber.Uint64(), 0, baseFee, nil, txs)
 	if err == nil {
 		t.Fatalf("expected error from deriving ecotone receipts with pre-ecotone config, got none")
 	}

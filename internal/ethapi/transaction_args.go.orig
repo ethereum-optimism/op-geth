@@ -165,10 +165,13 @@ func (args *TransactionArgs) setFeeDefaults(ctx context.Context, b Backend) erro
 		}
 		return nil // No need to set anything, user already set MaxFeePerGas and MaxPriorityFeePerGas
 	}
+<<<<<<< HEAD
+=======
 	// Sanity check the EIP-4844 fee parameters.
 	if args.BlobFeeCap != nil && args.BlobFeeCap.ToInt().Sign() == 0 {
 		return errors.New("maxFeePerBlobGas must be non-zero")
 	}
+>>>>>>> optimism
 	// Sanity check the non-EIP-1559 fee parameters.
 	head := b.CurrentHeader()
 	isLondon := b.ChainConfig().IsLondon(head.Number)
@@ -181,6 +184,9 @@ func (args *TransactionArgs) setFeeDefaults(ctx context.Context, b Backend) erro
 	}
 
 	// Now attempt to fill in default value depending on whether London is active or not.
+<<<<<<< HEAD
+	if isLondon {
+=======
 	if b.ChainConfig().IsCancun(head.Number, head.Time) {
 		if err := args.setCancunFeeDefaults(ctx, head, b); err != nil {
 			return err
@@ -189,6 +195,7 @@ func (args *TransactionArgs) setFeeDefaults(ctx context.Context, b Backend) erro
 		if args.BlobFeeCap != nil {
 			return errors.New("maxFeePerBlobGas is not valid before Cancun is active")
 		}
+>>>>>>> optimism
 		// London is active, set maxPriorityFeePerGas and maxFeePerGas.
 		if err := args.setLondonFeeDefaults(ctx, head, b); err != nil {
 			return err

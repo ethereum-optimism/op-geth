@@ -569,7 +569,7 @@ func (rs Receipts) DeriveFields(config *params.ChainConfig, hash common.Hash, nu
 			logIndex++
 		}
 	}
-	if config.Optimism != nil && len(txs) >= 2 { // need at least an info tx and a non-info tx
+	if config.Optimism != nil && len(txs) >= 2 && config.IsBedrock(new(big.Int).SetUint64(number)) { // need at least an info tx and a non-info tx
 		l1BaseFee, costFunc, feeScalar, err := extractL1GasParams(config, time, txs[0].Data())
 		if err != nil {
 			return err

@@ -19,6 +19,7 @@ package types
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"math/big"
 	"sync/atomic"
@@ -482,6 +483,18 @@ func (tx *Transaction) BlobTxSidecar() *BlobTxSidecar {
 	if blobtx, ok := tx.inner.(*BlobTx); ok {
 		return blobtx.Sidecar
 	}
+	return nil
+}
+
+// SetBlobTxSidecar sets the sidecar of a transaction.
+// The sidecar should match the blob-tx versioned hashes, or the transaction will be invalid.
+// This allows tools to easily re-attach blob sidecars to signed transactions that omit the sidecar.
+func (tx *Transaction) SetBlobTxSidecar(sidecar *BlobTxSidecar) error {
+	blobtx, ok := tx.inner.(*BlobTx)
+	if !ok {
+		return fmt.Errorf("not a blob tx, type = %d", tx.Type())
+	}
+	blobtx.Sidecar = sidecar
 	return nil
 }
 

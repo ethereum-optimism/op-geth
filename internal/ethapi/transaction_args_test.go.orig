@@ -69,7 +69,11 @@ func TestSetFeeDefaults(t *testing.T) {
 		},
 		{
 			"legacy tx pre-London with zero price",
+<<<<<<< HEAD
+			false,
+=======
 			"legacy",
+>>>>>>> optimism
 			&TransactionArgs{GasPrice: zero},
 			&TransactionArgs{GasPrice: zero},
 			nil,
@@ -83,7 +87,11 @@ func TestSetFeeDefaults(t *testing.T) {
 		},
 		{
 			"legacy tx post-London with zero price",
+<<<<<<< HEAD
+			true,
+=======
 			"london",
+>>>>>>> optimism
 			&TransactionArgs{GasPrice: zero},
 			nil,
 			errors.New("gasPrice must be non-zero after london fork"),
@@ -178,7 +186,11 @@ func TestSetFeeDefaults(t *testing.T) {
 		},
 		{
 			"dynamic fee tx post-London, explicit gas price",
+<<<<<<< HEAD
+			true,
+=======
 			"london",
+>>>>>>> optimism
 			&TransactionArgs{MaxFeePerGas: zero, MaxPriorityFeePerGas: zero},
 			nil,
 			errors.New("maxFeePerGas must be non-zero"),
