@@ -80,8 +80,18 @@ def:
               description: |
                 The Engine API is activated at the Merge transition, with a Total Terminal Difficulty (TTD).
                 The rollup starts post-merge, and thus sets the TTD to 0.
+                The TTD is always "reached" starting at the bedrock block.
               globs:
                 - "consensus/beacon/consensus.go"
+            - title: "Legacy OP-mainnet / OP-goerli header-verification support"
+              description: |
+                Pre-Bedrock OP-mainnet and OP-Goerli had differently formatted block-headers, loosely compatible with the geth types (since it was based on Clique).
+                However, due to differences like the extra-data length (97+ bytes), these legacy block-headers need special verification.
+                The pre-merge "consensus" fallback is set to this custom but basic verifier, to accept these headers when syncing a pre-bedrock part of the chain,
+                independent of any clique code or configuration (which may be removed from geth at a later point).
+                All the custom verifier has to do is accept the headers, as the headers are already verified by block-hash through the reverse-header-sync.
+              globs:
+                - "consensus/beacon/oplegacy.go"
         - title: "Engine API modifications"
           description: |
             The Engine API is extended to insert transactions into the block and optionally exclude the tx-pool,
@@ -236,6 +246,13 @@ def:
         - title: Simulated Backend
           globs:
             - "accounts/abi/bind/backends/simulated.go"
+    - title: "Hardware wallet support"
+      description: Extend Ledger wallet support for newer devices on Macos
+      sub:
+        - title: Fix Ledger discoverability
+          # upstream PR: https://github.com/ethereum/go-ethereum/pull/28863/
+          globs:
+            - "accounts/usbwallet/hub.go"
 
 # ignored globally, does not count towards line count
 ignore:
