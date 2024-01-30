@@ -585,7 +585,7 @@ func TestClientSubscriptionChannelClose(t *testing.T) {
 	var (
 		srv     = NewServer()
 		httpsrv = httptest.NewServer(srv.WebsocketHandler(nil))
-		wsURL   = "ws:" + strings.TrimPrefix(httpsrv.URL, "http:")
+		wsURL   = "ws:" + strings.TrimPrefix(httpsrv.URL, "http:") //nolint:all
 	)
 	defer srv.Stop()
 	defer httpsrv.Close()

@@ -18,21 +18,38 @@ func (o *OpLegacy) Author(header *types.Header) (common.Address, error) {
 }
 
 func (o *OpLegacy) VerifyHeader(chain consensus.ChainHeaderReader, header *types.Header) error {
-	// redundant check to guarantee DB consistency
-	parent := chain.GetHeader(header.ParentHash, header.Number.Uint64()-1)
+	// Short circuit if the header is known, or its parent not
+	number := header.Number.Uint64()
+	if chain.GetHeader(header.Hash(), number) != nil {
+		return nil
+	}
+	parent := chain.GetHeader(header.ParentHash, number-1)
 	if parent == nil {
 		return consensus.ErrUnknownAncestor
 	}
-	return nil // legacy chain is verified by block-hash reverse sync otherwise
+	// legacy chain is verified by block-hash reverse sync otherwise
+	return nil
 }
 
 func (o *OpLegacy) VerifyHeaders(chain consensus.ChainHeaderReader, headers []*types.Header) (chan<- struct{}, <-chan error) {
-	quit := make(chan struct{}, 1)
-	result := make(chan error, len(headers))
-	for _, h := range headers {
-		result <- o.VerifyHeader(chain, h)
+	abort := make(chan struct{})
+	results := make(chan error, len(headers))
+
+	for i := range headers {
+		// legacy chain is verified by block-hash reverse sync
+		var parent *types.Header
+		if i == 0 {
+			parent = chain.GetHeader(headers[0].ParentHash, headers[0].Number.Uint64()-1)
+		} else if headers[i-1].Hash() == headers[i].ParentHash {
+			parent = headers[i-1]
+		}
+		var err error
+		if parent == nil {
+			err = consensus.ErrUnknownAncestor
+		}
+		results <- err
 	}
-	return quit, result
+	return abort, results
 }
 
 func (o *OpLegacy) VerifyUncles(chain consensus.ChainReader, block *types.Block) error {
