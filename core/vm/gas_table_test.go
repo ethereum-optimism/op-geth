@@ -116,7 +116,7 @@ var createGasTests = []struct {
 	minimumGas uint64
 }{
 	// legacy create(0, 0, 0xc000) without 3860 used
-	{"0x61C00060006000f0" + "600052" + "60206000F3", false, 41237, 41237},
+	{"0x61C00060006000f0" + "600052" + "60206000F3", false, 41237, 41237}, //nolint:all
 	// legacy create(0, 0, 0xc000) _with_ 3860
 	{"0x61C00060006000f0" + "600052" + "60206000F3", true, 44309, 44309},
 	// create2(0, 0, 0xc001, 0) without 3860
