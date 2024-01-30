@@ -678,7 +678,7 @@ func (n *Node) IPCEndpoint() string {
 // HTTPEndpoint returns the URL of the HTTP server. Note that this URL does not
 // contain the JSON-RPC path prefix set by HTTPPathPrefix.
 func (n *Node) HTTPEndpoint() string {
-	return "http://" + n.http.listenAddr()
+	return "http://" + n.http.listenAddr() //nolint:all
 }
 
 // WSEndpoint returns the current JSON-RPC over WebSocket endpoint.
