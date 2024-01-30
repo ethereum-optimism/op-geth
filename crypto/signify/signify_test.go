@@ -48,7 +48,7 @@ func TestSignify(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = SignFile(tmpFile.Name(), tmpFile.Name()+".sig", testSecKey, "clé", "croissants")
+	err = SignFile(tmpFile.Name(), tmpFile.Name()+".sig", testSecKey, "clé", "croissants") //nolint:all
 	if err != nil {
 		t.Fatal(err)
 	}
