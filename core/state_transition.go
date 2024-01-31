@@ -22,11 +22,15 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/exchange"
 	cmath "github.com/ethereum/go-ethereum/common/math"
+	"github.com/ethereum/go-ethereum/contracts"
+	"github.com/ethereum/go-ethereum/contracts/addresses"
 	"github.com/ethereum/go-ethereum/core/tracing"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto/kzg4844"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/holiman/uint256"
 )
@@ -68,7 +72,7 @@ func (result *ExecutionResult) Revert() []byte {
 }
 
 // IntrinsicGas computes the 'intrinsic gas' for a message with the given data.
-func IntrinsicGas(data []byte, accessList types.AccessList, isContractCreation, isHomestead, isEIP2028, isEIP3860 bool) (uint64, error) {
+func IntrinsicGas(data []byte, accessList types.AccessList, isContractCreation, isHomestead, isEIP2028, isEIP3860 bool, feeCurrency *common.Address) (uint64, error) {
 	// Set the starting gas for the raw transaction
 	var gas uint64
 	if isContractCreation && isHomestead {
@@ -110,6 +114,28 @@ func IntrinsicGas(data []byte, accessList types.AccessList, isContractCreation, 
 			gas += lenWords * params.InitCodeWordGas
 		}
 	}
+
+	// This gas is used for charging user for one `transfer` call to deduct their fee in
+	// non-native currency and (up to) three `transfer` calls for fee payouts.
+	// The three transfers cover the following cases:
+	// - Base fee transfer to the fee handler
+	// - Tip fee transfer to the block proposer
+	// - Refund of leftover fees to the transaction sender
+	//
+	// A user might or might not have a gas refund at the end and even if they do the gas refund might
+	// be smaller than maxGasForDebitAndCreditTransactions. We still decide to deduct and do the refund
+	// since it makes the mining fee more consistent with respect to the gas fee. Otherwise, we would
+	// have to expect the user to estimate the mining fee right or else end up losing
+	// `min(gas sent - gas charged, maxGasForDebitAndCreditTransactions)` extra.
+	// In this case, however, the user always ends up paying `maxGasForDebitAndCreditTransactions`
+	// keeping it consistent.
+	if feeCurrency != nil {
+		if (math.MaxUint64 - gas) < contracts.IntrinsicGasForAlternativeFeeCurrency {
+			return 0, ErrGasUintOverflow
+		}
+		gas += contracts.IntrinsicGasForAlternativeFeeCurrency
+	}
+
 	if accessList != nil {
 		gas += uint64(len(accessList)) * params.TxAccessListAddressGas
 		gas += uint64(accessList.StorageKeys()) * params.TxAccessListStorageKeyGas
@@ -151,10 +177,17 @@ type Message struct {
 	IsDepositTx    bool                 // IsDepositTx indicates the message is force-included and can persist a mint.
 	Mint           *big.Int             // Mint is the amount to mint before EVM processing, or nil if there is no minting.
 	RollupCostData types.RollupCostData // RollupCostData caches data to compute the fee we charge for data availability
+
+	// Celo additions
+
+	// FeeCurrency specifies the currency for gas fees.
+	// `nil` corresponds to CELO (native currency).
+	// All other values should correspond to ERC20 contract addresses.
+	FeeCurrency *common.Address
 }
 
 // TransactionToMessage converts a transaction into a Message.
-func TransactionToMessage(tx *types.Transaction, s types.Signer, baseFee *big.Int) (*Message, error) {
+func TransactionToMessage(tx *types.Transaction, s types.Signer, baseFee *big.Int, exchangeRates map[common.Address]*big.Rat) (*Message, error) {
 	msg := &Message{
 		Nonce:          tx.Nonce(),
 		GasLimit:       tx.Gas(),
@@ -173,9 +206,18 @@ func TransactionToMessage(tx *types.Transaction, s types.Signer, baseFee *big.In
 		SkipAccountChecks: false,
 		BlobHashes:        tx.BlobHashes(),
 		BlobGasFeeCap:     tx.BlobGasFeeCap(),
+
+		FeeCurrency: tx.FeeCurrency(),
 	}
 	// If baseFee provided, set gasPrice to effectiveGasPrice.
 	if baseFee != nil {
+		if tx.Type() == types.CeloDynamicFeeTxType {
+			var err error
+			baseFee, err = exchange.ConvertCeloToCurrency(exchangeRates, msg.FeeCurrency, baseFee)
+			if err != nil {
+				return nil, err
+			}
+		}
 		msg.GasPrice = cmath.BigMin(msg.GasPrice.Add(msg.GasTipCap, baseFee), msg.GasFeeCap)
 	}
 	var err error
@@ -191,6 +233,7 @@ func TransactionToMessage(tx *types.Transaction, s types.Signer, baseFee *big.In
 // indicates a core error meaning that the message would always fail for that particular
 // state and would never be accepted within a block.
 func ApplyMessage(evm *vm.EVM, msg *Message, gp *GasPool) (*ExecutionResult, error) {
+	log.Trace("Applying state transition message", "from", msg.From, "nonce", msg.Nonce, "to", msg.To, "gasPrice", msg.GasPrice, "feeCurrency", msg.FeeCurrency, "gas", msg.GasLimit, "value", msg.Value, "data", msg.Data)
 	return NewStateTransition(evm, msg, gp).TransitionDb()
 }
 
@@ -279,8 +322,9 @@ func (st *StateTransition) buyGas() error {
 	if overflow {
 		return fmt.Errorf("%w: address %v required balance exceeds 256 bits", ErrInsufficientFunds, st.msg.From.Hex())
 	}
-	if have, want := st.state.GetBalance(st.msg.From), balanceCheckU256; have.Cmp(want) < 0 {
-		return fmt.Errorf("%w: address %v have %v want %v", ErrInsufficientFunds, st.msg.From.Hex(), have, want)
+
+	if err := st.canPayFee(balanceCheckU256); err != nil {
+		return err
 	}
 	if err := st.gp.SubGas(st.msg.GasLimit); err != nil {
 		return err
@@ -292,9 +336,48 @@ func (st *StateTransition) buyGas() error {
 	st.gasRemaining = st.msg.GasLimit
 
 	st.initialGas = st.msg.GasLimit
-	mgvalU256, _ := uint256.FromBig(mgval)
-	st.state.SubBalance(st.msg.From, mgvalU256, tracing.BalanceDecreaseGasBuy)
+
+	return st.subFees(mgval)
+}
+
+// canPayFee checks whether accountOwner's balance can cover transaction fee.
+func (st *StateTransition) canPayFee(checkAmount *uint256.Int) error {
+	if st.msg.FeeCurrency == nil {
+		balance := st.state.GetBalance(st.msg.From)
+
+		if balance.Cmp(checkAmount) < 0 {
+			return fmt.Errorf("%w: address %v have %v want %v", ErrInsufficientFunds, st.msg.From.Hex(), balance, checkAmount)
+		}
+	} else {
+		backend := &contracts.CeloBackend{
+			ChainConfig: st.evm.ChainConfig(),
+			State:       st.state,
+		}
+		balance, err := contracts.GetBalanceERC20(backend, st.msg.From, *st.msg.FeeCurrency)
+		if err != nil {
+			return err
+		}
+
+		// Token amount can't be bigger than 256 bit
+		balanceU256, _ := uint256.FromBig(balance)
+		if balanceU256.Cmp(checkAmount) < 0 {
+			return fmt.Errorf("%w: address %v have %v want %v, fee currency: %v", ErrInsufficientFunds, st.msg.From.Hex(), balance, checkAmount, st.msg.FeeCurrency.Hex())
+		}
+	}
 	return nil
+}
+
+func (st *StateTransition) subFees(effectiveFee *big.Int) (err error) {
+	log.Trace("Debiting fee", "from", st.msg.From, "amount", effectiveFee, "feeCurrency", st.msg.FeeCurrency)
+
+	// native currency
+	if st.msg.FeeCurrency == nil {
+		effectiveFeeU256, _ := uint256.FromBig(effectiveFee)
+		st.state.SubBalance(st.msg.From, effectiveFeeU256, tracing.BalanceDecreaseGasBuy)
+		return nil
+	} else {
+		return contracts.DebitFees(st.evm, st.msg.FeeCurrency, st.msg.From, effectiveFee)
+	}
 }
 
 func (st *StateTransition) preCheck() error {
@@ -335,6 +418,20 @@ func (st *StateTransition) preCheck() error {
 				msg.From.Hex(), codeHash)
 		}
 	}
+
+	// Verify that fee currency is whitelisted
+	if msg.FeeCurrency != nil {
+		if !st.evm.ChainConfig().IsCel2(st.evm.Context.Time) {
+			return ErrCel2NotEnabled
+		} else {
+			isWhiteListed := common.IsCurrencyWhitelisted(st.evm.Context.ExchangeRates, msg.FeeCurrency)
+			if !isWhiteListed {
+				log.Trace("fee currency not whitelisted", "fee currency address", msg.FeeCurrency)
+				return exchange.ErrNonWhitelistedFeeCurrency
+			}
+		}
+	}
+
 	// Make sure that transaction gasFeeCap is greater than the baseFee (post london)
 	if st.evm.ChainConfig().IsLondon(st.evm.Context.BlockNumber) {
 		// Skip the checks if gas fields are zero and baseFee was explicitly disabled (eth_call)
@@ -352,14 +449,20 @@ func (st *StateTransition) preCheck() error {
 				return fmt.Errorf("%w: address %v, maxPriorityFeePerGas: %s, maxFeePerGas: %s", ErrTipAboveFeeCap,
 					msg.From.Hex(), msg.GasTipCap, msg.GasFeeCap)
 			}
+
 			// This will panic if baseFee is nil, but basefee presence is verified
 			// as part of header validation.
-			if msg.GasFeeCap.Cmp(st.evm.Context.BaseFee) < 0 {
+			baseFeeInFeeCurrency, err := exchange.ConvertCeloToCurrency(st.evm.Context.ExchangeRates, msg.FeeCurrency, st.evm.Context.BaseFee)
+			if err != nil {
+				return fmt.Errorf("preCheck: %w", err)
+			}
+			if msg.GasFeeCap.Cmp(baseFeeInFeeCurrency) < 0 {
 				return fmt.Errorf("%w: address %v, maxFeePerGas: %s, baseFee: %s", ErrFeeCapTooLow,
-					msg.From.Hex(), msg.GasFeeCap, st.evm.Context.BaseFee)
+					msg.From.Hex(), msg.GasFeeCap, baseFeeInFeeCurrency)
 			}
 		}
 	}
+
 	// Check the blob version validity
 	if msg.BlobHashes != nil {
 		// The to field of a blob tx type is mandatory, and a `BlobTx` transaction internally
@@ -455,11 +558,6 @@ func (st *StateTransition) innerTransitionDb() (*ExecutionResult, error) {
 	// 5. there is no overflow when calculating intrinsic gas
 	// 6. caller has enough balance to cover asset transfer for **topmost** call
 
-	// Check clauses 1-3, buy gas if everything is correct
-	if err := st.preCheck(); err != nil {
-		return nil, err
-	}
-
 	var (
 		msg              = st.msg
 		sender           = vm.AccountRef(msg.From)
@@ -467,8 +565,18 @@ func (st *StateTransition) innerTransitionDb() (*ExecutionResult, error) {
 		contractCreation = msg.To == nil
 	)
 
+	// Execute the preparatory steps for state transition which includes:
+	// - prepare accessList(post-berlin)
+	// - reset transient storage(eip 1153)
+	st.state.Prepare(rules, msg.From, st.evm.Context.Coinbase, msg.To, vm.ActivePrecompiles(rules), msg.AccessList)
+
+	// Check clauses 1-3, buy gas if everything is correct
+	if err := st.preCheck(); err != nil {
+		return nil, err
+	}
+
 	// Check clauses 4-5, subtract intrinsic gas if everything is correct
-	gas, err := IntrinsicGas(msg.Data, msg.AccessList, contractCreation, rules.IsHomestead, rules.IsIstanbul, rules.IsShanghai)
+	gas, err := IntrinsicGas(msg.Data, msg.AccessList, contractCreation, rules.IsHomestead, rules.IsIstanbul, rules.IsShanghai, msg.FeeCurrency)
 	if err != nil {
 		return nil, err
 	}
@@ -505,11 +613,6 @@ func (st *StateTransition) innerTransitionDb() (*ExecutionResult, error) {
 	if rules.IsShanghai && contractCreation && len(msg.Data) > params.MaxInitCodeSize {
 		return nil, fmt.Errorf("%w: code size %v limit %v", ErrMaxInitCodeSizeExceeded, len(msg.Data), params.MaxInitCodeSize)
 	}
-
-	// Execute the preparatory steps for state transition which includes:
-	// - prepare accessList(post-berlin)
-	// - reset transient storage(eip 1153)
-	st.state.Prepare(rules, msg.From, st.evm.Context.Coinbase, msg.To, vm.ActivePrecompiles(rules), msg.AccessList)
 
 	var (
 		ret   []byte
@@ -558,43 +661,10 @@ func (st *StateTransition) innerTransitionDb() (*ExecutionResult, error) {
 			ReturnData:  ret,
 		}, nil
 	}
-	effectiveTip := msg.GasPrice
-	if rules.IsLondon {
-		effectiveTip = cmath.BigMin(msg.GasTipCap, new(big.Int).Sub(msg.GasFeeCap, st.evm.Context.BaseFee))
-	}
-	effectiveTipU256, _ := uint256.FromBig(effectiveTip)
 
-	if st.evm.Config.NoBaseFee && msg.GasFeeCap.Sign() == 0 && msg.GasTipCap.Sign() == 0 {
-		// Skip fee payment when NoBaseFee is set and the fee fields
-		// are 0. This avoids a negative effectiveTip being applied to
-		// the coinbase when simulating calls.
-	} else {
-		fee := new(uint256.Int).SetUint64(st.gasUsed())
-		fee.Mul(fee, effectiveTipU256)
-		st.state.AddBalance(st.evm.Context.Coinbase, fee, tracing.BalanceIncreaseRewardTransactionFee)
-
-		// add the coinbase to the witness iff the fee is greater than 0
-		if rules.IsEIP4762 && fee.Sign() != 0 {
-			st.evm.AccessEvents.BalanceGas(st.evm.Context.Coinbase, true)
-		}
-	}
-
-	// Check that we are post bedrock to enable op-geth to be able to create pseudo pre-bedrock blocks (these are pre-bedrock, but don't follow l2 geth rules)
-	// Note optimismConfig will not be nil if rules.IsOptimismBedrock is true
-	if optimismConfig := st.evm.ChainConfig().Optimism; optimismConfig != nil && rules.IsOptimismBedrock && !st.msg.IsDepositTx {
-		gasCost := new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), st.evm.Context.BaseFee)
-		amtU256, overflow := uint256.FromBig(gasCost)
-		if overflow {
-			return nil, fmt.Errorf("optimism gas cost overflows U256: %d", gasCost)
-		}
-		st.state.AddBalance(params.OptimismBaseFeeRecipient, amtU256, tracing.BalanceIncreaseRewardTransactionFee)
-		if l1Cost := st.evm.Context.L1CostFunc(st.msg.RollupCostData, st.evm.Context.Time); l1Cost != nil {
-			amtU256, overflow = uint256.FromBig(l1Cost)
-			if overflow {
-				return nil, fmt.Errorf("optimism l1 cost overflows U256: %d", l1Cost)
-			}
-			st.state.AddBalance(params.OptimismL1FeeRecipient, amtU256, tracing.BalanceIncreaseRewardTransactionFee)
-		}
+	err = st.distributeTxFees()
+	if err != nil {
+		return nil, err
 	}
 
 	return &ExecutionResult{
@@ -618,14 +688,7 @@ func (st *StateTransition) refundGas(refundQuotient uint64) uint64 {
 
 	st.gasRemaining += refund
 
-	// Return ETH for remaining gas, exchanged at the original rate.
-	remaining := uint256.NewInt(st.gasRemaining)
-	remaining.Mul(remaining, uint256.MustFromBig(st.msg.GasPrice))
-	st.state.AddBalance(st.msg.From, remaining, tracing.BalanceIncreaseGasReturn)
-
-	if st.evm.Config.Tracer != nil && st.evm.Config.Tracer.OnGasChange != nil && st.gasRemaining > 0 {
-		st.evm.Config.Tracer.OnGasChange(st.gasRemaining, 0, tracing.GasChangeTxLeftOverReturned)
-	}
+	// Gas refund now handled in `distributeTxFees`
 
 	// Also return remaining gas to the block gas counter so it is
 	// available for the next transaction.
@@ -642,4 +705,107 @@ func (st *StateTransition) gasUsed() uint64 {
 // blobGasUsed returns the amount of blob gas used by the message.
 func (st *StateTransition) blobGasUsed() uint64 {
 	return uint64(len(st.msg.BlobHashes) * params.BlobTxBlobGasPerBlob)
+}
+
+// distributeTxFees calculates the amounts and recipients of transaction fees and credits the accounts.
+func (st *StateTransition) distributeTxFees() error {
+	if st.evm.Config.NoBaseFee && st.msg.GasFeeCap.Sign() == 0 && st.msg.GasTipCap.Sign() == 0 {
+		// Skip fee payment when NoBaseFee is set and the fee fields
+		// are 0. This avoids a negative effectiveTip being applied to
+		// the coinbase when simulating calls.
+		return nil
+	}
+
+	// Determine the refund and transaction fee to be distributed.
+	refund := new(big.Int).Mul(new(big.Int).SetUint64(st.gasRemaining), st.msg.GasPrice)
+	gasUsed := new(big.Int).SetUint64(st.gasUsed())
+	totalTxFee := new(big.Int).Mul(gasUsed, st.msg.GasPrice)
+	from := st.msg.From
+
+	// Divide the transaction into a base (the minimum transaction fee) and tip (any extra, or min(max tip, feecap - GPM) if espresso).
+	baseTxFee := new(big.Int).Mul(gasUsed, st.calculateBaseFee())
+	// No need to do effectiveTip calculation, because st.gasPrice == effectiveGasPrice, and effectiveTip = effectiveGasPrice - baseTxFee
+	tipTxFee := new(big.Int).Sub(totalTxFee, baseTxFee)
+
+	feeCurrency := st.msg.FeeCurrency
+	feeHandlerAddress := addresses.FeeHandlerAddress
+	if st.evm.ChainConfig().ChainID != nil && st.evm.ChainConfig().ChainID.Uint64() == addresses.AlfajoresChainID {
+		feeHandlerAddress = addresses.FeeHandlerAlfajoresAddress
+	}
+
+	log.Trace("distributeTxFees", "from", from, "refund", refund, "feeCurrency", st.msg.FeeCurrency,
+		"coinbaseFeeRecipient", st.evm.Context.Coinbase, "coinbaseFee", tipTxFee,
+		"feeHandler", feeHandlerAddress, "communityFundFee", baseTxFee)
+
+	rules := st.evm.ChainConfig().Rules(st.evm.Context.BlockNumber, st.evm.Context.Random != nil, st.evm.Context.Time)
+	var l1Cost *big.Int
+	// Check that we are post bedrock to enable op-geth to be able to create pseudo pre-bedrock blocks (these are pre-bedrock, but don't follow l2 geth rules)
+	// Note optimismConfig will not be nil if rules.IsOptimismBedrock is true
+	if optimismConfig := st.evm.ChainConfig().Optimism; optimismConfig != nil &&
+		rules.IsOptimismBedrock && !st.msg.IsDepositTx {
+		l1Cost = st.evm.Context.L1CostFunc(st.msg.RollupCostData, st.evm.Context.Time)
+	}
+
+	if feeCurrency == nil {
+		tipTxFeeU256, overflow := uint256.FromBig(tipTxFee)
+		if overflow {
+			return fmt.Errorf("celo tip overflows U256: %d", tipTxFee)
+		}
+		st.state.AddBalance(st.evm.Context.Coinbase, tipTxFeeU256, tracing.BalanceIncreaseRewardTransactionFee)
+
+		refundU256, overflow := uint256.FromBig(refund)
+		if overflow {
+			return fmt.Errorf("celo refund overflows U256: %d", refund)
+		}
+		st.state.AddBalance(from, refundU256, tracing.BalanceIncreaseGasReturn)
+
+		baseTxFeeU256, overflow := uint256.FromBig(baseTxFee)
+		if overflow {
+			return fmt.Errorf("celo base fee overflows U256: %d", baseTxFee)
+		}
+		if rules.IsCel2 {
+			st.state.AddBalance(feeHandlerAddress, baseTxFeeU256, tracing.BalanceIncreaseRewardTransactionFee)
+		} else if st.evm.ChainConfig().Optimism != nil {
+			st.state.AddBalance(params.OptimismBaseFeeRecipient, baseTxFeeU256, tracing.BalanceIncreaseRewardTransactionFee)
+		}
+
+		l1CostU256, overflow := uint256.FromBig(l1Cost)
+		if overflow {
+			return fmt.Errorf("optimism l1 cost overflows U256: %d", l1Cost)
+		}
+		if l1Cost != nil {
+			st.state.AddBalance(params.OptimismL1FeeRecipient, l1CostU256, tracing.BalanceIncreaseRewardTransactionFee)
+		}
+	} else {
+		if l1Cost != nil {
+			l1Cost, _ = exchange.ConvertCeloToCurrency(st.evm.Context.ExchangeRates, feeCurrency, l1Cost)
+		}
+		if err := contracts.CreditFees(st.evm, feeCurrency, from, st.evm.Context.Coinbase, feeHandlerAddress, params.OptimismL1FeeRecipient, refund, tipTxFee, baseTxFee, l1Cost); err != nil {
+			log.Error("Error crediting", "from", from, "coinbase", st.evm.Context.Coinbase, "feeHandler", feeHandlerAddress, "err", err)
+			return err
+		}
+	}
+
+	if st.evm.Config.Tracer != nil && st.evm.Config.Tracer.OnGasChange != nil && st.gasRemaining > 0 {
+		st.evm.Config.Tracer.OnGasChange(st.gasRemaining, 0, tracing.GasChangeTxLeftOverReturned)
+	}
+	return nil
+}
+
+// calculateBaseFee returns the correct base fee to use during fee calculations
+// This is the base fee from the header if no fee currency is used, but the
+// base fee converted to fee currency when a fee currency is used.
+func (st *StateTransition) calculateBaseFee() *big.Int {
+	baseFee := st.evm.Context.BaseFee
+	if baseFee == nil {
+		// This can happen in pre EIP-1559 environments
+		baseFee = big.NewInt(0)
+	}
+
+	if st.msg.FeeCurrency != nil {
+		// Existence of the fee currency has been checked in `preCheck`
+		baseFee, _ = exchange.ConvertCeloToCurrency(st.evm.Context.ExchangeRates, st.msg.FeeCurrency, baseFee)
+	}
+
+	return baseFee
 }
