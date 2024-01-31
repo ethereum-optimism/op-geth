@@ -111,7 +111,7 @@ func testPrestateDiffTracer(tracerName string, dirPath string, t *testing.T) {
 			if err != nil {
 				t.Fatalf("failed to create call tracer: %v", err)
 			}
-			msg, err := core.TransactionToMessage(tx, signer, context.BaseFee)
+			msg, err := core.TransactionToMessage(tx, signer, context.BaseFee, context.ExchangeRates)
 			if err != nil {
 				t.Fatalf("failed to prepare transaction for tracing: %v", err)
 			}
