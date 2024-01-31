@@ -262,12 +262,12 @@ var (
 		Usage:    "Manually specify the Verkle fork timestamp, overriding the bundled setting",
 		Category: flags.EthCategory,
 	}
-	OverrideOptimismCanyon = &flags.BigFlag{
+	OverrideOptimismCanyon = &cli.Uint64Flag{
 		Name:     "override.canyon",
 		Usage:    "Manually specify the Optimism Canyon fork timestamp, overriding the bundled setting",
 		Category: flags.EthCategory,
 	}
-	OverrideOptimismEcotone = &flags.BigFlag{
+	OverrideOptimismEcotone = &cli.Uint64Flag{
 		Name:     "override.ecotone",
 		Usage:    "Manually specify the Optimism Ecotone fork timestamp, overriding the bundled setting",
 		Category: flags.EthCategory,
