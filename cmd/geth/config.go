@@ -180,6 +180,11 @@ func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 		cfg.Eth.OverrideOptimismCanyon = &v
 	}
 
+	if ctx.IsSet(utils.OverrideOptimismEcotone.Name) {
+		v := ctx.Uint64(utils.OverrideOptimismEcotone.Name)
+		cfg.Eth.OverrideOptimismEcotone = &v
+	}
+
 	if ctx.IsSet(utils.OverrideOptimismInterop.Name) {
 		v := ctx.Uint64(utils.OverrideOptimismInterop.Name)
 		cfg.Eth.OverrideOptimismInterop = &v
