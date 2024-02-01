@@ -134,6 +134,14 @@ jobs:
       - checkout
       - run:
           command: go run build/ci.go lint
+  tidy-geth:
+    resource_class: small
+    docker:
+      - image: cimg/go:1.21
+    steps:
+      - checkout
+      - run:
+          command: go mod tidy && git diff --exit-code
   check-releases:
     docker:
       - image: cimg/go:1.21
@@ -157,6 +165,8 @@ workflows:
           name: Run unit tests for geth
       - lint-geth:
           name: Run linter over geth
+      - tidy-geth:
+          name: Check geth go.mod file has been tidied
       - docker-release:
           name: Push to Docker
           docker_tags: <<pipeline.git.revision>>
