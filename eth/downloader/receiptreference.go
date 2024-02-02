@@ -19,11 +19,13 @@ type depositNonces struct {
 
 var receiptReferences = make(map[uint64]*depositNonces)
 
+//go:embed receipt_reference/*.gob
+var receiptReference embed.FS
+
 func initReceiptReferences() {
 	// lazy load the receipt references
+	// note: this will load references for chains which are not in use too
 	if len(receiptReferences) == 0 {
-		//go:embed receipt_reference/*.gob
-		var receiptReference embed.FS
 		files, _ := receiptReference.ReadDir(".")
 		for _, file := range files {
 			// load to map
