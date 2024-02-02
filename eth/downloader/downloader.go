@@ -1718,7 +1718,9 @@ func (d *Downloader) commitSnapSyncData(results []*fetchResult, stateSync *state
 	receipts := make([]types.Receipts, len(results))
 	for i, result := range results {
 		blocks[i] = types.NewBlockWithHeader(result.Header).WithBody(result.Transactions, result.Uncles).WithWithdrawals(result.Withdrawals)
-		receipts[i] = result.Receipts
+		// hard coded to goerli for now while I work on this feature
+		correctedReceipts := correctReceipts(result.Receipts, result.Transactions, blocks[i].NumberU64())
+		receipts[i] = correctedReceipts
 	}
 	if index, err := d.blockchain.InsertReceiptChain(blocks, receipts, d.ancientLimit); err != nil {
 		log.Debug("Downloaded item processing failed", "number", results[index].Header.Number, "hash", results[index].Header.Hash(), "err", err)
