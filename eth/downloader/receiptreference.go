@@ -45,17 +45,18 @@ func correctReceipts(receipts types.Receipts, transactions types.Transactions, b
 	cid := transactions[0].ChainId().Uint64()
 	refs, ok := receiptReferences[cid]
 	if !ok {
-		log.Warn("No data source for chain", "chainID", cid)
+		log.Info("No data source for chain", "chainID", cid)
+		return receipts
 	}
 	// only correct if the block is within the range
 	if blockNumber < refs.Start || blockNumber > refs.End {
-		log.Debug("Block is out of range for receipt reference", "blockNumber", blockNumber, "start", refs.Start, "end", refs.End)
+		log.Info("Block is out of range for receipt reference", "blockNumber", blockNumber, "start", refs.Start, "end", refs.End)
 		return receipts
 	}
 	// get the block nonces
 	blockNonces, ok := refs.Results[blockNumber]
 	if !ok {
-		log.Warn("User deposit found, but no block data found", "blockNumber", blockNumber)
+		log.Info("Block does not contain user deposits", "blockNumber", blockNumber)
 		return receipts
 	}
 	touched := 0
