@@ -94,7 +94,7 @@ jobs:
             docker buildx create --use buildx-build
             docker buildx build --push \
               $(echo -ne $DOCKER_TAGS | tr '\n' ' ') \
-              --platform=linux/arm64,linux/amd64 \
+              --platform=linux/amd64 \
               --build-arg VERSION=$CIRCLE_TAG \
               --build-arg COMMIT=$CIRCLE_SHA \
               --build-arg BUILDNUM=$CIRCLE_BUILD_NUM \
