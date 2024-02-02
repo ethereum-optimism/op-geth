@@ -69,6 +69,10 @@ func correctReceipts(receipts types.Receipts, transactions types.Transactions, b
 			continue
 		}
 		if r.Type == 126 && from != common.HexToAddress("0xDeaDDEaDDeAdDeAdDEAdDEaddeAddEAdDEAd0001") {
+			if touched >= len(blockNonces) {
+				log.Warn("More user deposits in block than included in reference data", "expected", len(blockNonces))
+				break
+			}
 			nonce := blockNonces[touched]
 			touched++
 			if nonce != *r.DepositNonce {
@@ -76,6 +80,9 @@ func correctReceipts(receipts types.Receipts, transactions types.Transactions, b
 				r.DepositNonce = &nonce
 			}
 		}
+	}
+	if touched < len(blockNonces) {
+		log.Warn("More user deposits in reference data than found in block", "referenceLen", len(blockNonces), "blockLen", touched)
 	}
 	return receipts
 }
