@@ -71,7 +71,7 @@ jobs:
         type: boolean
         default: false
     machine:
-      image: ubuntu-2204:2022.07.1
+      image: default
       resource_class: xlarge
     steps:
       - gcp-cli/install
