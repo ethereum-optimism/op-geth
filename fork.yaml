@@ -216,10 +216,6 @@ def:
           description: Forward pre-bedrock tracing calls to legacy node.
           globs:
             - "eth/tracers/api.go"
-        - title: "Light Ethereum Subprotocol (LES) RPC"
-          description: Match the RPC changes in the LES RPC
-          globs:
-            - "les/*"
         - title: "Daisy Chain tests"
           globs:
             - "internal/ethapi/transaction_args_test.go"
