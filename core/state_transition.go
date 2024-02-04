@@ -516,7 +516,7 @@ func (st *StateTransition) innerTransitionDb() (*ExecutionResult, error) {
 		// Skip coinbase payments for deposit tx in Regolith
 		return &ExecutionResult{
 			UsedGas:     st.gasUsed(),
-			RefundedGas: gasRefund, // TODO(Seb): is this correct for depoit txs?
+			RefundedGas: gasRefund,
 			Err:         vmerr,
 			ReturnData:  ret,
 		}, nil
