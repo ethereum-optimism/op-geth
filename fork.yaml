@@ -5,7 +5,7 @@ footer: |
 base:
   name: go-ethereum
   url: https://github.com/ethereum/go-ethereum
-  hash: 916d6a441a866cb618ae826c220866de118899f7  # v1.13.5
+  hash: b20b4a71598481443d60b261d3e5dcb37f8a0d82  # v1.13.8
 fork:
   name: op-geth
   url: https://github.com/ethereum-optimism/op-geth
@@ -216,10 +216,6 @@ def:
           description: Forward pre-bedrock tracing calls to legacy node.
           globs:
             - "eth/tracers/api.go"
-        - title: "Light Ethereum Subprotocol (LES) RPC"
-          description: Match the RPC changes in the LES RPC
-          globs:
-            - "les/*"
         - title: "Daisy Chain tests"
           globs:
             - "internal/ethapi/transaction_args_test.go"
