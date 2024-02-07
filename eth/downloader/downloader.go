@@ -156,6 +156,9 @@ type Downloader struct {
 	syncStartBlock uint64    // Head snap block when Geth was started
 	syncStartTime  time.Time // Time instance when chain sync started
 	syncLogTime    time.Time // Time instance when status was last reported
+
+	// Chain ID for downloaders to reference
+	chainID uint64
 }
 
 // LightChain encapsulates functions required to synchronise a light chain.
@@ -216,7 +219,7 @@ type BlockChain interface {
 }
 
 // New creates a new downloader to fetch hashes and blocks from remote peers.
-func New(stateDb ethdb.Database, mux *event.TypeMux, chain BlockChain, lightchain LightChain, dropPeer peerDropFn, success func()) *Downloader {
+func New(stateDb ethdb.Database, mux *event.TypeMux, chain BlockChain, lightchain LightChain, dropPeer peerDropFn, success func(), chainID uint64) *Downloader {
 	if lightchain == nil {
 		lightchain = chain
 	}
@@ -233,6 +236,7 @@ func New(stateDb ethdb.Database, mux *event.TypeMux, chain BlockChain, lightchai
 		SnapSyncer:     snap.NewSyncer(stateDb, chain.TrieDB().Scheme()),
 		stateSyncStart: make(chan *stateSync),
 		syncStartBlock: chain.CurrentSnapBlock().Number.Uint64(),
+		chainID:        chainID,
 	}
 	// Create the post-merge skeleton syncer and start the process
 	dl.skeleton = newSkeleton(stateDb, dl.peers, dropPeer, newBeaconBackfiller(dl, success))
@@ -1718,7 +1722,7 @@ func (d *Downloader) commitSnapSyncData(results []*fetchResult, stateSync *state
 	receipts := make([]types.Receipts, len(results))
 	for i, result := range results {
 		blocks[i] = types.NewBlockWithHeader(result.Header).WithBody(result.Transactions, result.Uncles).WithWithdrawals(result.Withdrawals)
-		receipts[i] = result.Receipts
+		receipts[i] = correctReceipts(result.Receipts, result.Transactions, blocks[i].NumberU64(), d.chainID)
 	}
 	if index, err := d.blockchain.InsertReceiptChain(blocks, receipts, d.ancientLimit); err != nil {
 		log.Debug("Downloaded item processing failed", "number", results[index].Header.Number, "hash", results[index].Header.Hash(), "err", err)
