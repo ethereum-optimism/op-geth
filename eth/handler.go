@@ -187,8 +187,14 @@ func newHandler(config *handlerConfig) (*handler, error) {
 	if h.snapSync.Load() && config.Chain.Snapshots() == nil {
 		return nil, errors.New("snap sync not supported with snapshots disabled")
 	}
+	// if the chainID is set, pass it to the downloader for use in sync
+	// this might not be set in tests
+	var chainID uint64
+	if cid := h.chain.Config().ChainID; cid != nil {
+		chainID = cid.Uint64()
+	}
 	// Construct the downloader (long sync)
-	h.downloader = downloader.New(config.Database, h.eventMux, h.chain, nil, h.removePeer, h.enableSyncedFeatures)
+	h.downloader = downloader.New(config.Database, h.eventMux, h.chain, nil, h.removePeer, h.enableSyncedFeatures, chainID)
 	if ttd := h.chain.Config().TerminalTotalDifficulty; ttd != nil {
 		if h.chain.Config().TerminalTotalDifficultyPassed {
 			log.Info("Chain post-merge, sync via beacon client")
