@@ -179,6 +179,12 @@ def:
           globs:
             - "core/blockchain_reader.go"
             - "eth/protocols/snap/handler.go"
+        - title: Historical data for Snap-sync
+          description: Snap-sync has access to trusted Deposit Transaction Nonce Data.
+          globs:
+            - "eth/handler.go"
+            - "eth/downloader/downloader.go"
+            - "eth/downloader/receiptreference.go"
         - title: Discv5 node discovery
           description: Fix discv5 option to allow discv5 to be an active source for node-discovery.
           globs:
