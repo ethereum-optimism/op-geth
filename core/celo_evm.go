@@ -8,7 +8,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	contracts "github.com/ethereum/go-ethereum/contracts/celo"
 	"github.com/ethereum/go-ethereum/contracts/celo/abigen"
-	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/log"
@@ -47,13 +46,12 @@ func getExchangeRates(caller *CeloBackend) (map[common.Address]*big.Rat, error) 
 	return exchangeRates, nil
 }
 
-func setCeloFieldsInBlockContext(blockContext *vm.BlockContext, header *types.Header, config *params.ChainConfig, statedb *state.StateDB) {
+func setCeloFieldsInBlockContext(blockContext *vm.BlockContext, header *types.Header, config *params.ChainConfig, statedb vm.StateDB) {
 	if !config.IsCel2(header.Time) {
 		return
 	}
 
-	stateCopy := statedb.Copy()
-	caller := &CeloBackend{config, stateCopy}
+	caller := &CeloBackend{config, statedb}
 
 	// Add fee currency exchange rates
 	var err error
