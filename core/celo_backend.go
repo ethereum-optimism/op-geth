@@ -43,7 +43,8 @@ func (b *CeloBackend) CallContract(ctx context.Context, call ethereum.CallMsg, b
 	txCtx := vm.TxContext{}
 	vmConfig := vm.Config{}
 
-	evm := vm.NewEVM(blockCtx, txCtx, b.state, b.chainConfig, vmConfig)
+	readOnlyStateDB := ReadOnlyStateDB{StateDB: b.state}
+	evm := vm.NewEVM(blockCtx, txCtx, &readOnlyStateDB, b.chainConfig, vmConfig)
 	ret, _, err := evm.StaticCall(vm.AccountRef(evm.Origin), *call.To, call.Data, call.Gas)
 
 	return ret, err
