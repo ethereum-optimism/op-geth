@@ -360,8 +360,13 @@ func SetupGenesisBlockWithOverride(db ethdb.Database, triedb *trie.Database, gen
 	// state database is not initialized yet. It can happen that the node
 	// is initialized with an external ancient store. Commit genesis state
 	// in this case.
+	// If the bedrock block is not 0, that implies that the network was migrated at the bedrock block.
+	// In this case the genesis state may not be in the state database (e.g. op-geth is performing a snap
+	// sync without an existing datadir) & even if it were, would not be useful as op-geth is not able to
+	// execute the pre-bedrock STF.
 	header := rawdb.ReadHeader(db, stored, 0)
-	if header.Root != types.EmptyRootHash && !triedb.Initialized(header.Root) {
+	transitionedNetwork := genesis != nil && genesis.Config != nil && genesis.Config.BedrockBlock != nil && genesis.Config.BedrockBlock.Uint64() != 0
+	if header.Root != types.EmptyRootHash && !triedb.Initialized(header.Root) && !transitionedNetwork {
 		if genesis == nil {
 			genesis = DefaultGenesisBlock()
 		}
