@@ -32,6 +32,18 @@ import (
 
 type L1CostFunc func(dataGas types.RollupCostData) *big.Int
 
+type OptimismTxPolicyStatus uint
+
+const (
+	OptimismTxPolicyUnknown OptimismTxPolicyStatus = iota
+	OptimismTxPolicyInvalid
+	OptimismTxPolicyValid
+)
+
+type OptimismTxPoolPolicy interface {
+	ValidateTx(tx *types.Transaction) (OptimismTxPolicyStatus, error)
+}
+
 // TxStatus is the current status of a transaction as seen by the pool.
 type TxStatus uint
 
