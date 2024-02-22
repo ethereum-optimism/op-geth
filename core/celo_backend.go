@@ -2,25 +2,30 @@ package core
 
 import (
 	"context"
+	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	contracts "github.com/ethereum/go-ethereum/contracts/celo"
+	"github.com/ethereum/go-ethereum/contracts/celo/abigen"
 	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 )
 
 // CeloBackend provide a partial ContractBackend implementation, so that we can
 // access core contracts during block processing.
 type CeloBackend struct {
-	chainConfig *params.ChainConfig
-	state       vm.StateDB
+	ChainConfig *params.ChainConfig
+	State       vm.StateDB
 }
 
 // ContractCaller implementation
 
 func (b *CeloBackend) CodeAt(ctx context.Context, contract common.Address, blockNumber *big.Int) ([]byte, error) {
-	return b.state.GetCode(contract), nil
+	return b.State.GetCode(contract), nil
 }
 
 func (b *CeloBackend) CallContract(ctx context.Context, call ethereum.CallMsg, blockNumber *big.Int) ([]byte, error) {
@@ -43,9 +48,69 @@ func (b *CeloBackend) CallContract(ctx context.Context, call ethereum.CallMsg, b
 	txCtx := vm.TxContext{}
 	vmConfig := vm.Config{}
 
-	readOnlyStateDB := ReadOnlyStateDB{StateDB: b.state}
-	evm := vm.NewEVM(blockCtx, txCtx, &readOnlyStateDB, b.chainConfig, vmConfig)
+	readOnlyStateDB := ReadOnlyStateDB{StateDB: b.State}
+	evm := vm.NewEVM(blockCtx, txCtx, &readOnlyStateDB, b.ChainConfig, vmConfig)
 	ret, _, err := evm.StaticCall(vm.AccountRef(evm.Origin), *call.To, call.Data, call.Gas)
 
 	return ret, err
+}
+
+// GetBalanceERC20 returns an account's balance on a given ERC20 currency
+func (b *CeloBackend) GetBalanceERC20(accountOwner common.Address, contractAddress common.Address) (result *big.Int, err error) {
+	token, err := abigen.NewFeeCurrencyCaller(contractAddress, b)
+	if err != nil {
+		return nil, fmt.Errorf("failed to access FeeCurrency: %w", err)
+	}
+
+	balance, err := token.BalanceOf(&bind.CallOpts{}, accountOwner)
+	if err != nil {
+		return nil, err
+	}
+
+	return balance, nil
+}
+
+// GetFeeBalance returns the account's balance from the specified feeCurrency
+// (if feeCurrency is nil or ZeroAddress, native currency balance is returned).
+func (b *CeloBackend) GetFeeBalance(account common.Address, feeCurrency *common.Address) *big.Int {
+	if feeCurrency == nil || *feeCurrency == common.ZeroAddress {
+		return b.State.GetBalance(account).ToBig()
+	}
+	balance, err := b.GetBalanceERC20(account, *feeCurrency)
+	if err != nil {
+		log.Error("Error while trying to get ERC20 balance:", "cause", err, "contract", feeCurrency.Hex(), "account", account.Hex())
+	}
+	return balance
+}
+
+// GetExchangeRates returns the exchange rates for all gas currencies from CELO
+func (b *CeloBackend) GetExchangeRates() (common.ExchangeRates, error) {
+	exchangeRates := map[common.Address]*big.Rat{}
+	whitelist, err := abigen.NewFeeCurrencyWhitelistCaller(contracts.FeeCurrencyWhitelistAddress, b)
+	if err != nil {
+		return exchangeRates, fmt.Errorf("Failed to access FeeCurrencyWhitelist: %w", err)
+	}
+	oracle, err := abigen.NewSortedOraclesCaller(contracts.SortedOraclesAddress, b)
+	if err != nil {
+		return exchangeRates, fmt.Errorf("Failed to access SortedOracle: %w", err)
+	}
+
+	whitelistedTokens, err := whitelist.GetWhitelist(&bind.CallOpts{})
+	if err != nil {
+		return exchangeRates, fmt.Errorf("Failed to get whitelisted tokens: %w", err)
+	}
+	for _, tokenAddress := range whitelistedTokens {
+		numerator, denominator, err := oracle.MedianRate(&bind.CallOpts{}, tokenAddress)
+		if err != nil {
+			log.Error("Failed to get medianRate for gas currency!", "err", err, "tokenAddress", tokenAddress.Hex())
+			continue
+		}
+		if denominator.Sign() == 0 {
+			log.Error("Bad exchange rate for fee currency", "tokenAddress", tokenAddress.Hex(), "numerator", numerator, "denominator", denominator)
+			continue
+		}
+		exchangeRates[tokenAddress] = big.NewRat(numerator.Int64(), denominator.Int64())
+	}
+
+	return exchangeRates, nil
 }

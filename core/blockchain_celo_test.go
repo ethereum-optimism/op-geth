@@ -21,8 +21,8 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/exchange"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
-	fee_currencies "github.com/ethereum/go-ethereum/contracts"
 	contracts "github.com/ethereum/go-ethereum/contracts/celo"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -101,15 +101,15 @@ func testNativeTransferWithFeeCurrency(t *testing.T, scheme string) {
 	state, _ := chain.State()
 
 	backend := CeloBackend{
-		chainConfig: chain.chainConfig,
-		state:       state,
+		ChainConfig: chain.chainConfig,
+		State:       state,
 	}
-	exchangeRates, err := getExchangeRates(&backend)
+	exchangeRates, err := backend.GetExchangeRates()
 	if err != nil {
 		t.Fatal("could not get exchange rates")
 	}
-	baseFeeInFeeCurrency, _ := fee_currencies.ConvertGoldToCurrency(exchangeRates, &FeeCurrencyAddr, block.BaseFee())
-	actual, _ := fee_currencies.GetBalanceOf(&backend, block.Coinbase(), FeeCurrencyAddr)
+	baseFeeInFeeCurrency, _ := exchange.ConvertGoldToCurrency(exchangeRates, &FeeCurrencyAddr, block.BaseFee())
+	actual, _ := backend.GetBalanceERC20(block.Coinbase(), FeeCurrencyAddr)
 
 	// 3: Ensure that miner received only the tx's tip.
 	expected := new(big.Int).SetUint64(block.GasUsed() * block.Transactions()[0].GasTipCap().Uint64())
@@ -118,7 +118,7 @@ func testNativeTransferWithFeeCurrency(t *testing.T, scheme string) {
 	}
 
 	// 4: Ensure the tx sender paid for the gasUsed * (tip + block baseFee).
-	actual, _ = fee_currencies.GetBalanceOf(&backend, addr1, FeeCurrencyAddr)
+	actual, _ = backend.GetBalanceERC20(addr1, FeeCurrencyAddr)
 	actual = new(big.Int).Sub(funds, actual)
 	expected = new(big.Int).SetUint64(block.GasUsed() * (block.Transactions()[0].GasTipCap().Uint64() + baseFeeInFeeCurrency.Uint64()))
 	if actual.Cmp(expected) != 0 {
@@ -126,7 +126,7 @@ func testNativeTransferWithFeeCurrency(t *testing.T, scheme string) {
 	}
 
 	// 5: Check that base fee has been moved to the fee handler.
-	actual, _ = fee_currencies.GetBalanceOf(&backend, contracts.FeeHandlerAddress, FeeCurrencyAddr)
+	actual, _ = backend.GetBalanceERC20(contracts.FeeHandlerAddress, FeeCurrencyAddr)
 	expected = new(big.Int).SetUint64(block.GasUsed() * baseFeeInFeeCurrency.Uint64())
 	if actual.Cmp(expected) != 0 {
 		t.Fatalf("fee handler balance incorrect: expected %d, got %d", expected, actual)

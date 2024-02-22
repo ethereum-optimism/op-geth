@@ -6,7 +6,6 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/contracts/celo/abigen"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -27,34 +26,7 @@ const (
 
 var (
 	tmpAddress = common.HexToAddress("0xce106a5")
-
-	// ErrNonWhitelistedFeeCurrency is returned if the currency specified to use for the fees
-	// isn't one of the currencies whitelisted for that purpose.
-	ErrNonWhitelistedFeeCurrency = errors.New("non-whitelisted fee currency address")
 )
-
-// GetBalanceOf returns an account's balance on a given ERC20 currency
-func GetBalanceOf(caller bind.ContractCaller, accountOwner common.Address, contractAddress common.Address) (result *big.Int, err error) {
-	token, err := abigen.NewFeeCurrencyCaller(contractAddress, caller)
-	if err != nil {
-		return nil, fmt.Errorf("failed to access FeeCurrency: %w", err)
-	}
-
-	balance, err := token.BalanceOf(&bind.CallOpts{}, accountOwner)
-	if err != nil {
-		return nil, err
-	}
-
-	return balance, nil
-}
-
-func ConvertGoldToCurrency(exchangeRates map[common.Address]*big.Rat, feeCurrency *common.Address, goldAmount *big.Int) (*big.Int, error) {
-	exchangeRate, ok := exchangeRates[*feeCurrency]
-	if !ok {
-		return nil, ErrNonWhitelistedFeeCurrency
-	}
-	return new(big.Int).Div(new(big.Int).Mul(goldAmount, exchangeRate.Num()), exchangeRate.Denom()), nil
-}
 
 // Debits transaction fees from the transaction sender and stores them in the temporary address
 func DebitFees(evm *vm.EVM, feeCurrency *common.Address, address common.Address, amount *big.Int) error {

@@ -22,6 +22,7 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/exchange"
 	cmath "github.com/ethereum/go-ethereum/common/math"
 	fee_currencies "github.com/ethereum/go-ethereum/contracts"
 	contracts "github.com/ethereum/go-ethereum/contracts/celo"
@@ -211,7 +212,7 @@ func TransactionToMessage(tx *types.Transaction, s types.Signer, baseFee *big.In
 	if baseFee != nil {
 		if msg.FeeCurrency != nil {
 			var err error
-			baseFee, err = fee_currencies.ConvertGoldToCurrency(exchangeRates, msg.FeeCurrency, baseFee)
+			baseFee, err = exchange.ConvertGoldToCurrency(exchangeRates, msg.FeeCurrency, baseFee)
 			if err != nil {
 				return nil, err
 			}
@@ -295,7 +296,7 @@ func (st *StateTransition) buyGas() error {
 		// L1 data fee needs to be converted in fee currency
 		if st.msg.FeeCurrency != nil && l1Cost != nil {
 			// Existence of the fee currency has been checked in `preCheck`
-			l1Cost, _ = fee_currencies.ConvertGoldToCurrency(st.evm.Context.ExchangeRates, st.msg.FeeCurrency, l1Cost)
+			l1Cost, _ = exchange.ConvertGoldToCurrency(st.evm.Context.ExchangeRates, st.msg.FeeCurrency, l1Cost)
 		}
 	}
 	if l1Cost != nil {
@@ -351,10 +352,10 @@ func (st *StateTransition) canPayFee(checkAmount *uint256.Int) error {
 		}
 	} else {
 		backend := &CeloBackend{
-			chainConfig: st.evm.ChainConfig(),
-			state:       st.state,
+			ChainConfig: st.evm.ChainConfig(),
+			State:       st.state,
 		}
-		balance, err := fee_currencies.GetBalanceOf(backend, st.msg.From, *st.msg.FeeCurrency)
+		balance, err := backend.GetBalanceERC20(st.msg.From, *st.msg.FeeCurrency)
 		if err != nil {
 			return err
 		}
@@ -449,10 +450,10 @@ func (st *StateTransition) preCheck() error {
 		if !st.evm.ChainConfig().IsCel2(st.evm.Context.Time) {
 			return ErrCel2NotEnabled
 		} else {
-			isWhiteListed := st.evm.Context.IsCurrencyWhitelisted(msg.FeeCurrency)
+			isWhiteListed := common.IsCurrencyWhitelisted(st.evm.Context.ExchangeRates, msg.FeeCurrency)
 			if !isWhiteListed {
 				log.Trace("fee currency not whitelisted", "fee currency address", msg.FeeCurrency)
-				return fee_currencies.ErrNonWhitelistedFeeCurrency
+				return exchange.ErrNonWhitelistedFeeCurrency
 			}
 		}
 	}
@@ -756,7 +757,7 @@ func (st *StateTransition) distributeTxFees() error {
 		}
 	} else {
 		if l1Cost != nil {
-			l1Cost, _ = fee_currencies.ConvertGoldToCurrency(st.evm.Context.ExchangeRates, feeCurrency, l1Cost)
+			l1Cost, _ = exchange.ConvertGoldToCurrency(st.evm.Context.ExchangeRates, feeCurrency, l1Cost)
 		}
 		if err := fee_currencies.CreditFees(st.evm, feeCurrency, from, st.evm.Context.Coinbase, feeHandlerAddress, params.OptimismL1FeeRecipient, refund, tipTxFee, baseTxFee, l1Cost); err != nil {
 			log.Error("Error crediting", "from", from, "coinbase", st.evm.Context.Coinbase, "feeHandler", feeHandlerAddress)
@@ -778,7 +779,7 @@ func (st *StateTransition) calculateBaseFee() *big.Int {
 
 	if st.msg.FeeCurrency != nil {
 		// Existence of the fee currency has been checked in `preCheck`
-		baseFee, _ = fee_currencies.ConvertGoldToCurrency(st.evm.Context.ExchangeRates, st.msg.FeeCurrency, baseFee)
+		baseFee, _ = exchange.ConvertGoldToCurrency(st.evm.Context.ExchangeRates, st.msg.FeeCurrency, baseFee)
 	}
 
 	return baseFee

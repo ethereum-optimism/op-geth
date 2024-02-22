@@ -15,7 +15,7 @@ import (
 )
 
 // Returns the exchange rates for all gas currencies from CELO
-func getExchangeRates(caller *CeloBackend) (map[common.Address]*big.Rat, error) {
+func GetExchangeRates(caller bind.ContractCaller) (common.ExchangeRates, error) {
 	exchangeRates := map[common.Address]*big.Rat{}
 	whitelist, err := abigen.NewFeeCurrencyWhitelistCaller(contracts.FeeCurrencyWhitelistAddress, caller)
 	if err != nil {
@@ -55,7 +55,7 @@ func setCeloFieldsInBlockContext(blockContext *vm.BlockContext, header *types.He
 
 	// Add fee currency exchange rates
 	var err error
-	blockContext.ExchangeRates, err = getExchangeRates(caller)
+	blockContext.ExchangeRates, err = caller.GetExchangeRates()
 	if err != nil {
 		log.Error("Error fetching exchange rates!", "err", err)
 	}

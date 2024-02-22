@@ -103,17 +103,7 @@ type BlockContext struct {
 	Random      *common.Hash   // Provides information for PREVRANDAO
 
 	// Celo specific information
-	ExchangeRates map[common.Address]*big.Rat
-}
-
-func (bc BlockContext) IsCurrencyWhitelisted(feeCurrency *common.Address) bool {
-	if feeCurrency == nil {
-		return true
-	}
-
-	// Check if fee currency is registered
-	_, ok := bc.ExchangeRates[*feeCurrency]
-	return ok
+	ExchangeRates common.ExchangeRates
 }
 
 // TxContext provides the EVM with information about a transaction.

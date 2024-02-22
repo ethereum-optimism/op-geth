@@ -316,8 +316,9 @@ type BlobPool struct {
 
 	lock sync.RWMutex // Mutex protecting the pool during reorg handling
 
-	// Celo
-	feeCurrencyValidator txpool.FeeCurrencyValidator
+	// Celo specific
+	celoBackend  *core.CeloBackend    // For fee currency balances & exchange rate calculation
+	currentRates common.ExchangeRates // current exchange rates for fee currencies
 }
 
 // New creates a new blob transaction pool to gather, sort and filter inbound
@@ -334,8 +335,6 @@ func New(config Config, chain BlockChain) *BlobPool {
 		lookup: make(map[common.Hash]uint64),
 		index:  make(map[common.Address][]*blobTxMeta),
 		spent:  make(map[common.Address]*uint256.Int),
-
-		feeCurrencyValidator: txpool.NewFeeCurrencyValidator(),
 	}
 }
 
@@ -375,6 +374,7 @@ func (p *BlobPool) Init(gasTip uint64, head *types.Header, reserve txpool.Addres
 		return err
 	}
 	p.head, p.state = head, state
+	p.recreateCeloProperties()
 
 	// Index all transactions on disk and delete anything unprocessable
 	var fails []uint64
@@ -801,6 +801,7 @@ func (p *BlobPool) Reset(oldHead, newHead *types.Header) {
 	}
 	p.head = newHead
 	p.state = statedb
+	p.recreateCeloProperties()
 
 	// Run the reorg between the old and new head and figure out which accounts
 	// need to be rechecked and which transactions need to be readded
@@ -1092,8 +1093,7 @@ func (p *BlobPool) validateTx(tx *types.Transaction) error {
 		MaxSize:   txMaxSize,
 		MinTip:    p.gasTip.ToBig(),
 	}
-	var fcv txpool.FeeCurrencyValidator = nil // TODO: create with proper value
-	if err := txpool.CeloValidateTransaction(tx, p.head, p.signer, baseOpts, p.state, fcv); err != nil {
+	if err := txpool.CeloValidateTransaction(tx, p.head, p.signer, baseOpts, p.currentRates); err != nil {
 		return err
 	}
 	// Ensure the transaction adheres to the stateful pool filters (nonce, balance)
@@ -1126,15 +1126,12 @@ func (p *BlobPool) validateTx(tx *types.Transaction) error {
 			}
 			return nil
 		},
+		ExistingBalance: func(addr common.Address, feeCurrency *common.Address) *big.Int {
+			return p.celoBackend.GetFeeBalance(addr, feeCurrency)
+		},
 	}
 
-	// Adapt to celo validation options
-	celoOpts := &txpool.CeloValidationOptionsWithState{
-		ValidationOptionsWithState: *stateOpts,
-		FeeCurrencyValidator:       p.feeCurrencyValidator,
-	}
-
-	if err := txpool.ValidateTransactionWithState(tx, p.signer, celoOpts); err != nil {
+	if err := txpool.ValidateTransactionWithState(tx, p.signer, stateOpts); err != nil {
 		return err
 	}
 	// If the transaction replaces an existing one, ensure that price bumps are

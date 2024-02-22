@@ -22,9 +22,9 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/exchange"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/misc"
-	fee_currencies "github.com/ethereum/go-ethereum/contracts"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -156,7 +156,7 @@ func applyTransaction(msg *Message, config *params.ChainConfig, gp *GasPool, sta
 	if tx.Type() == types.CeloDynamicFeeTxType {
 		alternativeBaseFee := evm.Context.BaseFee
 		if msg.FeeCurrency != nil {
-			alternativeBaseFee, err = fee_currencies.ConvertGoldToCurrency(evm.Context.ExchangeRates, msg.FeeCurrency, evm.Context.BaseFee)
+			alternativeBaseFee, err = exchange.ConvertGoldToCurrency(evm.Context.ExchangeRates, msg.FeeCurrency, evm.Context.BaseFee)
 			if err != nil {
 				return nil, err
 			}

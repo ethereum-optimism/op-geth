@@ -1,12 +1,11 @@
 package core
 
 import (
-	"math/big"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/holiman/uint256"
 )
 
 // ReadOnlyStateDB wraps a StateDB to prevent modifications. Using it without copying it is safe.
@@ -26,19 +25,19 @@ func (r *ReadOnlyStateDB) CreateAccount(common.Address) {
 	panic("not implemented")
 }
 
-func (r *ReadOnlyStateDB) SubBalance(common.Address, *big.Int) {
+func (r *ReadOnlyStateDB) SubBalance(common.Address, *uint256.Int) {
 	panic("not implemented")
 }
 
-func (r *ReadOnlyStateDB) AddBalance(_ common.Address, amount *big.Int) {
-	if amount.Cmp(common.Big0) == 0 {
+func (r *ReadOnlyStateDB) AddBalance(_ common.Address, amount *uint256.Int) {
+	if amount.Cmp(new(uint256.Int)) == 0 {
 		// Adding zero is safe, so we can return here
 		return
 	}
 	panic("not implemented")
 }
 
-func (r *ReadOnlyStateDB) GetBalance(common.Address) *big.Int {
+func (r *ReadOnlyStateDB) GetBalance(common.Address) *uint256.Int {
 	panic("not implemented")
 }
 
