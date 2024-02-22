@@ -42,7 +42,6 @@ func LoadOPStackChainConfig(chainID uint64) (*ChainConfig, error) {
 		return nil, fmt.Errorf("unknown chain ID: %d", chainID)
 	}
 
-	genesisActivation := uint64(0)
 	out := &ChainConfig{
 		ChainID:                       new(big.Int).SetUint64(chainID),
 		HomesteadBlock:                common.Big0,
@@ -65,7 +64,7 @@ func LoadOPStackChainConfig(chainID uint64) (*ChainConfig, error) {
 		CancunTime:                    chConfig.EcotoneTime, // Cancun activates with Ecotone
 		PragueTime:                    nil,
 		BedrockBlock:                  common.Big0,
-		RegolithTime:                  &genesisActivation,
+		RegolithTime:                  chConfig.RegolithTime,
 		CanyonTime:                    chConfig.CanyonTime,
 		EcotoneTime:                   chConfig.EcotoneTime,
 		TerminalTotalDifficulty:       common.Big0,
@@ -87,7 +86,6 @@ func LoadOPStackChainConfig(chainID uint64) (*ChainConfig, error) {
 		out.GrayGlacierBlock = big.NewInt(4061224)
 		out.MergeNetsplitBlock = big.NewInt(4061224)
 		out.BedrockBlock = big.NewInt(4061224)
-		out.RegolithTime = &OptimismGoerliRegolithTime
 		out.Optimism.EIP1559Elasticity = 10
 	case OPMainnetChainID:
 		out.BerlinBlock = big.NewInt(3950000)
@@ -97,20 +95,16 @@ func LoadOPStackChainConfig(chainID uint64) (*ChainConfig, error) {
 		out.MergeNetsplitBlock = big.NewInt(105235063)
 		out.BedrockBlock = big.NewInt(105235063)
 	case BaseGoerliChainID:
-		out.RegolithTime = &BaseGoerliRegolithTime
 		out.Optimism.EIP1559Elasticity = 10
 	case baseSepoliaChainID:
 		out.Optimism.EIP1559Elasticity = 10
 	case baseGoerliDevnetChainID:
-		out.RegolithTime = &baseGoerliDevnetRegolithTime
 	case pgnSepoliaChainID:
 		out.Optimism.EIP1559Elasticity = 2
 		out.Optimism.EIP1559Denominator = 8
 	case devnetChainID:
-		out.RegolithTime = &devnetRegolithTime
 		out.Optimism.EIP1559Elasticity = 10
 	case chaosnetChainID:
-		out.RegolithTime = &chaosnetRegolithTime
 		out.Optimism.EIP1559Elasticity = 10
 	}
 
