@@ -203,7 +203,7 @@ func validateBlobSidecar(hashes []common.Hash, sidecar *types.BlobTxSidecar) err
 // ValidationOptionsWithState define certain differences between stateful transaction
 // validation across the different pools without having to duplicate those checks.
 type ValidationOptionsWithState struct {
-	State *state.StateDB // State database to check nonces and balances against
+	State *state.StateDB // State database to check nonces
 
 	// FirstNonceGap is an optional callback to retrieve the first nonce gap in
 	// the list of pooled transactions of a specific account. If this method is
@@ -226,6 +226,9 @@ type ValidationOptionsWithState struct {
 
 	// L1CostFn is an optional extension, to validate L1 rollup costs of a tx
 	L1CostFn L1CostFunc
+
+	// ExistingBalance for a currency, to check for balance to cover transaction costs.
+	ExistingBalance func(addr common.Address, feeCurrency *common.Address) *big.Int
 }
 
 // ValidateTransactionWithState is a helper method to check whether a transaction
@@ -233,7 +236,7 @@ type ValidationOptionsWithState struct {
 //
 // This check is public to allow different transaction pools to check the stateful
 // rules without duplicating code and running the risk of missed updates.
-func ValidateTransactionWithState(tx *types.Transaction, signer types.Signer, opts *CeloValidationOptionsWithState) error {
+func ValidateTransactionWithState(tx *types.Transaction, signer types.Signer, opts *ValidationOptionsWithState) error {
 	// Ensure the transaction adheres to nonce ordering
 	from, err := types.Sender(signer, tx) // already validated (and cached), but cleaner to check
 	if err != nil {
@@ -253,7 +256,7 @@ func ValidateTransactionWithState(tx *types.Transaction, signer types.Signer, op
 	}
 	// Ensure the transactor has enough funds to cover the transaction costs
 	var (
-		balance = opts.FeeCurrencyValidator.Balance(opts.State, from, tx.FeeCurrency()).ToBig()
+		balance = opts.ExistingBalance(from, tx.FeeCurrency())
 		cost    = tx.Cost()
 	)
 	if opts.L1CostFn != nil {
