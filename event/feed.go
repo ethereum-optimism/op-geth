@@ -19,7 +19,11 @@ package event
 import (
 	"errors"
 	"reflect"
+	"strings"
 	"sync"
+	"time"
+
+	"github.com/ethereum/go-ethereum/metrics"
 )
 
 var errBadChannel = errors.New("event: Subscribe argument does not have sendable channel type")
@@ -42,6 +46,9 @@ type Feed struct {
 	mu    sync.Mutex
 	inbox caseList
 	etype reflect.Type
+
+	// meter the duration of event sends, to catch lagging subscriptions
+	meter metrics.Timer
 }
 
 // This is the index of the first actual subscription channel in sendCases.
@@ -63,6 +70,10 @@ func (f *Feed) init(etype reflect.Type) {
 	f.sendLock = make(chan struct{}, 1)
 	f.sendLock <- struct{}{}
 	f.sendCases = caseList{{Chan: reflect.ValueOf(f.removeSub), Dir: reflect.SelectRecv}}
+	if metrics.Enabled {
+		f.meter = metrics.GetOrRegisterTimer("event/feed/send/"+
+			strings.ReplaceAll(etype.Name(), "*", "ptr_"), nil)
+	}
 }
 
 // Subscribe adds a channel to the feed. Future sends will be delivered on the channel
@@ -123,6 +134,10 @@ func (f *Feed) Send(value interface{}) (nsent int) {
 	f.once.Do(func() { f.init(rvalue.Type()) })
 	if f.etype != rvalue.Type() {
 		panic(feedTypeError{op: "Send", got: rvalue.Type(), want: f.etype})
+	}
+	if f.meter != nil {
+		start := time.Now()
+		defer f.meter.UpdateSince(start)
 	}
 
 	<-f.sendLock
