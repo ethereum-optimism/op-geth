@@ -34,16 +34,16 @@ func (m *SuperchainMessagingPolicy) ValidateTx(tx *types.Transaction) (txpool.Op
 
 	msgId, msgBytes, err := unpackInboxExecutionMessageTxData(tx.Data())
 	if err != nil {
-		return txpool.OptimismTxPolicyUnknown, fmt.Errorf("unable to unpack executeMessage calldata: %w", err)
+		return txpool.OptimismTxPolicyInvalid, fmt.Errorf("unable to unpack executeMessage tx data: %w", err)
 	}
 	msgIdBytes, err := json.Marshal(msgId)
 	if err != nil {
-		return txpool.OptimismTxPolicyUnknown, fmt.Errorf("unable to marshal message identifier: %w", err)
+		return txpool.OptimismTxPolicyInvalid, fmt.Errorf("unable to marshal message identifier: %w", err)
 	}
 
 	var safetyLabel messageSafetyLabel
 	if err := m.backend.CallContext(context.TODO(), &safetyLabel, "superchain_messageSafety", msgIdBytes, msgBytes); err != nil {
-		return txpool.OptimismTxPolicyUnknown, fmt.Errorf("unable to query message safety: %w", err)
+		return txpool.OptimismTxPolicyInvalid, fmt.Errorf("failed to query message safety: %w", err)
 	}
 
 	if safetyLabel == finalized {

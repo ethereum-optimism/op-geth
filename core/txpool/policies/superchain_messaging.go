@@ -30,11 +30,10 @@ type messageIdentifier struct {
 	ChainId     *big.Int
 }
 
-// Manually parse out the tx data per abi encoding rules
-//
-//	TODO: introduce a solabi utility present in the monorepo for readability
+// Manually parse the tx data according to the function signature. [TODO] introduce a soliabi
+// utility OR pass the entire calldata to the backend to centralize where deser logic happens
+// with minimal validation here (i.e min tx data byte length)
 func unpackInboxExecutionMessageTxData(txData []byte) (*messageIdentifier, []byte, error) {
-
 	// Function Selector
 	if len(txData) <= 4 {
 		return nil, nil, fmt.Errorf("invalid calldata: function selector")
