@@ -29,7 +29,8 @@ func NewSuperchainMessagingPolicy(cfg *params.ChainConfig, chain txpool.BlockCha
 }
 
 func (m *SuperchainMessagingPolicy) ValidateTx(tx *types.Transaction) (txpool.OptimismTxPolicyStatus, error) {
-	if !m.cfg.IsInterop(m.chain.CurrentBlock().Time) || tx.To() == nil || *tx.To() != inboxAddress {
+	time := m.chain.CurrentBlock().Time
+	if !m.cfg.IsInterop(time) || tx.To() == nil || *tx.To() != inboxAddress {
 		return txpool.OptimismTxPolicyValid, nil
 	}
 
@@ -40,6 +41,10 @@ func (m *SuperchainMessagingPolicy) ValidateTx(tx *types.Transaction) (txpool.Op
 	msgIdBytes, err := json.Marshal(msgId)
 	if err != nil {
 		return txpool.OptimismTxPolicyInvalid, fmt.Errorf("unable to marshal message identifier: %w", err)
+	}
+
+	if msgId.Timestamp > time {
+		return txpool.OptimismTxPolicyInvalid, fmt.Errorf("msg identifier has a future time to the chain")
 	}
 
 	var safetyLabel messageSafetyLabel
