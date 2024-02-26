@@ -39,6 +39,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/txpool"
 	"github.com/ethereum/go-ethereum/core/txpool/blobpool"
 	"github.com/ethereum/go-ethereum/core/txpool/legacypool"
+	"github.com/ethereum/go-ethereum/core/txpool/policies"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/eth/downloader"
@@ -255,12 +256,28 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 	}
 	legacyPool := legacypool.New(config.TxPool, eth.blockchain)
 
+	optimismTxPoolPolicies := []txpool.OptimismTxPoolPolicy{}
+	if eth.BlockChain().Config().IsOptimism() {
+		cfg := eth.BlockChain().Config()
+		if cfg.Optimism.SuperchainBackendRPC != nil {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			client, err := rpc.DialContext(ctx, *cfg.Optimism.SuperchainBackendRPC)
+			cancel()
+			if err != nil {
+				return nil, err
+			}
+
+			superchainMessagingPolicy := policies.NewSuperchainMessagingPolicy(cfg, eth.blockchain, client)
+			optimismTxPoolPolicies = append(optimismTxPoolPolicies, superchainMessagingPolicy)
+		}
+	}
+
 	txPools := []txpool.SubPool{legacyPool}
 	if !eth.BlockChain().Config().IsOptimism() {
 		blobPool := blobpool.New(config.BlobPool, eth.blockchain)
 		txPools = append(txPools, blobPool)
 	}
-	eth.txPool, err = txpool.New(new(big.Int).SetUint64(config.TxPool.PriceLimit), eth.blockchain, txPools)
+	eth.txPool, err = txpool.New(new(big.Int).SetUint64(config.TxPool.PriceLimit), eth.blockchain, txPools, optimismTxPoolPolicies...)
 	if err != nil {
 		return nil, err
 	}

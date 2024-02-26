@@ -8,7 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/txpool"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
@@ -19,16 +19,17 @@ var (
 )
 
 type SuperchainMessagingPolicy struct {
-	log     log.Logger
+	cfg     *params.ChainConfig
+	chain   txpool.BlockChain
 	backend *rpc.Client
 }
 
-func NewSuperchainMessagingPolicy(log log.Logger, backend *rpc.Client) *SuperchainMessagingPolicy {
-	return &SuperchainMessagingPolicy{log, backend}
+func NewSuperchainMessagingPolicy(cfg *params.ChainConfig, chain txpool.BlockChain, backend *rpc.Client) *SuperchainMessagingPolicy {
+	return &SuperchainMessagingPolicy{cfg, chain, backend}
 }
 
 func (m *SuperchainMessagingPolicy) ValidateTx(tx *types.Transaction) (txpool.OptimismTxPolicyStatus, error) {
-	if tx.To() == nil || *tx.To() != inboxAddress {
+	if !m.cfg.IsInterop(m.chain.CurrentBlock().Time) || tx.To() == nil || *tx.To() != inboxAddress {
 		return txpool.OptimismTxPolicyValid, nil
 	}
 
