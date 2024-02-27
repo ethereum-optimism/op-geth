@@ -43,6 +43,20 @@ const (
 	chaosnetChainID         = 888
 )
 
+// OP Stack chain config
+var (
+	// March 17, 2023 @ 7:00:00 pm UTC
+	OptimismGoerliRegolithTime = uint64(1679079600)
+	// May 4, 2023 @ 5:00:00 pm UTC
+	BaseGoerliRegolithTime = uint64(1683219600)
+	// Apr 21, 2023 @ 6:30:00 pm UTC
+	baseGoerliDevnetRegolithTime = uint64(1682101800)
+	// March 5, 2023 @ 2:48:00 am UTC
+	devnetRegolithTime = uint64(1677984480)
+	// August 16, 2023 @ 3:34:22 am UTC
+	chaosnetRegolithTime = uint64(1692156862)
+)
+
 func newUint64(val uint64) *uint64 { return &val }
 
 var (
