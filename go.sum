@@ -190,6 +190,8 @@ github.com/envoyproxy/protoc-gen-validate v0.1.0/go.mod h1:iSmxcyjqTsJpI2R4NaDN7
 github.com/etcd-io/bbolt v1.3.3/go.mod h1:ZF2nL25h33cCyBtcyWeZ2/I3HQOfTP+0PIEvHjkjCrw=
 github.com/ethereum-optimism/superchain-registry/superchain v0.0.0-20240223113841-1203fe72c5dc h1:ELuRENfnx0JN/BeHVdXEOTzLQ/DLt5RP9oa245kAEyY=
 github.com/ethereum-optimism/superchain-registry/superchain v0.0.0-20240223113841-1203fe72c5dc/go.mod h1:7xh2awFQqsiZxFrHKTgEd+InVfDRrkKVUIuK8SAFHp0=
+github.com/ethereum-optimism/superchain-registry/superchain v0.0.0-20240227110823-11c73f54ad9b h1:flvnJbgZHugwTlC8HsPvPwOZc7zGWjFlWZw3JOJ7wcI=
+github.com/ethereum-optimism/superchain-registry/superchain v0.0.0-20240227110823-11c73f54ad9b/go.mod h1:7xh2awFQqsiZxFrHKTgEd+InVfDRrkKVUIuK8SAFHp0=
 github.com/ethereum/c-kzg-4844 v0.4.0 h1:3MS1s4JtA868KpJxroZoepdV0ZKBp3u/O5HcZ7R3nlY=
 github.com/ethereum/c-kzg-4844 v0.4.0/go.mod h1:VewdlzQmpT5QSrVhbBuGoCdFJkpaJlO1aQputP83wc0=
 github.com/fasthttp-contrib/websocket v0.0.0-20160511215533-1f3b11f56072/go.mod h1:duJ4Jxv5lDcvg4QuQr0oowTf7dz4/CR8NtyCooz9HL8=
