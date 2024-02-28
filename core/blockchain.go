@@ -459,11 +459,16 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, genesis *Genesis
 
 	// Rewind the chain in case of an incompatible config upgrade.
 	if compat, ok := genesisErr.(*params.ConfigCompatError); ok {
-		log.Warn("Rewinding chain to upgrade configuration", "err", compat)
-		if compat.RewindToTime > 0 {
-			bc.SetHeadWithTimestamp(compat.RewindToTime)
+		if compat.NewTime != nil && compat.StoredTime != nil &&
+			genesis.Timestamp > *compat.NewTime && genesis.Timestamp > *compat.StoredTime {
+			log.Warn("Ignoring chain rewind because of pre-genesis timestamp changes", "err", compat)
 		} else {
-			bc.SetHead(compat.RewindToBlock)
+			log.Warn("Rewinding chain to upgrade configuration", "err", compat)
+			if compat.RewindToTime > 0 {
+				bc.SetHeadWithTimestamp(compat.RewindToTime)
+			} else {
+				bc.SetHead(compat.RewindToBlock)
+			}
 		}
 		rawdb.WriteChainConfig(db, genesisHash, chainConfig)
 	}
