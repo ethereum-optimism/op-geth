@@ -262,4 +262,4 @@ ignore:
   - "*.sum"
   - "go.mod"
   - "fork.yaml"
-  - ".github/workflows/*"
+  - ".github/*"
