@@ -5,7 +5,6 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/exchange"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/holiman/uint256"
 )
@@ -118,42 +117,10 @@ func (c *list) setCapsTo(caps map[common.Address]*uint256.Int) {
 	}
 }
 
-type TxComparator func(a, b *types.Transaction, baseFee *big.Int) int
-
-func (p *pricedList) compareWithRates(a, b *types.Transaction, goldBaseFee *big.Int) int {
-	if goldBaseFee != nil {
-		tipA := effectiveTip(p.rates, goldBaseFee, a)
-		tipB := effectiveTip(p.rates, goldBaseFee, b)
-		result, _ := exchange.CompareValue(p.rates, tipA, a.FeeCurrency(), tipB, b.FeeCurrency())
-		return result
+// GetNativeBaseFee returns the base fee for this priceHeap
+func (h *priceHeap) GetNativeBaseFee() *big.Int {
+	if h.ratesAndFees == nil {
+		return nil
 	}
-
-	// Compare fee caps if baseFee is not specified or effective tips are equal
-	feeA := a.GasFeeCap()
-	feeB := b.GasFeeCap()
-	c, _ := exchange.CompareValue(p.rates, feeA, a.FeeCurrency(), feeB, b.FeeCurrency())
-	if c != 0 {
-		return c
-	}
-
-	// Compare tips if effective tips and fee caps are equal
-	tipCapA := a.GasTipCap()
-	tipCapB := b.GasTipCap()
-	result, _ := exchange.CompareValue(p.rates, tipCapA, a.FeeCurrency(), tipCapB, b.FeeCurrency())
-	return result
-}
-
-func baseFeeInCurrency(rates common.ExchangeRates, goldBaseFee *big.Int, feeCurrency *common.Address) *big.Int {
-	// can ignore the whitelist error since txs with non whitelisted currencies
-	// are pruned
-	baseFee, _ := exchange.ConvertGoldToCurrency(rates, feeCurrency, goldBaseFee)
-	return baseFee
-}
-
-func effectiveTip(rates common.ExchangeRates, goldBaseFee *big.Int, tx *types.Transaction) *big.Int {
-	if tx.FeeCurrency() == nil {
-		return tx.EffectiveGasTipValue(goldBaseFee)
-	}
-	baseFee := baseFeeInCurrency(rates, goldBaseFee, tx.FeeCurrency())
-	return tx.EffectiveGasTipValue(baseFee)
+	return h.ratesAndFees.GetNativeBaseFee()
 }

@@ -100,3 +100,63 @@ func CompareValue(exchangeRates common.ExchangeRates, val1 *big.Int, feeCurrency
 
 	return leftSide.Cmp(rightSide), nil
 }
+
+// RatesAndFees holds exchange rates and the basefees expressed in the rates currencies.
+type RatesAndFees struct {
+	Rates common.ExchangeRates
+
+	nativeBaseFee    *big.Int
+	currencyBaseFees map[common.Address]*big.Int
+}
+
+// NewRatesAndFees creates a new empty RatesAndFees object.
+func NewRatesAndFees(rates common.ExchangeRates, nativeBaseFee *big.Int) *RatesAndFees {
+	// While it could be made so that currency basefees are calculated on demand,
+	// the low amount of these (usually N < 20)
+	return &RatesAndFees{
+		Rates:            rates,
+		nativeBaseFee:    nativeBaseFee,
+		currencyBaseFees: make(map[common.Address]*big.Int, len(rates)),
+	}
+}
+
+// HasBaseFee returns if the basefee is set.
+func (rf *RatesAndFees) HasBaseFee() bool {
+	return rf.nativeBaseFee != nil
+}
+
+// GetNativeBaseFee returns the basefee in celo currency.
+func (rf *RatesAndFees) GetNativeBaseFee() *big.Int {
+	return rf.nativeBaseFee
+}
+
+// GetBaseFeeIn returns the basefee expressed in the specified currency. Returns nil
+// if the currency is not whitelisted.
+func (rf *RatesAndFees) GetBaseFeeIn(currency *common.Address) *big.Int {
+	// If native currency is being requested, return it
+	if currency == nil {
+		return rf.nativeBaseFee
+	}
+	// If a non-native currency is being requested, but it is nil,
+	// it means there is no baseFee in this context. Return nil as well.
+	if rf.nativeBaseFee == nil {
+		return nil
+	}
+	// Check the cache
+	baseFee, ok := rf.currencyBaseFees[*currency]
+	if ok {
+		return baseFee
+	}
+	// Not found, calculate
+	calculatedBaseFee, err := ConvertGoldToCurrency(rf.Rates, currency, rf.nativeBaseFee)
+	if err != nil {
+		// Should never happen: error lvl log line
+		log.Error("BaseFee requested for non whitelisted currency",
+			"currency", currency.Hex(),
+			"exchangeRates", rf.Rates,
+			"cause", err)
+		return nil
+	}
+	rf.currencyBaseFees[*currency] = calculatedBaseFee
+	return calculatedBaseFee
+}
