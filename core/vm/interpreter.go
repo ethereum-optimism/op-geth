@@ -25,7 +25,7 @@ import (
 )
 
 // PrecompileOverrides is a function that can be used to override the default precompiled contracts
-type PrecompileOverrides func(params.Rules, common.Address) (PrecompiledContract, bool)
+type PrecompileOverrides func(params.Rules, PrecompiledContract, common.Address) (PrecompiledContract, bool)
 
 // Config are the configuration options for the Interpreter
 type Config struct {
