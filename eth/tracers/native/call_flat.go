@@ -215,6 +215,14 @@ func (t *flatCallTracer) GetResult() (json.RawMessage, error) {
 		return nil, errors.New("invalid number of calls")
 	}
 
+	// When handling a deposit transaction that fails because of insufficient
+	// funds, the callstack will have a single uninitialized callframe. We can
+	// identify this because the single frame will have a type of STOP (=0x00).
+	// In this case, we return an empty result.
+	if len(t.tracer.callstack) == 1 && t.tracer.callstack[0].Type == vm.STOP {
+		return json.RawMessage("{}"), nil
+	}
+
 	flat, err := flatFromNested(&t.tracer.callstack[0], []int{}, t.config.ConvertParityErrors, t.ctx)
 	if err != nil {
 		return nil, err

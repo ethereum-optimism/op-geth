@@ -262,6 +262,14 @@ func (t *callTracer) GetResult() (json.RawMessage, error) {
 		return nil, errors.New("incorrect number of top-level calls")
 	}
 
+	// When handling a deposit transaction that fails because of insufficient
+	// funds, the callstack will have a single uninitialized callframe. We can
+	// identify this because the single frame will have a type of STOP (=0x00).
+	// In this case, we return an empty result.
+	if len(t.callstack) == 1 && t.callstack[0].Type == vm.STOP {
+		return json.RawMessage("{}"), nil
+	}
+
 	res, err := json.Marshal(t.callstack[0])
 	if err != nil {
 		return nil, err
