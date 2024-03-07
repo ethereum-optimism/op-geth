@@ -46,6 +46,12 @@ func LoadOPStackChainConfig(chainID uint64) (*ChainConfig, error) {
 		return nil, fmt.Errorf("unknown superchain %q", chConfig.Superchain)
 	}
 
+	ecotoneTime := superchainConfig.Config.EcotoneTime
+
+	if chainID == OPMainnetChainID {
+		ecotoneTime = nil // The Ecotone upgrade was vetoed
+	}
+
 	genesisActivation := uint64(0)
 	out := &ChainConfig{
 		ChainID:                       new(big.Int).SetUint64(chainID),
@@ -65,13 +71,13 @@ func LoadOPStackChainConfig(chainID uint64) (*ChainConfig, error) {
 		ArrowGlacierBlock:             common.Big0,
 		GrayGlacierBlock:              common.Big0,
 		MergeNetsplitBlock:            common.Big0,
-		ShanghaiTime:                  superchainConfig.Config.CanyonTime,  // Shanghai activates with Canyon
-		CancunTime:                    superchainConfig.Config.EcotoneTime, // Cancun activates with Ecotone
+		ShanghaiTime:                  superchainConfig.Config.CanyonTime, // Shanghai activates with Canyon
+		CancunTime:                    ecotoneTime,                        // Cancun activates with Ecotone
 		PragueTime:                    nil,
 		BedrockBlock:                  common.Big0,
 		RegolithTime:                  &genesisActivation,
 		CanyonTime:                    superchainConfig.Config.CanyonTime,
-		EcotoneTime:                   superchainConfig.Config.EcotoneTime,
+		EcotoneTime:                   ecotoneTime,
 		TerminalTotalDifficulty:       common.Big0,
 		TerminalTotalDifficultyPassed: true,
 		Ethash:                        nil,
