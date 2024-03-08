@@ -215,6 +215,10 @@ func (t *flatCallTracer) GetResult() (json.RawMessage, error) {
 		return nil, errors.New("invalid number of calls")
 	}
 
+	if t.tracer.callstack[0].Type == vm.STOP {
+		t.tracer.callstack[0].Error = "failed deposit transaction"
+	}
+
 	flat, err := flatFromNested(&t.tracer.callstack[0], []int{}, t.config.ConvertParityErrors, t.ctx)
 	if err != nil {
 		return nil, err
@@ -249,7 +253,7 @@ func flatFromNested(input *callFrame, traceAddress []int, convertErrs bool, ctx 
 		frame = newFlatCreate(input)
 	case vm.SELFDESTRUCT:
 		frame = newFlatSelfdestruct(input)
-	case vm.CALL, vm.STATICCALL, vm.CALLCODE, vm.DELEGATECALL:
+	case vm.CALL, vm.STATICCALL, vm.CALLCODE, vm.DELEGATECALL, vm.STOP:
 		frame = newFlatCall(input)
 	default:
 		return nil, fmt.Errorf("unrecognized call frame type: %s", input.Type)
