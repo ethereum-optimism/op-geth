@@ -262,6 +262,10 @@ func (t *callTracer) GetResult() (json.RawMessage, error) {
 		return nil, errors.New("incorrect number of top-level calls")
 	}
 
+	if t.callstack[0].Type == vm.STOP {
+		t.callstack[0].Error = "failed deposit transaction"
+	}
+
 	res, err := json.Marshal(t.callstack[0])
 	if err != nil {
 		return nil, err

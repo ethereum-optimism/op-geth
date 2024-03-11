@@ -438,7 +438,11 @@ func (st *StateTransition) innerTransitionDb() (*ExecutionResult, error) {
 	if tracer := st.evm.Config.Tracer; tracer != nil {
 		tracer.CaptureTxStart(st.initialGas)
 		defer func() {
-			tracer.CaptureTxEnd(st.gasRemaining)
+			if st.msg.IsDepositTx {
+				tracer.CaptureTxEnd(0)
+			} else {
+				tracer.CaptureTxEnd(st.gasRemaining)
+			}
 		}()
 	}
 
