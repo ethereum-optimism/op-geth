@@ -117,9 +117,8 @@ jobs:
             - run:
                 name: Sign
                 command: |
-                  git clone https://github.com/ethereum-optimism/binary_signer
+                  git clone --branch v1.0.3 --depth 1 https://github.com/ethereum-optimism/binary_signer
                   cd binary_signer/signer
-                  git checkout tags/v1.0.3
 
                   IMAGE_PATH="<<parameters.registry>>/<<parameters.repo>>/<<parameters.docker_name>>:<<pipeline.git.revision>>"
                   echo $IMAGE_PATH
