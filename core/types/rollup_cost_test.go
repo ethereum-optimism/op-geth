@@ -21,9 +21,6 @@ var (
 	blobBaseFee       = big.NewInt(10 * 1e6)
 	baseFeeScalar     = big.NewInt(2)
 	blobBaseFeeScalar = big.NewInt(3)
-	costIntercept     = big.NewInt(-27_321_890)
-	costFastlzCoef    = big.NewInt(1_031_462)
-	costTxSizeCoef    = big.NewInt(-88_664)
 
 	// below are the expected cost func outcomes for the above parameter settings on the emptyTx
 	// which is defined in transaction_test.go
@@ -62,7 +59,15 @@ func TestEcotoneL1CostFunc(t *testing.T) {
 }
 
 func TestFjordL1CostFunc(t *testing.T) {
-	costFunc := newL1CostFuncFjord(baseFee, blobBaseFee, baseFeeScalar, blobBaseFeeScalar, costIntercept, costFastlzCoef, costTxSizeCoef)
+	costFunc := newL1CostFuncFjord(
+		baseFee,
+		blobBaseFee,
+		baseFeeScalar,
+		blobBaseFeeScalar,
+		l1CostIntercept,
+		l1CostFastlzCoef,
+		l1CostTxSizeCoef,
+	)
 
 	c0, g0 := costFunc(emptyTx.RollupCostData())
 
@@ -112,7 +117,12 @@ func TestExtractEcotoneGasParams(t *testing.T) {
 	}
 	require.True(t, config.IsOptimismEcotone(zeroTime))
 
-	data := getEcotoneL1Attributes(baseFee, blobBaseFee, baseFeeScalar, blobBaseFeeScalar)
+	data := getEcotoneL1Attributes(
+		baseFee,
+		blobBaseFee,
+		baseFeeScalar,
+		blobBaseFeeScalar,
+	)
 
 	_, costFunc, _, err := extractL1GasParams(config, zeroTime, data)
 	require.NoError(t, err)
@@ -125,40 +135,6 @@ func TestExtractEcotoneGasParams(t *testing.T) {
 	// make sure wrong amont of data results in error
 	data = append(data, 0x00) // tack on garbage byte
 	_, _, err = extractL1GasParamsEcotone(data)
-	require.Error(t, err)
-}
-
-func TestExtractFjordGasParams(t *testing.T) {
-	zeroTime := uint64(0)
-	// create a config where ecotone upgrade is active
-	config := &params.ChainConfig{
-		Optimism:     params.OptimismTestConfig.Optimism,
-		RegolithTime: &zeroTime,
-		EcotoneTime:  &zeroTime,
-		FjordTime:    &zeroTime,
-	}
-	require.True(t, config.IsOptimismFjord(zeroTime))
-
-	data := getFjordL1Attributes(
-		baseFee,
-		blobBaseFee,
-		baseFeeScalar,
-		blobBaseFeeScalar,
-		costIntercept,
-		costFastlzCoef,
-		costTxSizeCoef,
-	)
-	_, costFunc, _, err := extractL1GasParams(config, zeroTime, data)
-	require.NoError(t, err)
-
-	c, g := costFunc(emptyTx.RollupCostData())
-
-	require.Equal(t, fjordGas, g)
-	require.Equal(t, fjordFee, c)
-
-	// make sure wrong amont of data results in error
-	data = append(data, 0x00) // tack on garbage byte
-	_, _, err = extractL1GasParamsFjord(data)
 	require.Error(t, err)
 }
 
@@ -181,27 +157,6 @@ func TestFirstBlockEcotoneGasParams(t *testing.T) {
 	c, g := oldCostFunc(emptyTx.RollupCostData())
 	require.Equal(t, regolithGas, g)
 	require.Equal(t, regolithFee, c)
-}
-
-// make sure the first block of the fjord upgrade is properly detected, and
-// invokes the Ecotone cost function appropriately.
-func TestFirstBlockFjordGasParams(t *testing.T) {
-	zeroTime := uint64(0)
-	// create a config where ecotone upgrade is active
-	config := &params.ChainConfig{
-		Optimism:     params.OptimismTestConfig.Optimism,
-		RegolithTime: &zeroTime,
-		EcotoneTime:  &zeroTime,
-	}
-	require.True(t, config.IsOptimismEcotone(zeroTime))
-
-	data := getEcotoneL1Attributes(baseFee, blobBaseFee, baseFeeScalar, blobBaseFeeScalar)
-
-	_, oldCostFunc, _, err := extractL1GasParams(config, zeroTime, data)
-	require.NoError(t, err)
-	c, g := oldCostFunc(emptyTx.RollupCostData())
-	require.Equal(t, ecotoneGas, g)
-	require.Equal(t, ecotoneFee, c)
 }
 
 func getBedrockL1Attributes(baseFee, overhead, scalar *big.Int) []byte {
@@ -239,48 +194,9 @@ func getEcotoneL1Attributes(baseFee, blobBaseFee, baseFeeScalar, blobBaseFeeScal
 	return data
 }
 
-func getFjordL1Attributes(
-	baseFee,
-	blobBaseFee,
-	baseFeeScalar,
-	blobBaseFeeScalar,
-	costIntercept,
-	costFastlzCoef,
-	costTxSizeCoef *big.Int,
-) []byte {
-	ignored := big.NewInt(1234)
-	data := []byte{}
-
-	costInterceptBytes := make([]byte, 4)
-	binary.BigEndian.PutUint32(costInterceptBytes, uint32(costIntercept.Int64()))
-	costFastlzCoefBytes := make([]byte, 4)
-	binary.BigEndian.PutUint32(costFastlzCoefBytes, uint32(costFastlzCoef.Int64()))
-	costTxSizeCoefBytes := make([]byte, 4)
-	binary.BigEndian.PutUint32(costTxSizeCoefBytes, uint32(costTxSizeCoef.Int64()))
-
-	uint256 := make([]byte, 32)
-	uint64 := make([]byte, 8)
-	uint32 := make([]byte, 4)
-	data = append(data, FjordL1AttributesSelector...)
-	data = append(data, baseFeeScalar.FillBytes(uint32)...)
-	data = append(data, blobBaseFeeScalar.FillBytes(uint32)...)
-	data = append(data, ignored.FillBytes(uint64)...)
-	data = append(data, ignored.FillBytes(uint64)...)
-	data = append(data, ignored.FillBytes(uint64)...)
-	data = append(data, baseFee.FillBytes(uint256)...)
-	data = append(data, blobBaseFee.FillBytes(uint256)...)
-	data = append(data, ignored.FillBytes(uint256)...)
-	data = append(data, ignored.FillBytes(uint256)...)
-	data = append(data, costInterceptBytes...)
-	data = append(data, costFastlzCoefBytes...)
-	data = append(data, costTxSizeCoefBytes...)
-	return data
-}
-
 type testStateGetter struct {
-	baseFee, blobBaseFee, overhead, scalar        *big.Int
-	baseFeeScalar, blobBaseFeeScalar              uint32
-	costIntercept, costFastlzCoef, costTxSizeCoef int32
+	baseFee, blobBaseFee, overhead, scalar *big.Int
+	baseFeeScalar, blobBaseFeeScalar       uint32
 }
 
 func (sg *testStateGetter) GetState(addr common.Address, slot common.Hash) common.Hash {
@@ -294,16 +210,11 @@ func (sg *testStateGetter) GetState(addr common.Address, slot common.Hash) commo
 		sg.scalar.FillBytes(buf[:])
 	case L1BlobBaseFeeSlot:
 		sg.blobBaseFee.FillBytes(buf[:])
-	case L1FeeParamsSlot:
+	case L1FeeScalarsSlot:
 		// fetch Ecotone fee sclars
 		offset := scalarSectionStart
 		binary.BigEndian.PutUint32(buf[offset:offset+4], sg.baseFeeScalar)
 		binary.BigEndian.PutUint32(buf[offset+4:offset+8], sg.blobBaseFeeScalar)
-		// fetch Fjord costs
-		offset = fjordSectionStart
-		binary.BigEndian.PutUint32(buf[offset:offset+4], uint32(sg.costIntercept))
-		binary.BigEndian.PutUint32(buf[offset+4:offset+8], uint32(sg.costFastlzCoef))
-		binary.BigEndian.PutUint32(buf[offset+8:offset+12], uint32(sg.costTxSizeCoef))
 	default:
 		panic("unknown slot")
 	}
@@ -313,8 +224,8 @@ func (sg *testStateGetter) GetState(addr common.Address, slot common.Hash) commo
 // TestNewL1CostFunc tests that the appropriate cost function is selected based on the
 // configuration and statedb values.
 func TestNewL1CostFunc(t *testing.T) {
-	time := uint64(1)
-	timeInFuture := uint64(2)
+	time := uint64(10)
+	timeInFuture := uint64(20)
 	config := &params.ChainConfig{
 		Optimism: params.OptimismTestConfig.Optimism,
 	}
@@ -325,9 +236,6 @@ func TestNewL1CostFunc(t *testing.T) {
 		blobBaseFee:       blobBaseFee,
 		baseFeeScalar:     uint32(baseFeeScalar.Uint64()),
 		blobBaseFeeScalar: uint32(blobBaseFeeScalar.Uint64()),
-		costIntercept:     int32(costIntercept.Int64()),
-		costFastlzCoef:    int32(costFastlzCoef.Int64()),
-		costTxSizeCoef:    int32(costTxSizeCoef.Int64()),
 	}
 
 	costFunc := NewL1CostFunc(config, statedb)
@@ -363,16 +271,6 @@ func TestNewL1CostFunc(t *testing.T) {
 	fee = costFunc(emptyTx.RollupCostData(), time)
 	require.NotNil(t, fee)
 	require.Equal(t, fjordFee, fee)
-
-	// emptyTx fee w/ fjord config, but simulate first fjord block by blowing away the ecotone
-	// params. Should result in regolith fee.
-	statedb.costIntercept = 0
-	statedb.costFastlzCoef = 0
-	statedb.costTxSizeCoef = 0
-	costFunc = NewL1CostFunc(config, statedb)
-	fee = costFunc(emptyTx.RollupCostData(), time)
-	require.NotNil(t, fee)
-	require.Equal(t, ecotoneFee, fee)
 
 	// emptyTx fee w/ ecotone config, but simulate first ecotone block by blowing away the ecotone
 	// params. Should result in regolith fee.
