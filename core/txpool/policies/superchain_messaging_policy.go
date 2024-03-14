@@ -13,7 +13,7 @@ import (
 )
 
 var (
-	inboxAddress = common.HexToAddress("0x420")
+	crossL2InboxAddress = common.HexToAddress("0x420")
 
 	_ txpool.OptimismTxPoolPolicy = &SuperchainMessagingPolicy{}
 )
@@ -30,7 +30,7 @@ func NewSuperchainMessagingPolicy(cfg *params.ChainConfig, chain txpool.BlockCha
 
 func (m *SuperchainMessagingPolicy) ValidateTx(tx *types.Transaction) (txpool.OptimismTxPolicyStatus, error) {
 	time := m.chain.CurrentBlock().Time
-	if !m.cfg.IsInterop(time) || tx.To() == nil || *tx.To() != inboxAddress {
+	if !m.cfg.IsInterop(time) || tx.To() == nil || *tx.To() != crossL2InboxAddress {
 		return txpool.OptimismTxPolicyValid, nil
 	}
 
