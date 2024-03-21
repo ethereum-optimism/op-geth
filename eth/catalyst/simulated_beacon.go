@@ -199,6 +199,7 @@ func (c *SimulatedBeacon) sealBlock(withdrawals []*types.Withdrawal, timestamp u
 		return err
 	}
 	c.lastBlockTime = payload.Timestamp
+
 	return nil
 }
 
@@ -247,6 +248,9 @@ func (c *SimulatedBeacon) setCurrentState(headHash, finalizedHash common.Hash) {
 
 // Commit seals a block on demand.
 func (c *SimulatedBeacon) Commit() common.Hash {
+	pending, q := c.eth.TxPool().Stats()
+	log.Info("txpool state in commit", "pending", pending, "queued", q)
+
 	withdrawals := c.withdrawals.gatherPending(10)
 	if err := c.sealBlock(withdrawals, uint64(time.Now().Unix())); err != nil {
 		log.Warn("Error performing sealing work", "err", err)
