@@ -17,6 +17,7 @@
 package simulated
 
 import (
+	"errors"
 	"time"
 
 	"github.com/ethereum/go-ethereum"
@@ -37,7 +38,7 @@ import (
 // Backend is a simulated blockchain. You can use it to test your contracts or
 // other code that interacts with the Ethereum chain.
 type Backend struct {
-	eth    *eth.Ethereum
+	node   *node.Node
 	beacon *catalyst.SimulatedBeacon
 	client simClient
 }
@@ -64,6 +65,27 @@ type Client interface {
 	ethereum.TransactionReader
 	ethereum.TransactionSender
 	ethereum.ChainIDReader
+}
+
+func NewFromConfig(conf ethconfig.Config) *Backend {
+	// Setup the node object
+	nodeConf := node.DefaultConfig
+	nodeConf.DataDir = ""
+	nodeConf.P2P = p2p.Config{NoDiscovery: true}
+	stack, err := node.New(&nodeConf)
+	if err != nil {
+		// This should never happen, if it does, please open an issue
+		panic(err)
+	}
+
+	conf.SyncMode = downloader.FullSync
+	conf.TxPool.NoLocals = true
+	sim, err := newWithNode(stack, &conf, 0)
+	if err != nil {
+		// This should never happen, if it does, please open an issue
+		panic(err)
+	}
+	return sim
 }
 
 // New creates a new binding backend using a simulated blockchain
@@ -131,7 +153,7 @@ func newWithNode(stack *node.Node, conf *eth.Config, blockPeriod uint64) (*Backe
 	}
 
 	return &Backend{
-		eth:    backend,
+		node:   stack,
 		beacon: beacon,
 		client: simClient{ethclient.NewClient(stack.Attach())},
 	}, nil
@@ -144,12 +166,16 @@ func (n *Backend) Close() error {
 		n.client.Close()
 		n.client = simClient{}
 	}
+	var err error
 	if n.beacon != nil {
-		err := n.beacon.Stop()
+		err = n.beacon.Stop()
 		n.beacon = nil
-		return err
 	}
-	return nil
+	if n.node != nil {
+		err = errors.Join(err, n.node.Close())
+		n.node = nil
+	}
+	return err
 }
 
 // Commit seals a block and moves the chain forward to a new empty block.
