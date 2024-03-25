@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/contracts/celo/abigen"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -27,21 +28,27 @@ func DebitFees(evm *vm.EVM, feeCurrency *common.Address, address common.Address,
 	if amount.Cmp(big.NewInt(0)) == 0 {
 		return nil
 	}
-	abi, err := abigen.FeeCurrencyMetaData.GetAbi()
+	tokenAbi, err := abigen.FeeCurrencyMetaData.GetAbi()
 	if err != nil {
 		return err
 	}
 	// Solidity: function debitGasFees(address from, uint256 value)
-	input, err := abi.Pack("debitGasFees", address, amount)
+	input, err := tokenAbi.Pack("debitGasFees", address, amount)
 	if err != nil {
 		return fmt.Errorf("pack debitGasFees: %w", err)
 	}
 
 	caller := vm.AccountRef(common.ZeroAddress)
 
-	_, leftoverGas, err := evm.Call(caller, *feeCurrency, input, maxGasForDebitGasFeesTransactions, new(uint256.Int))
+	ret, leftoverGas, err := evm.Call(caller, *feeCurrency, input, maxGasForDebitGasFeesTransactions, new(uint256.Int))
 	gasUsed := maxGasForDebitGasFeesTransactions - leftoverGas
 	log.Trace("DebitFees called", "feeCurrency", *feeCurrency, "gasUsed", gasUsed)
+	if err != nil {
+		revertReason, err2 := abi.UnpackRevert(ret)
+		if err2 == nil {
+			return fmt.Errorf("DebitFees reverted: %s", revertReason)
+		}
+	}
 	return err
 }
 
@@ -64,7 +71,7 @@ func CreditFees(
 		feeTip = new(big.Int).Add(feeTip, l1DataFee)
 	}
 
-	abi, err := abigen.FeeCurrencyMetaData.GetAbi()
+	tokenAbi, err := abigen.FeeCurrencyMetaData.GetAbi()
 	if err != nil {
 		return err
 	}
@@ -79,14 +86,20 @@ func CreditFees(
 	// 	uint256, // gatewayFee, unused
 	// 	uint256 baseTxFee
 	// )
-	input, err := abi.Pack("creditGasFees", txSender, tipReceiver, common.ZeroAddress, baseFeeReceiver, refund, feeTip, common.Big0, baseFee)
+	input, err := tokenAbi.Pack("creditGasFees", txSender, tipReceiver, common.ZeroAddress, baseFeeReceiver, refund, feeTip, common.Big0, baseFee)
 	if err != nil {
 		return fmt.Errorf("pack creditGasFees: %w", err)
 	}
 
 	caller := vm.AccountRef(common.ZeroAddress)
-	_, leftoverGas, err := evm.Call(caller, *feeCurrency, input, maxGasForCreditGasFeesTransactions, new(uint256.Int))
+	ret, leftoverGas, err := evm.Call(caller, *feeCurrency, input, maxGasForCreditGasFeesTransactions, new(uint256.Int))
 	gasUsed := maxGasForCreditGasFeesTransactions - leftoverGas
 	log.Trace("CreditFees called", "feeCurrency", *feeCurrency, "gasUsed", gasUsed)
+	if err != nil {
+		revertReason, err2 := abi.UnpackRevert(ret)
+		if err2 == nil {
+			return fmt.Errorf("CreditFees reverted: %s", revertReason)
+		}
+	}
 	return err
 }
