@@ -1,11 +1,9 @@
 package contracts
 
 import (
-	"errors"
 	"fmt"
 	"math/big"
 
-	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/contracts/celo/abigen"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -24,10 +22,6 @@ const (
 	IntrinsicGasForAlternativeFeeCurrency uint64 = 50 * Thousand
 )
 
-var (
-	tmpAddress = common.HexToAddress("0xce106a5")
-)
-
 // Debits transaction fees from the transaction sender and stores them in the temporary address
 func DebitFees(evm *vm.EVM, feeCurrency *common.Address, address common.Address, amount *big.Int) error {
 	if amount.Cmp(big.NewInt(0)) == 0 {
@@ -37,13 +31,13 @@ func DebitFees(evm *vm.EVM, feeCurrency *common.Address, address common.Address,
 	if err != nil {
 		return err
 	}
-	// Solidity: function transfer(address to, uint256 amount) returns(bool)
-	input, err := abi.Pack("transfer", tmpAddress, amount)
+	// Solidity: function debitGasFees(address from, uint256 value)
+	input, err := abi.Pack("debitGasFees", address, amount)
 	if err != nil {
-		return err
+		return fmt.Errorf("pack debitGasFees: %w", err)
 	}
 
-	caller := vm.AccountRef(address)
+	caller := vm.AccountRef(common.ZeroAddress)
 
 	_, leftoverGas, err := evm.Call(caller, *feeCurrency, input, maxGasForDebitGasFeesTransactions, new(uint256.Int))
 	gasUsed := maxGasForDebitGasFeesTransactions - leftoverGas
@@ -62,69 +56,37 @@ func CreditFees(
 	txSender, tipReceiver, baseFeeReceiver, l1DataFeeReceiver common.Address,
 	refund, feeTip, baseFee, l1DataFee *big.Int,
 ) error {
-	caller := vm.AccountRef(tmpAddress)
-	leftoverGas := maxGasForCreditGasFeesTransactions
+	// Our old `creditGasFees` function does not accept an l1DataFee and
+	// the fee currencies do not implement the new interface yet. Since tip
+	// and data fee both go to the sequencer, we can work around that for
+	// now by addint the l1DataFee to the tip.
+	if l1DataFee != nil {
+		feeTip = new(big.Int).Add(feeTip, l1DataFee)
+	}
 
 	abi, err := abigen.FeeCurrencyMetaData.GetAbi()
 	if err != nil {
 		return err
 	}
-
-	leftoverGas, err = transferErc20(evm, abi, caller, feeCurrency, baseFeeReceiver, baseFee, leftoverGas)
+	// Solidity:
+	// function creditGasFees(
+	// 	address from,
+	// 	address feeRecipient,
+	// 	address, // gatewayFeeRecipient, unused
+	// 	address communityFund,
+	// 	uint256 refund,
+	// 	uint256 tipTxFee,
+	// 	uint256, // gatewayFee, unused
+	// 	uint256 baseTxFee
+	// )
+	input, err := abi.Pack("creditGasFees", txSender, tipReceiver, common.ZeroAddress, baseFeeReceiver, refund, feeTip, common.Big0, baseFee)
 	if err != nil {
-		return fmt.Errorf("base fee: %w", err)
+		return fmt.Errorf("pack creditGasFees: %w", err)
 	}
 
-	// If the tip is non-zero, but the coinbase of the miner is not set, send the tip back to the tx sender
-	unusedFee, leftoverGas, err := creditFee(evm, abi, caller, feeCurrency, tipReceiver, feeTip, leftoverGas, "fee tip")
-	if err != nil {
-		return err
-	}
-	refund.Add(refund, unusedFee)
-
-	// If the data fee is non-zero, but the data fee receiver is not set, send the tip back to the tx sender
-	unusedFee, leftoverGas, err = creditFee(evm, abi, caller, feeCurrency, l1DataFeeReceiver, l1DataFee, leftoverGas, "l1 data fee")
-	if err != nil {
-		return err
-	}
-	refund.Add(refund, unusedFee)
-
-	unusedFee, leftoverGas, err = creditFee(evm, abi, caller, feeCurrency, txSender, refund, leftoverGas, "refund")
-	if err != nil {
-		return err
-	}
-	if unusedFee.Cmp(common.Big0) != 0 {
-		return errors.New("could not refund remaining fees to sender")
-	}
-
+	caller := vm.AccountRef(common.ZeroAddress)
+	_, leftoverGas, err := evm.Call(caller, *feeCurrency, input, maxGasForCreditGasFeesTransactions, new(uint256.Int))
 	gasUsed := maxGasForCreditGasFeesTransactions - leftoverGas
-	log.Trace("creditFees called", "feeCurrency", *feeCurrency, "gasUsed", gasUsed)
-	return nil
-}
-
-func creditFee(evm *vm.EVM, abi *abi.ABI, caller vm.AccountRef, feeCurrency *common.Address, receiver common.Address, amount *big.Int, gasLimit uint64, action string) (*big.Int, uint64, error) {
-	if amount != nil && amount.Cmp(common.Big0) == 1 {
-		if receiver != common.ZeroAddress {
-			leftoverGas, err := transferErc20(evm, abi, caller, feeCurrency, receiver, amount, gasLimit)
-			if err != nil {
-				return common.Big0, leftoverGas, fmt.Errorf("%s: %w", action, err)
-			}
-		} else {
-			return amount, gasLimit, nil
-		}
-	}
-	return common.Big0, gasLimit, nil
-}
-
-func transferErc20(evm *vm.EVM, abi *abi.ABI, caller vm.AccountRef, feeCurrency *common.Address, receiver common.Address, amount *big.Int, gasLimit uint64) (uint64, error) {
-	// Solidity: function transfer(address to, uint256 amount) returns(bool)
-	transferData, err := abi.Pack("transfer", receiver, amount)
-	if err != nil {
-		return 0, fmt.Errorf("pack transfer: %w", err)
-	}
-	_, leftoverGas, err := evm.Call(caller, *feeCurrency, transferData, gasLimit, new(uint256.Int))
-	if err != nil {
-		return 0, fmt.Errorf("call transfer: %w", err)
-	}
-	return leftoverGas, nil
+	log.Trace("CreditFees called", "feeCurrency", *feeCurrency, "gasUsed", gasUsed)
+	return err
 }
