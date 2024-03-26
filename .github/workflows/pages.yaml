@@ -1,17 +1,19 @@
 name: Build and publish forkdiff github-pages
 permissions:
   contents: write
+
 on:
   push:
     branches:
       - optimism
+
 jobs:
   deploy:
     concurrency: ci-${{ github.ref }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1000  # make sure to fetch the old commit we diff against
 
@@ -23,7 +25,7 @@ jobs:
       - name: Build pages
         run: |
           mkdir -p tmp/pages
-          mv index.html tmp/pages/index.html
+          mv index.html tmp/pages/index.html || { echo "Error: Failed to move index.html to tmp/pages/"; exit 1; }
           touch tmp/pages/.nojekyll
           if [ "$GITHUB_REPOSITORY" == "ethereum-optimism/op-geth" ]; then
               echo "op-geth.optimism.io" > tmp/pages/CNAME
