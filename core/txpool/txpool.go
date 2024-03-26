@@ -67,7 +67,8 @@ type BlockChain interface {
 // They exit the pool when they are included in the blockchain or evicted due to
 // resource constraints.
 type TxPool struct {
-	subpools []SubPool // List of subpools for specialized transaction handling
+	subpools       []SubPool // List of subpools for specialized transaction handling
+	optimismPolicy OptimismTxPoolPolicy
 
 	reservations map[common.Address]SubPool // Map with the account to pool reservations
 	reserveLock  sync.Mutex                 // Lock protecting the account reservations
@@ -78,16 +79,28 @@ type TxPool struct {
 
 // New creates a new transaction pool to gather, sort and filter inbound
 // transactions from the network.
-func New(gasTip *big.Int, chain BlockChain, subpools []SubPool) (*TxPool, error) {
+func New(gasTip *big.Int, chain BlockChain, subpools []SubPool, policies ...OptimismTxPoolPolicy) (*TxPool, error) {
+	// TODO: Using an vararg type param to keep the function signature backwards
+	// compatible for now. Only expecting one or no policy
+	if len(policies) > 1 {
+		return nil, errors.New("expected at most one tx pool policy")
+	}
+
+	var optimismPolicy OptimismTxPoolPolicy = &NoOpTxPoolPolicy{}
+	if len(policies) > 0 {
+		optimismPolicy = policies[0]
+	}
+
 	// Retrieve the current head so that all subpools and this main coordinator
 	// pool will have the same starting state, even if the chain moves forward
 	// during initialization.
 	head := chain.CurrentBlock()
 
 	pool := &TxPool{
-		subpools:     subpools,
-		reservations: make(map[common.Address]SubPool),
-		quit:         make(chan chan error),
+		subpools:       subpools,
+		optimismPolicy: optimismPolicy,
+		reservations:   make(map[common.Address]SubPool),
+		quit:           make(chan chan error),
 	}
 	for i, subpool := range subpools {
 		if err := subpool.Init(gasTip, head, pool.reserver(i, subpool)); err != nil {
@@ -273,10 +286,25 @@ func (p *TxPool) Add(txs []*types.Transaction, local bool, sync bool) []error {
 	// so we can piece back the returned errors into the original order.
 	txsets := make([][]*types.Transaction, len(p.subpools))
 	splits := make([]int, len(txs))
+	errs := make([]error, len(txs))
 
 	for i, tx := range txs {
 		// Mark this transaction belonging to no-subpool
 		splits[i] = -1
+
+		// Check against the tx policy
+		status, err := p.optimismPolicy.ValidateTx(tx)
+		if err != nil {
+			// a policy should only inspect specific transactions like the interop inbox,
+			// in which a failure mode would only grief these transactions
+			log.Trace("OptimismTxPolicy validation error", "hash", tx.Hash(), "err", err)
+			errs[i] = err
+			splits[i] = -2
+		} else if status == OptimismTxPolicyInvalid {
+			log.Trace("OptimismTxPolicy discarding invalid transaction", "hash", tx.Hash())
+			errs[i] = errors.New("failed optimism tx policy validation")
+			splits[i] = -2
+		}
 
 		// Try to find a subpool that accepts the transaction
 		for j, subpool := range p.subpools {
@@ -293,11 +321,14 @@ func (p *TxPool) Add(txs []*types.Transaction, local bool, sync bool) []error {
 	for i := 0; i < len(p.subpools); i++ {
 		errsets[i] = p.subpools[i].Add(txsets[i], local, sync)
 	}
-	errs := make([]error, len(txs))
 	for i, split := range splits {
 		// If the transaction was rejected by all subpools, mark it unsupported
 		if split == -1 {
 			errs[i] = core.ErrTxTypeNotSupported
+			continue
+		}
+		// If the transaction was rejected by the configured policy, skip
+		if split == -2 {
 			continue
 		}
 		// Find which subpool handled it and pull in the corresponding error
