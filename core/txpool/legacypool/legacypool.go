@@ -138,6 +138,8 @@ type Config struct {
 	GlobalQueue  uint64 // Maximum number of non-executable transaction slots for all accounts
 
 	Lifetime time.Duration // Maximum amount of time non-executable transaction are queued
+
+	EffectiveGasCeil uint64 // if non-zero, a gas ceiling to enforce independent of the header's gaslimit value
 }
 
 // DefaultConfig contains the default configurations for the transaction pool.
@@ -620,8 +622,9 @@ func (pool *LegacyPool) validateTxBasics(tx *types.Transaction, local bool) erro
 			1<<types.LegacyTxType |
 			1<<types.AccessListTxType |
 			1<<types.DynamicFeeTxType,
-		MaxSize: txMaxSize,
-		MinTip:  pool.gasTip.Load(),
+		MaxSize:          txMaxSize,
+		MinTip:           pool.gasTip.Load(),
+		EffectiveGasCeil: pool.config.EffectiveGasCeil,
 	}
 	if local {
 		opts.MinTip = new(big.Int)
@@ -1467,7 +1470,7 @@ func (pool *LegacyPool) promoteExecutables(accounts []common.Address) []*types.T
 	var promoted []*types.Transaction
 
 	// Iterate over all accounts and promote any executable transactions
-	gasLimit := txpool.EffectiveGasLimit(pool.chainconfig, pool.currentHead.Load().GasLimit)
+	gasLimit := txpool.EffectiveGasLimit(pool.chainconfig, pool.currentHead.Load().GasLimit, pool.config.EffectiveGasCeil)
 	for _, addr := range accounts {
 		list := pool.queue[addr]
 		if list == nil {
@@ -1678,7 +1681,7 @@ func (pool *LegacyPool) truncateQueue() {
 // to trigger a re-heap is this function
 func (pool *LegacyPool) demoteUnexecutables() {
 	// Iterate over all accounts and demote any non-executable transactions
-	gasLimit := txpool.EffectiveGasLimit(pool.chainconfig, pool.currentHead.Load().GasLimit)
+	gasLimit := txpool.EffectiveGasLimit(pool.chainconfig, pool.currentHead.Load().GasLimit, pool.config.EffectiveGasCeil)
 	for addr, list := range pool.pending {
 		nonce := pool.currentState.GetNonce(addr)
 
