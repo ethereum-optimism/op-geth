@@ -1,7 +1,6 @@
 package contracts
 
 import (
-	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -24,6 +23,16 @@ const (
 	IntrinsicGasForAlternativeFeeCurrency uint64 = 50 * Thousand
 )
 
+var feeCurrencyABI *abi.ABI
+
+func init() {
+	var err error
+	feeCurrencyABI, err = abigen.FeeCurrencyMetaData.GetAbi()
+	if err != nil {
+		panic(err)
+	}
+}
+
 // Returns nil if debit is possible, used in tx pool validation
 func TryDebitFees(tx *types.Transaction, from common.Address, backend *CeloBackend) error {
 	amount := new(big.Int).SetUint64(tx.Gas())
@@ -40,27 +49,14 @@ func DebitFees(evm *vm.EVM, feeCurrency *common.Address, address common.Address,
 	if amount.Cmp(big.NewInt(0)) == 0 {
 		return nil
 	}
-	tokenAbi, err := abigen.FeeCurrencyMetaData.GetAbi()
-	if err != nil {
-		return err
-	}
-	// Solidity: function debitGasFees(address from, uint256 value)
-	input, err := tokenAbi.Pack("debitGasFees", address, amount)
-	if err != nil {
-		return fmt.Errorf("pack debitGasFees: %w", err)
-	}
 
-	caller := vm.AccountRef(common.ZeroAddress)
-
-	ret, leftoverGas, err := evm.Call(caller, *feeCurrency, input, maxGasForDebitGasFeesTransactions, new(uint256.Int))
+	leftoverGas, err := evm.CallWithABI(
+		feeCurrencyABI, "debitGasFees", *feeCurrency, maxGasForDebitGasFeesTransactions,
+		// debitGasFees(address from, uint256 value) parameters
+		address, amount,
+	)
 	gasUsed := maxGasForDebitGasFeesTransactions - leftoverGas
 	log.Trace("DebitFees called", "feeCurrency", *feeCurrency, "gasUsed", gasUsed)
-	if err != nil {
-		revertReason, err2 := abi.UnpackRevert(ret)
-		if err2 == nil {
-			return fmt.Errorf("DebitFees reverted: %s", revertReason)
-		}
-	}
 	return err
 }
 
@@ -83,35 +79,22 @@ func CreditFees(
 		feeTip = new(big.Int).Add(feeTip, l1DataFee)
 	}
 
-	tokenAbi, err := abigen.FeeCurrencyMetaData.GetAbi()
-	if err != nil {
-		return err
-	}
-	// Solidity:
-	// function creditGasFees(
-	// 	address from,
-	// 	address feeRecipient,
-	// 	address, // gatewayFeeRecipient, unused
-	// 	address communityFund,
-	// 	uint256 refund,
-	// 	uint256 tipTxFee,
-	// 	uint256, // gatewayFee, unused
-	// 	uint256 baseTxFee
-	// )
-	input, err := tokenAbi.Pack("creditGasFees", txSender, tipReceiver, common.ZeroAddress, baseFeeReceiver, refund, feeTip, common.Big0, baseFee)
-	if err != nil {
-		return fmt.Errorf("pack creditGasFees: %w", err)
-	}
+	leftoverGas, err := evm.CallWithABI(
+		feeCurrencyABI, "creditGasFees", *feeCurrency, maxGasForCreditGasFeesTransactions,
+		// function creditGasFees(
+		// 	address from,
+		// 	address feeRecipient,
+		// 	address, // gatewayFeeRecipient, unused
+		// 	address communityFund,
+		// 	uint256 refund,
+		// 	uint256 tipTxFee,
+		// 	uint256, // gatewayFee, unused
+		// 	uint256 baseTxFee
+		// )
+		txSender, tipReceiver, common.ZeroAddress, baseFeeReceiver, refund, feeTip, common.Big0, baseFee,
+	)
 
-	caller := vm.AccountRef(common.ZeroAddress)
-	ret, leftoverGas, err := evm.Call(caller, *feeCurrency, input, maxGasForCreditGasFeesTransactions, new(uint256.Int))
 	gasUsed := maxGasForCreditGasFeesTransactions - leftoverGas
 	log.Trace("CreditFees called", "feeCurrency", *feeCurrency, "gasUsed", gasUsed)
-	if err != nil {
-		revertReason, err2 := abi.UnpackRevert(ret)
-		if err2 == nil {
-			return fmt.Errorf("CreditFees reverted: %s", revertReason)
-		}
-	}
 	return err
 }
