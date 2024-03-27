@@ -7,6 +7,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/contracts/celo/abigen"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/holiman/uint256"
@@ -22,6 +23,17 @@ const (
 	// Calculated to estimate 1 balance read, 1 debit, and 4 credit transactions.
 	IntrinsicGasForAlternativeFeeCurrency uint64 = 50 * Thousand
 )
+
+// Returns nil if debit is possible, used in tx pool validation
+func TryDebitFees(tx *types.Transaction, from common.Address, backend *CeloBackend) error {
+	amount := new(big.Int).SetUint64(tx.Gas())
+	amount.Mul(amount, tx.GasFeeCap())
+
+	snapshot := backend.State.Snapshot()
+	err := DebitFees(backend.NewEVM(), tx.FeeCurrency(), from, amount)
+	backend.State.RevertToSnapshot(snapshot)
+	return err
+}
 
 // Debits transaction fees from the transaction sender and stores them in the temporary address
 func DebitFees(evm *vm.EVM, feeCurrency *common.Address, address common.Address, amount *big.Int) error {

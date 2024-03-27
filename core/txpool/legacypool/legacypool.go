@@ -701,6 +701,14 @@ func (pool *LegacyPool) validateTx(tx *types.Transaction, local bool) error {
 	if err := txpool.ValidateTransactionWithState(tx, pool.signer, opts); err != nil {
 		return err
 	}
+	if tx.FeeCurrency() != nil {
+		from, err := pool.signer.Sender(tx) // already validated (and cached), but cleaner to check
+		if err != nil {
+			log.Error("Transaction sender recovery failed", "err", err)
+			return err
+		}
+		return contracts.TryDebitFees(tx, from, pool.celoBackend)
+	}
 	return nil
 }
 
