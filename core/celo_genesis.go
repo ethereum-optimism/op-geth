@@ -6,7 +6,8 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
-	contracts "github.com/ethereum/go-ethereum/contracts/celo"
+	"github.com/ethereum/go-ethereum/contracts"
+	"github.com/ethereum/go-ethereum/contracts/celo"
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
@@ -48,32 +49,32 @@ func celoGenesisAccounts(fundedAddr common.Address) GenesisAlloc {
 	)
 
 	// Initialize Bytecodes
-	registryBytecode, err := DecodeHex(contracts.RegistryBytecodeRaw)
+	registryBytecode, err := DecodeHex(celo.RegistryBytecodeRaw)
 	if err != nil {
 		panic(err)
 	}
-	goldTokenBytecode, err := DecodeHex(contracts.GoldTokenBytecodeRaw)
+	goldTokenBytecode, err := DecodeHex(celo.GoldTokenBytecodeRaw)
 	if err != nil {
 		panic(err)
 	}
-	proxyBytecode, err := DecodeHex(contracts.ProxyBytecodeRaw)
+	proxyBytecode, err := DecodeHex(celo.ProxyBytecodeRaw)
 	if err != nil {
 		panic(err)
 	}
-	// sortedOraclesBytecodeLinked := bytes.Replace(contracts.SortedOraclesBytecodeRaw, []byte("__$c0b499b413513d0c67e2a6a17d90846cb3$__"), []byte("000000000000000000000000000000000000ce17"), -1)
-	sortedOraclesBytecode, err := DecodeHex(contracts.MockSortedOraclesBytecodeRaw)
+	// sortedOraclesBytecodeLinked := bytes.Replace(celo.SortedOraclesBytecodeRaw, []byte("__$c0b499b413513d0c67e2a6a17d90846cb3$__"), []byte("000000000000000000000000000000000000ce17"), -1)
+	sortedOraclesBytecode, err := DecodeHex(celo.MockSortedOraclesBytecodeRaw)
 	if err != nil {
 		panic(err)
 	}
-	feeCurrencyWhitelistBytecode, err := DecodeHex(contracts.FeeCurrencyWhitelistBytecodeRaw)
+	feeCurrencyWhitelistBytecode, err := DecodeHex(celo.FeeCurrencyWhitelistBytecodeRaw)
 	if err != nil {
 		panic(err)
 	}
-	feeCurrencyBytecode, err := DecodeHex(contracts.FeeCurrencyBytecodeRaw)
+	feeCurrencyBytecode, err := DecodeHex(celo.FeeCurrencyBytecodeRaw)
 	if err != nil {
 		panic(err)
 	}
-	addressSortedLinkedListWithMedian, err := DecodeHex(contracts.AddressSortedLinkedListWithMedianBytecodeRaw)
+	addressSortedLinkedListWithMedian, err := DecodeHex(celo.AddressSortedLinkedListWithMedianBytecodeRaw)
 	if err != nil {
 		panic(err)
 	}

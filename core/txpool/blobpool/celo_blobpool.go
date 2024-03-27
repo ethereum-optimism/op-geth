@@ -1,12 +1,12 @@
 package blobpool
 
 import (
-	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/contracts"
 	"github.com/ethereum/go-ethereum/log"
 )
 
 func (pool *BlobPool) recreateCeloProperties() {
-	pool.celoBackend = &core.CeloBackend{
+	pool.celoBackend = &contracts.CeloBackend{
 		ChainConfig: pool.chain.Config(),
 		State:       pool.state,
 	}

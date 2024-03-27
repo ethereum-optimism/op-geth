@@ -6,7 +6,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	contracts "github.com/ethereum/go-ethereum/contracts/celo"
+	"github.com/ethereum/go-ethereum/contracts"
 	"github.com/ethereum/go-ethereum/contracts/celo/abigen"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -51,7 +51,7 @@ func setCeloFieldsInBlockContext(blockContext *vm.BlockContext, header *types.He
 		return
 	}
 
-	caller := &CeloBackend{config, statedb}
+	caller := &contracts.CeloBackend{ChainConfig: config, State: statedb}
 
 	// Add fee currency exchange rates
 	var err error

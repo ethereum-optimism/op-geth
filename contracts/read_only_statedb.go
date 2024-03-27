@@ -1,4 +1,4 @@
-package core
+package contracts
 
 import (
 	"github.com/ethereum/go-ethereum/common"

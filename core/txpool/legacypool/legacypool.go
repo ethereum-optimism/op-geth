@@ -29,6 +29,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/prque"
 	"github.com/ethereum/go-ethereum/consensus/misc/eip1559"
+	"github.com/ethereum/go-ethereum/contracts"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/txpool"
@@ -241,8 +242,8 @@ type LegacyPool struct {
 	l1CostFn txpool.L1CostFunc // To apply L1 costs as rollup, optional field, may be nil.
 
 	// Celo specific
-	celoBackend  *core.CeloBackend    // For fee currency balances & exchange rate calculation
-	currentRates common.ExchangeRates // current exchange rates for fee currencies
+	celoBackend  *contracts.CeloBackend // For fee currency balances & exchange rate calculation
+	currentRates common.ExchangeRates   // current exchange rates for fee currencies
 }
 
 type txpoolResetRequest struct {

@@ -1,4 +1,4 @@
-package core
+package contracts
 
 import (
 	"context"
@@ -8,7 +8,6 @@ import (
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	contracts "github.com/ethereum/go-ethereum/contracts/celo"
 	"github.com/ethereum/go-ethereum/contracts/celo/abigen"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/log"
@@ -86,11 +85,11 @@ func (b *CeloBackend) GetFeeBalance(account common.Address, feeCurrency *common.
 // GetExchangeRates returns the exchange rates for all gas currencies from CELO
 func (b *CeloBackend) GetExchangeRates() (common.ExchangeRates, error) {
 	exchangeRates := map[common.Address]*big.Rat{}
-	whitelist, err := abigen.NewFeeCurrencyWhitelistCaller(contracts.FeeCurrencyWhitelistAddress, b)
+	whitelist, err := abigen.NewFeeCurrencyWhitelistCaller(FeeCurrencyWhitelistAddress, b)
 	if err != nil {
 		return exchangeRates, fmt.Errorf("Failed to access FeeCurrencyWhitelist: %w", err)
 	}
-	oracle, err := abigen.NewSortedOraclesCaller(contracts.SortedOraclesAddress, b)
+	oracle, err := abigen.NewSortedOraclesCaller(SortedOraclesAddress, b)
 	if err != nil {
 		return exchangeRates, fmt.Errorf("Failed to access SortedOracle: %w", err)
 	}

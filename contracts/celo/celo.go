@@ -1,4 +1,4 @@
-package contracts
+package celo
 
 import _ "embed"
 

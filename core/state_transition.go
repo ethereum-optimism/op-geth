@@ -24,8 +24,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/exchange"
 	cmath "github.com/ethereum/go-ethereum/common/math"
-	fee_currencies "github.com/ethereum/go-ethereum/contracts"
-	contracts "github.com/ethereum/go-ethereum/contracts/celo"
+	"github.com/ethereum/go-ethereum/contracts"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto/kzg4844"
@@ -129,10 +128,10 @@ func IntrinsicGas(data []byte, accessList types.AccessList, isContractCreation b
 	// In this case, however, the user always ends up paying `maxGasForDebitAndCreditTransactions`
 	// keeping it consistent.
 	if feeCurrency != nil {
-		if (math.MaxUint64 - gas) < fee_currencies.IntrinsicGasForAlternativeFeeCurrency {
+		if (math.MaxUint64 - gas) < contracts.IntrinsicGasForAlternativeFeeCurrency {
 			return 0, ErrGasUintOverflow
 		}
-		gas += fee_currencies.IntrinsicGasForAlternativeFeeCurrency
+		gas += contracts.IntrinsicGasForAlternativeFeeCurrency
 	}
 
 	if accessList != nil {
@@ -351,7 +350,7 @@ func (st *StateTransition) canPayFee(checkAmount *uint256.Int) error {
 			return fmt.Errorf("%w: address %v have %v want %v", ErrInsufficientFunds, st.msg.From.Hex(), balance, checkAmount)
 		}
 	} else {
-		backend := &CeloBackend{
+		backend := &contracts.CeloBackend{
 			ChainConfig: st.evm.ChainConfig(),
 			State:       st.state,
 		}
@@ -378,7 +377,7 @@ func (st *StateTransition) subFees(effectiveFee *big.Int) (err error) {
 		st.state.SubBalance(st.msg.From, effectiveFeeU256)
 		return nil
 	} else {
-		return fee_currencies.DebitFees(st.evm, st.msg.FeeCurrency, st.msg.From, effectiveFee)
+		return contracts.DebitFees(st.evm, st.msg.FeeCurrency, st.msg.From, effectiveFee)
 	}
 }
 
@@ -759,7 +758,7 @@ func (st *StateTransition) distributeTxFees() error {
 		if l1Cost != nil {
 			l1Cost, _ = exchange.ConvertGoldToCurrency(st.evm.Context.ExchangeRates, feeCurrency, l1Cost)
 		}
-		if err := fee_currencies.CreditFees(st.evm, feeCurrency, from, st.evm.Context.Coinbase, feeHandlerAddress, params.OptimismL1FeeRecipient, refund, tipTxFee, baseTxFee, l1Cost); err != nil {
+		if err := contracts.CreditFees(st.evm, feeCurrency, from, st.evm.Context.Coinbase, feeHandlerAddress, params.OptimismL1FeeRecipient, refund, tipTxFee, baseTxFee, l1Cost); err != nil {
 			log.Error("Error crediting", "from", from, "coinbase", st.evm.Context.Coinbase, "feeHandler", feeHandlerAddress)
 			return err
 		}

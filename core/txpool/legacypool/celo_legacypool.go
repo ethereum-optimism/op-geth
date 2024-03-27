@@ -2,7 +2,7 @@ package legacypool
 
 import (
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/contracts"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/holiman/uint256"
@@ -30,7 +30,7 @@ func (pool *LegacyPool) getBalances(address common.Address, currencies []common.
 }
 
 func (pool *LegacyPool) recreateCeloProperties() {
-	pool.celoBackend = &core.CeloBackend{
+	pool.celoBackend = &contracts.CeloBackend{
 		ChainConfig: pool.chainconfig,
 		State:       pool.currentState,
 	}

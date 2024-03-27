@@ -23,7 +23,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/exchange"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
-	contracts "github.com/ethereum/go-ethereum/contracts/celo"
+	"github.com/ethereum/go-ethereum/contracts"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -100,7 +100,7 @@ func testNativeTransferWithFeeCurrency(t *testing.T, scheme string) {
 
 	state, _ := chain.State()
 
-	backend := CeloBackend{
+	backend := contracts.CeloBackend{
 		ChainConfig: chain.chainConfig,
 		State:       state,
 	}
