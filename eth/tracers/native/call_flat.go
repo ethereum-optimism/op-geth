@@ -25,6 +25,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/eth/tracers"
 )
@@ -201,8 +202,8 @@ func (t *flatCallTracer) CaptureExit(output []byte, gasUsed uint64, err error) {
 	}
 }
 
-func (t *flatCallTracer) CaptureTxStart(gasLimit uint64) {
-	t.tracer.CaptureTxStart(gasLimit)
+func (t *flatCallTracer) CaptureTxStart(gasLimit uint64, l1Cost types.RollupCostData) {
+	t.tracer.CaptureTxStart(gasLimit, l1Cost)
 }
 
 func (t *flatCallTracer) CaptureTxEnd(restGas uint64) {

@@ -26,6 +26,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/eth/tracers"
@@ -222,7 +223,7 @@ func newJsTracer(code string, ctx *tracers.Context, cfg json.RawMessage) (tracer
 
 // CaptureTxStart implements the Tracer interface and is invoked at the beginning of
 // transaction processing.
-func (t *jsTracer) CaptureTxStart(gasLimit uint64) {
+func (t *jsTracer) CaptureTxStart(gasLimit uint64, l1Cost types.RollupCostData) {
 	t.gasLimit = gasLimit
 }
 

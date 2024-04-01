@@ -22,6 +22,7 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/eth/tracers"
 	"github.com/ethereum/go-ethereum/log"
@@ -56,7 +57,9 @@ func (t *traceWriter) CaptureTxEnd(restGas uint64) {
 	}
 }
 
-func (t *traceWriter) CaptureTxStart(gasLimit uint64) { t.inner.CaptureTxStart(gasLimit) }
+func (t *traceWriter) CaptureTxStart(gasLimit uint64, l1Cost types.RollupCostData) {
+	t.inner.CaptureTxStart(gasLimit, l1Cost)
+}
 func (t *traceWriter) CaptureStart(env *vm.EVM, from common.Address, to common.Address, create bool, input []byte, gas uint64, value *big.Int) {
 	t.inner.CaptureStart(env, from, to, create, input, gas, value)
 }

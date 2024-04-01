@@ -21,6 +21,7 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/eth/tracers"
 )
@@ -63,7 +64,7 @@ func (t *noopTracer) CaptureEnter(typ vm.OpCode, from common.Address, to common.
 func (t *noopTracer) CaptureExit(output []byte, gasUsed uint64, err error) {
 }
 
-func (*noopTracer) CaptureTxStart(gasLimit uint64) {}
+func (*noopTracer) CaptureTxStart(gasLimit uint64, l1Cost types.RollupCostData) {}
 
 func (*noopTracer) CaptureTxEnd(restGas uint64) {}
 

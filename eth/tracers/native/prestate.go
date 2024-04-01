@@ -24,6 +24,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/eth/tracers"
@@ -61,7 +62,8 @@ type prestateTracer struct {
 	post      state
 	create    bool
 	to        common.Address
-	gasLimit  uint64 // Amount of gas bought for the whole tx
+	gasLimit  uint64               // Amount of gas bought for the whole tx
+	l1Cost    types.RollupCostData // Info on to see how much a non-deposit cost
 	config    prestateTracerConfig
 	interrupt atomic.Bool // Atomic flag to signal execution interruption
 	reason    error       // Textual reason for the interruption
@@ -109,6 +111,12 @@ func (t *prestateTracer) CaptureStart(env *vm.EVM, from common.Address, to commo
 	gasPrice := env.TxContext.GasPrice
 	consumedGas := new(big.Int).Mul(gasPrice, new(big.Int).SetUint64(t.gasLimit))
 	fromBal.Add(fromBal, new(big.Int).Add(value, consumedGas))
+	// Undo the L1 Fee if optimism
+	if env.Context.L1CostFunc != nil {
+		l1Cost := env.Context.L1CostFunc(t.l1Cost, env.Context.Time)
+		fromBal.Add(fromBal, l1Cost)
+	}
+
 	t.pre[from].Balance = fromBal
 	t.pre[from].Nonce--
 
@@ -179,8 +187,9 @@ func (t *prestateTracer) CaptureState(pc uint64, op vm.OpCode, gas, cost uint64,
 	}
 }
 
-func (t *prestateTracer) CaptureTxStart(gasLimit uint64) {
+func (t *prestateTracer) CaptureTxStart(gasLimit uint64, l1Cost types.RollupCostData) {
 	t.gasLimit = gasLimit
+	t.l1Cost = l1Cost
 }
 
 func (t *prestateTracer) CaptureTxEnd(restGas uint64) {
