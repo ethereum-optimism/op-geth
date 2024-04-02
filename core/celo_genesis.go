@@ -113,6 +113,7 @@ func celoGenesisAccounts(fundedAddr common.Address) GenesisAlloc {
 			Code:    feeCurrencyWhitelistBytecode,
 			Balance: big.NewInt(0),
 			Storage: map[common.Hash]common.Hash{
+				common.HexToHash("0x0"):                               DevAddr32,                                   // `_owner` slot
 				common.HexToHash("0x1"):                               common.HexToHash("0x1"),                     // array length 1
 				crypto.Keccak256Hash(common.HexToHash("0x1").Bytes()): common.BytesToHash(FeeCurrencyAddr.Bytes()), // FeeCurrency
 			},
