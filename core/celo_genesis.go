@@ -36,9 +36,10 @@ var (
 	DevAddr          = common.BytesToAddress(DevAddr32.Bytes())
 	DevAddr32        = common.HexToHash("0x42cf1bbc38BaAA3c4898ce8790e21eD2738c6A4a")
 
-	FeeCurrencyAddr = common.HexToAddress("0xce16")
-	DevBalance, _   = new(big.Int).SetString("100000000000000000000", 10)
-	FaucetAddr      = common.HexToAddress("0xfcf982bb4015852e706100b14e21f947a5bb718e")
+	FeeCurrencyAddr  = common.HexToAddress("0xce16")
+	DevBalance, _    = new(big.Int).SetString("100000000000000000000", 10)
+	rateNumerator, _ = new(big.Int).SetString("2000000000000000000000000", 10)
+	FaucetAddr       = common.HexToAddress("0xfcf982bb4015852e706100b14e21f947a5bb718e")
 )
 
 func celoGenesisAccounts(fundedAddr common.Address) GenesisAlloc {
@@ -74,8 +75,9 @@ func celoGenesisAccounts(fundedAddr common.Address) GenesisAlloc {
 		panic(err)
 	}
 
-	var devBalance32 common.Hash
+	var devBalance32, rateNumerator32 common.Hash
 	DevBalance.FillBytes(devBalance32[:])
+	rateNumerator.FillBytes(rateNumerator32[:])
 
 	faucetBalance, ok := new(big.Int).SetString("500000000000000000000000000", 10) // 500M
 	if !ok {
@@ -118,6 +120,9 @@ func celoGenesisAccounts(fundedAddr common.Address) GenesisAlloc {
 		contracts.SortedOraclesAddress: {
 			Code:    sortedOraclesBytecode,
 			Balance: big.NewInt(0),
+			Storage: map[common.Hash]common.Hash{
+				CalcMapAddr(common.HexToHash("0x0"), common.BytesToHash(FeeCurrencyAddr.Bytes())): rateNumerator32, // numerators[FeeCurrencyAddr]
+			},
 		},
 		FeeCurrencyAddr: {
 			Code:    feeCurrencyBytecode,
