@@ -29,6 +29,3 @@ var FeeCurrencyWhitelistBytecodeRaw []byte
 
 //go:embed compiled/FeeCurrency.bin-runtime
 var FeeCurrencyBytecodeRaw []byte
-
-//go:embed compiled/AddressSortedLinkedListWithMedian.bin-runtime
-var AddressSortedLinkedListWithMedianBytecodeRaw []byte

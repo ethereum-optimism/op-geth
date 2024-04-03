@@ -61,7 +61,6 @@ func celoGenesisAccounts(fundedAddr common.Address) GenesisAlloc {
 	if err != nil {
 		panic(err)
 	}
-	// sortedOraclesBytecodeLinked := bytes.Replace(celo.SortedOraclesBytecodeRaw, []byte("__$c0b499b413513d0c67e2a6a17d90846cb3$__"), []byte("000000000000000000000000000000000000ce17"), -1)
 	sortedOraclesBytecode, err := DecodeHex(celo.MockSortedOraclesBytecodeRaw)
 	if err != nil {
 		panic(err)
@@ -71,10 +70,6 @@ func celoGenesisAccounts(fundedAddr common.Address) GenesisAlloc {
 		panic(err)
 	}
 	feeCurrencyBytecode, err := DecodeHex(celo.FeeCurrencyBytecodeRaw)
-	if err != nil {
-		panic(err)
-	}
-	addressSortedLinkedListWithMedian, err := DecodeHex(celo.AddressSortedLinkedListWithMedianBytecodeRaw)
 	if err != nil {
 		panic(err)
 	}
@@ -132,10 +127,6 @@ func celoGenesisAccounts(fundedAddr common.Address) GenesisAlloc {
 				CalcMapAddr(common.HexToHash("0x0"), common.BytesToHash(fundedAddr.Bytes())): devBalance32, // _balances[fund]
 				common.HexToHash("0x2"): devBalance32, // _totalSupply
 			},
-		},
-		common.HexToAddress("0xce17"): {
-			Code:    addressSortedLinkedListWithMedian,
-			Balance: big.NewInt(0),
 		},
 		DevAddr: {
 			Balance: DevBalance,
