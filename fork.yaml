@@ -182,7 +182,6 @@ def:
         - title: Historical data for Snap-sync
           description: Snap-sync has access to trusted Deposit Transaction Nonce Data.
           globs:
-            - "eth/handler.go"
             - "eth/downloader/downloader.go"
             - "eth/downloader/receiptreference.go"
         - title: Discv5 node discovery
