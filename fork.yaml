@@ -5,7 +5,7 @@ footer: |
 base:
   name: go-ethereum
   url: https://github.com/ethereum/go-ethereum
-  hash: dd938d103d41f5255a40f7441ad7f0ceae0f7b07  # v1.13.9
+  hash: b20b4a71598481443d60b261d3e5dcb37f8a0d82  # v1.13.8
 fork:
   name: op-geth
   url: https://github.com/ethereum-optimism/op-geth
@@ -248,7 +248,6 @@ def:
         - title: Simulated Backend
           globs:
             - "accounts/abi/bind/backends/simulated.go"
-            - "ethclient/simulated/backend.go"
     - title: "Hardware wallet support"
       description: Extend Ledger wallet support for newer devices on Macos
       sub:

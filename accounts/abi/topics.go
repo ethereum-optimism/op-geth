@@ -24,7 +24,6 @@ import (
 	"reflect"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
@@ -42,7 +41,8 @@ func MakeTopics(query ...[]interface{}) ([][]common.Hash, error) {
 			case common.Address:
 				copy(topic[common.HashLength-common.AddressLength:], rule[:])
 			case *big.Int:
-				copy(topic[:], math.U256Bytes(rule))
+				blob := rule.Bytes()
+				copy(topic[common.HashLength-len(blob):], blob)
 			case bool:
 				if rule {
 					topic[common.HashLength-1] = 1
