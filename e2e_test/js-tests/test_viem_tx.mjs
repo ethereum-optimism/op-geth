@@ -34,13 +34,19 @@ const walletClient = createWalletClient({
 	transport: http(),
 });
 
-const testNonceBump = async (firstCap, firstCurrency, secondCap, secondCurrency, shouldReplace) => {
+const testNonceBump = async (
+	firstCap,
+	firstCurrency,
+	secondCap,
+	secondCurrency,
+	shouldReplace,
+) => {
 	const syncBarrierRequest = await walletClient.prepareTransactionRequest({
 		account,
 		to: "0x00000000000000000000000000000000DeaDBeef",
 		value: 2,
 		gas: 22000,
-	})
+	});
 	const firstTxHash = await walletClient.sendTransaction({
 		account,
 		to: "0x00000000000000000000000000000000DeaDBeef",
@@ -66,14 +72,18 @@ const testNonceBump = async (firstCap, firstCurrency, secondCap, secondCurrency,
 	} catch (err) {
 		// If shouldReplace, no error should be thrown
 		// If shouldReplace == false, exactly the underpriced error should be thrown
-		if (err.cause.details != 'replacement transaction underpriced' || shouldReplace) {
+		if (
+			err.cause.details != "replacement transaction underpriced" ||
+			shouldReplace
+		) {
 			throw err; // Only throw if unexpected error.
 		}
 	}
-	const syncBarrierSignature = await walletClient.signTransaction(syncBarrierRequest);
+	const syncBarrierSignature =
+		await walletClient.signTransaction(syncBarrierRequest);
 	const barrierTxHash = await walletClient.sendRawTransaction({
 		serializedTransaction: syncBarrierSignature,
-	})
+	});
 	await publicClient.waitForTransactionReceipt({ hash: barrierTxHash });
 	if (shouldReplace) {
 		// The new transaction was included.
@@ -82,7 +92,7 @@ const testNonceBump = async (firstCap, firstCurrency, secondCap, secondCurrency,
 		// The original transaction was not replaced.
 		await publicClient.waitForTransactionReceipt({ hash: firstTxHash });
 	}
-}
+};
 
 describe("viem send tx", () => {
 	it("send basic tx and check receipt", async () => {
@@ -117,22 +127,50 @@ describe("viem send tx", () => {
 	}).timeout(10_000);
 
 	it("send overlapping nonce tx in different currencies", async () => {
-		const priceBump = 1.10
+		const priceBump = 1.1;
 		const rate = 2;
 		// Native to FEE_CURRENCY
 		const nativeCap = 30_000_000_000;
 		const bumpCurrencyCap = BigInt(Math.round(nativeCap * rate * priceBump));
-		const failToBumpCurrencyCap = BigInt(Math.round(nativeCap * rate * priceBump) - 1);
+		const failToBumpCurrencyCap = BigInt(
+			Math.round(nativeCap * rate * priceBump) - 1,
+		);
 		// FEE_CURRENCY to Native
 		const currencyCap = 60_000_000_000;
 		const bumpNativeCap = BigInt(Math.round((currencyCap * priceBump) / rate));
-		const failToBumpNativeCap = BigInt(Math.round((currencyCap * priceBump) / rate) - 1);
+		const failToBumpNativeCap = BigInt(
+			Math.round((currencyCap * priceBump) / rate) - 1,
+		);
 		const tokenCurrency = process.env.FEE_CURRENCY;
 		const nativeCurrency = null;
-		await testNonceBump(nativeCap, nativeCurrency, bumpCurrencyCap, tokenCurrency, true);
-		await testNonceBump(nativeCap, nativeCurrency, failToBumpCurrencyCap, tokenCurrency, false);
-		await testNonceBump(currencyCap, tokenCurrency, bumpNativeCap, nativeCurrency, true);
-		await testNonceBump(currencyCap, tokenCurrency, failToBumpNativeCap, nativeCurrency, false);
+		await testNonceBump(
+			nativeCap,
+			nativeCurrency,
+			bumpCurrencyCap,
+			tokenCurrency,
+			true,
+		);
+		await testNonceBump(
+			nativeCap,
+			nativeCurrency,
+			failToBumpCurrencyCap,
+			tokenCurrency,
+			false,
+		);
+		await testNonceBump(
+			currencyCap,
+			tokenCurrency,
+			bumpNativeCap,
+			nativeCurrency,
+			true,
+		);
+		await testNonceBump(
+			currencyCap,
+			tokenCurrency,
+			failToBumpNativeCap,
+			nativeCurrency,
+			false,
+		);
 	}).timeout(10_000);
 
 	it("send tx with non-whitelisted fee currency", async () => {
@@ -151,12 +189,15 @@ describe("viem send tx", () => {
 				serializedTransaction: signature,
 			});
 			assert.fail("Failed to filter nonwhitelisted feeCurrency");
-		} catch(err) {
+		} catch (err) {
 			// TODO: find a better way to check the error type
-			if (err.cause.details == "Fee currency given is not whitelisted at current block") {
+			if (
+				err.cause.details ==
+				"Fee currency given is not whitelisted at current block"
+			) {
 				// Test success
 			} else {
-				throw err
+				throw err;
 			}
 		}
 	}).timeout(10_000);
