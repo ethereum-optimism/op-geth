@@ -76,21 +76,21 @@ func testBuildPayload(t *testing.T, noTxPool, interrupt bool) {
 		}
 		payload := outer.ExecutionPayload
 		if payload.ParentHash != b.chain.CurrentBlock().Hash() {
-			t.Fatal("Unexpect parent hash")
+			t.Fatal("Unexpected parent hash")
 		}
 		if payload.Random != (common.Hash{}) {
-			t.Fatal("Unexpect random value")
+			t.Fatal("Unexpected random value")
 		}
 		if payload.Timestamp != timestamp {
-			t.Fatal("Unexpect timestamp")
+			t.Fatal("Unexpected timestamp")
 		}
 		if payload.FeeRecipient != recipient {
-			t.Fatal("Unexpect fee recipient")
+			t.Fatal("Unexpected fee recipient")
 		}
 		if !interrupt && len(payload.Transactions) != txs {
-			t.Fatalf("Unexpect transaction set: got %d, expected %d", len(payload.Transactions), txs)
+			t.Fatalf("Unexpected transaction set: got %d, expected %d", len(payload.Transactions), txs)
 		} else if interrupt && len(payload.Transactions) >= txs {
-			t.Fatalf("Unexpect transaction set: got %d, expected less than %d", len(payload.Transactions), txs)
+			t.Fatalf("Unexpected transaction set: got %d, expected less than %d", len(payload.Transactions), txs)
 		}
 	}
 
