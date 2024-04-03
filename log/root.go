@@ -10,7 +10,8 @@ import (
 var root atomic.Value
 
 func init() {
-	root.Store(&logger{slog.New(DiscardHandler())})
+	defaultLogger := &logger{slog.New(DiscardHandler())}
+	SetDefault(defaultLogger)
 }
 
 // SetDefault sets the default global logger
