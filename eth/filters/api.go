@@ -159,8 +159,6 @@ func (api *FilterAPI) NewPendingTransactions(ctx context.Context, fullTx *bool) 
 	go func() {
 		txs := make(chan []*types.Transaction, 128)
 		pendingTxSub := api.events.SubscribePendingTxs(txs)
-		defer pendingTxSub.Unsubscribe()
-
 		chainConfig := api.sys.backend.ChainConfig()
 
 		for {
@@ -178,8 +176,10 @@ func (api *FilterAPI) NewPendingTransactions(ctx context.Context, fullTx *bool) 
 					}
 				}
 			case <-rpcSub.Err():
+				pendingTxSub.Unsubscribe()
 				return
 			case <-notifier.Closed():
+				pendingTxSub.Unsubscribe()
 				return
 			}
 		}
@@ -233,15 +233,16 @@ func (api *FilterAPI) NewHeads(ctx context.Context) (*rpc.Subscription, error) {
 	go func() {
 		headers := make(chan *types.Header)
 		headersSub := api.events.SubscribeNewHeads(headers)
-		defer headersSub.Unsubscribe()
 
 		for {
 			select {
 			case h := <-headers:
 				notifier.Notify(rpcSub.ID, h)
 			case <-rpcSub.Err():
+				headersSub.Unsubscribe()
 				return
 			case <-notifier.Closed():
+				headersSub.Unsubscribe()
 				return
 			}
 		}
@@ -268,7 +269,6 @@ func (api *FilterAPI) Logs(ctx context.Context, crit FilterCriteria) (*rpc.Subsc
 	}
 
 	go func() {
-		defer logsSub.Unsubscribe()
 		for {
 			select {
 			case logs := <-matchedLogs:
@@ -277,8 +277,10 @@ func (api *FilterAPI) Logs(ctx context.Context, crit FilterCriteria) (*rpc.Subsc
 					notifier.Notify(rpcSub.ID, &log)
 				}
 			case <-rpcSub.Err(): // client send an unsubscribe request
+				logsSub.Unsubscribe()
 				return
 			case <-notifier.Closed(): // connection dropped
+				logsSub.Unsubscribe()
 				return
 			}
 		}

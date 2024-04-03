@@ -331,10 +331,10 @@ func (s *StateDB) GetCodeSize(addr common.Address) int {
 
 func (s *StateDB) GetCodeHash(addr common.Address) common.Hash {
 	stateObject := s.getStateObject(addr)
-	if stateObject != nil {
-		return common.BytesToHash(stateObject.CodeHash())
+	if stateObject == nil {
+		return common.Hash{}
 	}
-	return common.Hash{}
+	return common.BytesToHash(stateObject.CodeHash())
 }
 
 // GetState retrieves a value from the given account's storage trie.
