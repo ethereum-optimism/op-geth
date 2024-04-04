@@ -21,7 +21,7 @@ func init() {
 
 func OPStackChainIDByName(name string) (uint64, error) {
 	for id, ch := range superchain.OPChains {
-		if ch.Chain+"-"+ch.Superchain == name {
+		if ch.ShortName+"-"+ch.Superchain == name {
 			return id, nil
 		}
 	}
@@ -30,7 +30,7 @@ func OPStackChainIDByName(name string) (uint64, error) {
 
 func OPStackChainNames() (out []string) {
 	for _, ch := range superchain.OPChains {
-		out = append(out, ch.Chain+"-"+ch.Superchain)
+		out = append(out, ch.ShortName+"-"+ch.Superchain)
 	}
 	sort.Strings(out)
 	return
