@@ -1480,7 +1480,7 @@ func (pool *LegacyPool) promoteExecutables(accounts []common.Address) []*types.T
 			pool.all.Remove(hash)
 		}
 		log.Trace("Removed old queued transactions", "count", len(forwards))
-		balance := pool.currentState.GetBalance(addr)
+		balance := pool.currentState.GetBalance(addr).ToBig()
 		if !list.Empty() && pool.l1CostFn != nil {
 			// Reduce the cost-cap by L1 rollup cost of the first tx if necessary. Other txs will get filtered out afterwards.
 			el := list.txs.FirstElement()
@@ -1689,7 +1689,7 @@ func (pool *LegacyPool) demoteUnexecutables() {
 			pool.all.Remove(hash)
 			log.Trace("Removed old pending transaction", "hash", hash)
 		}
-		balance := pool.currentState.GetBalance(addr)
+		balance := pool.currentState.GetBalance(addr).ToBig()
 		if !list.Empty() && pool.l1CostFn != nil {
 			// Reduce the cost-cap by L1 rollup cost of the first tx if necessary. Other txs will get filtered out afterwards.
 			el := list.txs.FirstElement()
