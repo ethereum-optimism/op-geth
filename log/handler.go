@@ -4,13 +4,13 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 	"math/big"
 	"reflect"
 	"sync"
 	"time"
 
 	"github.com/holiman/uint256"
-	"golang.org/x/exp/slog"
 )
 
 type discardHandler struct{}
@@ -117,6 +117,7 @@ func (l *leveler) Level() slog.Level {
 func JSONHandler(wr io.Writer) slog.Handler {
 	return slog.NewJSONHandler(wr, &slog.HandlerOptions{
 		ReplaceAttr: builtinReplaceJSON,
+		Level:       &leveler{levelMaxVerbosity},
 	})
 }
 
