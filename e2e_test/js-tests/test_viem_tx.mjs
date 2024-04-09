@@ -107,6 +107,21 @@ describe("viem send tx", () => {
 			serializedTransaction: signature,
 		});
 		const receipt = await publicClient.waitForTransactionReceipt({ hash });
+		assert.equal(receipt.status, 'success', "receipt status 'failure'")
+	}).timeout(10_000);
+
+	it("send tx with gas estimation and check receipt", async () => {
+		const request = await walletClient.prepareTransactionRequest({
+			account,
+			to: "0x00000000000000000000000000000000DeaDBeef",
+			value: 1,
+		});
+		const signature = await walletClient.signTransaction(request);
+		const hash = await walletClient.sendRawTransaction({
+			serializedTransaction: signature,
+		});
+		const receipt = await publicClient.waitForTransactionReceipt({ hash });
+		assert.equal(receipt.status, 'success', "receipt status 'failure'")
 	}).timeout(10_000);
 
 	it("send fee currency tx and check receipt", async () => {
@@ -124,6 +139,7 @@ describe("viem send tx", () => {
 			serializedTransaction: signature,
 		});
 		const receipt = await publicClient.waitForTransactionReceipt({ hash });
+		assert.equal(receipt.status, 'success', "receipt status 'failure'")
 	}).timeout(10_000);
 
 	it("send overlapping nonce tx in different currencies", async () => {
