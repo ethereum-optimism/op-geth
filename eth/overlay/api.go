@@ -194,6 +194,7 @@ func (api *API) NewOverlayMessage(overlayTx *types.Transaction, signer types.Sig
 	msg.GasPrice = big.NewInt(0)
 	msg.GasFeeCap = big.NewInt(0)
 	msg.GasTipCap = big.NewInt(0)
+	msg.BlobGasFeeCap = big.NewInt(0)
 	msg.RollupCostData = types.RollupCostData{}
 
 	return msg, nil
