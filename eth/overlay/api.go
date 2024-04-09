@@ -158,7 +158,7 @@ func (api *API) CallConstructor(ctx context.Context, address common.Address, cod
 
 	txContext := core.NewEVMTxContext(msg)
 	ct := &OverlayCreateTracer{contractAddress: address, code: *code, gasCap: api.backend.RPCGasCap()}
-	vmConfig := vm.Config{NoBaseFee: true, Tracer: ct}
+	vmConfig := vm.Config{NoBaseFee: true, Tracer: ct, ApplyOverlayCreateHook: true}
 	vmEvm.Config = vmConfig
 	vmEvm.TxContext = txContext
 
