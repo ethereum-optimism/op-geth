@@ -766,7 +766,7 @@ func (st *StateTransition) distributeTxFees() error {
 			l1Cost, _ = exchange.ConvertGoldToCurrency(st.evm.Context.ExchangeRates, feeCurrency, l1Cost)
 		}
 		if err := contracts.CreditFees(st.evm, feeCurrency, from, st.evm.Context.Coinbase, feeHandlerAddress, params.OptimismL1FeeRecipient, refund, tipTxFee, baseTxFee, l1Cost); err != nil {
-			log.Error("Error crediting", "from", from, "coinbase", st.evm.Context.Coinbase, "feeHandler", feeHandlerAddress)
+			log.Error("Error crediting", "from", from, "coinbase", st.evm.Context.Coinbase, "feeHandler", feeHandlerAddress, "err", err)
 			return err
 		}
 	}
