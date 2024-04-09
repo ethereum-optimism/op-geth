@@ -166,15 +166,12 @@ func (api *API) CallConstructor(ctx context.Context, address common.Address, cod
 	_, err = core.ApplyMessage(vmEvm, msg, new(core.GasPool).AddGas(msg.GasLimit))
 
 	deployedCode := ct.resultCode
-	log.Debug("[overlay_callConstructor]", "deployedCode", deployedCode)
 
 	resultCode := &CreationCode{}
 	if deployedCode != nil {
-		log.Debug("deployedCode != nil")
 		c := hexutil.Bytes(deployedCode)
 		resultCode.Code = &c
 	} else {
-		log.Debug("deployedCode == nil")
 		// err from core.ApplyMessage()
 		if err != nil {
 			return nil, err
@@ -254,7 +251,6 @@ func (api *API) GetLogs(ctx context.Context, crit filters.FilterCriteria, stateO
 					continue
 				}
 				logs := filterLogs(blockLogs, crit.Addresses, crit.Topics)
-				log.Debug("logs", "len(logs)", len(logs), "crit.Addresses", crit.Addresses, "crit.Topics", crit.Topics)
 				results[task.idx] = &blockReplayResult{BlockNumber: task.BlockNumber, Logs: logs}
 			}
 		}()
@@ -285,10 +281,8 @@ blockLoop:
 	logs := []*types.Log{}
 	for idx := range results {
 		res := results[idx]
-		log.Debug("logs for", "blockNumber", res.BlockNumber, "len(Logs)", len(res.Logs), "Error", res.Error)
 		logs = append(logs, res.Logs...)
 	}
-	log.Debug("FINAL LOGS", "len(logs)", len(logs))
 	return logs, nil
 }
 
@@ -393,7 +387,6 @@ func (api *API) replayBlock(ctx context.Context, block *types.Block, maxIndex in
 		} else {
 			//append logs only if tx has not reverted
 			txLogs := statedb.GetLogs(tx.Hash(), block.NumberU64(), block.Hash())
-			log.Debug("[replayBlock]", "len(txLogs)", len(txLogs), "transactionHash", tx.Hash())
 			blockLogs = append(blockLogs, txLogs...)
 		}
 	}
@@ -448,13 +441,11 @@ func (api *API) GetContractCreation(ctx context.Context, address common.Address)
 		}
 
 		if ct.foundCreator {
-			log.Debug("[replayBlock]", "ct.foundCreator", ct.foundCreator, "ct.creationTxIndex", txIdx)
 			cc := &ContractCreation{
 				Creator: ct.creator,
 				Block:   block,
 				TxIndex: txIdx,
 			}
-			log.Debug("ContractCreation", "creator", cc.Creator, "block", cc.Block, "txIndex", cc.TxIndex)
 			return cc, nil
 		}
 	}
