@@ -29,6 +29,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/stretchr/testify/assert"
 )
 
 // TestNativeTransferWithFeeCurrency tests the following:
@@ -39,11 +40,21 @@ import (
 //  4. The transaction sender pays for both the tip and baseFee.
 //  5. The base fee goes to the fee handler.
 func TestNativeTransferWithFeeCurrency(t *testing.T) {
-	testNativeTransferWithFeeCurrency(t, rawdb.HashScheme)
-	testNativeTransferWithFeeCurrency(t, rawdb.PathScheme)
+	testNativeTransferWithFeeCurrency(t, rawdb.HashScheme, FeeCurrencyAddr2)
+	testNativeTransferWithFeeCurrency(t, rawdb.PathScheme, FeeCurrencyAddr2)
 }
 
-func testNativeTransferWithFeeCurrency(t *testing.T, scheme string) {
+// Test that the gas price is checked against the base fee in the same currency.
+// The tx has a GasFeeCap that matches the blocks base fee, so it would succeed
+// when compared without currency conversion, but it must fail if the check is
+// correct.
+func TestNativeTransferWithFeeCurrencyAndTooLowGasPrice(t *testing.T) {
+	assert.PanicsWithError(t, "max fee per gas less than block base fee: address 0x71562b71999873DB5b286dF957af199Ec94617F7, maxFeePerGas: 875000000, baseFee: 1750000000",
+		func() { testNativeTransferWithFeeCurrency(t, rawdb.HashScheme, FeeCurrencyAddr) },
+	)
+}
+
+func testNativeTransferWithFeeCurrency(t *testing.T, scheme string, feeCurrencyAddr common.Address) {
 	var (
 		aa     = common.HexToAddress("0x000000000000000000000000000000000000aaaa")
 		engine = ethash.NewFaker()
@@ -70,10 +81,10 @@ func testNativeTransferWithFeeCurrency(t *testing.T, scheme string) {
 			Nonce:       0,
 			To:          &aa,
 			Gas:         100000,
-			GasFeeCap:   newGwei(5),
+			GasFeeCap:   b.header.BaseFee,
 			GasTipCap:   big.NewInt(2),
 			Data:        []byte{},
-			FeeCurrency: &FeeCurrencyAddr,
+			FeeCurrency: &feeCurrencyAddr,
 		}
 		tx := types.NewTx(txdata)
 		tx, _ = types.SignTx(tx, signer, key1)
@@ -108,8 +119,8 @@ func testNativeTransferWithFeeCurrency(t *testing.T, scheme string) {
 	if err != nil {
 		t.Fatal("could not get exchange rates")
 	}
-	baseFeeInFeeCurrency, _ := exchange.ConvertGoldToCurrency(exchangeRates, &FeeCurrencyAddr, block.BaseFee())
-	actual, _ := backend.GetBalanceERC20(block.Coinbase(), FeeCurrencyAddr)
+	baseFeeInFeeCurrency, _ := exchange.ConvertGoldToCurrency(exchangeRates, &feeCurrencyAddr, block.BaseFee())
+	actual, _ := backend.GetBalanceERC20(block.Coinbase(), feeCurrencyAddr)
 
 	// 3: Ensure that miner received only the tx's tip.
 	expected := new(big.Int).SetUint64(block.GasUsed() * block.Transactions()[0].GasTipCap().Uint64())
@@ -118,7 +129,7 @@ func testNativeTransferWithFeeCurrency(t *testing.T, scheme string) {
 	}
 
 	// 4: Ensure the tx sender paid for the gasUsed * (tip + block baseFee).
-	actual, _ = backend.GetBalanceERC20(addr1, FeeCurrencyAddr)
+	actual, _ = backend.GetBalanceERC20(addr1, feeCurrencyAddr)
 	actual = new(big.Int).Sub(funds, actual)
 	expected = new(big.Int).SetUint64(block.GasUsed() * (block.Transactions()[0].GasTipCap().Uint64() + baseFeeInFeeCurrency.Uint64()))
 	if actual.Cmp(expected) != 0 {
@@ -126,7 +137,7 @@ func testNativeTransferWithFeeCurrency(t *testing.T, scheme string) {
 	}
 
 	// 5: Check that base fee has been moved to the fee handler.
-	actual, _ = backend.GetBalanceERC20(contracts.FeeHandlerAddress, FeeCurrencyAddr)
+	actual, _ = backend.GetBalanceERC20(contracts.FeeHandlerAddress, feeCurrencyAddr)
 	expected = new(big.Int).SetUint64(block.GasUsed() * baseFeeInFeeCurrency.Uint64())
 	if actual.Cmp(expected) != 0 {
 		t.Fatalf("fee handler balance incorrect: expected %d, got %d", expected, actual)
