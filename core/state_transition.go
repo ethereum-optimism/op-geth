@@ -419,6 +419,20 @@ func (st *StateTransition) preCheck() error {
 				msg.From.Hex(), codeHash)
 		}
 	}
+
+	// Verify that fee currency is whitelisted
+	if msg.FeeCurrency != nil {
+		if !st.evm.ChainConfig().IsCel2(st.evm.Context.Time) {
+			return ErrCel2NotEnabled
+		} else {
+			isWhiteListed := common.IsCurrencyWhitelisted(st.evm.Context.ExchangeRates, msg.FeeCurrency)
+			if !isWhiteListed {
+				log.Trace("fee currency not whitelisted", "fee currency address", msg.FeeCurrency)
+				return exchange.ErrNonWhitelistedFeeCurrency
+			}
+		}
+	}
+
 	// Make sure that transaction gasFeeCap is greater than the baseFee (post london)
 	if st.evm.ChainConfig().IsLondon(st.evm.Context.BlockNumber) {
 		// Skip the checks if gas fields are zero and baseFee was explicitly disabled (eth_call)
@@ -436,23 +450,16 @@ func (st *StateTransition) preCheck() error {
 				return fmt.Errorf("%w: address %v, maxPriorityFeePerGas: %s, maxFeePerGas: %s", ErrTipAboveFeeCap,
 					msg.From.Hex(), msg.GasTipCap, msg.GasFeeCap)
 			}
+
 			// This will panic if baseFee is nil, but basefee presence is verified
 			// as part of header validation.
-			if msg.GasFeeCap.Cmp(st.evm.Context.BaseFee) < 0 {
-				return fmt.Errorf("%w: address %v, maxFeePerGas: %s, baseFee: %s", ErrFeeCapTooLow,
-					msg.From.Hex(), msg.GasFeeCap, st.evm.Context.BaseFee)
+			baseFeeInFeeCurrency, err := exchange.ConvertGoldToCurrency(st.evm.Context.ExchangeRates, msg.FeeCurrency, st.evm.Context.BaseFee)
+			if err != nil {
+				return fmt.Errorf("preCheck: %w", err)
 			}
-		}
-	}
-
-	if msg.FeeCurrency != nil {
-		if !st.evm.ChainConfig().IsCel2(st.evm.Context.Time) {
-			return ErrCel2NotEnabled
-		} else {
-			isWhiteListed := common.IsCurrencyWhitelisted(st.evm.Context.ExchangeRates, msg.FeeCurrency)
-			if !isWhiteListed {
-				log.Trace("fee currency not whitelisted", "fee currency address", msg.FeeCurrency)
-				return exchange.ErrNonWhitelistedFeeCurrency
+			if msg.GasFeeCap.Cmp(baseFeeInFeeCurrency) < 0 {
+				return fmt.Errorf("%w: address %v, maxFeePerGas: %s, baseFee: %s", ErrFeeCapTooLow,
+					msg.From.Hex(), msg.GasFeeCap, baseFeeInFeeCurrency)
 			}
 		}
 	}
