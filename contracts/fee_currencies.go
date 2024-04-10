@@ -80,6 +80,12 @@ func CreditFees(
 		feeTip = new(big.Int).Add(feeTip, l1DataFee)
 	}
 
+	// Not all fee currencies can handle a receiver being the zero address.
+	// In that case send the fee to the base fee recipient, which we know is non-zero.
+	if tipReceiver.Cmp(common.ZeroAddress) == 0 {
+		tipReceiver = baseFeeReceiver
+	}
+
 	leftoverGas, err := evm.CallWithABI(
 		feeCurrencyABI, "creditGasFees", *feeCurrency, maxGasForCreditGasFeesTransactions,
 		// function creditGasFees(
