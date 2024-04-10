@@ -9,7 +9,7 @@ source shared.sh
 balance_before=$(cast balance $FEE_HANDLER)
 tx_json=$(cast send --json --private-key $ACC_PRIVKEY $TOKEN_ADDR 'transfer(address to, uint256 value) returns (bool)' 0x000000000000000000000000000000000000dEaD 100)
 gas_used=$(echo $tx_json | jq -r '.gasUsed')
-block_number=$(echo $tx_json | jq -r '.blockNumber')
+block_number=$(echo $tx_json | jq -r '.blockNumber' | cast to-dec)
 base_fee=$(cast base-fee $block_number)
 expected_balance_change=$((base_fee * gas_used))
 balance_after=$(cast balance $FEE_HANDLER)

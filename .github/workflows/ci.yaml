@@ -31,16 +31,14 @@ jobs:
           with:
             node-version: 18
 
+        - name: Install Foundry
+          uses: foundry-rs/foundry-toolchain@v1
+          with:
+            version: nightly-f625d0fa7c51e65b4bf1e8f7931cd1c6e2e285e9
+
         - name: Run e2e tests
           shell: bash
-          run: |
-            export TERM=xterm-256color
-            curl -L https://foundry.paradigm.xyz | bash
-            source /home/runner/.bashrc
-            FOUNDRY_HOME="/home/runner/.foundry/bin"
-            PATH="${FOUNDRY_HOME}:${PATH}"
-            /home/runner/.foundry/bin/foundryup
-            e2e_test/run_all_tests.sh
+          run: e2e_test/run_all_tests.sh
 
   Lint:
     runs-on: ["8-cpu","self-hosted","org"]
