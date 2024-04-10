@@ -40,8 +40,8 @@ import (
 //  4. The transaction sender pays for both the tip and baseFee.
 //  5. The base fee goes to the fee handler.
 func TestNativeTransferWithFeeCurrency(t *testing.T) {
-	testNativeTransferWithFeeCurrency(t, rawdb.HashScheme, FeeCurrencyAddr2)
-	testNativeTransferWithFeeCurrency(t, rawdb.PathScheme, FeeCurrencyAddr2)
+	testNativeTransferWithFeeCurrency(t, rawdb.HashScheme, DevFeeCurrencyAddr2)
+	testNativeTransferWithFeeCurrency(t, rawdb.PathScheme, DevFeeCurrencyAddr2)
 }
 
 // Test that the gas price is checked against the base fee in the same currency.
@@ -50,7 +50,7 @@ func TestNativeTransferWithFeeCurrency(t *testing.T) {
 // correct.
 func TestNativeTransferWithFeeCurrencyAndTooLowGasPrice(t *testing.T) {
 	assert.PanicsWithError(t, "max fee per gas less than block base fee: address 0x71562b71999873DB5b286dF957af199Ec94617F7, maxFeePerGas: 875000000, baseFee: 1750000000",
-		func() { testNativeTransferWithFeeCurrency(t, rawdb.HashScheme, FeeCurrencyAddr) },
+		func() { testNativeTransferWithFeeCurrency(t, rawdb.HashScheme, DevFeeCurrencyAddr) },
 	)
 }
 
