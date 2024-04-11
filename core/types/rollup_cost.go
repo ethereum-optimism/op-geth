@@ -18,6 +18,7 @@ package types
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
 	"math/big"
 
@@ -219,13 +220,12 @@ func newL1CostFuncEcotone(l1BaseFee, l1BlobBaseFee, l1BaseFeeScalar, l1BlobBaseF
 }
 
 type gasParams struct {
-	isEcotoneFormat     bool
 	l1BaseFee           *big.Int
 	l1BlobBaseFee       *big.Int
 	costFunc            l1CostFunc
 	feeScalar           *big.Float // pre-ecotone
-	l1BaseFeeScalar     *big.Float // post-ecotone
-	l1BlobBaseFeeScalar *big.Float // post-ecotone
+	l1BaseFeeScalar     *uint32    // post-ecotone
+	l1BlobBaseFeeScalar *uint32    // post-ecotone
 }
 
 // intToScaledFloat returns scalar/10e6 as a float
@@ -258,10 +258,9 @@ func extractL1GasParamsPreEcotone(config *params.ChainConfig, time uint64, data 
 	feeScalar := intToScaledFloat(scalar)                 // legacy: format fee scalar as big Float
 	costFunc := newL1CostFuncBedrockHelper(l1BaseFee, overhead, scalar, config.IsRegolith(time))
 	return gasParams{
-		isEcotoneFormat: false,
-		l1BaseFee:       l1BaseFee,
-		costFunc:        costFunc,
-		feeScalar:       feeScalar,
+		l1BaseFee: l1BaseFee,
+		costFunc:  costFunc,
+		feeScalar: feeScalar,
 	}, nil
 }
 
@@ -285,16 +284,17 @@ func extractL1GasParamsEcotone(data []byte) (gasParams, error) {
 	// 132   bytes32 _batcherHash,
 	l1BaseFee := new(big.Int).SetBytes(data[36:68])
 	l1BlobBaseFee := new(big.Int).SetBytes(data[68:100])
-	l1BaseFeeScalar := new(big.Int).SetBytes(data[4:8])
-	l1BlobBaseFeeScalar := new(big.Int).SetBytes(data[8:12])
-	costFunc := newL1CostFuncEcotone(l1BaseFee, l1BlobBaseFee, l1BaseFeeScalar, l1BlobBaseFeeScalar)
+	l1BaseFeeScalar := binary.BigEndian.Uint32(data[4:8])
+	l1BaseFeeScalarBig := big.NewInt(int64(l1BaseFeeScalar))
+	l1BlobBaseFeeScalar := binary.BigEndian.Uint32(data[8:12])
+	l1BlobBaseFeeScalarBig := big.NewInt(int64(l1BlobBaseFeeScalar))
+	costFunc := newL1CostFuncEcotone(l1BaseFee, l1BlobBaseFee, l1BaseFeeScalarBig, l1BlobBaseFeeScalarBig)
 	return gasParams{
-		isEcotoneFormat:     true,
 		l1BaseFee:           l1BaseFee,
 		l1BlobBaseFee:       l1BlobBaseFee,
 		costFunc:            costFunc,
-		l1BaseFeeScalar:     intToScaledFloat(l1BaseFeeScalar),
-		l1BlobBaseFeeScalar: intToScaledFloat(l1BlobBaseFeeScalar),
+		l1BaseFeeScalar:     &l1BaseFeeScalar,
+		l1BlobBaseFeeScalar: &l1BlobBaseFeeScalar,
 	}, nil
 }
 

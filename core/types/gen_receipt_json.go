@@ -38,8 +38,8 @@ func (r Receipt) MarshalJSON() ([]byte, error) {
 		L1GasUsed             *hexutil.Big    `json:"l1GasUsed,omitempty"`
 		L1Fee                 *hexutil.Big    `json:"l1Fee,omitempty"`
 		FeeScalar             *big.Float      `json:"l1FeeScalar,omitempty"`
-		L1BaseFeeScalar       *big.Float      `json:"l1BaseFeeScalar,omitempty"`
-		L1BlobBaseFeeScalar   *big.Float      `json:"l1BlobBaseFeeScalar,omitempty"`
+		L1BaseFeeScalar       *uint32         `json:"l1BaseFeeScalar,omitempty"`
+		L1BlobBaseFeeScalar   *uint32         `json:"l1BlobBaseFeeScalar,omitempty"`
 	}
 	var enc Receipt
 	enc.Type = hexutil.Uint64(r.Type)
@@ -94,8 +94,8 @@ func (r *Receipt) UnmarshalJSON(input []byte) error {
 		L1GasUsed             *hexutil.Big    `json:"l1GasUsed,omitempty"`
 		L1Fee                 *hexutil.Big    `json:"l1Fee,omitempty"`
 		FeeScalar             *big.Float      `json:"l1FeeScalar,omitempty"`
-		L1BaseFeeScalar       *big.Float      `json:"l1BaseFeeScalar,omitempty"`
-		L1BlobBaseFeeScalar   *big.Float      `json:"l1BlobBaseFeeScalar,omitempty"`
+		L1BaseFeeScalar       *uint32         `json:"l1BaseFeeScalar,omitempty"`
+		L1BlobBaseFeeScalar   *uint32         `json:"l1BlobBaseFeeScalar,omitempty"`
 	}
 	var dec Receipt
 	if err := json.Unmarshal(input, &dec); err != nil {

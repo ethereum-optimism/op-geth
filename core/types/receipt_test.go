@@ -698,7 +698,7 @@ func clearComputedFieldsOnLogs(logs []*Log) []*Log {
 	return l
 }
 
-func getOptimismEcotoneTxReceipts(l1AttributesPayload []byte, l1GasPrice, l1BlobGasPrice, l1GasUsed, l1Fee *big.Int, baseFeeScalar, blobBaseFeeScalar *big.Float) ([]*Transaction, []*Receipt) {
+func getOptimismEcotoneTxReceipts(l1AttributesPayload []byte, l1GasPrice, l1BlobGasPrice, l1GasUsed, l1Fee *big.Int, baseFeeScalar, blobBaseFeeScalar *uint32) ([]*Transaction, []*Receipt) {
 	// Create a few transactions to have receipts for
 	txs := Transactions{
 		NewTx(&DepositTx{
@@ -868,7 +868,9 @@ func TestDeriveOptimismEcotoneTxReceipts(t *testing.T) {
 	// Ecotone style l1 attributes with baseFeeScalar=2, blobBaseFeeScalar=3, baseFee=1000*1e6, blobBaseFee=10*1e6
 	payload := common.Hex2Bytes("440a5e20000000020000000300000000000004d200000000000004d200000000000004d2000000000000000000000000000000000000000000000000000000003b9aca00000000000000000000000000000000000000000000000000000000000098968000000000000000000000000000000000000000000000000000000000000004d200000000000000000000000000000000000000000000000000000000000004d2")
 	// the parameters we use below are defined in rollup_test.go. Scale the fee scalars by 1e6 to account for the float format.
-	txs, receipts := getOptimismEcotoneTxReceipts(payload, baseFee, blobBaseFee, ecotoneGas, ecotoneFee, big.NewFloat(2e-6), big.NewFloat(3e-6))
+	baseFeeScalarUint32 := uint32(baseFeeScalar.Uint64())
+	blobBaseFeeScalarUint32 := uint32(blobBaseFeeScalar.Uint64())
+	txs, receipts := getOptimismEcotoneTxReceipts(payload, baseFee, blobBaseFee, ecotoneGas, ecotoneFee, &baseFeeScalarUint32, &blobBaseFeeScalarUint32)
 
 	// Re-derive receipts.
 	baseFee := big.NewInt(1000)
