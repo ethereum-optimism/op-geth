@@ -837,10 +837,10 @@ func makeWorkdir(wdflag string) string {
 }
 
 func isUnstableBuild(env build.Environment) bool {
-	if env.Tag != "" {
-		return false
+	if env.Tag == "untagged" || env.Tag == "" {
+		return true
 	}
-	return true
+	return false
 }
 
 type debPackage struct {
