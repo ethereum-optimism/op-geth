@@ -60,7 +60,8 @@ func TestExtractBedrockGasParams(t *testing.T) {
 
 	data := getBedrockL1Attributes(baseFee, overhead, scalar)
 
-	_, costFuncPreRegolith, _, err := extractL1GasParams(config, regolithTime-1, data)
+	gasparams, err := extractL1GasParams(config, regolithTime-1, data)
+	costFuncPreRegolith := gasparams.costFunc
 	require.NoError(t, err)
 
 	// Function should continue to succeed even with extra data (that just gets ignored) since we
@@ -68,7 +69,8 @@ func TestExtractBedrockGasParams(t *testing.T) {
 	// the expected number of bytes. It's unclear if this flexibility was intentional, but since
 	// it's been in production we shouldn't change this behavior.
 	data = append(data, []byte{0xBE, 0xEE, 0xEE, 0xFF}...) // tack on garbage data
-	_, costFuncRegolith, _, err := extractL1GasParams(config, regolithTime, data)
+	gasparams, err = extractL1GasParams(config, regolithTime, data)
+	costFuncRegolith := gasparams.costFunc
 	require.NoError(t, err)
 
 	c, _ := costFuncPreRegolith(emptyTx.RollupCostData())
@@ -79,7 +81,7 @@ func TestExtractBedrockGasParams(t *testing.T) {
 
 	// try to extract from data which has not enough params, should get error.
 	data = data[:len(data)-4-32]
-	_, _, _, err = extractL1GasParams(config, regolithTime, data)
+	_, err = extractL1GasParams(config, regolithTime, data)
 	require.Error(t, err)
 }
 
@@ -95,7 +97,8 @@ func TestExtractEcotoneGasParams(t *testing.T) {
 
 	data := getEcotoneL1Attributes(baseFee, blobBaseFee, baseFeeScalar, blobBaseFeeScalar)
 
-	_, costFunc, _, err := extractL1GasParams(config, 0, data)
+	gasparams, err := extractL1GasParams(config, 0, data)
+	costFunc := gasparams.costFunc
 	require.NoError(t, err)
 
 	c, g := costFunc(emptyTx.RollupCostData())
@@ -105,7 +108,7 @@ func TestExtractEcotoneGasParams(t *testing.T) {
 
 	// make sure wrong amont of data results in error
 	data = append(data, 0x00) // tack on garbage byte
-	_, _, err = extractL1GasParamsEcotone(data)
+	_, err = extractL1GasParamsEcotone(data)
 	require.Error(t, err)
 }
 
@@ -123,7 +126,8 @@ func TestFirstBlockEcotoneGasParams(t *testing.T) {
 
 	data := getBedrockL1Attributes(baseFee, overhead, scalar)
 
-	_, oldCostFunc, _, err := extractL1GasParams(config, 0, data)
+	gasparams, err := extractL1GasParams(config, 0, data)
+	oldCostFunc := gasparams.costFunc
 	require.NoError(t, err)
 	c, _ := oldCostFunc(emptyTx.RollupCostData())
 	require.Equal(t, regolithFee, c)
