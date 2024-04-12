@@ -1,15 +1,16 @@
 package contracts
 
 import (
+	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/contracts/celo/abigen"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/holiman/uint256"
 )
 
 const (
@@ -97,4 +98,64 @@ func CreditFees(
 	gasUsed := maxGasForCreditGasFeesTransactions - leftoverGas
 	log.Trace("CreditFees called", "feeCurrency", *feeCurrency, "gasUsed", gasUsed)
 	return err
+}
+
+// GetExchangeRates returns the exchange rates for all gas currencies from CELO
+func GetExchangeRates(caller bind.ContractCaller) (common.ExchangeRates, error) {
+	exchangeRates := map[common.Address]*big.Rat{}
+	whitelist, err := abigen.NewFeeCurrencyWhitelistCaller(FeeCurrencyWhitelistAddress, caller)
+	if err != nil {
+		return exchangeRates, fmt.Errorf("Failed to access FeeCurrencyWhitelist: %w", err)
+	}
+	oracle, err := abigen.NewSortedOraclesCaller(SortedOraclesAddress, caller)
+	if err != nil {
+		return exchangeRates, fmt.Errorf("Failed to access SortedOracle: %w", err)
+	}
+
+	whitelistedTokens, err := whitelist.GetWhitelist(&bind.CallOpts{})
+	if err != nil {
+		return exchangeRates, fmt.Errorf("Failed to get whitelisted tokens: %w", err)
+	}
+	for _, tokenAddress := range whitelistedTokens {
+		numerator, denominator, err := oracle.MedianRate(&bind.CallOpts{}, tokenAddress)
+		if err != nil {
+			log.Error("Failed to get medianRate for gas currency!", "err", err, "tokenAddress", tokenAddress.Hex())
+			continue
+		}
+		if denominator.Sign() == 0 {
+			log.Error("Bad exchange rate for fee currency", "tokenAddress", tokenAddress.Hex(), "numerator", numerator, "denominator", denominator)
+			continue
+		}
+		exchangeRates[tokenAddress] = big.NewRat(numerator.Int64(), denominator.Int64())
+	}
+
+	return exchangeRates, nil
+}
+
+// GetBalanceERC20 returns an account's balance on a given ERC20 currency
+func GetBalanceERC20(caller bind.ContractCaller, accountOwner common.Address, contractAddress common.Address) (result *big.Int, err error) {
+	token, err := abigen.NewFeeCurrencyCaller(contractAddress, caller)
+	if err != nil {
+		return nil, fmt.Errorf("failed to access FeeCurrency: %w", err)
+	}
+
+	balance, err := token.BalanceOf(&bind.CallOpts{}, accountOwner)
+	if err != nil {
+		return nil, err
+	}
+
+	return balance, nil
+}
+
+// GetFeeBalance returns the account's balance from the specified feeCurrency
+// (if feeCurrency is nil or ZeroAddress, native currency balance is returned).
+func GetFeeBalance(backend *CeloBackend, account common.Address, feeCurrency *common.Address) *big.Int {
+	if feeCurrency == nil || *feeCurrency == common.ZeroAddress {
+		return backend.State.GetBalance(account).ToBig()
+	}
+	balance, err := GetBalanceERC20(backend, account, *feeCurrency)
+	if err != nil {
+		log.Error("Error while trying to get ERC20 balance:", "cause", err, "contract", feeCurrency.Hex(), "account", account.Hex())
+	}
+	return balance
 }

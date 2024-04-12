@@ -10,7 +10,7 @@ func (pool *BlobPool) recreateCeloProperties() {
 		ChainConfig: pool.chain.Config(),
 		State:       pool.state,
 	}
-	currentRates, err := pool.celoBackend.GetExchangeRates()
+	currentRates, err := contracts.GetExchangeRates(pool.celoBackend)
 	if err != nil {
 		log.Error("Error trying to get exchange rates in txpool.", "cause", err)
 	}

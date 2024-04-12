@@ -1128,7 +1128,7 @@ func (p *BlobPool) validateTx(tx *types.Transaction) error {
 			return nil
 		},
 		ExistingBalance: func(addr common.Address, feeCurrency *common.Address) *big.Int {
-			return p.celoBackend.GetFeeBalance(addr, feeCurrency)
+			return contracts.GetFeeBalance(p.celoBackend, addr, feeCurrency)
 		},
 	}
 

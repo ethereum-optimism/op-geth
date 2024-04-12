@@ -694,7 +694,7 @@ func (pool *LegacyPool) validateTx(tx *types.Transaction, local bool) error {
 		},
 		L1CostFn: pool.l1CostFn,
 		ExistingBalance: func(addr common.Address, feeCurrency *common.Address) *big.Int {
-			return pool.celoBackend.GetFeeBalance(addr, feeCurrency)
+			return contracts.GetFeeBalance(pool.celoBackend, addr, feeCurrency)
 		},
 	}
 

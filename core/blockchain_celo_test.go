@@ -115,12 +115,12 @@ func testNativeTransferWithFeeCurrency(t *testing.T, scheme string, feeCurrencyA
 		ChainConfig: chain.chainConfig,
 		State:       state,
 	}
-	exchangeRates, err := backend.GetExchangeRates()
+	exchangeRates, err := contracts.GetExchangeRates(&backend)
 	if err != nil {
 		t.Fatal("could not get exchange rates")
 	}
 	baseFeeInFeeCurrency, _ := exchange.ConvertGoldToCurrency(exchangeRates, &feeCurrencyAddr, block.BaseFee())
-	actual, _ := backend.GetBalanceERC20(block.Coinbase(), feeCurrencyAddr)
+	actual, _ := contracts.GetBalanceERC20(&backend, block.Coinbase(), feeCurrencyAddr)
 
 	// 3: Ensure that miner received only the tx's tip.
 	expected := new(big.Int).SetUint64(block.GasUsed() * block.Transactions()[0].GasTipCap().Uint64())
@@ -129,7 +129,7 @@ func testNativeTransferWithFeeCurrency(t *testing.T, scheme string, feeCurrencyA
 	}
 
 	// 4: Ensure the tx sender paid for the gasUsed * (tip + block baseFee).
-	actual, _ = backend.GetBalanceERC20(addr1, feeCurrencyAddr)
+	actual, _ = contracts.GetBalanceERC20(&backend, addr1, feeCurrencyAddr)
 	actual = new(big.Int).Sub(funds, actual)
 	expected = new(big.Int).SetUint64(block.GasUsed() * (block.Transactions()[0].GasTipCap().Uint64() + baseFeeInFeeCurrency.Uint64()))
 	if actual.Cmp(expected) != 0 {
@@ -137,7 +137,7 @@ func testNativeTransferWithFeeCurrency(t *testing.T, scheme string, feeCurrencyA
 	}
 
 	// 5: Check that base fee has been moved to the fee handler.
-	actual, _ = backend.GetBalanceERC20(contracts.FeeHandlerAddress, feeCurrencyAddr)
+	actual, _ = contracts.GetBalanceERC20(&backend, contracts.FeeHandlerAddress, feeCurrencyAddr)
 	expected = new(big.Int).SetUint64(block.GasUsed() * baseFeeInFeeCurrency.Uint64())
 	if actual.Cmp(expected) != 0 {
 		t.Fatalf("fee handler balance incorrect: expected %d, got %d", expected, actual)

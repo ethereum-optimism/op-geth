@@ -2,16 +2,13 @@ package contracts
 
 import (
 	"context"
-	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/contracts/celo/abigen"
 	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/holiman/uint256"
 )
 
 // CeloBackend provide a partial ContractBackend implementation, so that we can
@@ -58,8 +55,8 @@ func (b *CeloBackend) CallContract(ctx context.Context, call ethereum.CallMsg, b
 // This is usually the case when executing functions that modify state.
 func (b *CeloBackend) NewEVM() *vm.EVM {
 	blockCtx := vm.BlockContext{BlockNumber: new(big.Int), Time: 0,
-		Transfer: func(state vm.StateDB, from common.Address, to common.Address, value *big.Int) {
-			if value.Cmp(common.Big0) != 0 {
+		Transfer: func(state vm.StateDB, from common.Address, to common.Address, value *uint256.Int) {
+			if value.Cmp(new(uint256.Int)) != 0 {
 				panic("Non-zero transfers not implemented, yet.")
 			}
 		},
@@ -67,64 +64,4 @@ func (b *CeloBackend) NewEVM() *vm.EVM {
 	txCtx := vm.TxContext{}
 	vmConfig := vm.Config{}
 	return vm.NewEVM(blockCtx, txCtx, b.State, b.ChainConfig, vmConfig)
-}
-
-// GetBalanceERC20 returns an account's balance on a given ERC20 currency
-func (b *CeloBackend) GetBalanceERC20(accountOwner common.Address, contractAddress common.Address) (result *big.Int, err error) {
-	token, err := abigen.NewFeeCurrencyCaller(contractAddress, b)
-	if err != nil {
-		return nil, fmt.Errorf("failed to access FeeCurrency: %w", err)
-	}
-
-	balance, err := token.BalanceOf(&bind.CallOpts{}, accountOwner)
-	if err != nil {
-		return nil, err
-	}
-
-	return balance, nil
-}
-
-// GetFeeBalance returns the account's balance from the specified feeCurrency
-// (if feeCurrency is nil or ZeroAddress, native currency balance is returned).
-func (b *CeloBackend) GetFeeBalance(account common.Address, feeCurrency *common.Address) *big.Int {
-	if feeCurrency == nil || *feeCurrency == common.ZeroAddress {
-		return b.State.GetBalance(account).ToBig()
-	}
-	balance, err := b.GetBalanceERC20(account, *feeCurrency)
-	if err != nil {
-		log.Error("Error while trying to get ERC20 balance:", "cause", err, "contract", feeCurrency.Hex(), "account", account.Hex())
-	}
-	return balance
-}
-
-// GetExchangeRates returns the exchange rates for all gas currencies from CELO
-func (b *CeloBackend) GetExchangeRates() (common.ExchangeRates, error) {
-	exchangeRates := map[common.Address]*big.Rat{}
-	whitelist, err := abigen.NewFeeCurrencyWhitelistCaller(FeeCurrencyWhitelistAddress, b)
-	if err != nil {
-		return exchangeRates, fmt.Errorf("Failed to access FeeCurrencyWhitelist: %w", err)
-	}
-	oracle, err := abigen.NewSortedOraclesCaller(SortedOraclesAddress, b)
-	if err != nil {
-		return exchangeRates, fmt.Errorf("Failed to access SortedOracle: %w", err)
-	}
-
-	whitelistedTokens, err := whitelist.GetWhitelist(&bind.CallOpts{})
-	if err != nil {
-		return exchangeRates, fmt.Errorf("Failed to get whitelisted tokens: %w", err)
-	}
-	for _, tokenAddress := range whitelistedTokens {
-		numerator, denominator, err := oracle.MedianRate(&bind.CallOpts{}, tokenAddress)
-		if err != nil {
-			log.Error("Failed to get medianRate for gas currency!", "err", err, "tokenAddress", tokenAddress.Hex())
-			continue
-		}
-		if denominator.Sign() == 0 {
-			log.Error("Bad exchange rate for fee currency", "tokenAddress", tokenAddress.Hex(), "numerator", numerator, "denominator", denominator)
-			continue
-		}
-		exchangeRates[tokenAddress] = big.NewRat(numerator.Int64(), denominator.Int64())
-	}
-
-	return exchangeRates, nil
 }
