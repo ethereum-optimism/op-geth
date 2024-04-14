@@ -117,6 +117,7 @@ func (l *leveler) Level() slog.Level {
 func JSONHandler(wr io.Writer) slog.Handler {
 	return slog.NewJSONHandler(wr, &slog.HandlerOptions{
 		ReplaceAttr: builtinReplaceJSON,
+		Level:       &leveler{levelMaxVerbosity},
 	})
 }
 
