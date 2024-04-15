@@ -57,6 +57,7 @@ func DebitFees(evm *vm.EVM, feeCurrency *common.Address, address common.Address,
 		address, amount,
 	)
 	gasUsed := maxGasForDebitGasFeesTransactions - leftoverGas
+	evm.Context.GasUsedForDebit = gasUsed
 	log.Trace("DebitFees called", "feeCurrency", *feeCurrency, "gasUsed", gasUsed)
 	return err
 }
@@ -103,6 +104,11 @@ func CreditFees(
 
 	gasUsed := maxGasForCreditGasFeesTransactions - leftoverGas
 	log.Trace("CreditFees called", "feeCurrency", *feeCurrency, "gasUsed", gasUsed)
+
+	gasUsedForDebitAndCredit := evm.Context.GasUsedForDebit + gasUsed
+	if gasUsedForDebitAndCredit > IntrinsicGasForAlternativeFeeCurrency {
+		log.Info("Gas usage for debit+credit exceeds intrinsic gas!", "gasUsed", gasUsedForDebitAndCredit, "intrinsicGas", IntrinsicGasForAlternativeFeeCurrency, "feeCurrency", feeCurrency)
+	}
 	return err
 }
 

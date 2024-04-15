@@ -103,7 +103,8 @@ type BlockContext struct {
 	Random      *common.Hash   // Provides information for PREVRANDAO
 
 	// Celo specific information
-	ExchangeRates common.ExchangeRates
+	ExchangeRates   common.ExchangeRates
+	GasUsedForDebit uint64
 }
 
 // TxContext provides the EVM with information about a transaction.
