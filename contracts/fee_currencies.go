@@ -15,13 +15,11 @@ import (
 
 const (
 	Thousand = 1000
-	Million  = 1000 * 1000
 
-	maxGasForDebitGasFeesTransactions  uint64 = 1 * Million
-	maxGasForCreditGasFeesTransactions uint64 = 1 * Million
 	// Default intrinsic gas cost of transactions paying for gas in alternative currencies.
 	// Calculated to estimate 1 balance read, 1 debit, and 4 credit transactions.
 	IntrinsicGasForAlternativeFeeCurrency uint64 = 50 * Thousand
+	maxAllowedGasForDebitAndCredit        uint64 = 3 * IntrinsicGasForAlternativeFeeCurrency
 )
 
 var feeCurrencyABI *abi.ABI
@@ -52,11 +50,11 @@ func DebitFees(evm *vm.EVM, feeCurrency *common.Address, address common.Address,
 	}
 
 	leftoverGas, err := evm.CallWithABI(
-		feeCurrencyABI, "debitGasFees", *feeCurrency, maxGasForDebitGasFeesTransactions,
+		feeCurrencyABI, "debitGasFees", *feeCurrency, maxAllowedGasForDebitAndCredit,
 		// debitGasFees(address from, uint256 value) parameters
 		address, amount,
 	)
-	gasUsed := maxGasForDebitGasFeesTransactions - leftoverGas
+	gasUsed := maxAllowedGasForDebitAndCredit - leftoverGas
 	evm.Context.GasUsedForDebit = gasUsed
 	log.Trace("DebitFees called", "feeCurrency", *feeCurrency, "gasUsed", gasUsed)
 	return err
@@ -87,8 +85,9 @@ func CreditFees(
 		tipReceiver = baseFeeReceiver
 	}
 
+	maxAllowedGasForCredit := maxAllowedGasForDebitAndCredit - evm.Context.GasUsedForDebit
 	leftoverGas, err := evm.CallWithABI(
-		feeCurrencyABI, "creditGasFees", *feeCurrency, maxGasForCreditGasFeesTransactions,
+		feeCurrencyABI, "creditGasFees", *feeCurrency, maxAllowedGasForCredit,
 		// function creditGasFees(
 		// 	address from,
 		// 	address feeRecipient,
@@ -102,7 +101,7 @@ func CreditFees(
 		txSender, tipReceiver, common.ZeroAddress, baseFeeReceiver, refund, feeTip, common.Big0, baseFee,
 	)
 
-	gasUsed := maxGasForCreditGasFeesTransactions - leftoverGas
+	gasUsed := maxAllowedGasForCredit - leftoverGas
 	log.Trace("CreditFees called", "feeCurrency", *feeCurrency, "gasUsed", gasUsed)
 
 	gasUsedForDebitAndCredit := evm.Context.GasUsedForDebit + gasUsed
