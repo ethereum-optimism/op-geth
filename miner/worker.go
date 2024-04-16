@@ -1105,7 +1105,11 @@ func (w *worker) generateWork(genParams *generateParams) *newPayloadResult {
 	}
 	defer work.discard()
 	if work.gasPool == nil {
-		work.gasPool = new(core.GasPool).AddGas(work.header.GasLimit)
+		gasLimit := w.config.EffectiveGasCeil
+		if gasLimit == 0 || gasLimit > work.header.GasLimit {
+			gasLimit = work.header.GasLimit
+		}
+		work.gasPool = new(core.GasPool).AddGas(gasLimit)
 	}
 
 	misc.EnsureCreate2Deployer(w.chainConfig, work.header.Time, work.state)

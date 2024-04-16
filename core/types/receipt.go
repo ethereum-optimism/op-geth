@@ -84,11 +84,14 @@ type Receipt struct {
 	BlockNumber      *big.Int    `json:"blockNumber,omitempty"`
 	TransactionIndex uint        `json:"transactionIndex"`
 
-	// OVM legacy: extend receipts with their L1 price (if a rollup tx)
-	L1GasPrice *big.Int   `json:"l1GasPrice,omitempty"`
-	L1GasUsed  *big.Int   `json:"l1GasUsed,omitempty"`
-	L1Fee      *big.Int   `json:"l1Fee,omitempty"`
-	FeeScalar  *big.Float `json:"l1FeeScalar,omitempty"` // always nil after Ecotone hardfork
+	// Optimism: extend receipts with L1 fee info
+	L1GasPrice          *big.Int   `json:"l1GasPrice,omitempty"`          // Present from pre-bedrock. L1 Basefee after Bedrock
+	L1BlobBaseFee       *big.Int   `json:"l1BlobBaseFee,omitempty"`       // Always nil prior to the Ecotone hardfork
+	L1GasUsed           *big.Int   `json:"l1GasUsed,omitempty"`           // Present from pre-bedrock
+	L1Fee               *big.Int   `json:"l1Fee,omitempty"`               // Present from pre-bedrock
+	FeeScalar           *big.Float `json:"l1FeeScalar,omitempty"`         // Present from pre-bedrock to Ecotone. Nil after Ecotone
+	L1BaseFeeScalar     *uint32    `json:"l1BaseFeeScalar,omitempty"`     // Always nil prior to the Ecotone hardfork
+	L1BlobBaseFeeScalar *uint32    `json:"l1BlobBaseFeeScalar,omitempty"` // Always nil prior to the Ecotone hardfork
 }
 
 type receiptMarshaling struct {
@@ -570,7 +573,7 @@ func (rs Receipts) DeriveFields(config *params.ChainConfig, hash common.Hash, nu
 		}
 	}
 	if config.Optimism != nil && len(txs) >= 2 && config.IsBedrock(new(big.Int).SetUint64(number)) { // need at least an info tx and a non-info tx
-		l1BaseFee, costFunc, feeScalar, err := extractL1GasParams(config, time, txs[0].Data())
+		gasParams, err := extractL1GasParams(config, time, txs[0].Data())
 		if err != nil {
 			return err
 		}
@@ -578,9 +581,12 @@ func (rs Receipts) DeriveFields(config *params.ChainConfig, hash common.Hash, nu
 			if txs[i].IsDepositTx() {
 				continue
 			}
-			rs[i].L1GasPrice = l1BaseFee
-			rs[i].L1Fee, rs[i].L1GasUsed = costFunc(txs[i].RollupCostData())
-			rs[i].FeeScalar = feeScalar
+			rs[i].L1GasPrice = gasParams.l1BaseFee
+			rs[i].L1BlobBaseFee = gasParams.l1BlobBaseFee
+			rs[i].L1Fee, rs[i].L1GasUsed = gasParams.costFunc(txs[i].RollupCostData())
+			rs[i].FeeScalar = gasParams.feeScalar
+			rs[i].L1BaseFeeScalar = gasParams.l1BaseFeeScalar
+			rs[i].L1BlobBaseFeeScalar = gasParams.l1BlobBaseFeeScalar
 		}
 	}
 	return nil

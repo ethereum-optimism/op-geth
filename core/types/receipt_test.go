@@ -698,10 +698,77 @@ func clearComputedFieldsOnLogs(logs []*Log) []*Log {
 	return l
 }
 
-func getOptimismTxReceipts(
-	t *testing.T, l1AttributesPayload []byte,
-	l1GasPrice, l1GasUsed *big.Int, feeScalar *big.Float, l1Fee *big.Int) ([]*Transaction, []*Receipt) {
-	//to4 := common.HexToAddress("0x4")
+func getOptimismEcotoneTxReceipts(l1AttributesPayload []byte, l1GasPrice, l1BlobGasPrice, l1GasUsed, l1Fee *big.Int, baseFeeScalar, blobBaseFeeScalar *uint32) ([]*Transaction, []*Receipt) {
+	// Create a few transactions to have receipts for
+	txs := Transactions{
+		NewTx(&DepositTx{
+			To:    nil, // contract creation
+			Value: big.NewInt(6),
+			Gas:   50,
+			Data:  l1AttributesPayload,
+		}),
+		emptyTx,
+	}
+
+	// Create the corresponding receipts
+	receipts := Receipts{
+		&Receipt{
+			Type:              DepositTxType,
+			PostState:         common.Hash{5}.Bytes(),
+			CumulativeGasUsed: 50 + 15,
+			Logs: []*Log{
+				{
+					Address: common.BytesToAddress([]byte{0x33}),
+					// derived fields:
+					BlockNumber: blockNumber.Uint64(),
+					TxHash:      txs[0].Hash(),
+					TxIndex:     0,
+					BlockHash:   blockHash,
+					Index:       0,
+				},
+				{
+					Address: common.BytesToAddress([]byte{0x03, 0x33}),
+					// derived fields:
+					BlockNumber: blockNumber.Uint64(),
+					TxHash:      txs[0].Hash(),
+					TxIndex:     0,
+					BlockHash:   blockHash,
+					Index:       1,
+				},
+			},
+			TxHash:            txs[0].Hash(),
+			ContractAddress:   common.HexToAddress("0x3bb898b4bbe24f68a4e9be46cfe72d1787fd74f4"),
+			GasUsed:           65,
+			EffectiveGasPrice: big.NewInt(0),
+			BlockHash:         blockHash,
+			BlockNumber:       blockNumber,
+			TransactionIndex:  0,
+			DepositNonce:      &depNonce1,
+		},
+		&Receipt{
+			Type:              LegacyTxType,
+			EffectiveGasPrice: big.NewInt(0),
+			PostState:         common.Hash{4}.Bytes(),
+			CumulativeGasUsed: 10,
+			Logs:              []*Log{},
+			// derived fields:
+			TxHash:              txs[1].Hash(),
+			GasUsed:             18446744073709551561,
+			BlockHash:           blockHash,
+			BlockNumber:         blockNumber,
+			TransactionIndex:    1,
+			L1GasPrice:          l1GasPrice,
+			L1BlobBaseFee:       l1BlobGasPrice,
+			L1GasUsed:           l1GasUsed,
+			L1Fee:               l1Fee,
+			L1BaseFeeScalar:     baseFeeScalar,
+			L1BlobBaseFeeScalar: blobBaseFeeScalar,
+		},
+	}
+	return txs, receipts
+}
+
+func getOptimismTxReceipts(l1AttributesPayload []byte, l1GasPrice, l1GasUsed, l1Fee *big.Int, feeScalar *big.Float) ([]*Transaction, []*Receipt) {
 	// Create a few transactions to have receipts for
 	txs := Transactions{
 		NewTx(&DepositTx{
@@ -777,7 +844,7 @@ func TestDeriveOptimismBedrockTxReceipts(t *testing.T) {
 	l1GasUsed := bedrockGas
 	feeScalar := big.NewFloat(float64(scalar.Uint64() / 1e6))
 	l1Fee := bedrockFee
-	txs, receipts := getOptimismTxReceipts(t, payload, l1GasPrice, l1GasUsed, feeScalar, l1Fee)
+	txs, receipts := getOptimismTxReceipts(payload, l1GasPrice, l1GasUsed, l1Fee, feeScalar)
 
 	// Re-derive receipts.
 	baseFee := big.NewInt(1000)
@@ -801,10 +868,9 @@ func TestDeriveOptimismEcotoneTxReceipts(t *testing.T) {
 	// Ecotone style l1 attributes with baseFeeScalar=2, blobBaseFeeScalar=3, baseFee=1000*1e6, blobBaseFee=10*1e6
 	payload := common.Hex2Bytes("440a5e20000000020000000300000000000004d200000000000004d200000000000004d2000000000000000000000000000000000000000000000000000000003b9aca00000000000000000000000000000000000000000000000000000000000098968000000000000000000000000000000000000000000000000000000000000004d200000000000000000000000000000000000000000000000000000000000004d2")
 	// the parameters we use below are defined in rollup_test.go
-	l1GasPrice := baseFee
-	l1GasUsed := ecotoneGas
-	l1Fee := ecotoneFee
-	txs, receipts := getOptimismTxReceipts(t, payload, l1GasPrice, l1GasUsed, nil /*feeScalar*/, l1Fee)
+	baseFeeScalarUint32 := uint32(baseFeeScalar.Uint64())
+	blobBaseFeeScalarUint32 := uint32(blobBaseFeeScalar.Uint64())
+	txs, receipts := getOptimismEcotoneTxReceipts(payload, baseFee, blobBaseFee, ecotoneGas, ecotoneFee, &baseFeeScalarUint32, &blobBaseFeeScalarUint32)
 
 	// Re-derive receipts.
 	baseFee := big.NewInt(1000)
