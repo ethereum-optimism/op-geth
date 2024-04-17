@@ -47,6 +47,7 @@ import (
 	"github.com/ethereum/go-ethereum/eth/tracers"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
+	"github.com/ethereum/go-ethereum/internal/celoapi"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/internal/shutdowncheck"
 	"github.com/ethereum/go-ethereum/log"
@@ -394,6 +395,13 @@ func (s *Ethereum) APIs() []rpc.API {
 		}, {
 			Namespace: "net",
 			Service:   s.netRPCService,
+		},
+		// CELO specific API backend.
+		// For methods in the backend that are already defined (match by name)
+		// on the eth namespace, this will overwrite the original procedures.
+		{
+			Namespace: "eth",
+			Service:   celoapi.NewCeloAPI(s, s.APIBackend),
 		},
 	}...)
 }

@@ -142,6 +142,45 @@ describe("viem send tx", () => {
 		assert.equal(receipt.status, "success", "receipt status 'failure'");
 	}).timeout(10_000);
 
+	it("test gas price difference for fee currency", async () => {
+		const request = await walletClient.prepareTransactionRequest({
+			account,
+			to: "0x00000000000000000000000000000000DeaDBeef",
+			value: 2,
+			gas: 90000,
+			feeCurrency: process.env.FEE_CURRENCY,
+		});
+
+		const gasPriceNative = await publicClient.getGasPrice({});
+		var maxPriorityFeePerGasNative =
+			await publicClient.estimateMaxPriorityFeePerGas({});
+		const block = await publicClient.getBlock({});
+		assert.equal(
+			BigInt(block.baseFeePerGas) + maxPriorityFeePerGasNative,
+			gasPriceNative,
+		);
+
+		// viem's getGasPrice does not expose additional request parameters,
+		// but Celo's override 'chain.fees.estimateFeesPerGas' action does.
+		// this will call the eth_gasPrice and eth_maxPriorityFeePerGas methods
+		// with the additional feeCurrency parameter internally
+		var fees = await publicClient.estimateFeesPerGas({
+			type: "eip1559",
+			request: {
+				feeCurrency: process.env.FEE_CURRENCY,
+			},
+		});
+		// first check that the fee currency denominated gas price
+		// converts properly to the native gas price
+		assert.equal(fees.maxFeePerGas, gasPriceNative * 2n);
+		assert.equal(fees.maxPriorityFeePerGas, maxPriorityFeePerGasNative * 2n);
+
+		// check that the prepared transaction request uses the
+		// converted gas price internally
+		assert.equal(request.maxFeePerGas, fees.maxFeePerGas);
+		assert.equal(request.maxPriorityFeePerGas, fees.maxPriorityFeePerGas);
+	}).timeout(10_000);
+
 	it("send overlapping nonce tx in different currencies", async () => {
 		const priceBump = 1.1;
 		const rate = 2;
