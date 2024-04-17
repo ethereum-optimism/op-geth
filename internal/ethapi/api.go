@@ -1945,7 +1945,7 @@ func marshalReceipt(receipt *types.Receipt, blockHash common.Hash, blockNumber u
 		"effectiveGasPrice": (*hexutil.Big)(receipt.EffectiveGasPrice),
 	}
 
-	if chainConfig.Optimism != nil && !tx.IsDepositTx() {
+	if chainConfig.Optimism != nil && !tx.IsDepositTx() && chainConfig.IsCel2Block(blockNumber) {
 		fields["l1GasPrice"] = (*hexutil.Big)(receipt.L1GasPrice)
 		fields["l1GasUsed"] = (*hexutil.Big)(receipt.L1GasUsed)
 		fields["l1Fee"] = (*hexutil.Big)(receipt.L1Fee)

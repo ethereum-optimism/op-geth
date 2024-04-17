@@ -723,6 +723,10 @@ func (c *ChainConfig) IsCel2(time uint64) bool {
 	return isTimestampForked(c.Cel2Time, time)
 }
 
+func (c *ChainConfig) IsCel2Block(blockNumber uint64) bool {
+	return false
+}
+
 // IsOptimism returns whether the node is an optimism node or not.
 func (c *ChainConfig) IsOptimism() bool {
 	return c.Optimism != nil
