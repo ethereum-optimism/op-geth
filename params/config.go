@@ -1043,8 +1043,6 @@ func (c *ChainConfig) Rules(num *big.Int, isMerge bool, timestamp uint64) Rules 
 	if chainID == nil {
 		chainID = new(big.Int)
 	}
-	// disallow setting Merge out of order
-	isMerge = isMerge && c.IsLondon(num)
 	return Rules{
 		ChainID:          new(big.Int).Set(chainID),
 		IsHomestead:      c.IsHomestead(num),
@@ -1058,13 +1056,13 @@ func (c *ChainConfig) Rules(num *big.Int, isMerge bool, timestamp uint64) Rules 
 		IsBerlin:         c.IsBerlin(num),
 		IsLondon:         c.IsLondon(num),
 		IsMerge:          isMerge,
-		IsShanghai:       isMerge && c.IsShanghai(num, timestamp),
-		IsCancun:         isMerge && c.IsCancun(num, timestamp),
-		IsPrague:         isMerge && c.IsPrague(num, timestamp),
-		IsVerkle:         isMerge && c.IsVerkle(num, timestamp),
+		IsShanghai:       c.IsShanghai(num, timestamp),
+		IsCancun:         c.IsCancun(num, timestamp),
+		IsPrague:         c.IsPrague(num, timestamp),
+		IsVerkle:         c.IsVerkle(num, timestamp),
 		// Optimism
-		IsOptimismBedrock:  isMerge && c.IsOptimismBedrock(num),
-		IsOptimismRegolith: isMerge && c.IsOptimismRegolith(timestamp),
-		IsOptimismCanyon:   isMerge && c.IsOptimismCanyon(timestamp),
+		IsOptimismBedrock:  c.IsOptimismBedrock(num),
+		IsOptimismRegolith: c.IsOptimismRegolith(timestamp),
+		IsOptimismCanyon:   c.IsOptimismCanyon(timestamp),
 	}
 }
