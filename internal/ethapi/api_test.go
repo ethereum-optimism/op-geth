@@ -603,7 +603,7 @@ func newTestBackend(t *testing.T, n int, gspec *core.Genesis, engine consensus.E
 		}
 	)
 	accman, acc := newTestAccountManager(t)
-	gspec.Alloc[acc.Address] = core.GenesisAccount{Balance: big.NewInt(params.Ether)}
+	gspec.Alloc[acc.Address] = types.Account{Balance: big.NewInt(params.Ether)}
 	// Generate blocks for testing
 	db, blocks, _ := core.GenerateChainWithGenesis(gspec, engine, n, generator)
 	txlookupLimit := uint64(0)
@@ -795,7 +795,7 @@ func TestEstimateGas(t *testing.T) {
 		accounts = newAccounts(2)
 		genesis  = &core.Genesis{
 			Config: params.MergedTestChainConfig,
-			Alloc: core.GenesisAlloc{
+			Alloc: types.GenesisAlloc{
 				accounts[0].addr: {Balance: big.NewInt(params.Ether)},
 				accounts[1].addr: {Balance: big.NewInt(params.Ether)},
 			},
@@ -952,7 +952,7 @@ func TestCall(t *testing.T) {
 		accounts = newAccounts(3)
 		genesis  = &core.Genesis{
 			Config: params.MergedTestChainConfig,
-			Alloc: core.GenesisAlloc{
+			Alloc: types.GenesisAlloc{
 				accounts[0].addr: {Balance: big.NewInt(params.Ether)},
 				accounts[1].addr: {Balance: big.NewInt(params.Ether)},
 				accounts[2].addr: {Balance: big.NewInt(params.Ether)},
@@ -1149,7 +1149,7 @@ func TestSignTransaction(t *testing.T) {
 		to      = crypto.PubkeyToAddress(key.PublicKey)
 		genesis = &core.Genesis{
 			Config: params.MergedTestChainConfig,
-			Alloc:  core.GenesisAlloc{},
+			Alloc:  types.GenesisAlloc{},
 		}
 	)
 	b := newTestBackend(t, 1, genesis, beacon.New(ethash.NewFaker()), func(i int, b *core.BlockGen) {
@@ -1187,7 +1187,7 @@ func TestSignBlobTransaction(t *testing.T) {
 		to      = crypto.PubkeyToAddress(key.PublicKey)
 		genesis = &core.Genesis{
 			Config: params.MergedTestChainConfig,
-			Alloc:  core.GenesisAlloc{},
+			Alloc:  types.GenesisAlloc{},
 		}
 	)
 	b := newTestBackend(t, 1, genesis, beacon.New(ethash.NewFaker()), func(i int, b *core.BlockGen) {
@@ -1221,7 +1221,7 @@ func TestSendBlobTransaction(t *testing.T) {
 		to      = crypto.PubkeyToAddress(key.PublicKey)
 		genesis = &core.Genesis{
 			Config: params.MergedTestChainConfig,
-			Alloc:  core.GenesisAlloc{},
+			Alloc:  types.GenesisAlloc{},
 		}
 	)
 	b := newTestBackend(t, 1, genesis, beacon.New(ethash.NewFaker()), func(i int, b *core.BlockGen) {
@@ -1254,7 +1254,7 @@ func TestFillBlobTransaction(t *testing.T) {
 		to      = crypto.PubkeyToAddress(key.PublicKey)
 		genesis = &core.Genesis{
 			Config: params.MergedTestChainConfig,
-			Alloc:  core.GenesisAlloc{},
+			Alloc:  types.GenesisAlloc{},
 		}
 		emptyBlob                      = kzg4844.Blob{}
 		emptyBlobCommit, _             = kzg4844.BlobToCommitment(emptyBlob)
@@ -1707,7 +1707,7 @@ func TestRPCGetBlockOrHeader(t *testing.T) {
 		acc2Addr   = crypto.PubkeyToAddress(acc2Key.PublicKey)
 		genesis    = &core.Genesis{
 			Config: params.TestChainConfig,
-			Alloc: core.GenesisAlloc{
+			Alloc: types.GenesisAlloc{
 				acc1Addr: {Balance: big.NewInt(params.Ether)},
 				acc2Addr: {Balance: big.NewInt(params.Ether)},
 			},
@@ -1962,7 +1962,7 @@ func setupReceiptBackend(t *testing.T, genBlocks int) (*testBackend, []common.Ha
 			Config:        &config,
 			ExcessBlobGas: new(uint64),
 			BlobGasUsed:   new(uint64),
-			Alloc: core.GenesisAlloc{
+			Alloc: types.GenesisAlloc{
 				acc1Addr: {Balance: big.NewInt(params.Ether)},
 				acc2Addr: {Balance: big.NewInt(params.Ether)},
 				// // SPDX-License-Identifier: GPL-3.0
@@ -1987,6 +1987,7 @@ func setupReceiptBackend(t *testing.T, genBlocks int) (*testBackend, []common.Ha
 			tx  *types.Transaction
 			err error
 		)
+		b.SetPoS()
 		switch i {
 		case 0:
 			// transfer 1000wei
@@ -2035,7 +2036,6 @@ func setupReceiptBackend(t *testing.T, genBlocks int) (*testBackend, []common.Ha
 			b.AddTx(tx)
 			txHashes[i] = tx.Hash()
 		}
-		b.SetPoS()
 	})
 	return backend, txHashes
 }
