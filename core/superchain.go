@@ -27,19 +27,21 @@ func LoadOPStackGenesis(chainID uint64) (*Genesis, error) {
 	}
 
 	genesis := &Genesis{
-		Config:     cfg,
-		Nonce:      gen.Nonce,
-		Timestamp:  gen.Timestamp,
-		ExtraData:  gen.ExtraData,
-		GasLimit:   gen.GasLimit,
-		Difficulty: (*big.Int)(gen.Difficulty),
-		Mixhash:    common.Hash(gen.Mixhash),
-		Coinbase:   common.Address(gen.Coinbase),
-		Alloc:      make(GenesisAlloc),
-		Number:     gen.Number,
-		GasUsed:    gen.GasUsed,
-		ParentHash: common.Hash(gen.ParentHash),
-		BaseFee:    (*big.Int)(gen.BaseFee),
+		Config:        cfg,
+		Nonce:         gen.Nonce,
+		Timestamp:     gen.Timestamp,
+		ExtraData:     gen.ExtraData,
+		GasLimit:      gen.GasLimit,
+		Difficulty:    (*big.Int)(gen.Difficulty),
+		Mixhash:       common.Hash(gen.Mixhash),
+		Coinbase:      common.Address(gen.Coinbase),
+		Alloc:         make(GenesisAlloc),
+		Number:        gen.Number,
+		GasUsed:       gen.GasUsed,
+		ParentHash:    common.Hash(gen.ParentHash),
+		BaseFee:       (*big.Int)(gen.BaseFee),
+		ExcessBlobGas: gen.ExcessBlobGas,
+		BlobGasUsed:   gen.BlobGasUsed,
 	}
 
 	for addr, acc := range gen.Alloc {
