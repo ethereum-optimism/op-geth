@@ -187,12 +187,7 @@ func makeCallVariantGasCallEIP2929(oldCalculator gasFunc) gasFunc {
 		// outside of this function, as part of the dynamic gas, and that will make it
 		// also become correctly reported to tracers.
 		contract.Gas += coldCost
-
-		var overflow bool
-		if gas, overflow = math.SafeAdd(gas, coldCost); overflow {
-			return 0, ErrGasUintOverflow
-		}
-		return gas, nil
+		return gas + coldCost, nil
 	}
 }
 
