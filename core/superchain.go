@@ -95,7 +95,7 @@ func LoadOPStackGenesis(chainID uint64) (*Genesis, error) {
 		}
 	}
 	if expectedHash != genesisBlockHash {
-		return nil, fmt.Errorf("produced genesis with hash %s but expected %s", genesisBlockHash, expectedHash)
+		return nil, fmt.Errorf("chainID=%d: produced genesis with hash %s but expected %s", chainID, genesisBlockHash, expectedHash)
 	}
 	return genesis, nil
 }
