@@ -74,6 +74,9 @@ const (
 
 	// staleThreshold is the maximum depth of the acceptable stale block.
 	staleThreshold = 7
+
+	// hard coded block limit to avoid breaking op stack consensus max block sizes.
+	maxBlockSize = 8 * 1024 * 1024
 )
 
 var (
@@ -89,6 +92,7 @@ type environment struct {
 	signer   types.Signer
 	state    *state.StateDB // apply state changes here
 	tcount   int            // tx count in cycle
+	tsize    uint64         // tx size
 	gasPool  *core.GasPool  // available gas used to pack transactions
 	coinbase common.Address
 
@@ -105,6 +109,7 @@ func (env *environment) copy() *environment {
 		signer:   env.signer,
 		state:    env.state.Copy(),
 		tcount:   env.tcount,
+		tsize:    env.tsize,
 		coinbase: env.coinbase,
 		header:   types.CopyHeader(env.header),
 		receipts: copyReceipts(env.receipts),
@@ -761,6 +766,7 @@ func (w *worker) makeEnv(parent *types.Header, header *types.Header, coinbase co
 		state:    state,
 		coinbase: coinbase,
 		header:   header,
+		tsize:    maxBlockSize,
 	}
 	// Keep track of transactions which return errors so they can be removed
 	env.tcount = 0
@@ -830,6 +836,12 @@ func (w *worker) applyTransaction(env *environment, tx *types.Transaction) (*typ
 	if err != nil {
 		env.state.RevertToSnapshot(snap)
 		env.gasPool.SetGas(gp)
+	} else {
+		// txs should be skipped during commitTransactions but just in case
+		if tx.Size() > env.tsize {
+			return receipt, errors.New("max op block limit reached")
+		}
+		env.tsize -= tx.Size()
 	}
 	return receipt, err
 }
@@ -873,6 +885,13 @@ func (w *worker) commitTransactions(env *environment, txs *transactionsByPriceAn
 		tx := ltx.Resolve()
 		if tx == nil {
 			log.Trace("Ignoring evicted transaction", "hash", ltx.Hash)
+			txs.Pop()
+			continue
+		}
+
+		// Prevent the block from getting too large for the op node in the gas limit is too high.
+		if tx.Size() > env.tsize {
+			log.Trace("Not enough space left for transaction", "hash", ltx.Hash, "left", env.tsize, "needed", tx.Size())
 			txs.Pop()
 			continue
 		}
