@@ -92,7 +92,7 @@ type environment struct {
 	signer   types.Signer
 	state    *state.StateDB // apply state changes here
 	tcount   int            // tx count in cycle
-	tsize    uint64         // tx size
+	tsize    uint64         // total block txs size
 	gasPool  *core.GasPool  // available gas used to pack transactions
 	coinbase common.Address
 
@@ -889,7 +889,7 @@ func (w *worker) commitTransactions(env *environment, txs *transactionsByPriceAn
 			continue
 		}
 
-		// Prevent the block from getting too large for the op node in the gas limit is too high.
+		// Prevent the block from getting too large for the op node in case the gas limit is too high.
 		if tx.Size() > env.tsize {
 			log.Trace("Not enough space left for transaction", "hash", ltx.Hash, "left", env.tsize, "needed", tx.Size())
 			txs.Pop()
