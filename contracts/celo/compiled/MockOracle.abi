@@ -1,0 +1,44 @@
+[
+  {
+    "type": "function",
+    "name": "getExchangeRateFor",
+    "inputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "setExchangeRate",
+    "inputs": [
+      {
+        "name": "_numerator",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "_denominator",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  }
+]
