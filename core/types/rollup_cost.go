@@ -75,9 +75,10 @@ var (
 	fjordDivisor   = big.NewInt(1_000_000_000_000)
 	sixteen        = big.NewInt(16)
 
-	l1CostIntercept  = big.NewInt(-27_321_890)
-	l1CostFastlzCoef = big.NewInt(1_031_462)
-	l1CostTxSizeCoef = big.NewInt(-88_664)
+	l1CostIntercept  = big.NewInt(-42_585_600)
+	l1CostFastlzCoef = big.NewInt(836_500)
+
+	minTransactionSize = big.NewInt(71 * 1e6)
 
 	emptyScalars = make([]byte, 8)
 )
@@ -152,7 +153,6 @@ func NewL1CostFunc(config *params.ChainConfig, statedb StateGetter) L1CostFunc {
 				l1BlobBaseFeeScalar,
 				l1CostIntercept,
 				l1CostFastlzCoef,
-				l1CostTxSizeCoef,
 			)
 		} else if config.IsOptimismEcotone(blockTime) {
 			l1BaseFeeScalar, l1BlobBaseFeeScalar := extractEcotoneFeeParams(l1FeeScalars)
@@ -336,34 +336,31 @@ func l1CostHelper(gasWithOverhead, l1BaseFee, scalar *big.Int) *big.Int {
 
 // newL1CostFuncFjord returns an l1 cost function suitable for the Ecotone upgrade except for the
 // very first block of the upgrade.
-func newL1CostFuncFjord(l1BaseFee, l1BlobBaseFee, l1BaseFeeScalar, l1BlobBaseFeeScalar, l1CostIntercept, l1CostFastlzCoef, l1CostTxSizeCoef *big.Int) l1CostFunc {
+func newL1CostFuncFjord(l1BaseFee, l1BlobBaseFee, l1BaseFeeScalar, l1BlobBaseFeeScalar, l1CostIntercept, l1CostFastlzCoef *big.Int) l1CostFunc {
 	return func(costData RollupCostData) (fee, calldataGasUsed *big.Int) {
 		calldataGasUsed = bedrockCalldataGasUsed(costData)
 		// Fjord L1 cost function:
 		//
-		//   l1FeeScaled = l1BaseFeeScalar*l1BaseFee*16 + l1BlobFeeScalar*l1BlobBaseFee
-		//   l1CostSigned = (intercept + fastlzCoef*fastlzSize + txSizeCoef*txSize) * l1FeeScaled / 1e12
-		//   l1Cost = uint256(max(0, l1CostSigned))
+		//l1FeeScaled = baseFeeScalar*l1BaseFee*16 + blobFeeScalar*l1BlobBaseFee
+		//estimatedSize = intercept + fastlzCoef*fastlzSize
+		//l1Cost = max(minTransactionSize, estimatedSize) * l1FeeScaled / 1e12
 
 		calldataCostPerByte := new(big.Int).Mul(l1BaseFee, sixteen)
 		calldataCostPerByte.Mul(calldataCostPerByte, l1BaseFeeScalar)
 		blobCostPerByte := new(big.Int).Mul(l1BlobBaseFee, l1BlobBaseFeeScalar)
 		l1FeeScaled := new(big.Int).Add(calldataCostPerByte, blobCostPerByte)
 
-		fastlzTerm := new(big.Int).SetUint64(costData.fastlzSize)
-		fastlzTerm.Mul(fastlzTerm, l1CostFastlzCoef)
-		txSizeTerm := new(big.Int).SetUint64(costData.zeroes + costData.ones)
-		txSizeTerm.Mul(txSizeTerm, l1CostTxSizeCoef)
+		fastlzSize := new(big.Int).SetUint64(costData.fastlzSize)
+		fastlzSize.Mul(fastlzSize, l1CostFastlzCoef)
+		fastlzSize.Add(fastlzSize, l1CostIntercept)
 
-		l1CostSigned := new(big.Int).Set(l1CostIntercept)
-		l1CostSigned.Add(l1CostSigned, fastlzTerm)
-		l1CostSigned.Add(l1CostSigned, txSizeTerm)
+		if fastlzSize.Cmp(minTransactionSize) < 0 {
+			fastlzSize.Set(minTransactionSize)
+		}
+
+		l1CostSigned := new(big.Int).Set(fastlzSize)
 		l1CostSigned.Mul(l1CostSigned, l1FeeScaled)
 		l1CostSigned.Div(l1CostSigned, fjordDivisor)
-
-		if l1CostSigned.Sign() < 0 {
-			l1CostSigned.SetInt64(0)
-		}
 
 		return l1CostSigned, calldataGasUsed
 	}
