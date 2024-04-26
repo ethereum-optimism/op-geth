@@ -27,7 +27,8 @@ var (
 	bedrockFee  = big.NewInt(11326000000000)
 	regolithFee = big.NewInt(3710000000000)
 	ecotoneFee  = big.NewInt(960900) // (480/16)*(2*16*1000 + 3*10) == 960900
-	fjordFee    = big.NewInt(63852)  // (-27321890 + 1031462*31 - 88664*30) * (2*16*1000 + 3*10) / 1e6 == 63852
+	// the emptyTx is out of bounds for the linear regression so it uses the minimum size
+	fjordFee = big.NewInt(2274130) // 71_000_000 * (2 * 1000 * 1e6 * 16 + 3 * 10 * 1e6) / 1e12
 
 	bedrockGas  = big.NewInt(1618)
 	regolithGas = big.NewInt(530) // 530  = 1618 - (16*68)
@@ -66,7 +67,6 @@ func TestFjordL1CostFunc(t *testing.T) {
 		blobBaseFeeScalar,
 		l1CostIntercept,
 		l1CostFastlzCoef,
-		l1CostTxSizeCoef,
 	)
 
 	c0, g0 := costFunc(emptyTx.RollupCostData())
