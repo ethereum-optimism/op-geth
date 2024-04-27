@@ -31,6 +31,11 @@ func CalcMapAddr(slot common.Hash, key common.Hash) common.Hash {
 	return crypto.Keccak256Hash(append(key.Bytes(), slot.Bytes()...))
 }
 
+// Increase a hash value by `i`, used for addresses in 32byte fields
+func incHash(addr common.Hash, i int64) common.Hash {
+	return common.BigToHash(new(big.Int).Add(addr.Big(), big.NewInt(i)))
+}
+
 var (
 	DevPrivateKey, _ = crypto.HexToECDSA("2771aff413cac48d9f8c114fabddd9195a2129f3c2c436caa07e27bb7f58ead5")
 	DevAddr          = common.BytesToAddress(DevAddr32.Bytes())
@@ -41,6 +46,9 @@ var (
 	DevBalance, _       = new(big.Int).SetString("100000000000000000000", 10)
 	rateNumerator, _    = new(big.Int).SetString("2000000000000000000000000", 10)
 	rateNumerator2, _   = new(big.Int).SetString("500000000000000000000000", 10)
+	rateDenominator, _  = new(big.Int).SetString("1000000000000000000000000", 10)
+	mockOracleAddr      = common.HexToAddress("0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb0001")
+	mockOracleAddr2     = common.HexToAddress("0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb0002")
 	FaucetAddr          = common.HexToAddress("0xfcf982bb4015852e706100b14e21f947a5bb718e")
 )
 
@@ -76,6 +84,14 @@ func celoGenesisAccounts(fundedAddr common.Address) GenesisAlloc {
 	if err != nil {
 		panic(err)
 	}
+	feeCurrencyDirectoryBytecode, err := DecodeHex(celo.FeeCurrencyDirectoryBytecodeRaw)
+	if err != nil {
+		panic(err)
+	}
+	mockOracleBytecode, err := DecodeHex(celo.MockOracleBytecodeRaw)
+	if err != nil {
+		panic(err)
+	}
 
 	var devBalance32, rateNumerator32, rateNumerator2_32 common.Hash
 	DevBalance.FillBytes(devBalance32[:])
@@ -83,12 +99,13 @@ func celoGenesisAccounts(fundedAddr common.Address) GenesisAlloc {
 	rateNumerator2.FillBytes(rateNumerator2_32[:])
 
 	arrayAtSlot1 := crypto.Keccak256Hash(common.HexToHash("0x1").Bytes())
+	arrayAtSlot2 := crypto.Keccak256Hash(common.HexToHash("0x2").Bytes())
 
 	faucetBalance, ok := new(big.Int).SetString("500000000000000000000000000", 10) // 500M
 	if !ok {
 		panic("Couldn not set faucet balance!")
 	}
-	return map[common.Address]GenesisAccount{
+	genesisAccounts := map[common.Address]GenesisAccount{
 		contracts.RegistryAddress: { // Registry Proxy
 			Code: proxyBytecode,
 			Storage: map[common.Hash]common.Hash{
@@ -118,10 +135,10 @@ func celoGenesisAccounts(fundedAddr common.Address) GenesisAlloc {
 			Code:    feeCurrencyWhitelistBytecode,
 			Balance: big.NewInt(0),
 			Storage: map[common.Hash]common.Hash{
-				common.HexToHash("0x0"): DevAddr32,                                      // `_owner` slot
-				common.HexToHash("0x1"): common.HexToHash("0x2"),                        // array length 2
-				arrayAtSlot1:            common.BytesToHash(DevFeeCurrencyAddr.Bytes()), // FeeCurrency
-				common.BigToHash(new(big.Int).Add(arrayAtSlot1.Big(), big.NewInt(1))): common.BytesToHash(DevFeeCurrencyAddr2.Bytes()), // FeeCurrency2
+				common.HexToHash("0x0"):  DevAddr32,                                       // `_owner` slot
+				common.HexToHash("0x1"):  common.HexToHash("0x2"),                         // array length 2
+				arrayAtSlot1:             common.BytesToHash(DevFeeCurrencyAddr.Bytes()),  // FeeCurrency
+				incHash(arrayAtSlot1, 1): common.BytesToHash(DevFeeCurrencyAddr2.Bytes()), // FeeCurrency2
 			},
 		},
 		contracts.SortedOraclesAddress: {
@@ -150,6 +167,22 @@ func celoGenesisAccounts(fundedAddr common.Address) GenesisAlloc {
 				common.HexToHash("0x2"): devBalance32, // _totalSupply
 			},
 		},
+		mockOracleAddr: {
+			Code:    mockOracleBytecode,
+			Balance: big.NewInt(0),
+			Storage: map[common.Hash]common.Hash{
+				common.HexToHash("0x0"): common.BigToHash(rateNumerator),
+				common.HexToHash("0x1"): common.BigToHash(rateDenominator),
+			},
+		},
+		mockOracleAddr2: {
+			Code:    mockOracleBytecode,
+			Balance: big.NewInt(0),
+			Storage: map[common.Hash]common.Hash{
+				common.HexToHash("0x0"): common.BigToHash(rateNumerator2),
+				common.HexToHash("0x1"): common.BigToHash(rateDenominator),
+			},
+		},
 		DevAddr: {
 			Balance: DevBalance,
 		},
@@ -157,4 +190,33 @@ func celoGenesisAccounts(fundedAddr common.Address) GenesisAlloc {
 			Balance: faucetBalance,
 		},
 	}
+
+	// FeeCurrencyDirectory
+	devAddrOffset1 := common.Hash{}
+	copy(devAddrOffset1[11:], DevAddr.Bytes())
+	feeCurrencyDirectoryStorage := map[common.Hash]common.Hash{
+		// owner, slot 0 offset 1
+		common.HexToHash("0x0"): devAddrOffset1,
+		// add entries to currencyList at slot 2
+		common.HexToHash("0x2"):  common.HexToHash("0x2"),                         // array length 2
+		arrayAtSlot2:             common.BytesToHash(DevFeeCurrencyAddr.Bytes()),  // FeeCurrency
+		incHash(arrayAtSlot2, 1): common.BytesToHash(DevFeeCurrencyAddr2.Bytes()), // FeeCurrency2
+	}
+	// add entries to currencyConfig mapping
+	addFeeCurrencyToStorage(DevFeeCurrencyAddr, mockOracleAddr, feeCurrencyDirectoryStorage)
+	addFeeCurrencyToStorage(DevFeeCurrencyAddr2, mockOracleAddr2, feeCurrencyDirectoryStorage)
+	genesisAccounts[contracts.FeeCurrencyDirectoryAddress] = GenesisAccount{
+		Code:    feeCurrencyDirectoryBytecode,
+		Balance: big.NewInt(0),
+		Storage: feeCurrencyDirectoryStorage,
+	}
+
+	return genesisAccounts
+}
+
+func addFeeCurrencyToStorage(feeCurrencyAddr common.Address, oracleAddr common.Address, storage map[common.Hash]common.Hash) {
+	structStart := CalcMapAddr(common.HexToHash("0x1"), common.BytesToHash(feeCurrencyAddr.Bytes()))
+	storage[structStart] = common.HexToHash("0x1")                            // currencyIdentifier, dummy value
+	storage[incHash(structStart, 1)] = common.BytesToHash(oracleAddr.Bytes()) // oracle
+	storage[incHash(structStart, 2)] = common.BigToHash(big.NewInt(50000))    // intrinsicGas
 }

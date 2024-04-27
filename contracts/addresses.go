@@ -10,4 +10,5 @@ var (
 	MentoFeeHandlerSellerAddress   = common.HexToAddress("0x4efa274b7e33476c961065000d58ee09f7921a74")
 	UniswapFeeHandlerSellerAddress = common.HexToAddress("0xd3aee28548dbb65df03981f0dc0713bfcbd10a97")
 	SortedOraclesAddress           = common.HexToAddress("0xefb84935239dacdecf7c5ba76d8de40b077b7b33")
+	FeeCurrencyDirectoryAddress    = common.HexToAddress("0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb") // tmp address, real one no known yet
 )
