@@ -65,8 +65,6 @@ func TestFjordL1CostFunc(t *testing.T) {
 		blobBaseFee,
 		baseFeeScalar,
 		blobBaseFeeScalar,
-		l1CostIntercept,
-		l1CostFastlzCoef,
 	)
 
 	c0, g0 := costFunc(emptyTx.RollupCostData())
@@ -137,8 +135,36 @@ func TestExtractEcotoneGasParams(t *testing.T) {
 
 	// make sure wrong amont of data results in error
 	data = append(data, 0x00) // tack on garbage byte
-	_, err = extractL1GasParamsEcotone(data)
+	_, err = extractL1GasParamsPostEcotone(data)
 	require.Error(t, err)
+}
+
+func TestExtractFjordGasParams(t *testing.T) {
+	zeroTime := uint64(0)
+	// create a config where fjord is active
+	config := &params.ChainConfig{
+		Optimism:     params.OptimismTestConfig.Optimism,
+		RegolithTime: &zeroTime,
+		EcotoneTime:  &zeroTime,
+		FjordTime:    &zeroTime,
+	}
+	require.True(t, config.IsOptimismFjord(zeroTime))
+
+	data := getEcotoneL1Attributes(
+		baseFee,
+		blobBaseFee,
+		baseFeeScalar,
+		blobBaseFeeScalar,
+	)
+
+	gasparams, err := extractL1GasParams(config, zeroTime, data)
+	require.NoError(t, err)
+	costFunc := gasparams.costFunc
+
+	c, g := costFunc(emptyTx.RollupCostData())
+
+	require.Equal(t, fjordGas, g)
+	require.Equal(t, fjordFee, c)
 }
 
 // make sure the first block of the ecotone upgrade is properly detected, and invokes the bedrock
