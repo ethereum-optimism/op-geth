@@ -151,8 +151,6 @@ func NewL1CostFunc(config *params.ChainConfig, statedb StateGetter) L1CostFunc {
 				l1BlobBaseFee,
 				l1BaseFeeScalar,
 				l1BlobBaseFeeScalar,
-				l1CostIntercept,
-				l1CostFastlzCoef,
 			)
 		} else if config.IsOptimismEcotone(blockTime) {
 			l1BaseFeeScalar, l1BlobBaseFeeScalar := extractEcotoneFeeParams(l1FeeScalars)
@@ -263,7 +261,28 @@ func extractL1GasParams(config *params.ChainConfig, time uint64, data []byte) (g
 	// If so, fall through to the pre-ecotone format
 	// Both Ecotone and Fjord use the same function selector
 	if config.IsEcotone(time) && len(data) >= 4 && !bytes.Equal(data[0:4], BedrockL1AttributesSelector) {
-		return extractL1GasParamsEcotone(data)
+		p, err := extractL1GasParamsPostEcotone(data)
+		if err != nil {
+			return gasParams{}, err
+		}
+
+		if config.IsFjord(time) {
+			p.costFunc = newL1CostFuncFjord(
+				p.l1BaseFee,
+				p.l1BlobBaseFee,
+				big.NewInt(int64(*p.l1BaseFeeScalar)),
+				big.NewInt(int64(*p.l1BlobBaseFeeScalar)),
+			)
+		} else {
+			p.costFunc = newL1CostFuncEcotone(
+				p.l1BaseFee,
+				p.l1BlobBaseFee,
+				big.NewInt(int64(*p.l1BaseFeeScalar)),
+				big.NewInt(int64(*p.l1BlobBaseFeeScalar)),
+			)
+		}
+
+		return p, nil
 	}
 	return extractL1GasParamsPreEcotone(config, time, data)
 }
@@ -286,9 +305,9 @@ func extractL1GasParamsPreEcotone(config *params.ChainConfig, time uint64, data 
 	}, nil
 }
 
-// extractL1GasParamsEcotone extracts the gas parameters necessary to compute gas from L1 attribute
+// extractL1GasParamsPostEcotone extracts the gas parameters necessary to compute gas from L1 attribute
 // info calldata after the Ecotone upgrade, but not for the very first Ecotone block.
-func extractL1GasParamsEcotone(data []byte) (gasParams, error) {
+func extractL1GasParamsPostEcotone(data []byte) (gasParams, error) {
 	if len(data) != 164 {
 		return gasParams{}, fmt.Errorf("expected 164 L1 info bytes, got %d", len(data))
 	}
@@ -307,14 +326,10 @@ func extractL1GasParamsEcotone(data []byte) (gasParams, error) {
 	l1BaseFee := new(big.Int).SetBytes(data[36:68])
 	l1BlobBaseFee := new(big.Int).SetBytes(data[68:100])
 	l1BaseFeeScalar := binary.BigEndian.Uint32(data[4:8])
-	l1BaseFeeScalarBig := big.NewInt(int64(l1BaseFeeScalar))
 	l1BlobBaseFeeScalar := binary.BigEndian.Uint32(data[8:12])
-	l1BlobBaseFeeScalarBig := big.NewInt(int64(l1BlobBaseFeeScalar))
-	costFunc := newL1CostFuncEcotone(l1BaseFee, l1BlobBaseFee, l1BaseFeeScalarBig, l1BlobBaseFeeScalarBig)
 	return gasParams{
 		l1BaseFee:           l1BaseFee,
 		l1BlobBaseFee:       l1BlobBaseFee,
-		costFunc:            costFunc,
 		l1BaseFeeScalar:     &l1BaseFeeScalar,
 		l1BlobBaseFeeScalar: &l1BlobBaseFeeScalar,
 	}, nil
@@ -334,9 +349,8 @@ func l1CostHelper(gasWithOverhead, l1BaseFee, scalar *big.Int) *big.Int {
 	return fee
 }
 
-// newL1CostFuncFjord returns an l1 cost function suitable for the Ecotone upgrade except for the
-// very first block of the upgrade.
-func newL1CostFuncFjord(l1BaseFee, l1BlobBaseFee, l1BaseFeeScalar, l1BlobBaseFeeScalar, l1CostIntercept, l1CostFastlzCoef *big.Int) l1CostFunc {
+// newL1CostFuncFjord returns an l1 cost function suitable for the Fjord upgrade
+func newL1CostFuncFjord(l1BaseFee, l1BlobBaseFee, l1BaseFeeScalar, l1BlobBaseFeeScalar *big.Int) l1CostFunc {
 	return func(costData RollupCostData) (fee, calldataGasUsed *big.Int) {
 		calldataGasUsed = bedrockCalldataGasUsed(costData)
 		// Fjord L1 cost function:
