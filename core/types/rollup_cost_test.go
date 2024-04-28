@@ -33,7 +33,7 @@ var (
 	bedrockGas  = big.NewInt(1618)
 	regolithGas = big.NewInt(530) // 530  = 1618 - (16*68)
 	ecotoneGas  = big.NewInt(480)
-	fjordGas    = ecotoneGas
+	fjordGas    = big.NewInt(496) // fastlz size of the txn
 )
 
 func TestBedrockL1CostFunc(t *testing.T) {

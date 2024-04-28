@@ -87,7 +87,7 @@ type Receipt struct {
 	// Optimism: extend receipts with L1 fee info
 	L1GasPrice          *big.Int   `json:"l1GasPrice,omitempty"`          // Present from pre-bedrock. L1 Basefee after Bedrock
 	L1BlobBaseFee       *big.Int   `json:"l1BlobBaseFee,omitempty"`       // Always nil prior to the Ecotone hardfork
-	L1GasUsed           *big.Int   `json:"l1GasUsed,omitempty"`           // Present from pre-bedrock
+	L1GasUsed           *big.Int   `json:"l1GasUsed,omitempty"`           // Present from pre-bedrock, deprecated as of Fjord
 	L1Fee               *big.Int   `json:"l1Fee,omitempty"`               // Present from pre-bedrock
 	FeeScalar           *big.Float `json:"l1FeeScalar,omitempty"`         // Present from pre-bedrock to Ecotone. Nil after Ecotone
 	L1BaseFeeScalar     *uint64    `json:"l1BaseFeeScalar,omitempty"`     // Always nil prior to the Ecotone hardfork

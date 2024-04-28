@@ -352,7 +352,7 @@ func l1CostHelper(gasWithOverhead, l1BaseFee, scalar *big.Int) *big.Int {
 // newL1CostFuncFjord returns an l1 cost function suitable for the Fjord upgrade
 func newL1CostFuncFjord(l1BaseFee, l1BlobBaseFee, l1BaseFeeScalar, l1BlobBaseFeeScalar *big.Int) l1CostFunc {
 	return func(costData RollupCostData) (fee, calldataGasUsed *big.Int) {
-		calldataGasUsed = bedrockCalldataGasUsed(costData)
+		calldataGasUsed = new(big.Int).SetUint64(costData.fastlzSize * params.TxDataNonZeroGasEIP2028)
 		// Fjord L1 cost function:
 		//
 		//l1FeeScaled = baseFeeScalar*l1BaseFee*16 + blobFeeScalar*l1BlobBaseFee
