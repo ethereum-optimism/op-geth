@@ -75,16 +75,17 @@ var (
 	fjordDivisor   = big.NewInt(1_000_000_000_000)
 	sixteen        = big.NewInt(16)
 
-	l1CostIntercept  = big.NewInt(-42_585_600)
-	l1CostFastlzCoef = big.NewInt(836_500)
+	L1CostIntercept  = big.NewInt(-42_585_600)
+	L1CostFastlzCoef = big.NewInt(836_500)
 
-	minTransactionSize = big.NewInt(71 * 1e6)
+	MinTransactionSize       = big.NewInt(71)
+	MinTransactionSizeScaled = new(big.Int).Mul(MinTransactionSize, big.NewInt(1e6))
 
 	emptyScalars = make([]byte, 8)
 )
 
 // RollupCostData is a transaction structure that caches data for quickly computing the data
-// availablility costs for the transaction.
+// availability costs for the transaction.
 type RollupCostData struct {
 	zeroes, ones uint64
 	fastlzSize   uint64
@@ -365,11 +366,11 @@ func newL1CostFuncFjord(l1BaseFee, l1BlobBaseFee, l1BaseFeeScalar, l1BlobBaseFee
 		l1FeeScaled := new(big.Int).Add(calldataCostPerByte, blobCostPerByte)
 
 		fastlzSize := new(big.Int).SetUint64(costData.fastlzSize)
-		fastlzSize.Mul(fastlzSize, l1CostFastlzCoef)
-		fastlzSize.Add(fastlzSize, l1CostIntercept)
+		fastlzSize.Mul(fastlzSize, L1CostFastlzCoef)
+		fastlzSize.Add(fastlzSize, L1CostIntercept)
 
-		if fastlzSize.Cmp(minTransactionSize) < 0 {
-			fastlzSize.Set(minTransactionSize)
+		if fastlzSize.Cmp(MinTransactionSizeScaled) < 0 {
+			fastlzSize.Set(MinTransactionSizeScaled)
 		}
 
 		l1CostSigned := new(big.Int).Set(fastlzSize)
