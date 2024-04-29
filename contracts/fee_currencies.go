@@ -114,30 +114,27 @@ func CreditFees(
 // GetExchangeRates returns the exchange rates for all gas currencies from CELO
 func GetExchangeRates(caller bind.ContractCaller) (common.ExchangeRates, error) {
 	exchangeRates := map[common.Address]*big.Rat{}
-	whitelist, err := abigen.NewFeeCurrencyWhitelistCaller(FeeCurrencyWhitelistAddress, caller)
+	directory, err := abigen.NewFeeCurrencyDirectoryCaller(FeeCurrencyDirectoryAddress, caller)
 	if err != nil {
-		return exchangeRates, fmt.Errorf("Failed to access FeeCurrencyWhitelist: %w", err)
-	}
-	oracle, err := abigen.NewSortedOraclesCaller(SortedOraclesAddress, caller)
-	if err != nil {
-		return exchangeRates, fmt.Errorf("Failed to access SortedOracle: %w", err)
+		return exchangeRates, fmt.Errorf("Failed to access FeeCurrencyDirectory: %w", err)
 	}
 
-	whitelistedTokens, err := whitelist.GetWhitelist(&bind.CallOpts{})
+	registeredTokens, err := directory.GetCurrencies(&bind.CallOpts{})
 	if err != nil {
 		return exchangeRates, fmt.Errorf("Failed to get whitelisted tokens: %w", err)
 	}
-	for _, tokenAddress := range whitelistedTokens {
-		numerator, denominator, err := oracle.MedianRate(&bind.CallOpts{}, tokenAddress)
+	for _, tokenAddress := range registeredTokens {
+		rate, err := directory.GetExchangeRate(&bind.CallOpts{}, tokenAddress)
 		if err != nil {
 			log.Error("Failed to get medianRate for gas currency!", "err", err, "tokenAddress", tokenAddress.Hex())
 			continue
 		}
-		if denominator.Sign() == 0 {
-			log.Error("Bad exchange rate for fee currency", "tokenAddress", tokenAddress.Hex(), "numerator", numerator, "denominator", denominator)
+		if rate.Denominator.Sign() == 0 {
+			log.Error("Bad exchange rate for fee currency", "tokenAddress", tokenAddress.Hex(), "numerator", rate.Numerator, "denominator", rate.Denominator)
 			continue
 		}
-		exchangeRates[tokenAddress] = big.NewRat(numerator.Int64(), denominator.Int64())
+		// TODO: Is bigint -> int64 safe?
+		exchangeRates[tokenAddress] = big.NewRat(rate.Numerator.Int64(), rate.Denominator.Int64())
 	}
 
 	return exchangeRates, nil
