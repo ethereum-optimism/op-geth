@@ -17,15 +17,6 @@ var GoldTokenBytecodeRaw []byte
 //go:embed compiled/Proxy.bin-runtime
 var ProxyBytecodeRaw []byte
 
-//go:embed compiled/SortedOracles.bin-runtime
-var SortedOraclesBytecodeRaw []byte
-
-//go:embed compiled/MockSortedOracles.bin-runtime
-var MockSortedOraclesBytecodeRaw []byte
-
-//go:embed compiled/FeeCurrencyWhitelist.bin-runtime
-var FeeCurrencyWhitelistBytecodeRaw []byte
-
 //go:embed compiled/FeeCurrency.bin-runtime
 var FeeCurrencyBytecodeRaw []byte
 

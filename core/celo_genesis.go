@@ -72,14 +72,6 @@ func celoGenesisAccounts(fundedAddr common.Address) GenesisAlloc {
 	if err != nil {
 		panic(err)
 	}
-	sortedOraclesBytecode, err := DecodeHex(celo.MockSortedOraclesBytecodeRaw)
-	if err != nil {
-		panic(err)
-	}
-	feeCurrencyWhitelistBytecode, err := DecodeHex(celo.FeeCurrencyWhitelistBytecodeRaw)
-	if err != nil {
-		panic(err)
-	}
 	feeCurrencyBytecode, err := DecodeHex(celo.FeeCurrencyBytecodeRaw)
 	if err != nil {
 		panic(err)
@@ -93,12 +85,9 @@ func celoGenesisAccounts(fundedAddr common.Address) GenesisAlloc {
 		panic(err)
 	}
 
-	var devBalance32, rateNumerator32, rateNumerator2_32 common.Hash
+	var devBalance32 common.Hash
 	DevBalance.FillBytes(devBalance32[:])
-	rateNumerator.FillBytes(rateNumerator32[:])
-	rateNumerator2.FillBytes(rateNumerator2_32[:])
 
-	arrayAtSlot1 := crypto.Keccak256Hash(common.HexToHash("0x1").Bytes())
 	arrayAtSlot2 := crypto.Keccak256Hash(common.HexToHash("0x2").Bytes())
 
 	faucetBalance, ok := new(big.Int).SetString("500000000000000000000000000", 10) // 500M
@@ -130,24 +119,6 @@ func celoGenesisAccounts(fundedAddr common.Address) GenesisAlloc {
 		common.HexToAddress("0xce13"): { // GoldToken Implementation
 			Code:    goldTokenBytecode,
 			Balance: big.NewInt(0),
-		},
-		contracts.FeeCurrencyWhitelistAddress: {
-			Code:    feeCurrencyWhitelistBytecode,
-			Balance: big.NewInt(0),
-			Storage: map[common.Hash]common.Hash{
-				common.HexToHash("0x0"):  DevAddr32,                                       // `_owner` slot
-				common.HexToHash("0x1"):  common.HexToHash("0x2"),                         // array length 2
-				arrayAtSlot1:             common.BytesToHash(DevFeeCurrencyAddr.Bytes()),  // FeeCurrency
-				incHash(arrayAtSlot1, 1): common.BytesToHash(DevFeeCurrencyAddr2.Bytes()), // FeeCurrency2
-			},
-		},
-		contracts.SortedOraclesAddress: {
-			Code:    sortedOraclesBytecode,
-			Balance: big.NewInt(0),
-			Storage: map[common.Hash]common.Hash{
-				CalcMapAddr(common.HexToHash("0x0"), common.BytesToHash(DevFeeCurrencyAddr.Bytes())):  rateNumerator32,   // numerators[DevFeeCurrencyAddr]
-				CalcMapAddr(common.HexToHash("0x0"), common.BytesToHash(DevFeeCurrencyAddr2.Bytes())): rateNumerator2_32, // numerators[DevFeeCurrencyAddr2]
-			},
 		},
 		DevFeeCurrencyAddr: {
 			Code:    feeCurrencyBytecode,

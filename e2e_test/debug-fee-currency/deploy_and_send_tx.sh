@@ -7,7 +7,6 @@ export FEE_CURRENCY=$(\
 	| jq .deployedTo -r)
 
 cast send --private-key $ACC_PRIVKEY $FEE_CURRENCY_DIRECTORY_ADDR 'setCurrencyConfig(address, address, address, uint256)' $FEE_CURRENCY $FEE_CURRENCY $ORACLE 60000 --legacy
-cast send --private-key $ACC_PRIVKEY $SORTED_ORACLES_ADDR 'setMedianRate(address, uint256)' $FEE_CURRENCY 2000000000000000000000000 --legacy
 echo Fee currency: $FEE_CURRENCY
 
 (cd ../js-tests/ && ./send_tx.mjs "$(cast chain-id)" $ACC_PRIVKEY $FEE_CURRENCY)
