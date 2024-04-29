@@ -73,6 +73,24 @@ func TestFjordL1CostFunc(t *testing.T) {
 	require.Equal(t, fjordFee, c0)
 }
 
+// TestFjordL1CostSolidityParity tests that the cost function for the fjord upgrade matches a Solidity
+// test to ensure the outputs are the same.
+func TestFjordL1CostSolidityParity(t *testing.T) {
+	costFunc := newL1CostFuncFjord(
+		big.NewInt(2*1e6),
+		big.NewInt(3*1e6),
+		big.NewInt(20),
+		big.NewInt(15),
+	)
+
+	c0, g0 := costFunc(RollupCostData{
+		fastlzSize: 235,
+	})
+
+	require.Equal(t, big.NewInt(3760), g0)
+	require.Equal(t, big.NewInt(105484), c0)
+}
+
 func TestExtractBedrockGasParams(t *testing.T) {
 	regolithTime := uint64(1)
 	config := &params.ChainConfig{
