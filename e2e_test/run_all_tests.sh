@@ -22,9 +22,16 @@ done
 
 ## Run tests
 echo Geth ready, start tests
+cd "$SCRIPT_DIR" || exit 1
+
+# There's a problem with geth return errors on the first transaction sent.
+# See https://github.com/ethereum/web3.py/issues/3212
+# To work around this, send a transaction before running tests
+source ./shared.sh
+cast send --json --private-key $ACC_PRIVKEY $TOKEN_ADDR 'transfer(address to, uint256 value) returns (bool)' 0x000000000000000000000000000000000000dEaD 100 --async
+
 failures=0
 tests=0
-cd "$SCRIPT_DIR" || exit 1
 for f in test_*"$TEST_GLOB"*
 do
 	echo -e "\nRun $f"
