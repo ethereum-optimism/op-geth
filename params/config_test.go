@@ -141,6 +141,7 @@ func TestConfigRules(t *testing.T) {
 func TestConfigRulesRegolith(t *testing.T) {
 	c := &ChainConfig{
 		RegolithTime: newUint64(500),
+		LondonBlock:  new(big.Int),
 		Optimism:     &OptimismConfig{},
 	}
 	var stamp uint64
