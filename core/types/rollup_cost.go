@@ -78,7 +78,7 @@ var (
 	L1CostIntercept  = big.NewInt(-42_585_600)
 	L1CostFastlzCoef = big.NewInt(836_500)
 
-	MinTransactionSize       = big.NewInt(71)
+	MinTransactionSize       = big.NewInt(100)
 	MinTransactionSizeScaled = new(big.Int).Mul(MinTransactionSize, big.NewInt(1e6))
 
 	emptyScalars = make([]byte, 8)

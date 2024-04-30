@@ -28,7 +28,7 @@ var (
 	regolithFee = big.NewInt(3710000000000)
 	ecotoneFee  = big.NewInt(960900) // (480/16)*(2*16*1000 + 3*10) == 960900
 	// the emptyTx is out of bounds for the linear regression so it uses the minimum size
-	fjordFee = big.NewInt(2274130) // 71_000_000 * (2 * 1000 * 1e6 * 16 + 3 * 10 * 1e6) / 1e12
+	fjordFee = big.NewInt(3203000) // 100_000_000 * (2 * 1000 * 1e6 * 16 + 3 * 10 * 1e6) / 1e12
 
 	bedrockGas  = big.NewInt(1618)
 	regolithGas = big.NewInt(530) // 530  = 1618 - (16*68)
