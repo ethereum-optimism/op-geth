@@ -353,17 +353,10 @@ func l1CostHelper(gasWithOverhead, l1BaseFee, scalar *big.Int) *big.Int {
 // newL1CostFuncFjord returns an l1 cost function suitable for the Fjord upgrade
 func newL1CostFuncFjord(l1BaseFee, l1BlobBaseFee, l1BaseFeeScalar, l1BlobBaseFeeScalar *big.Int) l1CostFunc {
 	return func(costData RollupCostData) (fee, calldataGasUsed *big.Int) {
-		calldataGasUsed = new(big.Int).SetUint64(costData.fastlzSize * params.TxDataNonZeroGasEIP2028)
 		// Fjord L1 cost function:
-		//
 		//l1FeeScaled = baseFeeScalar*l1BaseFee*16 + blobFeeScalar*l1BlobBaseFee
 		//estimatedSize = intercept + fastlzCoef*fastlzSize
 		//l1Cost = max(minTransactionSize, estimatedSize) * l1FeeScaled / 1e12
-
-		calldataCostPerByte := new(big.Int).Mul(l1BaseFee, sixteen)
-		calldataCostPerByte.Mul(calldataCostPerByte, l1BaseFeeScalar)
-		blobCostPerByte := new(big.Int).Mul(l1BlobBaseFee, l1BlobBaseFeeScalar)
-		l1FeeScaled := new(big.Int).Add(calldataCostPerByte, blobCostPerByte)
 
 		fastlzSize := new(big.Int).SetUint64(costData.fastlzSize)
 		fastlzSize.Mul(fastlzSize, L1CostFastlzCoef)
@@ -372,6 +365,14 @@ func newL1CostFuncFjord(l1BaseFee, l1BlobBaseFee, l1BaseFeeScalar, l1BlobBaseFee
 		if fastlzSize.Cmp(MinTransactionSizeScaled) < 0 {
 			fastlzSize.Set(MinTransactionSizeScaled)
 		}
+
+		calldataGasUsed = new(big.Int).Mul(fastlzSize, new(big.Int).SetUint64(params.TxDataNonZeroGasEIP2028))
+		calldataGasUsed.Div(calldataGasUsed, big.NewInt(1e6))
+
+		calldataCostPerByte := new(big.Int).Mul(l1BaseFee, sixteen)
+		calldataCostPerByte.Mul(calldataCostPerByte, l1BaseFeeScalar)
+		blobCostPerByte := new(big.Int).Mul(l1BlobBaseFee, l1BlobBaseFeeScalar)
+		l1FeeScaled := new(big.Int).Add(calldataCostPerByte, blobCostPerByte)
 
 		l1CostSigned := new(big.Int).Set(fastlzSize)
 		l1CostSigned.Mul(l1CostSigned, l1FeeScaled)
