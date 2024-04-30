@@ -35,6 +35,12 @@ import (
 // are not able to consume all of the gas in a L2 block as the L1 info deposit is always present.
 const l1InfoGasOverhead = uint64(70_000)
 
+var (
+	// blobTxMinBlobGasPrice is the big.Int version of the configured protocol
+	// parameter to avoid constucting a new big integer for every transaction.
+	blobTxMinBlobGasPrice = big.NewInt(params.BlobTxMinBlobGasprice)
+)
+
 func EffectiveGasLimit(chainConfig *params.ChainConfig, gasLimit uint64, effectiveLimit uint64) uint64 {
 	if effectiveLimit != 0 && effectiveLimit < gasLimit {
 		gasLimit = effectiveLimit
@@ -131,15 +137,17 @@ func ValidateTransaction(tx *types.Transaction, head *types.Header, signer types
 		return err
 	}
 	if tx.Gas() < intrGas {
-		return fmt.Errorf("%w: needed %v, allowed %v", core.ErrIntrinsicGas, intrGas, tx.Gas())
+		return fmt.Errorf("%w: gas %v, minimum needed %v", core.ErrIntrinsicGas, tx.Gas(), intrGas)
 	}
-	// Ensure the gasprice is high enough to cover the requirement of the calling
-	// pool and/or block producer
+	// Ensure the gasprice is high enough to cover the requirement of the calling pool
 	if tx.GasTipCapIntCmp(opts.MinTip) < 0 {
-		return fmt.Errorf("%w: tip needed %v, tip permitted %v", ErrUnderpriced, opts.MinTip, tx.GasTipCap())
+		return fmt.Errorf("%w: gas tip cap %v, minimum needed %v", ErrUnderpriced, tx.GasTipCap(), opts.MinTip)
 	}
-	// Ensure blob transactions have valid commitments
 	if tx.Type() == types.BlobTxType {
+		// Ensure the blob fee cap satisfies the minimum blob gas price
+		if tx.BlobGasFeeCapIntCmp(blobTxMinBlobGasPrice) < 0 {
+			return fmt.Errorf("%w: blob fee cap %v, minimum needed %v", ErrUnderpriced, tx.BlobGasFeeCap(), blobTxMinBlobGasPrice)
+		}
 		sidecar := tx.BlobTxSidecar()
 		if sidecar == nil {
 			return fmt.Errorf("missing sidecar in blob transaction")
@@ -153,6 +161,7 @@ func ValidateTransaction(tx *types.Transaction, head *types.Header, signer types
 		if len(hashes) > params.MaxBlobGasPerBlock/params.BlobTxBlobGasPerBlob {
 			return fmt.Errorf("too many blobs in transaction: have %d, permitted %d", len(hashes), params.MaxBlobGasPerBlock/params.BlobTxBlobGasPerBlob)
 		}
+		// Ensure commitments, proofs and hashes are valid
 		if err := validateBlobSidecar(hashes, sidecar); err != nil {
 			return err
 		}
