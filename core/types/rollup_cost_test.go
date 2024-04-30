@@ -33,7 +33,7 @@ var (
 	bedrockGas  = big.NewInt(1618)
 	regolithGas = big.NewInt(530) // 530  = 1618 - (16*68)
 	ecotoneGas  = big.NewInt(480)
-	fjordGas    = big.NewInt(496) // fastlz size of the txn
+	fjordGas    = big.NewInt(1600) // fastlz size of minimum txn, 100_000_000 * 16 / 1e6
 )
 
 func TestBedrockL1CostFunc(t *testing.T) {
@@ -87,7 +87,7 @@ func TestFjordL1CostSolidityParity(t *testing.T) {
 		fastlzSize: 235,
 	})
 
-	require.Equal(t, big.NewInt(3760), g0)
+	require.Equal(t, big.NewInt(2463), g0)
 	require.Equal(t, big.NewInt(105484), c0)
 }
 
