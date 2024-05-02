@@ -274,7 +274,7 @@ func TestTraceCall(t *testing.T) {
 	accounts := newAccounts(3)
 	genesis := &core.Genesis{
 		Config: params.TestChainConfig,
-		Alloc: core.GenesisAlloc{
+		Alloc: types.GenesisAlloc{
 			accounts[0].addr: {Balance: big.NewInt(params.Ether)},
 			accounts[1].addr: {Balance: big.NewInt(params.Ether)},
 			accounts[2].addr: {Balance: big.NewInt(params.Ether)},
@@ -492,7 +492,7 @@ func TestTraceTransaction(t *testing.T) {
 	accounts := newAccounts(2)
 	genesis := &core.Genesis{
 		Config: params.TestChainConfig,
-		Alloc: core.GenesisAlloc{
+		Alloc: types.GenesisAlloc{
 			accounts[0].addr: {Balance: big.NewInt(params.Ether)},
 			accounts[1].addr: {Balance: big.NewInt(params.Ether)},
 		},
@@ -594,7 +594,7 @@ func TestTraceBlock(t *testing.T) {
 	accounts := newAccounts(3)
 	genesis := &core.Genesis{
 		Config: params.TestChainConfig,
-		Alloc: core.GenesisAlloc{
+		Alloc: types.GenesisAlloc{
 			accounts[0].addr: {Balance: big.NewInt(params.Ether)},
 			accounts[1].addr: {Balance: big.NewInt(params.Ether)},
 			accounts[2].addr: {Balance: big.NewInt(params.Ether)},
@@ -737,7 +737,7 @@ func TestTracingWithOverrides(t *testing.T) {
 	storageAccount := common.Address{0x13, 37}
 	genesis := &core.Genesis{
 		Config: params.TestChainConfig,
-		Alloc: core.GenesisAlloc{
+		Alloc: types.GenesisAlloc{
 			accounts[0].addr: {Balance: big.NewInt(params.Ether)},
 			accounts[1].addr: {Balance: big.NewInt(params.Ether)},
 			accounts[2].addr: {Balance: big.NewInt(params.Ether)},
@@ -1106,7 +1106,7 @@ func TestTraceChain(t *testing.T) {
 	accounts := newAccounts(3)
 	genesis := &core.Genesis{
 		Config: params.TestChainConfig,
-		Alloc: core.GenesisAlloc{
+		Alloc: types.GenesisAlloc{
 			accounts[0].addr: {Balance: big.NewInt(params.Ether)},
 			accounts[1].addr: {Balance: big.NewInt(params.Ether)},
 			accounts[2].addr: {Balance: big.NewInt(params.Ether)},
