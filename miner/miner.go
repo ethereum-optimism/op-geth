@@ -67,7 +67,7 @@ type Config struct {
 // DefaultConfig contains default settings for miner.
 var DefaultConfig = Config{
 	GasCeil:  30000000,
-	GasPrice: big.NewInt(params.GWei),
+	GasPrice: big.NewInt(params.Wei),
 
 	// The default recommit time is chosen as two seconds since
 	// consensus-layer usually will wait a half slot of time(6s)
@@ -203,6 +203,11 @@ func (miner *Miner) SetExtra(extra []byte) error {
 		return fmt.Errorf("extra exceeds max length. %d > %v", len(extra), params.MaximumExtraDataSize)
 	}
 	miner.worker.setExtra(extra)
+	return nil
+}
+
+func (miner *Miner) SetGasTip(tip *big.Int) error {
+	miner.worker.setGasTip(tip)
 	return nil
 }
 
