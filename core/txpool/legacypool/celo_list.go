@@ -43,6 +43,7 @@ func (l *list) dropInvalidsAfterRemovalAndReheap(removed types.Transactions) typ
 
 func (l *list) FeeCurrencies() []common.Address {
 	currencySet := make(map[common.Address]interface{})
+	currencySet[getCurrencyKey(nil)] = struct{}{} // Always include native token to handle potential value transfers
 	for _, tx := range l.txs.items {
 		// native currency (nil) represented as Zero address
 		currencySet[getCurrencyKey(tx.FeeCurrency())] = struct{}{}

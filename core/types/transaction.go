@@ -367,14 +367,29 @@ func (tx *Transaction) IsSystemTx() bool {
 	return tx.inner.isSystemTx()
 }
 
-// Cost returns (gas * gasPrice) + (blobGas * blobGasPrice) + value.
-func (tx *Transaction) Cost() *big.Int {
+// Cost returns both components of the tx costs:
+// - cost in feeCurrency: (gas * gasPrice) + (blobGas * blobGasPrice)
+// - native token cost: value sent to target contract
+// For non-feeCurrency transactions, the first value is zero and the second is the total cost.
+func (tx *Transaction) Cost() (*big.Int, *big.Int) {
 	total := new(big.Int).Mul(tx.GasPrice(), new(big.Int).SetUint64(tx.Gas()))
 	if tx.Type() == BlobTxType {
 		total.Add(total, new(big.Int).Mul(tx.BlobGasFeeCap(), new(big.Int).SetUint64(tx.BlobGas())))
 	}
-	total.Add(total, tx.Value())
-	return total
+	if tx.FeeCurrency() == nil {
+		nativeCost := total.Add(total, tx.Value())
+		return new(big.Int), nativeCost
+	} else {
+		// Will need to be updated for CIP-66
+		nativeCost := tx.Value()
+		return total, nativeCost
+	}
+}
+
+// Returns the native token component of the transaction cost.
+func (tx *Transaction) NativeCost() *big.Int {
+	_, nativeCost := tx.Cost()
+	return nativeCost
 }
 
 // RollupCostData caches the information needed to efficiently compute the data availability fee
