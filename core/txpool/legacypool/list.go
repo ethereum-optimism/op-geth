@@ -345,13 +345,20 @@ func (l *list) Add(tx *types.Transaction, priceBump uint64, _ txpool.L1CostFunc,
 		// Old is being replaced, subtract old cost
 		l.subTotalCost([]*types.Transaction{old})
 	}
-	// Add new tx cost to totalcost
-	cost, overflow := uint256.FromBig(tx.Cost())
+	// Add new tx cost to total cost
+	feeCurrencyTc := l.totalCostVar(tx.FeeCurrency())
+	nativeTc := l.totalCostVar(&common.ZeroAddress)
+	feeCurrencyCostBig, nativeCostBig := tx.Cost()
+	feeCurrencyCost, overflow := uint256.FromBig(feeCurrencyCostBig)
 	if overflow {
 		return false, nil
 	}
-	tc := l.totalCostVar(tx.FeeCurrency())
-	tc.Add(tc, cost)
+	nativeCost, overflow := uint256.FromBig(nativeCostBig)
+	if overflow {
+		return false, nil
+	}
+	feeCurrencyTc.Add(feeCurrencyTc, feeCurrencyCost)
+	nativeTc.Add(nativeTc, nativeCost)
 	// TODO: manage l1 cost
 	// if l1CostFn != nil {
 	// 	if l1Cost := l1CostFn(tx.RollupDataGas()); l1Cost != nil { // add rollup cost
@@ -360,7 +367,8 @@ func (l *list) Add(tx *types.Transaction, priceBump uint64, _ txpool.L1CostFunc,
 	// }
 	// Otherwise overwrite the old transaction with the current one
 	l.txs.Put(tx)
-	l.updateCostCapFor(tx.FeeCurrency(), cost)
+	l.updateCostCapFor(tx.FeeCurrency(), feeCurrencyCost)
+	l.updateCostCapFor(&common.ZeroAddress, nativeCost)
 	if gas := tx.Gas(); l.gascap < gas {
 		l.gascap = gas
 	}
@@ -395,8 +403,8 @@ func (l *list) Filter(costLimits map[common.Address]*uint256.Int, gasLimit uint6
 
 	// Filter out all the transactions above the account's funds
 	removed := l.txs.Filter(func(tx *types.Transaction) bool {
-		costcap := l.costCapFor(tx.FeeCurrency())
-		return tx.Gas() > gasLimit || tx.Cost().Cmp(costcap.ToBig()) > 0
+		feeCurrencyCost, nativeCost := tx.Cost()
+		return tx.Gas() > gasLimit || feeCurrencyCost.Cmp(l.costCapFor(tx.FeeCurrency()).ToBig()) > 0 || nativeCost.Cmp(l.costCapFor(&common.ZeroAddress).ToBig()) > 0
 	})
 
 	if len(removed) == 0 {
@@ -478,11 +486,16 @@ func (l *list) LastElement() *types.Transaction {
 // total cost of all transactions.
 func (l *list) subTotalCost(txs []*types.Transaction) {
 	for _, tx := range txs {
-		// _, underflow := l.totalcost.SubOverflow(l.totalcost, uint256.MustFromBig(tx.Cost()))
-		tc := l.totalCostVar(tx.FeeCurrency())
-		_, underflow := tc.SubOverflow(tc, uint256.MustFromBig(tx.Cost()))
+		feeCurrencyCost, nativeCost := tx.Cost()
+		feeCurrencyTc := l.totalCostVar(tx.FeeCurrency())
+		nativeTc := l.totalCostVar(&common.ZeroAddress)
+		_, underflow := feeCurrencyTc.SubOverflow(feeCurrencyTc, uint256.MustFromBig(feeCurrencyCost))
 		if underflow {
-			panic("totalcost underflow")
+			panic("totalcost underflow (feecurrency)")
+		}
+		_, underflow = nativeTc.SubOverflow(nativeTc, uint256.MustFromBig(nativeCost))
+		if underflow {
+			panic("totalcost underflow (native)")
 		}
 	}
 }

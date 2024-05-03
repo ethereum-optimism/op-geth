@@ -117,7 +117,7 @@ func newBlobTxMeta(id uint64, size uint32, tx *types.Transaction) *blobTxMeta {
 		id:         id,
 		size:       size,
 		nonce:      tx.Nonce(),
-		costCap:    uint256.MustFromBig(tx.Cost()),
+		costCap:    uint256.MustFromBig(tx.NativeCost()),
 		execTipCap: uint256.MustFromBig(tx.GasTipCap()),
 		execFeeCap: uint256.MustFromBig(tx.GasFeeCap()),
 		blobFeeCap: uint256.MustFromBig(tx.BlobGasFeeCap()),
@@ -1114,18 +1114,18 @@ func (p *BlobPool) validateTx(tx *types.Transaction) error {
 			}
 			return have, maxTxsPerAccount - have
 		},
-		ExistingExpenditure: func(addr common.Address) *big.Int {
+		ExistingExpenditure: func(addr common.Address) (*big.Int, *big.Int) {
 			if spent := p.spent[addr]; spent != nil {
-				return spent.ToBig()
+				return new(big.Int), spent.ToBig()
 			}
-			return new(big.Int)
+			return new(big.Int), new(big.Int)
 		},
-		ExistingCost: func(addr common.Address, nonce uint64) *big.Int {
+		ExistingCost: func(addr common.Address, nonce uint64) (*big.Int, *big.Int) {
 			next := p.state.GetNonce(addr)
 			if uint64(len(p.index[addr])) > nonce-next {
-				return p.index[addr][int(tx.Nonce()-next)].costCap.ToBig()
+				return new(big.Int), p.index[addr][int(tx.Nonce()-next)].costCap.ToBig()
 			}
-			return nil
+			return nil, nil
 		},
 		ExistingBalance: func(addr common.Address, feeCurrency *common.Address) *big.Int {
 			return contracts.GetFeeBalance(p.celoBackend, addr, feeCurrency)

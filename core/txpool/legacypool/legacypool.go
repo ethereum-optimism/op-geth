@@ -673,25 +673,30 @@ func (pool *LegacyPool) validateTx(tx *types.Transaction, local bool) error {
 			}
 			return have, math.MaxInt
 		},
-		ExistingExpenditure: func(addr common.Address) *big.Int {
+		ExistingExpenditure: func(addr common.Address) (*big.Int, *big.Int) {
 			if list := pool.pending[addr]; list != nil {
-				return list.TotalCostFor(tx.FeeCurrency()).ToBig()
+				return list.TotalCostFor(tx.FeeCurrency()).ToBig(), list.TotalCostFor(nil).ToBig()
 			}
-			return new(big.Int)
+			return new(big.Int), new(big.Int)
 		},
-		ExistingCost: func(addr common.Address, nonce uint64) *big.Int {
+		ExistingCost: func(addr common.Address, nonce uint64) (*big.Int, *big.Int) {
 			if list := pool.pending[addr]; list != nil {
+				feeCurrency := tx.FeeCurrency()
 				if tx := list.txs.Get(nonce); tx != nil {
-					cost := tx.Cost()
+					feeCurrencyCost, nativeCost := tx.Cost()
 					if pool.l1CostFn != nil {
 						if l1Cost := pool.l1CostFn(tx.RollupCostData()); l1Cost != nil { // add rollup cost
-							cost = cost.Add(cost, l1Cost)
+							nativeCost = nativeCost.Add(nativeCost, l1Cost)
 						}
 					}
-					return cost
+					if tx.FeeCurrency() != feeCurrency {
+						// We are only interested in costs in the same currency
+						feeCurrencyCost = new(big.Int)
+					}
+					return feeCurrencyCost, nativeCost
 				}
 			}
-			return nil
+			return nil, nil
 		},
 		L1CostFn: pool.l1CostFn,
 		ExistingBalance: func(addr common.Address, feeCurrency *common.Address) *big.Int {

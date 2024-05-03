@@ -62,7 +62,8 @@ func TestListAddVeryExpensive(t *testing.T) {
 		gasprice, _ := new(big.Int).SetString("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", 0)
 		gaslimit := uint64(i)
 		tx, _ := types.SignTx(types.NewTransaction(uint64(i), common.Address{}, value, gaslimit, gasprice, nil), types.HomesteadSigner{}, key)
-		t.Logf("cost: %x bitlen: %d\n", tx.Cost(), tx.Cost().BitLen())
+		costFeeCurrency, costNative := tx.Cost()
+		t.Logf("cost: %x %x\n", costFeeCurrency, costNative)
 		list.Add(tx, DefaultConfig.PriceBump, nil, nil)
 	}
 }
