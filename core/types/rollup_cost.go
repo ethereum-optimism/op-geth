@@ -136,7 +136,7 @@ func NewL1CostFunc(config *params.ChainConfig, statedb StateGetter) L1CostFunc {
 			// function. We detect this scenario by checking if the Ecotone parameters are
 			// unset. Note here we rely on assumption that the scalar parameters are adjacent
 			// in the buffer and l1BaseFeeScalar comes first. We need to check this prior to
-			// other forks, as the first block of Fjord and Ecotone could be the  same block.
+			// other forks, as the first block of Fjord and Ecotone could be the same block.
 			firstEcotoneBlock := l1BlobBaseFee.BitLen() == 0 &&
 				bytes.Equal(emptyScalars, l1FeeScalars[scalarSectionStart:scalarSectionStart+8])
 			if firstEcotoneBlock {
