@@ -30,10 +30,10 @@ var (
 	// the emptyTx is out of bounds for the linear regression so it uses the minimum size
 	fjordFee = big.NewInt(3203000) // 100_000_000 * (2 * 1000 * 1e6 * 16 + 3 * 10 * 1e6) / 1e12
 
-	bedrockGas  = big.NewInt(1618)
-	regolithGas = big.NewInt(530) // 530  = 1618 - (16*68)
-	ecotoneGas  = big.NewInt(480)
-	fjordGas    = big.NewInt(1600) // fastlz size of minimum txn, 100_000_000 * 16 / 1e6
+	bedrockGas      = big.NewInt(1618)
+	regolithGas     = big.NewInt(530) // 530  = 1618 - (16*68)
+	ecotoneGas      = big.NewInt(480)
+	minimumFjordGas = big.NewInt(1600) // fastlz size of minimum txn, 100_000_000 * 16 / 1e6
 )
 
 func TestBedrockL1CostFunc(t *testing.T) {
@@ -59,7 +59,7 @@ func TestEcotoneL1CostFunc(t *testing.T) {
 	require.Equal(t, ecotoneFee, c0)
 }
 
-func TestFjordL1CostFunc(t *testing.T) {
+func TestFjordL1CostFuncMinimumBounds(t *testing.T) {
 	costFunc := newL1CostFuncFjord(
 		baseFee,
 		blobBaseFee,
@@ -69,8 +69,31 @@ func TestFjordL1CostFunc(t *testing.T) {
 
 	c0, g0 := costFunc(emptyTx.RollupCostData())
 
-	require.Equal(t, fjordGas, g0)
-	require.Equal(t, fjordFee, c0)
+	// Minimum size transactions:
+	// -42.5856 + 0.8365*110 = 49.4294
+	// -42.5856 + 0.8365*150 = 82.8894
+	// -42.5856 + 0.8365*170 = 99.6194
+	for _, fastLzsize := range []uint64{100, 150, 170} {
+		c, g := costFunc(RollupCostData{
+			fastlzSize: fastLzsize,
+		})
+
+		require.Equal(t, minimumFjordGas, g)
+		require.Equal(t, fjordFee, c)
+	}
+
+	// Larger size transactions:
+	// -42.5856 + 0.8365*171 = 100.4559
+	// -42.5856 + 0.8365*175 = 108.8019
+	// -42.5856 + 0.8365*200 = 124.7144
+	for _, fastLzsize := range []uint64{171, 175, 200} {
+		c0, g0 = costFunc(RollupCostData{
+			fastlzSize: fastLzsize,
+		})
+
+		require.Greater(t, g0.Uint64(), minimumFjordGas.Uint64())
+		require.Greater(t, c0.Uint64(), fjordFee.Uint64())
+	}
 }
 
 // TestFjordL1CostSolidityParity tests that the cost function for the fjord upgrade matches a Solidity
@@ -181,7 +204,7 @@ func TestExtractFjordGasParams(t *testing.T) {
 
 	c, g := costFunc(emptyTx.RollupCostData())
 
-	require.Equal(t, fjordGas, g)
+	require.Equal(t, minimumFjordGas, g)
 	require.Equal(t, fjordFee, c)
 }
 
