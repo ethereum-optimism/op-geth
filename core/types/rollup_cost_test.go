@@ -60,14 +60,12 @@ func TestEcotoneL1CostFunc(t *testing.T) {
 }
 
 func TestFjordL1CostFuncMinimumBounds(t *testing.T) {
-	costFunc := newL1CostFuncFjord(
+	costFunc := NewL1CostFuncFjord(
 		baseFee,
 		blobBaseFee,
 		baseFeeScalar,
 		blobBaseFeeScalar,
 	)
-
-	c0, g0 := costFunc(emptyTx.RollupCostData())
 
 	// Minimum size transactions:
 	// -42.5856 + 0.8365*110 = 49.4294
@@ -75,7 +73,7 @@ func TestFjordL1CostFuncMinimumBounds(t *testing.T) {
 	// -42.5856 + 0.8365*170 = 99.6194
 	for _, fastLzsize := range []uint64{100, 150, 170} {
 		c, g := costFunc(RollupCostData{
-			fastlzSize: fastLzsize,
+			FastLzSize: fastLzsize,
 		})
 
 		require.Equal(t, minimumFjordGas, g)
@@ -87,19 +85,19 @@ func TestFjordL1CostFuncMinimumBounds(t *testing.T) {
 	// -42.5856 + 0.8365*175 = 108.8019
 	// -42.5856 + 0.8365*200 = 124.7144
 	for _, fastLzsize := range []uint64{171, 175, 200} {
-		c0, g0 = costFunc(RollupCostData{
-			fastlzSize: fastLzsize,
+		c, g := costFunc(RollupCostData{
+			FastLzSize: fastLzsize,
 		})
 
-		require.Greater(t, g0.Uint64(), minimumFjordGas.Uint64())
-		require.Greater(t, c0.Uint64(), fjordFee.Uint64())
+		require.Greater(t, g.Uint64(), minimumFjordGas.Uint64())
+		require.Greater(t, c.Uint64(), fjordFee.Uint64())
 	}
 }
 
 // TestFjordL1CostSolidityParity tests that the cost function for the fjord upgrade matches a Solidity
 // test to ensure the outputs are the same.
 func TestFjordL1CostSolidityParity(t *testing.T) {
-	costFunc := newL1CostFuncFjord(
+	costFunc := NewL1CostFuncFjord(
 		big.NewInt(2*1e6),
 		big.NewInt(3*1e6),
 		big.NewInt(20),
@@ -107,7 +105,7 @@ func TestFjordL1CostSolidityParity(t *testing.T) {
 	)
 
 	c0, g0 := costFunc(RollupCostData{
-		fastlzSize: 235,
+		FastLzSize: 235,
 	})
 
 	require.Equal(t, big.NewInt(2463), g0)
