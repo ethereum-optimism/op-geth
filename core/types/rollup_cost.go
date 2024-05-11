@@ -87,8 +87,8 @@ var (
 // RollupCostData is a transaction structure that caches data for quickly computing the data
 // availability costs for the transaction.
 type RollupCostData struct {
-	zeroes, ones uint64
-	fastlzSize   uint64
+	Zeroes, Ones uint64
+	FastLzSize   uint64
 }
 
 type StateGetter interface {
@@ -106,12 +106,12 @@ type l1CostFunc func(rcd RollupCostData) (fee, gasUsed *big.Int)
 func NewRollupCostData(data []byte) (out RollupCostData) {
 	for _, b := range data {
 		if b == 0 {
-			out.zeroes++
+			out.Zeroes++
 		} else {
-			out.ones++
+			out.Ones++
 		}
 	}
-	out.fastlzSize = uint64(FlzCompressLen(data))
+	out.FastLzSize = uint64(FlzCompressLen(data))
 	return out
 }
 
@@ -147,7 +147,7 @@ func NewL1CostFunc(config *params.ChainConfig, statedb StateGetter) L1CostFunc {
 
 		if config.IsOptimismFjord(blockTime) {
 			l1BaseFeeScalar, l1BlobBaseFeeScalar := extractEcotoneFeeParams(l1FeeScalars)
-			return newL1CostFuncFjord(
+			return NewL1CostFuncFjord(
 				l1BaseFee,
 				l1BlobBaseFee,
 				l1BaseFeeScalar,
@@ -194,11 +194,11 @@ func newL1CostFuncBedrockHelper(l1BaseFee, overhead, scalar *big.Int, isRegolith
 		if rollupCostData == (RollupCostData{}) {
 			return nil, nil // Do not charge if there is no rollup cost-data (e.g. RPC call or deposit)
 		}
-		gas := rollupCostData.zeroes * params.TxDataZeroGas
+		gas := rollupCostData.Zeroes * params.TxDataZeroGas
 		if isRegolith {
-			gas += rollupCostData.ones * params.TxDataNonZeroGasEIP2028
+			gas += rollupCostData.Ones * params.TxDataNonZeroGasEIP2028
 		} else {
-			gas += (rollupCostData.ones + 68) * params.TxDataNonZeroGasEIP2028
+			gas += (rollupCostData.Ones + 68) * params.TxDataNonZeroGasEIP2028
 		}
 		gasWithOverhead := new(big.Int).SetUint64(gas)
 		gasWithOverhead.Add(gasWithOverhead, overhead)
@@ -268,7 +268,7 @@ func extractL1GasParams(config *params.ChainConfig, time uint64, data []byte) (g
 		}
 
 		if config.IsFjord(time) {
-			p.costFunc = newL1CostFuncFjord(
+			p.costFunc = NewL1CostFuncFjord(
 				p.l1BaseFee,
 				p.l1BlobBaseFee,
 				big.NewInt(int64(*p.l1BaseFeeScalar)),
@@ -350,15 +350,15 @@ func l1CostHelper(gasWithOverhead, l1BaseFee, scalar *big.Int) *big.Int {
 	return fee
 }
 
-// newL1CostFuncFjord returns an l1 cost function suitable for the Fjord upgrade
-func newL1CostFuncFjord(l1BaseFee, l1BlobBaseFee, l1BaseFeeScalar, l1BlobBaseFeeScalar *big.Int) l1CostFunc {
+// NewL1CostFuncFjord returns an l1 cost function suitable for the Fjord upgrade
+func NewL1CostFuncFjord(l1BaseFee, l1BlobBaseFee, l1BaseFeeScalar, l1BlobBaseFeeScalar *big.Int) l1CostFunc {
 	return func(costData RollupCostData) (fee, calldataGasUsed *big.Int) {
 		// Fjord L1 cost function:
 		//l1FeeScaled = baseFeeScalar*l1BaseFee*16 + blobFeeScalar*l1BlobBaseFee
 		//estimatedSize = intercept + fastlzCoef*fastlzSize
 		//l1Cost = max(minTransactionSize, estimatedSize) * l1FeeScaled / 1e12
 
-		fastlzSize := new(big.Int).SetUint64(costData.fastlzSize)
+		fastlzSize := new(big.Int).SetUint64(costData.FastLzSize)
 		fastlzSize.Mul(fastlzSize, L1CostFastlzCoef)
 		fastlzSize.Add(fastlzSize, L1CostIntercept)
 
@@ -390,7 +390,7 @@ func extractEcotoneFeeParams(l1FeeParams []byte) (l1BaseFeeScalar, l1BlobBaseFee
 }
 
 func bedrockCalldataGasUsed(costData RollupCostData) (calldataGasUsed *big.Int) {
-	calldataGas := (costData.zeroes * params.TxDataZeroGas) + (costData.ones * params.TxDataNonZeroGasEIP2028)
+	calldataGas := (costData.Zeroes * params.TxDataZeroGas) + (costData.Ones * params.TxDataNonZeroGasEIP2028)
 	return new(big.Int).SetUint64(calldataGas)
 }
 
