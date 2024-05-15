@@ -11,6 +11,8 @@ on:
       - master
       - celo*
 
+  workflow_dispatch:
+
 jobs:
   Test:
     runs-on: ["8-cpu","self-hosted","org"]
