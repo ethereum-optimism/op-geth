@@ -90,8 +90,8 @@ type Receipt struct {
 	L1GasUsed           *big.Int   `json:"l1GasUsed,omitempty"`           // Present from pre-bedrock
 	L1Fee               *big.Int   `json:"l1Fee,omitempty"`               // Present from pre-bedrock
 	FeeScalar           *big.Float `json:"l1FeeScalar,omitempty"`         // Present from pre-bedrock to Ecotone. Nil after Ecotone
-	L1BaseFeeScalar     *uint32    `json:"l1BaseFeeScalar,omitempty"`     // Always nil prior to the Ecotone hardfork
-	L1BlobBaseFeeScalar *uint32    `json:"l1BlobBaseFeeScalar,omitempty"` // Always nil prior to the Ecotone hardfork
+	L1BaseFeeScalar     *uint64    `json:"l1BaseFeeScalar,omitempty"`     // Always nil prior to the Ecotone hardfork
+	L1BlobBaseFeeScalar *uint64    `json:"l1BlobBaseFeeScalar,omitempty"` // Always nil prior to the Ecotone hardfork
 }
 
 type receiptMarshaling struct {
@@ -108,9 +108,12 @@ type receiptMarshaling struct {
 
 	// Optimism
 	L1GasPrice            *hexutil.Big
+	L1BlobBaseFee         *hexutil.Big
 	L1GasUsed             *hexutil.Big
 	L1Fee                 *hexutil.Big
 	FeeScalar             *big.Float
+	L1BaseFeeScalar       *hexutil.Uint64
+	L1BlobBaseFeeScalar   *hexutil.Uint64
 	DepositNonce          *hexutil.Uint64
 	DepositReceiptVersion *hexutil.Uint64
 }
@@ -585,9 +588,17 @@ func (rs Receipts) DeriveFields(config *params.ChainConfig, hash common.Hash, nu
 			rs[i].L1BlobBaseFee = gasParams.l1BlobBaseFee
 			rs[i].L1Fee, rs[i].L1GasUsed = gasParams.costFunc(txs[i].RollupCostData())
 			rs[i].FeeScalar = gasParams.feeScalar
-			rs[i].L1BaseFeeScalar = gasParams.l1BaseFeeScalar
-			rs[i].L1BlobBaseFeeScalar = gasParams.l1BlobBaseFeeScalar
+			rs[i].L1BaseFeeScalar = u32ptrTou64ptr(gasParams.l1BaseFeeScalar)
+			rs[i].L1BlobBaseFeeScalar = u32ptrTou64ptr(gasParams.l1BlobBaseFeeScalar)
 		}
 	}
 	return nil
+}
+
+func u32ptrTou64ptr(a *uint32) *uint64 {
+	if a == nil {
+		return nil
+	}
+	b := uint64(*a)
+	return &b
 }
