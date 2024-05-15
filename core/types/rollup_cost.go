@@ -124,6 +124,10 @@ func NewL1CostFunc(config *params.ChainConfig, statedb StateGetter) L1CostFunc {
 	forBlock := ^uint64(0)
 	var cachedFunc l1CostFunc
 	selectFunc := func(blockTime uint64) l1CostFunc {
+		if !config.IsOptimismEcotone(blockTime) {
+			return newL1CostFuncBedrock(config, statedb, blockTime)
+		}
+
 		// Note: the various state variables below are not initialized from the DB until this
 		// point to allow deposit transactions from the block to be processed first by state
 		// transition.  This behavior is consensus critical!
@@ -131,34 +135,32 @@ func NewL1CostFunc(config *params.ChainConfig, statedb StateGetter) L1CostFunc {
 		l1BlobBaseFee := statedb.GetState(L1BlockAddr, L1BlobBaseFeeSlot).Big()
 		l1BaseFee := statedb.GetState(L1BlockAddr, L1BaseFeeSlot).Big()
 
-		if config.IsOptimismEcotone(blockTime) {
-			// Edge case: the very first Ecotone block requires we use the Bedrock cost
-			// function. We detect this scenario by checking if the Ecotone parameters are
-			// unset. Note here we rely on assumption that the scalar parameters are adjacent
-			// in the buffer and l1BaseFeeScalar comes first. We need to check this prior to
-			// other forks, as the first block of Fjord and Ecotone could be the same block.
-			firstEcotoneBlock := l1BlobBaseFee.BitLen() == 0 &&
-				bytes.Equal(emptyScalars, l1FeeScalars[scalarSectionStart:scalarSectionStart+8])
-			if firstEcotoneBlock {
-				log.Info("using bedrock l1 cost func for first Ecotone block", "time", blockTime)
-				return newL1CostFuncBedrock(config, statedb, blockTime)
-			}
+		// Edge case: the very first Ecotone block requires we use the Bedrock cost
+		// function. We detect this scenario by checking if the Ecotone parameters are
+		// unset. Note here we rely on assumption that the scalar parameters are adjacent
+		// in the buffer and l1BaseFeeScalar comes first. We need to check this prior to
+		// other forks, as the first block of Fjord and Ecotone could be the same block.
+		firstEcotoneBlock := l1BlobBaseFee.BitLen() == 0 &&
+			bytes.Equal(emptyScalars, l1FeeScalars[scalarSectionStart:scalarSectionStart+8])
+		if firstEcotoneBlock {
+			log.Info("using bedrock l1 cost func for first Ecotone block", "time", blockTime)
+			return newL1CostFuncBedrock(config, statedb, blockTime)
 		}
 
+		l1BaseFeeScalar, l1BlobBaseFeeScalar := extractEcotoneFeeParams(l1FeeScalars)
+
 		if config.IsOptimismFjord(blockTime) {
-			l1BaseFeeScalar, l1BlobBaseFeeScalar := extractEcotoneFeeParams(l1FeeScalars)
 			return NewL1CostFuncFjord(
 				l1BaseFee,
 				l1BlobBaseFee,
 				l1BaseFeeScalar,
 				l1BlobBaseFeeScalar,
 			)
-		} else if config.IsOptimismEcotone(blockTime) {
-			l1BaseFeeScalar, l1BlobBaseFeeScalar := extractEcotoneFeeParams(l1FeeScalars)
+		} else {
 			return newL1CostFuncEcotone(l1BaseFee, l1BlobBaseFee, l1BaseFeeScalar, l1BlobBaseFeeScalar)
 		}
-		return newL1CostFuncBedrock(config, statedb, blockTime)
 	}
+
 	return func(rollupCostData RollupCostData, blockTime uint64) *big.Int {
 		if rollupCostData == (RollupCostData{}) {
 			return nil // Do not charge if there is no rollup cost-data (e.g. RPC call or deposit).
@@ -351,34 +353,32 @@ func l1CostHelper(gasWithOverhead, l1BaseFee, scalar *big.Int) *big.Int {
 }
 
 // NewL1CostFuncFjord returns an l1 cost function suitable for the Fjord upgrade
-func NewL1CostFuncFjord(l1BaseFee, l1BlobBaseFee, l1BaseFeeScalar, l1BlobBaseFeeScalar *big.Int) l1CostFunc {
+func NewL1CostFuncFjord(l1BaseFee, l1BlobBaseFee, baseFeeScalar, blobFeeScalar *big.Int) l1CostFunc {
 	return func(costData RollupCostData) (fee, calldataGasUsed *big.Int) {
 		// Fjord L1 cost function:
 		//l1FeeScaled = baseFeeScalar*l1BaseFee*16 + blobFeeScalar*l1BlobBaseFee
-		//estimatedSize = intercept + fastlzCoef*fastlzSize
-		//l1Cost = max(minTransactionSize, estimatedSize) * l1FeeScaled / 1e12
+		//estimatedSize = max(minTransactionSize, intercept + fastlzCoef*fastlzSize)
+		//l1Cost = estimatedSize * l1FeeScaled / 1e12
 
-		fastlzSize := new(big.Int).SetUint64(costData.FastLzSize)
-		fastlzSize.Mul(fastlzSize, L1CostFastlzCoef)
-		fastlzSize.Add(fastlzSize, L1CostIntercept)
-
-		if fastlzSize.Cmp(MinTransactionSizeScaled) < 0 {
-			fastlzSize.Set(MinTransactionSizeScaled)
-		}
-
-		calldataGasUsed = new(big.Int).Mul(fastlzSize, new(big.Int).SetUint64(params.TxDataNonZeroGasEIP2028))
-		calldataGasUsed.Div(calldataGasUsed, big.NewInt(1e6))
-
-		calldataCostPerByte := new(big.Int).Mul(l1BaseFee, sixteen)
-		calldataCostPerByte.Mul(calldataCostPerByte, l1BaseFeeScalar)
-		blobCostPerByte := new(big.Int).Mul(l1BlobBaseFee, l1BlobBaseFeeScalar)
+		scaledL1BaseFee := new(big.Int).Mul(baseFeeScalar, l1BaseFee)
+		calldataCostPerByte := new(big.Int).Mul(scaledL1BaseFee, sixteen)
+		blobCostPerByte := new(big.Int).Mul(blobFeeScalar, l1BlobBaseFee)
 		l1FeeScaled := new(big.Int).Add(calldataCostPerByte, blobCostPerByte)
 
-		l1CostSigned := new(big.Int).Set(fastlzSize)
-		l1CostSigned.Mul(l1CostSigned, l1FeeScaled)
-		l1CostSigned.Div(l1CostSigned, fjordDivisor)
+		fastLzSize := new(big.Int).SetUint64(costData.FastLzSize)
+		estimatedSize := new(big.Int).Add(L1CostIntercept, new(big.Int).Mul(L1CostFastlzCoef, fastLzSize))
 
-		return l1CostSigned, calldataGasUsed
+		if estimatedSize.Cmp(MinTransactionSizeScaled) < 0 {
+			estimatedSize.Set(MinTransactionSizeScaled)
+		}
+
+		l1CostScaled := new(big.Int).Mul(estimatedSize, l1FeeScaled)
+		l1Cost := new(big.Int).Div(l1CostScaled, fjordDivisor)
+
+		calldataGasUsed = new(big.Int).Mul(estimatedSize, new(big.Int).SetUint64(params.TxDataNonZeroGasEIP2028))
+		calldataGasUsed.Div(calldataGasUsed, big.NewInt(1e6))
+
+		return l1Cost, calldataGasUsed
 	}
 }
 
