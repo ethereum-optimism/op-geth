@@ -1497,21 +1497,21 @@ func (pool *LegacyPool) reset(oldHead, newHead *types.Header) {
 
 // reduceBalanceByL1Cost returns the given balance, reduced by the L1Cost of the first transaction in list if applicable
 // Other txs will get filtered out necessary.
-func (pool *LegacyPool) reduceBalanceByL1Cost(list *list, balance *uint256.Int) *uint256.Int {
-	if !list.Empty() && pool.l1CostFn != nil {
-		el := list.txs.FirstElement()
-		if l1Cost := pool.l1CostFn(el.RollupCostData()); l1Cost != nil {
-			l1Cost256 := uint256.MustFromBig(l1Cost)
-			if l1Cost256.Cmp(balance) >= 0 {
-				// Avoid underflow
-				balance = uint256.NewInt(0)
-			} else {
-				balance = new(uint256.Int).Sub(balance, l1Cost256)
-			}
-		}
-	}
-	return balance
-}
+// func (pool *LegacyPool) reduceBalanceByL1Cost(list *list, balance *uint256.Int) *uint256.Int {
+// 	if !list.Empty() && pool.l1CostFn != nil {
+// 		el := list.txs.FirstElement()
+// 		if l1Cost := pool.l1CostFn(el.RollupCostData()); l1Cost != nil {
+// 			l1Cost256 := uint256.MustFromBig(l1Cost)
+// 			if l1Cost256.Cmp(balance) >= 0 {
+// 				// Avoid underflow
+// 				balance = uint256.NewInt(0)
+// 			} else {
+// 				balance = new(uint256.Int).Sub(balance, l1Cost256)
+// 			}
+// 		}
+// 	}
+// 	return balance
+// }
 
 // promoteExecutables moves transactions that have become processable from the
 // future queue to the set of pending transactions. During this process, all
