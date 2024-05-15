@@ -58,6 +58,7 @@ import (
 const estimateGasErrorRatio = 0.015
 
 var errBlobTxNotSupported = errors.New("signing blob transactions not supported")
+var emptyExchangeRates = make(common.ExchangeRates)
 
 // EthereumAPI provides an API to access Ethereum related information.
 type EthereumAPI struct {
@@ -303,11 +304,11 @@ func (api *EthereumAccountAPI) Accounts() []common.Address {
 type PersonalAccountAPI struct {
 	am        *accounts.Manager
 	nonceLock *AddrLocker
-	b         Backend
+	b         CeloBackend
 }
 
 // NewPersonalAccountAPI creates a new PersonalAccountAPI.
-func NewPersonalAccountAPI(b Backend, nonceLock *AddrLocker) *PersonalAccountAPI {
+func NewPersonalAccountAPI(b CeloBackend, nonceLock *AddrLocker) *PersonalAccountAPI {
 	return &PersonalAccountAPI{
 		am:        b.AccountManager(),
 		nonceLock: nonceLock,
@@ -637,11 +638,11 @@ func (api *PersonalAccountAPI) Unpair(ctx context.Context, url string, pin strin
 
 // BlockChainAPI provides an API to access Ethereum blockchain data.
 type BlockChainAPI struct {
-	b Backend
+	b CeloBackend
 }
 
 // NewBlockChainAPI creates a new Ethereum blockchain API.
-func NewBlockChainAPI(b Backend) *BlockChainAPI {
+func NewBlockChainAPI(b CeloBackend) *BlockChainAPI {
 	return &BlockChainAPI{b}
 }
 
@@ -1202,7 +1203,7 @@ func doCall(ctx context.Context, b Backend, args TransactionArgs, state *state.S
 	if err := args.CallDefaults(globalGasCap, blockCtx.BaseFee, b.ChainConfig().ChainID); err != nil {
 		return nil, err
 	}
-	msg := args.ToMessage(blockCtx.BaseFee)
+	msg := args.ToMessage(blockCtx.BaseFee, blockCtx.ExchangeRates)
 	evm := b.GetEVM(ctx, msg, state, header, &vm.Config{NoBaseFee: true}, &blockCtx)
 
 	// Wait for the context to be done and cancel the evm. Even if the
@@ -1229,7 +1230,7 @@ func doCall(ctx context.Context, b Backend, args TransactionArgs, state *state.S
 	return result, nil
 }
 
-func DoCall(ctx context.Context, b Backend, args TransactionArgs, blockNrOrHash rpc.BlockNumberOrHash, overrides *StateOverride, blockOverrides *BlockOverrides, timeout time.Duration, globalGasCap uint64) (*core.ExecutionResult, error) {
+func DoCall(ctx context.Context, b CeloBackend, args TransactionArgs, blockNrOrHash rpc.BlockNumberOrHash, overrides *StateOverride, blockOverrides *BlockOverrides, timeout time.Duration, globalGasCap uint64) (*core.ExecutionResult, error) {
 	defer func(start time.Time) { log.Debug("Executing EVM call finished", "runtime", time.Since(start)) }(time.Now())
 
 	state, header, err := b.StateAndHeaderByNumberOrHash(ctx, blockNrOrHash)
@@ -1285,7 +1286,7 @@ func (api *BlockChainAPI) Call(ctx context.Context, args TransactionArgs, blockN
 // successfully at block `blockNrOrHash`. It returns error if the transaction would revert, or if
 // there are unexpected failures. The gas limit is capped by both `args.Gas` (if non-nil &
 // non-zero) and `gasCap` (if non-zero).
-func DoEstimateGas(ctx context.Context, b Backend, args TransactionArgs, blockNrOrHash rpc.BlockNumberOrHash, overrides *StateOverride, gasCap uint64) (hexutil.Uint64, error) {
+func DoEstimateGas(ctx context.Context, b CeloBackend, args TransactionArgs, blockNrOrHash rpc.BlockNumberOrHash, overrides *StateOverride, gasCap uint64) (hexutil.Uint64, error) {
 	// Retrieve the base state and mutate it with any overrides
 	state, header, err := b.StateAndHeaderByNumberOrHash(ctx, blockNrOrHash)
 	if state == nil || err != nil {
@@ -1310,10 +1311,28 @@ func DoEstimateGas(ctx context.Context, b Backend, args TransactionArgs, blockNr
 	if err := args.CallDefaults(gasCap, header.BaseFee, b.ChainConfig().ChainID); err != nil {
 		return 0, err
 	}
-	call := args.ToMessage(header.BaseFee)
+
+	// Celo specific: get exchange rates if fee currency is specified
+	exchangeRates := emptyExchangeRates
+	if args.FeeCurrency != nil {
+		// It is debatable whether we should use Hash or ParentHash here. Usually,
+		// user would probably like the recent rates after the block, so we use Hash.
+		exchangeRates, err = b.GetExchangeRates(ctx, header.Hash())
+		if err != nil {
+			return 0, fmt.Errorf("get exchange rates for block: %v err: %w", header.Hash(), err)
+		}
+	}
+
+	call := args.ToMessage(header.BaseFee, exchangeRates)
+
+	// Celo specific: get balance
+	balance, err := b.GetFeeBalance(ctx, opts.Header.Hash(), call.From, args.FeeCurrency)
+	if err != nil {
+		return 0, err
+	}
 
 	// Run the gas estimation and wrap any revertals into a custom return
-	estimate, revert, err := gasestimator.Estimate(ctx, call, opts, gasCap)
+	estimate, revert, err := gasestimator.Estimate(ctx, call, opts, gasCap, exchangeRates, balance)
 	if err != nil {
 		if len(revert) > 0 {
 			return 0, newRevertError(revert)
@@ -1690,7 +1709,7 @@ func (api *BlockChainAPI) CreateAccessList(ctx context.Context, args Transaction
 // AccessList creates an access list for the given transaction.
 // If the accesslist creation fails an error is returned.
 // If the transaction itself fails, an vmErr is returned.
-func AccessList(ctx context.Context, b Backend, blockNrOrHash rpc.BlockNumberOrHash, args TransactionArgs) (acl types.AccessList, gasUsed uint64, vmErr error, err error) {
+func AccessList(ctx context.Context, b CeloBackend, blockNrOrHash rpc.BlockNumberOrHash, args TransactionArgs) (acl types.AccessList, gasUsed uint64, vmErr error, err error) {
 	// Retrieve the execution context
 	db, header, err := b.StateAndHeaderByNumberOrHash(ctx, blockNrOrHash)
 	if db == nil || err != nil {
@@ -1728,7 +1747,17 @@ func AccessList(ctx context.Context, b Backend, blockNrOrHash rpc.BlockNumberOrH
 		statedb := db.Copy()
 		// Set the accesslist to the last al
 		args.AccessList = &accessList
-		msg := args.ToMessage(header.BaseFee)
+		exchangeRates := emptyExchangeRates
+		if args.FeeCurrency != nil {
+			// Always use the header's parent here, since we want to create the list at the
+			// queried block, but want to use the exchange rates before (at the beginning of)
+			// the queried block
+			exchangeRates, err = b.GetExchangeRates(ctx, header.ParentHash)
+			if err != nil {
+				return nil, 0, nil, fmt.Errorf("get exchange rates for block: %v err: %w", header.Hash(), err)
+			}
+		}
+		msg := args.ToMessage(header.BaseFee, exchangeRates)
 
 		// Apply the transaction with the access list tracer
 		tracer := logger.NewAccessListTracer(accessList, args.from(), to, precompiles)
@@ -1747,13 +1776,13 @@ func AccessList(ctx context.Context, b Backend, blockNrOrHash rpc.BlockNumberOrH
 
 // TransactionAPI exposes methods for reading and creating transaction data.
 type TransactionAPI struct {
-	b         Backend
+	b         CeloBackend
 	nonceLock *AddrLocker
 	signer    types.Signer
 }
 
 // NewTransactionAPI creates a new RPC service with methods for interacting with transactions.
-func NewTransactionAPI(b Backend, nonceLock *AddrLocker) *TransactionAPI {
+func NewTransactionAPI(b CeloBackend, nonceLock *AddrLocker) *TransactionAPI {
 	// The signer used by the API should always be the 'latest' known one because we expect
 	// signers to be backwards-compatible with old transactions.
 	signer := types.LatestSigner(b.ChainConfig())

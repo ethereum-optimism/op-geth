@@ -181,6 +181,23 @@ describe("viem send tx", () => {
 		assert.equal(request.maxPriorityFeePerGas, fees.maxPriorityFeePerGas);
 	}).timeout(10_000);
 
+	it("send fee currency with gas estimation tx and check receipt", async () => {
+		const request = await walletClient.prepareTransactionRequest({
+			account,
+			to: "0x00000000000000000000000000000000DeaDBeef",
+			value: 2,
+			feeCurrency: process.env.FEE_CURRENCY,
+			maxFeePerGas: 2000000000n,
+			maxPriorityFeePerGas: 0n,
+		});
+		const signature = await walletClient.signTransaction(request);
+		const hash = await walletClient.sendRawTransaction({
+			serializedTransaction: signature,
+		});
+		const receipt = await publicClient.waitForTransactionReceipt({ hash });
+		assert.equal(receipt.status, "success", "receipt status 'failure'");
+	}).timeout(10_000);
+
 	it("send overlapping nonce tx in different currencies", async () => {
 		const priceBump = 1.1;
 		const rate = 2;

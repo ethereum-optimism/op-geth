@@ -1282,7 +1282,7 @@ func (p *Pending) EstimateGas(ctx context.Context, args struct {
 
 // Resolver is the top-level object in the GraphQL hierarchy.
 type Resolver struct {
-	backend      ethapi.Backend
+	backend      ethapi.CeloBackend
 	filterSystem *filters.FilterSystem
 }
 

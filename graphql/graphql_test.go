@@ -39,6 +39,7 @@ import (
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/eth/ethconfig"
 	"github.com/ethereum/go-ethereum/eth/filters"
+	"github.com/ethereum/go-ethereum/internal/celoapi"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/params"
 
@@ -479,7 +480,8 @@ func newGQLService(t *testing.T, stack *node.Node, shanghai bool, gspec *core.Ge
 	}
 	// Set up handler
 	filterSystem := filters.NewFilterSystem(ethBackend.APIBackend, filters.Config{})
-	handler, err := newHandler(stack, ethBackend.APIBackend, filterSystem, []string{}, []string{})
+	celoBackend := celoapi.NewCeloAPIBackend(ethBackend.APIBackend)
+	handler, err := newHandler(stack, celoBackend, filterSystem, []string{}, []string{})
 	if err != nil {
 		t.Fatalf("could not create graphql service: %v", err)
 	}
