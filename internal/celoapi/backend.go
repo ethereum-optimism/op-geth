@@ -7,91 +7,87 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/exchange"
-	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/common/lru"
 	"github.com/ethereum/go-ethereum/contracts"
-	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
+	"github.com/ethereum/go-ethereum/rpc"
 )
 
-type Ethereum interface {
-	BlockChain() *core.BlockChain
-}
-
-type CeloAPI struct {
-	ethAPI *ethapi.EthereumAPI
-	eth    Ethereum
-}
-
-func NewCeloAPI(e Ethereum, b ethapi.Backend) *CeloAPI {
-	return &CeloAPI{
-		ethAPI: ethapi.NewEthereumAPI(b),
-		eth:    e,
+func NewCeloAPIBackend(b ethapi.Backend) *CeloAPIBackend {
+	return &CeloAPIBackend{
+		Backend:            b,
+		exchangeRatesCache: lru.NewCache[common.Hash, common.ExchangeRates](128),
 	}
 }
 
-func (c *CeloAPI) convertedCurrencyValue(v *hexutil.Big, feeCurrency *common.Address) (*hexutil.Big, error) {
-	if feeCurrency != nil {
-		convertedTipCap, err := c.convertGoldToCurrency(v.ToInt(), feeCurrency)
-		if err != nil {
-			return nil, fmt.Errorf("convert to feeCurrency: %w", err)
-		}
-		v = (*hexutil.Big)(convertedTipCap)
-	}
-	return v, nil
+// CeloAPIBackend is a wrapper for the ethapi.Backend, that provides additional Celo specific
+// functionality. CeloAPIBackend is mainly passed to the JSON RPC services and provides
+// an easy way to make extra functionality available in the service internal methods without
+// having to change their call signature significantly.
+// CeloAPIBackend keeps a threadsafe LRU cache of block-hash to exchange rates for that block.
+// Cache invalidation is only a problem when an already existing blocks' hash
+// doesn't change, but the rates change. That shouldn't be possible, since changing the rates
+// requires different transaction hashes / state and thus a different block hash.
+// If the previous rates change during a reorg, the previous block hash should also change
+// and with it the new block's hash.
+// Stale branches cache values will get evicted eventually.
+type CeloAPIBackend struct {
+	ethapi.Backend
+
+	exchangeRatesCache *lru.Cache[common.Hash, common.ExchangeRates]
 }
 
-func (c *CeloAPI) celoBackendCurrentState() (*contracts.CeloBackend, error) {
-	state, err := c.eth.BlockChain().State()
+func (b *CeloAPIBackend) getContractCaller(ctx context.Context, atBlock common.Hash) (*contracts.CeloBackend, error) {
+	state, _, err := b.Backend.StateAndHeaderByNumberOrHash(
+		ctx,
+		rpc.BlockNumberOrHashWithHash(atBlock, false),
+	)
 	if err != nil {
-		return nil, fmt.Errorf("retrieve HEAD blockchain state': %w", err)
+		return nil, fmt.Errorf("retrieve state for block hash %s: %w", atBlock.String(), err)
 	}
-
-	cb := &contracts.CeloBackend{
-		ChainConfig: c.eth.BlockChain().Config(),
+	return &contracts.CeloBackend{
+		ChainConfig: b.Backend.ChainConfig(),
 		State:       state,
-	}
-	return cb, nil
+	}, nil
 }
 
-func (c *CeloAPI) convertGoldToCurrency(nativePrice *big.Int, feeCurrency *common.Address) (*big.Int, error) {
-	cb, err := c.celoBackendCurrentState()
+func (b *CeloAPIBackend) GetFeeBalance(ctx context.Context, atBlock common.Hash, account common.Address, feeCurrency *common.Address) (*big.Int, error) {
+	cb, err := b.getContractCaller(ctx, atBlock)
+	if err != nil {
+		return nil, err
+	}
+	return contracts.GetFeeBalance(cb, account, feeCurrency), nil
+}
+
+func (b *CeloAPIBackend) GetExchangeRates(ctx context.Context, atBlock common.Hash) (common.ExchangeRates, error) {
+	cachedRates, ok := b.exchangeRatesCache.Get(atBlock)
+	if ok {
+		return cachedRates, nil
+	}
+	cb, err := b.getContractCaller(ctx, atBlock)
 	if err != nil {
 		return nil, err
 	}
 	er, err := contracts.GetExchangeRates(cb)
 	if err != nil {
-		return nil, fmt.Errorf("retrieve exchange rates from current state: %w", err)
+		return nil, err
 	}
-	return exchange.ConvertGoldToCurrency(er, feeCurrency, nativePrice)
+	b.exchangeRatesCache.Add(atBlock, er)
+	return er, nil
 }
 
-// GasPrice wraps the original JSON RPC `eth_gasPrice` and adds an additional
-// optional parameter `feeCurrency` for fee-currency conversion.
-// When `feeCurrency` is not given, then the original JSON RPC method is called without conversion.
-func (c *CeloAPI) GasPrice(ctx context.Context, feeCurrency *common.Address) (*hexutil.Big, error) {
-	tipcap, err := c.ethAPI.GasPrice(ctx)
+func (b *CeloAPIBackend) ConvertToCurrency(ctx context.Context, atBlock common.Hash, value *big.Int, fromFeeCurrency *common.Address) (*big.Int, error) {
+	er, err := b.GetExchangeRates(ctx, atBlock)
 	if err != nil {
 		return nil, err
 	}
-	// Between the call to `ethapi.GasPrice` and the call to fetch and convert the rates,
-	// there is a chance of a state-change. This means that gas-price suggestion is calculated
-	// based on state of block x, while the currency conversion could be calculated based on block
-	// x+1.
-	// However, a similar race condition is present in the `ethapi.GasPrice` method itself.
-	return c.convertedCurrencyValue(tipcap, feeCurrency)
+	return exchange.ConvertGoldToCurrency(er, fromFeeCurrency, value)
 }
 
-// MaxPriorityFeePerGas wraps the original JSON RPC `eth_maxPriorityFeePerGas` and adds an additional
-// optional parameter `feeCurrency` for fee-currency conversion.
-// When `feeCurrency` is not given, then the original JSON RPC method is called without conversion.
-func (c *CeloAPI) MaxPriorityFeePerGas(ctx context.Context, feeCurrency *common.Address) (*hexutil.Big, error) {
-	tipcap, err := c.ethAPI.MaxPriorityFeePerGas(ctx)
+func (b *CeloAPIBackend) ConvertToGold(ctx context.Context, atBlock common.Hash, value *big.Int, toFeeCurrency *common.Address) (*big.Int, error) {
+	er, err := b.GetExchangeRates(ctx, atBlock)
 	if err != nil {
 		return nil, err
 	}
-	// Between the call to `ethapi.MaxPriorityFeePerGas` and the call to fetch and convert the rates,
-	// there is a chance of a state-change. This means that gas-price suggestion is calculated
-	// based on state of block x, while the currency conversion could be calculated based on block
-	// x+1.
-	return c.convertedCurrencyValue(tipcap, feeCurrency)
+	return exchange.ConvertCurrencyToGold(er, value, toFeeCurrency)
 }

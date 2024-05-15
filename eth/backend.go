@@ -366,7 +366,8 @@ func makeExtraData(extra []byte) []byte {
 // APIs return the collection of RPC services the ethereum package offers.
 // NOTE, some of these services probably need to be moved to somewhere else.
 func (s *Ethereum) APIs() []rpc.API {
-	apis := ethapi.GetAPIs(s.APIBackend)
+	celoBackend := celoapi.NewCeloAPIBackend(s.APIBackend)
+	apis := ethapi.GetAPIs(celoBackend)
 
 	// Append any APIs exposed explicitly by the consensus engine
 	apis = append(apis, s.engine.APIs(s.BlockChain())...)
@@ -397,7 +398,7 @@ func (s *Ethereum) APIs() []rpc.API {
 		// on the eth namespace, this will overwrite the original procedures.
 		{
 			Namespace: "eth",
-			Service:   celoapi.NewCeloAPI(s, s.APIBackend),
+			Service:   celoapi.NewCeloAPI(s, celoBackend),
 		},
 	}...)
 }

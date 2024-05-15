@@ -51,7 +51,7 @@ func TestSetFeeDefaults(t *testing.T) {
 	}
 
 	var (
-		b        = newBackendMock()
+		b        = newCeloBackendMock()
 		zero     = (*hexutil.Big)(big.NewInt(0))
 		fortytwo = (*hexutil.Big)(big.NewInt(42))
 		maxFee   = (*hexutil.Big)(new(big.Int).Add(new(big.Int).Mul(b.current.BaseFee, big.NewInt(2)), fortytwo.ToInt()))
@@ -252,6 +252,37 @@ func TestSetFeeDefaults(t *testing.T) {
 			t.Fatalf("test %d (%s): did not fill defaults as expected: (got: %v, want: %v)", i, test.name, got, test.want)
 		}
 	}
+}
+
+type celoBackendMock struct {
+	*backendMock
+}
+
+func newCeloBackendMock() *celoBackendMock {
+	return &celoBackendMock{
+		backendMock: newBackendMock(),
+	}
+}
+
+func (c *celoBackendMock) GetFeeBalance(ctx context.Context, atBlock common.Hash, account common.Address, feeCurrency *common.Address) (*big.Int, error) {
+	// Celo specific backend features are currently not tested
+	return nil, errCeloNotImplemented
+}
+
+func (c *celoBackendMock) GetExchangeRates(ctx context.Context, atBlock common.Hash) (common.ExchangeRates, error) {
+	var er common.ExchangeRates
+	// Celo specific backend features are currently not tested
+	return er, errCeloNotImplemented
+}
+
+func (c *celoBackendMock) ConvertToCurrency(ctx context.Context, atBlock common.Hash, value *big.Int, fromFeeCurrency *common.Address) (*big.Int, error) {
+	// Celo specific backend features are currently not tested
+	return nil, errCeloNotImplemented
+}
+
+func (c *celoBackendMock) ConvertToGold(ctx context.Context, atBlock common.Hash, value *big.Int, toFeeCurrency *common.Address) (*big.Int, error) {
+	// Celo specific backend features are currently not tested
+	return nil, errCeloNotImplemented
 }
 
 type backendMock struct {

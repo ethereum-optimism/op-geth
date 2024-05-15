@@ -35,7 +35,9 @@ func ConvertCurrencyToGold(exchangeRates common.ExchangeRates, currencyAmount *b
 	}
 	exchangeRate, ok := exchangeRates[*feeCurrency]
 	if !ok {
-		return nil, ErrNonWhitelistedFeeCurrency
+		if !ok {
+			return nil, fmt.Errorf("could not convert to native from fee currency (fee-currency=%s): %w ", feeCurrency, ErrNonWhitelistedFeeCurrency)
+		}
 	}
 	return new(big.Int).Div(new(big.Int).Mul(currencyAmount, exchangeRate.Denom()), exchangeRate.Num()), nil
 }
@@ -46,7 +48,7 @@ func ConvertGoldToCurrency(exchangeRates common.ExchangeRates, feeCurrency *comm
 	}
 	exchangeRate, ok := exchangeRates[*feeCurrency]
 	if !ok {
-		return nil, ErrNonWhitelistedFeeCurrency
+		return nil, fmt.Errorf("could not convert from native to fee currency (fee-currency=%s): %w ", feeCurrency, ErrNonWhitelistedFeeCurrency)
 	}
 	return new(big.Int).Div(new(big.Int).Mul(goldAmount, exchangeRate.Num()), exchangeRate.Denom()), nil
 }

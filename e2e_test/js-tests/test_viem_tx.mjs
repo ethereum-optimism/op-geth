@@ -161,7 +161,7 @@ describe("viem send tx", () => {
 		);
 
 		// viem's getGasPrice does not expose additional request parameters,
-		// but Celo's override 'chain.fees.estimateFeesPerGas' action does. 
+		// but Celo's override 'chain.fees.estimateFeesPerGas' action does.
 		// this will call the eth_gasPrice and eth_maxPriorityFeePerGas methods
 		// with the additional feeCurrency parameter internally
 		var fees = await publicClient.estimateFeesPerGas({
@@ -179,6 +179,23 @@ describe("viem send tx", () => {
 		// converted gas price internally
 		assert.equal(request.maxFeePerGas, fees.maxFeePerGas);
 		assert.equal(request.maxPriorityFeePerGas, fees.maxPriorityFeePerGas);
+	}).timeout(10_000);
+
+	it("send fee currency with gas estimation tx and check receipt", async () => {
+		const request = await walletClient.prepareTransactionRequest({
+			account,
+			to: "0x00000000000000000000000000000000DeaDBeef",
+			value: 2,
+			feeCurrency: process.env.FEE_CURRENCY,
+			maxFeePerGas: 2000000000n,
+			maxPriorityFeePerGas: 0n,
+		});
+		const signature = await walletClient.signTransaction(request);
+		const hash = await walletClient.sendRawTransaction({
+			serializedTransaction: signature,
+		});
+		const receipt = await publicClient.waitForTransactionReceipt({ hash });
+		assert.equal(receipt.status, "success", "receipt status 'failure'");
 	}).timeout(10_000);
 
 	it("send overlapping nonce tx in different currencies", async () => {

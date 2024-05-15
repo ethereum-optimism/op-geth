@@ -20,10 +20,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/exchange"
+	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -49,7 +50,7 @@ type Options struct {
 // Estimate returns the lowest possible gas limit that allows the transaction to
 // run successfully with the provided context options. It returns an error if the
 // transaction would always revert, or if there are unexpected failures.
-func Estimate(ctx context.Context, call *core.Message, opts *Options, gasCap uint64) (uint64, []byte, error) {
+func Estimate(ctx context.Context, call *core.Message, opts *Options, gasCap uint64, exchangeRates common.ExchangeRates, balance *big.Int) (uint64, []byte, error) {
 	// Binary search the gas limit, as it may need to be higher than the amount used
 	var (
 		lo uint64 // lowest-known gas limit where tx execution fails
@@ -71,14 +72,29 @@ func Estimate(ctx context.Context, call *core.Message, opts *Options, gasCap uin
 	}
 	// Recap the highest gas limit with account's available balance.
 	if feeCap.BitLen() != 0 {
-		balance := opts.State.GetBalance(call.From).ToBig()
-
 		available := balance
-		if call.Value != nil {
-			if call.Value.Cmp(available) >= 0 {
-				return 0, nil, core.ErrInsufficientFundsForTransfer
+		if call.FeeCurrency != nil {
+			if !call.IsFeeCurrencyDenominated() {
+				// CIP-66, prices are given in native token.
+				// We need to check the allowance in the converted feeCurrency
+				var err error
+				feeCap, err = exchange.ConvertGoldToCurrency(exchangeRates, call.FeeCurrency, feeCap)
+				if err != nil {
+					return 0, nil, err
+				}
 			}
-			available.Sub(available, call.Value)
+		} else {
+			if call.Value != nil {
+				if call.Value.Cmp(available) >= 0 {
+					return 0, nil, core.ErrInsufficientFundsForTransfer
+				}
+				available.Sub(available, call.Value)
+			}
+		}
+
+		// cap the available by the maxFeeInFeeCurrency
+		if call.MaxFeeInFeeCurrency != nil {
+			available = math.BigMin(available, call.MaxFeeInFeeCurrency)
 		}
 		allowance := new(big.Int).Div(available, feeCap)
 
@@ -89,7 +105,9 @@ func Estimate(ctx context.Context, call *core.Message, opts *Options, gasCap uin
 				transfer = new(big.Int)
 			}
 			log.Debug("Gas estimation capped by limited funds", "original", hi, "balance", balance,
-				"sent", transfer, "maxFeePerGas", feeCap, "fundable", allowance)
+				"sent", transfer, "maxFeePerGas", feeCap, "fundable", allowance,
+				"feeCurrency", call.FeeCurrency, "maxFeeInFeeCurrency", call.MaxFeeInFeeCurrency,
+			)
 			hi = allowance.Uint64()
 		}
 	}
