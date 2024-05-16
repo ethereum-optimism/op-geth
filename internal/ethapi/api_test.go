@@ -1752,7 +1752,10 @@ func TestRPCGetBlockOrHeader(t *testing.T) {
 		acc1Addr   = crypto.PubkeyToAddress(acc1Key.PublicKey)
 		acc2Addr   = crypto.PubkeyToAddress(acc2Key.PublicKey)
 		genesis    = &core.Genesis{
-			Config: params.TestChainConfig,
+			// Use a config which disables the Cel2 flag
+			// This is necessary because Cel2 enables sending of fees to the fee handler,
+			// which in turn changes the state tree which leads to changes in hashes.
+			Config: params.TestChainConfigNoCel2,
 			Alloc: types.GenesisAlloc{
 				acc1Addr: {Balance: big.NewInt(params.Ether)},
 				acc2Addr: {Balance: big.NewInt(params.Ether)},
