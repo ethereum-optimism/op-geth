@@ -19,6 +19,7 @@ package ethapi
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"math/big"
@@ -103,6 +104,9 @@ func (args *TransactionArgs) data() []byte {
 
 // setDefaults fills in default values for unspecified tx fields.
 func (args *TransactionArgs) setDefaults(ctx context.Context, b CeloBackend, skipGasEstimation bool) error {
+	if err := args.setBlobTxSidecar(ctx, b); err != nil {
+		return err
+	}
 	if err := args.setFeeDefaults(ctx, b); err != nil {
 		return err
 	}
@@ -324,7 +328,6 @@ func (args *TransactionArgs) setLondonFeeDefaults(ctx context.Context, head *typ
 	return nil
 }
 
-/*
 // setBlobTxSidecar adds the blob tx
 func (args *TransactionArgs) setBlobTxSidecar(ctx context.Context, b Backend) error {
 	// No blobs, we're done.
@@ -399,7 +402,6 @@ func (args *TransactionArgs) setBlobTxSidecar(ctx context.Context, b Backend) er
 	}
 	return nil
 }
-*/
 
 // ToMessage converts the transaction arguments to the Message type used by the
 // core evm. This method is used in calls and traces that do not require a real
