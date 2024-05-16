@@ -72,9 +72,9 @@ func (evm *EVM) precompile(addr common.Address) (CeloPrecompiledContract, bool) 
 			override, ok := evm.Config.OptimismPrecompileOverrides(evm.chainRules, p, addr)
 			if ok {
 				cp = &wrap{override}
-			} else {
-				cp = &wrap{p}
 			}
+		} else {
+			cp = &wrap{p}
 		}
 	}
 	return cp, ok
