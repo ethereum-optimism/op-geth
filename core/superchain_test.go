@@ -11,11 +11,10 @@ import (
 
 func TestOPStackGenesis(t *testing.T) {
 	for id := range superchain.OPChains {
-		gen, err := LoadOPStackGenesis(id)
+		_, err := LoadOPStackGenesis(id)
 		if err != nil {
-			t.Fatal(err)
+			t.Error(err)
 		}
-		t.Logf("chain: %d, genesis block hash: %s", id, gen.ToBlock().Hash())
 	}
 }
 
