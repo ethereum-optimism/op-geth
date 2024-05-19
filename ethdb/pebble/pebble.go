@@ -135,7 +135,7 @@ func (l panicLogger) Fatalf(format string, args ...interface{}) {
 
 // New returns a wrapped pebble DB object. The namespace is the prefix that the
 // metrics reporting should use for surfacing internal stats.
-func New(file string, cache int, handles int, namespace string, readonly bool, ephemeral bool) (*Database, error) {
+func New(file string, cache int, handles int, namespace string, readonly bool, ephemeral bool, noAutoComp bool) (*Database, error) {
 	// Ensure we have some minimal caching and file guarantees
 	if cache < minCache {
 		cache = minCache
@@ -144,7 +144,8 @@ func New(file string, cache int, handles int, namespace string, readonly bool, e
 		handles = minHandles
 	}
 	logger := log.New("database", file)
-	logger.Info("Allocated cache and file handles", "cache", common.StorageSize(cache*1024*1024), "handles", handles)
+	logger.Info("Allocated cache and file handles", "cache", common.StorageSize(cache*1024*1024), "handles", handles,
+		"no_auto_compaction", noAutoComp)
 
 	// The max memtable size is limited by the uint32 offsets stored in
 	// internal/arenaskl.node, DeferredBatchOp, and flushableBatchEntry.
@@ -219,6 +220,8 @@ func New(file string, cache int, handles int, namespace string, readonly bool, e
 			WriteStallEnd:   db.onWriteStallEnd,
 		},
 		Logger: panicLogger{}, // TODO(karalabe): Delete when this is upstreamed in Pebble
+
+		DisableAutomaticCompactions: noAutoComp,
 	}
 	// Disable seek compaction explicitly. Check https://github.com/ethereum/go-ethereum/pull/20130
 	// for more details.

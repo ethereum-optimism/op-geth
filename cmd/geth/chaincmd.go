@@ -221,7 +221,7 @@ func initGenesis(ctx *cli.Context) error {
 		overrides.OverrideVerkle = &v
 	}
 	for _, name := range []string{"chaindata", "lightchaindata"} {
-		chaindb, err := stack.OpenDatabaseWithFreezer(name, 0, 0, ctx.String(utils.AncientFlag.Name), "", false)
+		chaindb, err := stack.OpenDatabaseWithFreezer(name, 0, 0, ctx.String(utils.AncientFlag.Name), "", false, false)
 		if err != nil {
 			utils.Fatalf("Failed to open database: %v", err)
 		}
@@ -258,7 +258,7 @@ func dumpGenesis(ctx *cli.Context) error {
 	// dump whatever already exists in the datadir
 	stack, _ := makeConfigNode(ctx)
 	for _, name := range []string{"chaindata", "lightchaindata"} {
-		db, err := stack.OpenDatabase(name, 0, 0, "", true)
+		db, err := stack.OpenDatabase(name, 0, 0, "", true, false)
 		if err != nil {
 			if !os.IsNotExist(err) {
 				return err
@@ -561,7 +561,7 @@ func parseDumpConfig(ctx *cli.Context, stack *node.Node) (*state.DumpConfig, eth
 	default:
 		return nil, nil, common.Hash{}, fmt.Errorf("invalid start argument: %x. 20 or 32 hex-encoded bytes required", startArg)
 	}
-	var conf = &state.DumpConfig{
+	conf := &state.DumpConfig{
 		SkipCode:          ctx.Bool(utils.ExcludeCodeFlag.Name),
 		SkipStorage:       ctx.Bool(utils.ExcludeStorageFlag.Name),
 		OnlyWithAddresses: !ctx.Bool(utils.IncludeIncompletesFlag.Name),

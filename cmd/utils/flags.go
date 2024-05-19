@@ -463,6 +463,12 @@ var (
 		Category: flags.PerfCategory,
 	}
 
+	DBDisableAutoCompFlag = &cli.BoolFlag{
+		Name:     "db.disable-auto-comp",
+		Usage:    "Disables database auto-compaction (pebble only)",
+		Category: flags.PerfCategory,
+	}
+
 	// Miner settings
 	MiningEnabledFlag = &cli.BoolFlag{
 		Name:     "mine",
@@ -1761,6 +1767,15 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 		cfg.DatabaseFreezer = ctx.String(AncientFlag.Name)
 	}
 
+	if flag := DBDisableAutoCompFlag.Name; ctx.IsSet(flag) {
+		val := ctx.Bool(flag)
+		cfg.DisableAutomaticDBCompactions = val
+		if val {
+			log.Info("Disabling automatic database compaction")
+		}
+		// Don't log default behavior.
+	}
+
 	if gcmode := ctx.String(GCModeFlag.Name); gcmode != "full" && gcmode != "archive" {
 		Fatalf("--%s must be either 'full' or 'archive'", GCModeFlag.Name)
 	}
@@ -1952,7 +1967,7 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 			if rawdb.ReadCanonicalHash(chaindb, 0) != (common.Hash{}) {
 				cfg.Genesis = nil // fallback to db content
 
-				//validate genesis has PoS enabled in block 0
+				// validate genesis has PoS enabled in block 0
 				genesis, err := core.ReadGenesis(chaindb)
 				if err != nil {
 					Fatalf("Could not read genesis from database: %v", err)
@@ -2145,9 +2160,9 @@ func MakeChainDatabase(ctx *cli.Context, stack *node.Node, readonly bool) ethdb.
 		}
 		chainDb = remotedb.New(client)
 	case ctx.String(SyncModeFlag.Name) == "light":
-		chainDb, err = stack.OpenDatabase("lightchaindata", cache, handles, "", readonly)
+		chainDb, err = stack.OpenDatabase("lightchaindata", cache, handles, "", readonly, false)
 	default:
-		chainDb, err = stack.OpenDatabaseWithFreezer("chaindata", cache, handles, ctx.String(AncientFlag.Name), "", readonly)
+		chainDb, err = stack.OpenDatabaseWithFreezer("chaindata", cache, handles, ctx.String(AncientFlag.Name), "", readonly, false)
 	}
 	if err != nil {
 		Fatalf("Could not open database: %v", err)
