@@ -178,6 +178,8 @@ type Config struct {
 	RollupDisableTxPoolGossip               bool
 	RollupDisableTxPoolAdmission            bool
 	RollupHaltOnIncompatibleProtocolVersion string
+
+	DisableAutomaticDBCompactions bool
 }
 
 // CreateConsensusEngine creates a consensus engine for the given chain config.
