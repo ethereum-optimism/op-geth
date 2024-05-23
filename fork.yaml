@@ -5,7 +5,7 @@ footer: |
 base:
   name: go-ethereum
   url: https://github.com/ethereum/go-ethereum
-  hash: c5ba367eb6232e3eddd7d6226bfd374449c63164 v1.13.15
+  hash: c5ba367eb6232e3eddd7d6226bfd374449c63164 # v1.13.15
 fork:
   name: op-geth
   url: https://github.com/ethereum-optimism/op-geth
@@ -56,7 +56,7 @@ def:
               globs:
                 - "core/vm/evm.go"
                 - "core/evm.go"
-                - "core/types/rollup_l1_cost.go"
+                - "core/types/rollup_cost.go"
                 - "core/state_processor.go"
                 - "core/state_prefetcher.go"
             - title: Transaction processing
@@ -111,7 +111,7 @@ def:
           description: |
             Transaction queueing and inclusion needs to account for the L1 cost component.
           globs:
-            - "core/txpool/*"
+            - "core/txpool/**/*"
             - "core/txpool/legacypool/*"
     - title: "Chain Configuration"
       sub:
@@ -188,6 +188,10 @@ def:
           description: Fix discv5 option to allow discv5 to be an active source for node-discovery.
           globs:
             - "p2p/server.go"
+        - title: Bootnodes
+          description: Discovery bootnode addresses.
+          globs:
+            - "params/bootnodes.go"
         - title: Generated TOML config update
           globs:
             - "eth/ethconfig/gen_config.go"
@@ -222,7 +226,7 @@ def:
           globs:
             - "eth/tracers/api.go"
         - title: "Daisy Chain tests"
-          globs:
+          ignore:
             - "internal/ethapi/transaction_args_test.go"
             - "ethclient/ethclient_test.go"
             - "eth/tracers/api_test.go"
@@ -255,6 +259,10 @@ def:
           # upstream PR: https://github.com/ethereum/go-ethereum/pull/28863/
           globs:
             - "accounts/usbwallet/hub.go"
+    - title: "Testing"
+      description: Additional or modified tests, not already captured by the above diff
+      ignore:
+        - "**/*_test.go"
 
 # ignored globally, does not count towards line count
 ignore:
@@ -262,4 +270,9 @@ ignore:
   - "*.sum"
   - "go.mod"
   - "fork.yaml"
-  - ".github/*"
+  - "Makefile"
+  - ".golangci.yml"
+  - ".github/**"
+  - "**/*.gob" # data asset, not code
+  - "core/vm/testdata/precompiles/p256Verify.json" # data asset, not code
+  - "eth/tracers/internal/tracetest/testdata/**/*.json"
