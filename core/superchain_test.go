@@ -6,16 +6,15 @@ import (
 	"github.com/ethereum-optimism/superchain-registry/superchain"
 
 	"github.com/ethereum/go-ethereum/core/rawdb"
-	"github.com/ethereum/go-ethereum/trie"
+	"github.com/ethereum/go-ethereum/triedb"
 )
 
 func TestOPStackGenesis(t *testing.T) {
 	for id := range superchain.OPChains {
-		gen, err := LoadOPStackGenesis(id)
+		_, err := LoadOPStackGenesis(id)
 		if err != nil {
-			t.Fatal(err)
+			t.Error(err)
 		}
-		t.Logf("chain: %d, genesis block hash: %s", id, gen.ToBlock().Hash())
 	}
 }
 
@@ -32,7 +31,7 @@ func TestRegistryChainConfigOverride(t *testing.T) {
 	genesis.Config.RegolithTime = nil
 
 	// initialize the DB
-	tdb := trie.NewDatabase(db, newDbConfig(rawdb.PathScheme))
+	tdb := triedb.NewDatabase(db, newDbConfig(rawdb.PathScheme))
 	genesis.MustCommit(db, tdb)
 	bl := genesis.ToBlock()
 	rawdb.WriteCanonicalHash(db, bl.Hash(), 0)
