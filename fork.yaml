@@ -226,7 +226,7 @@ def:
           globs:
             - "eth/tracers/api.go"
         - title: "Daisy Chain tests"
-          ignored:
+          ignore:
             - "internal/ethapi/transaction_args_test.go"
             - "ethclient/ethclient_test.go"
             - "eth/tracers/api_test.go"
@@ -261,7 +261,7 @@ def:
             - "accounts/usbwallet/hub.go"
     - title: "Testing"
       description: Additional or modified tests, not already captured by the above diff
-      ignored:
+      ignore:
         - "**/*_test.go"
 
 # ignored globally, does not count towards line count
