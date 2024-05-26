@@ -160,7 +160,9 @@ var (
 		configFileFlag,
 		utils.LogDebugFlag,
 		utils.LogBacktraceAtFlag,
-	}, utils.NetworkFlags, utils.DatabaseFlags)
+	}, utils.NetworkFlags, utils.DatabaseFlags,
+		utils.PebbleFlags,
+	)
 
 	rpcFlags = []cli.Flag{
 		utils.HTTPEnabledFlag,
