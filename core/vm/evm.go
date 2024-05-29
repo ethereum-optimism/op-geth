@@ -41,8 +41,6 @@ type (
 func (evm *EVM) precompile(addr common.Address) (CeloPrecompiledContract, bool) {
 	var precompiles map[common.Address]PrecompiledContract
 	switch {
-	case evm.chainRules.IsCel2:
-		precompiles = PrecompiledContractsCel2
 	case evm.chainRules.IsOptimismFjord:
 		precompiles = PrecompiledContractsFjord
 	case evm.chainRules.IsCancun:
