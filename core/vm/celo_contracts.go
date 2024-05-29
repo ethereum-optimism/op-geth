@@ -10,6 +10,8 @@ import (
 	"github.com/holiman/uint256"
 )
 
+var GoldTokenAddress = common.HexToAddress("0x471ece3750da237f93b8e339c536989b8978a438")
+
 type CeloPrecompiledContract interface {
 	RequiredGas(input []byte) uint64                              // RequiredGas calculates the contract gas use
 	Run(input []byte, ctx *celoPrecompileContext) ([]byte, error) // Run runs the precompiled contract
@@ -46,7 +48,7 @@ func celoPrecompileAddress(index byte) common.Address {
 }
 
 func (ctx *celoPrecompileContext) IsCallerGoldToken() (bool, error) {
-	return true, nil // TODO
+	return GoldTokenAddress == ctx.caller, nil
 }
 
 // Native transfer contract to make Celo Gold ERC20 compatible.
@@ -60,7 +62,7 @@ func (c *transfer) Run(input []byte, ctx *celoPrecompileContext) ([]byte, error)
 	if isGoldToken, err := ctx.IsCallerGoldToken(); err != nil {
 		return nil, err
 	} else if !isGoldToken {
-		return nil, fmt.Errorf("Unable to call transfer from unpermissioned address")
+		return nil, fmt.Errorf("unable to call transfer from unpermissioned address")
 	}
 
 	// input is comprised of 3 arguments:
