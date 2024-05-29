@@ -7,6 +7,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/contracts/addresses"
 	"github.com/ethereum/go-ethereum/contracts/celo/abigen"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -114,7 +115,7 @@ func CreditFees(
 // GetExchangeRates returns the exchange rates for all gas currencies from CELO
 func GetExchangeRates(caller bind.ContractCaller) (common.ExchangeRates, error) {
 	exchangeRates := map[common.Address]*big.Rat{}
-	directory, err := abigen.NewFeeCurrencyDirectoryCaller(FeeCurrencyDirectoryAddress, caller)
+	directory, err := abigen.NewFeeCurrencyDirectoryCaller(addresses.FeeCurrencyDirectoryAddress, caller)
 	if err != nil {
 		return exchangeRates, fmt.Errorf("Failed to access FeeCurrencyDirectory: %w", err)
 	}

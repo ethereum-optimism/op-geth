@@ -25,6 +25,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/exchange"
 	cmath "github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/contracts"
+	"github.com/ethereum/go-ethereum/contracts/addresses"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto/kzg4844"
@@ -726,7 +727,7 @@ func (st *StateTransition) distributeTxFees() error {
 	tipTxFee := new(big.Int).Sub(totalTxFee, baseTxFee)
 
 	feeCurrency := st.msg.FeeCurrency
-	feeHandlerAddress := contracts.FeeHandlerAddress
+	feeHandlerAddress := addresses.FeeHandlerAddress
 
 	log.Trace("distributeTxFees", "from", from, "refund", refund, "feeCurrency", st.msg.FeeCurrency,
 		"coinbaseFeeRecipient", st.evm.Context.Coinbase, "coinbaseFee", tipTxFee,

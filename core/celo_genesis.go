@@ -6,7 +6,7 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/contracts"
+	"github.com/ethereum/go-ethereum/contracts/addresses"
 	"github.com/ethereum/go-ethereum/contracts/celo"
 	"github.com/ethereum/go-ethereum/crypto"
 )
@@ -95,7 +95,7 @@ func celoGenesisAccounts(fundedAddr common.Address) GenesisAlloc {
 		panic("Couldn not set faucet balance!")
 	}
 	genesisAccounts := map[common.Address]GenesisAccount{
-		contracts.RegistryAddress: { // Registry Proxy
+		addresses.RegistryAddress: { // Registry Proxy
 			Code: proxyBytecode,
 			Storage: map[common.Hash]common.Hash{
 				common.HexToHash("0x0"):   DevAddr32, // `_owner` slot in Registry contract
@@ -108,7 +108,7 @@ func celoGenesisAccounts(fundedAddr common.Address) GenesisAlloc {
 			Code:    registryBytecode,
 			Balance: big.NewInt(0),
 		},
-		contracts.GoldTokenAddress: { // GoldToken Proxy
+		addresses.GoldTokenAddress: { // GoldToken Proxy
 			Code: proxyBytecode,
 			Storage: map[common.Hash]common.Hash{
 				proxy_implementation_slot: common.HexToHash("0xce13"),
@@ -176,7 +176,7 @@ func celoGenesisAccounts(fundedAddr common.Address) GenesisAlloc {
 	// add entries to currencyConfig mapping
 	addFeeCurrencyToStorage(DevFeeCurrencyAddr, mockOracleAddr, feeCurrencyDirectoryStorage)
 	addFeeCurrencyToStorage(DevFeeCurrencyAddr2, mockOracleAddr2, feeCurrencyDirectoryStorage)
-	genesisAccounts[contracts.FeeCurrencyDirectoryAddress] = GenesisAccount{
+	genesisAccounts[addresses.FeeCurrencyDirectoryAddress] = GenesisAccount{
 		Code:    feeCurrencyDirectoryBytecode,
 		Balance: big.NewInt(0),
 		Storage: feeCurrencyDirectoryStorage,

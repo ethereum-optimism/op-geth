@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/contracts/addresses"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/holiman/uint256"
@@ -78,7 +79,7 @@ func TestPrecompileTransfer(t *testing.T) {
 			name: "Test transfer with short input",
 			args: args{
 				input: []byte("0000"),
-				ctx:   NewContext(GoldTokenAddress, mockEVM),
+				ctx:   NewContext(addresses.GoldTokenAddress, mockEVM),
 			},
 			wantErr:     true,
 			expectedErr: "invalid input length",

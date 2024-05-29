@@ -24,6 +24,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/exchange"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
 	"github.com/ethereum/go-ethereum/contracts"
+	"github.com/ethereum/go-ethereum/contracts/addresses"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -137,7 +138,7 @@ func testNativeTransferWithFeeCurrency(t *testing.T, scheme string, feeCurrencyA
 	}
 
 	// 5: Check that base fee has been moved to the fee handler.
-	actual, _ = contracts.GetBalanceERC20(&backend, contracts.FeeHandlerAddress, feeCurrencyAddr)
+	actual, _ = contracts.GetBalanceERC20(&backend, addresses.FeeHandlerAddress, feeCurrencyAddr)
 	expected = new(big.Int).SetUint64(block.GasUsed() * baseFeeInFeeCurrency.Uint64())
 	if actual.Cmp(expected) != 0 {
 		t.Fatalf("fee handler balance incorrect: expected %d, got %d", expected, actual)
