@@ -1916,7 +1916,8 @@ func marshalReceipt(receipt *types.Receipt, blockHash common.Hash, blockNumber u
 		}
 		// Fields added in Ecotone
 		if receipt.L1BlobBaseFee != nil {
-			fields["l1BlobBaseFee"] = (*hexutil.Big)(receipt.L1BlobBaseFee)
+			// TODO: this should be a hexutil.Big, but it's an opaque interface for backwards compatibility at the moment
+			fields["l1BlobBaseFee"] = receipt.L1BlobBaseFee
 		}
 		if receipt.L1BaseFeeScalar != nil {
 			fields["l1BaseFeeScalar"] = hexutil.Uint64(*receipt.L1BaseFeeScalar)
