@@ -41,6 +41,9 @@ type LazyTransaction struct {
 
 	Gas     uint64 // Amount of gas required by the transaction
 	BlobGas uint64 // Amount of blob gas required by the transaction
+
+	// Celo
+	FeeCurrency *common.Address
 }
 
 // Resolve retrieves the full transaction belonging to a lazy handle if it is still

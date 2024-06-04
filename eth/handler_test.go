@@ -108,13 +108,14 @@ func (p *testTxPool) Pending(filter txpool.PendingFilter) map[common.Address][]*
 	for addr, batch := range batches {
 		for _, tx := range batch {
 			pending[addr] = append(pending[addr], &txpool.LazyTransaction{
-				Hash:      tx.Hash(),
-				Tx:        tx,
-				Time:      tx.Time(),
-				GasFeeCap: uint256.MustFromBig(tx.GasFeeCap()),
-				GasTipCap: uint256.MustFromBig(tx.GasTipCap()),
-				Gas:       tx.Gas(),
-				BlobGas:   tx.BlobGas(),
+				Hash:        tx.Hash(),
+				Tx:          tx,
+				Time:        tx.Time(),
+				GasFeeCap:   uint256.MustFromBig(tx.GasFeeCap()),
+				GasTipCap:   uint256.MustFromBig(tx.GasTipCap()),
+				Gas:         tx.Gas(),
+				BlobGas:     tx.BlobGas(),
+				FeeCurrency: tx.FeeCurrency(),
 			})
 		}
 	}

@@ -55,11 +55,13 @@ var (
 // environment is the worker's current environment and holds all
 // information of the sealing block generation.
 type environment struct {
-	signer   types.Signer
-	state    *state.StateDB // apply state changes here
-	tcount   int            // tx count in cycle
-	gasPool  *core.GasPool  // available gas used to pack transactions
-	coinbase common.Address
+	signer               types.Signer
+	state                *state.StateDB     // apply state changes here
+	tcount               int                // tx count in cycle
+	gasPool              *core.GasPool      // available gas used to pack transactions
+	multiGasPool         *core.MultiGasPool // available per-fee-currency gas used to pack transactions
+	feeCurrencyWhitelist []common.Address
+	coinbase             common.Address
 
 	header   *types.Header
 	txs      []*types.Transaction
@@ -116,6 +118,14 @@ func (miner *Miner) generateWork(params *generateParams) *newPayloadResult {
 		}
 		work.gasPool = new(core.GasPool).AddGas(gasLimit)
 	}
+	if work.multiGasPool == nil {
+		work.multiGasPool = core.NewMultiGasPool(
+			work.header.GasLimit,
+			work.feeCurrencyWhitelist,
+			miner.config.FeeCurrencyDefault,
+			miner.config.FeeCurrencyLimits,
+		)
+	}
 
 	misc.EnsureCreate2Deployer(miner.chainConfig, work.header.Time, work.state)
 
@@ -126,6 +136,10 @@ func (miner *Miner) generateWork(params *generateParams) *newPayloadResult {
 		if err != nil {
 			return &newPayloadResult{err: fmt.Errorf("failed to force-include tx: %s type: %d sender: %s nonce: %d, err: %w", tx.Hash(), tx.Type(), from, tx.Nonce(), err)}
 		}
+		// the non-fee currency pool in the multipool is not used, but for consistency
+		// subtract the gas. Don't check the error either, this has been checked already
+		// with the work.gasPool.
+		work.multiGasPool.PoolFor(nil).SubGas(tx.Gas())
 		work.tcount++
 	}
 	if !params.noTxs {
@@ -246,8 +260,9 @@ func (miner *Miner) prepareWork(genParams *generateParams) (*environment, error)
 		log.Error("Failed to create sealing context", "err", err)
 		return nil, err
 	}
+	context := core.NewEVMBlockContext(header, miner.chain, nil, miner.chainConfig, env.state)
+	env.feeCurrencyWhitelist = common.CurrencyWhitelist(context.ExchangeRates)
 	if header.ParentBeaconRoot != nil {
-		context := core.NewEVMBlockContext(header, miner.chain, nil, miner.chainConfig, env.state)
 		vmenv := vm.NewEVM(context, vm.TxContext{}, env.state, miner.chainConfig, vm.Config{})
 		core.ProcessBeaconBlockRoot(*header.ParentBeaconRoot, vmenv, env.state)
 	}
@@ -341,6 +356,14 @@ func (miner *Miner) commitTransactions(env *environment, plainTxs, blobTxs *tran
 	if env.gasPool == nil {
 		env.gasPool = new(core.GasPool).AddGas(gasLimit)
 	}
+	if env.multiGasPool == nil {
+		env.multiGasPool = core.NewMultiGasPool(
+			env.header.GasLimit,
+			env.feeCurrencyWhitelist,
+			miner.config.FeeCurrencyDefault,
+			miner.config.FeeCurrencyLimits,
+		)
+	}
 	for {
 		// Check interruption signal and abort building if it's fired.
 		if interrupt != nil {
@@ -394,6 +417,15 @@ func (miner *Miner) commitTransactions(env *environment, plainTxs, blobTxs *tran
 			txs.Pop()
 			continue
 		}
+		if left := env.multiGasPool.PoolFor(ltx.FeeCurrency).Gas(); left < ltx.Gas {
+			log.Trace(
+				"Not enough specific fee-currency gas left for transaction",
+				"currency", ltx.FeeCurrency, "hash", ltx.Hash,
+				"left", left, "needed", ltx.Gas,
+			)
+			txs.Pop()
+			continue
+		}
 		// Transaction seems to fit, pull it up from the pool
 		tx := ltx.Resolve()
 		if tx == nil {
@@ -415,7 +447,9 @@ func (miner *Miner) commitTransactions(env *environment, plainTxs, blobTxs *tran
 		// Start executing the transaction
 		env.state.SetTxContext(tx.Hash(), env.tcount)
 
+		availableGas := env.gasPool.Gas()
 		err := miner.commitTransaction(env, tx)
+		gasUsed := availableGas - env.gasPool.Gas()
 		switch {
 		case errors.Is(err, core.ErrNonceTooLow):
 			// New head notification data race between the transaction pool and miner, shift
@@ -423,6 +457,23 @@ func (miner *Miner) commitTransactions(env *environment, plainTxs, blobTxs *tran
 			txs.Shift()
 
 		case errors.Is(err, nil):
+			err := env.multiGasPool.PoolFor(tx.FeeCurrency()).SubGas(gasUsed)
+			if err != nil {
+				// Should never happen as we check it above
+				log.Warn(
+					"Unexpectedly reached limit for fee currency, but tx will not be skipped",
+					"hash", tx.Hash(), "gas", env.multiGasPool.PoolFor(tx.FeeCurrency()).Gas(),
+					"tx gas used", gasUsed,
+				)
+				// If we reach this codepath, we want to still include the transaction,
+				// since the "global" gasPool in the commitTransaction accepted it and we
+				// would have to roll the transaction back now, introducing unnecessary
+				// complexity.
+				// Since we shouldn't reach this point anyways and the
+				// block gas limit per fee currency is enforced voluntarily and not
+				// included in the consensus this is fine.
+			}
+
 			// Everything ok, collect the logs and shift in the next transaction from the same account
 			txs.Shift()
 
