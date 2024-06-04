@@ -10,6 +10,16 @@ var (
 
 type ExchangeRates = map[Address]*big.Rat
 
+func CurrencyWhitelist(exchangeRates ExchangeRates) []Address {
+	addrs := make([]Address, len(exchangeRates))
+	i := 0
+	for k := range exchangeRates {
+		addrs[i] = k
+		i++
+	}
+	return addrs
+}
+
 func IsCurrencyWhitelisted(exchangeRates ExchangeRates, feeCurrency *Address) bool {
 	if feeCurrency == nil {
 		return true

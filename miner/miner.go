@@ -62,6 +62,10 @@ type Config struct {
 
 	RollupComputePendingBlock bool   // Compute the pending block from tx-pool, instead of copying the latest-block
 	EffectiveGasCeil          uint64 // if non-zero, a gas ceiling to apply independent of the header's gaslimit value
+
+	// Celo:
+	FeeCurrencyDefault float64                    // Default fraction of block gas limit
+	FeeCurrencyLimits  map[common.Address]float64 // Fee currency-to-limit fraction mapping
 }
 
 // DefaultConfig contains default settings for miner.
@@ -75,6 +79,8 @@ var DefaultConfig = Config{
 	// run 3 rounds.
 	Recommit:          2 * time.Second,
 	NewPayloadTimeout: 2 * time.Second,
+
+	FeeCurrencyDefault: DefaultFeeCurrencyLimit,
 }
 
 // Miner creates blocks and searches for proof-of-work values.

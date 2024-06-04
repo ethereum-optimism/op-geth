@@ -130,6 +130,8 @@ var (
 		utils.MinerExtraDataFlag,
 		utils.MinerRecommitIntervalFlag,
 		utils.MinerNewPayloadTimeout,
+		utils.CeloFeeCurrencyDefault,
+		utils.CeloFeeCurrencyLimits,
 		utils.NATFlag,
 		utils.NoDiscoverFlag,
 		utils.DiscoveryV4Flag,
