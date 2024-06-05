@@ -19,6 +19,7 @@ package core
 import (
 	"errors"
 	"fmt"
+
 	"math/big"
 	"math/rand"
 	"os"
@@ -38,9 +39,11 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/eth/tracers/logger"
 	"github.com/ethereum/go-ethereum/ethdb"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/trie"
 	"github.com/holiman/uint256"
+	"golang.org/x/exp/slog"
 )
 
 // So we can deterministically seed different blockchains
@@ -4325,4 +4328,30 @@ func TestEIP3651(t *testing.T) {
 	if actual.Cmp(expected) != 0 {
 		t.Fatalf("sender balance incorrect: expected %d, got %d", expected, actual)
 	}
+}
+
+func TestConfigChange(t *testing.T) {
+
+	var genesis = &Genesis{
+		BaseFee: big.NewInt(params.InitialBaseFee),
+		Config:  params.AllEthashProtocolChanges,
+	}
+
+	time1 := uint64(10)
+	time2 := uint64(0)
+	genesis.Config.ShanghaiTime = &time1
+
+	genesis.Timestamp = 12
+
+	log.SetDefault(log.NewLogger(slog.NewTextHandler(os.Stdout, nil)))
+	db := rawdb.NewMemoryDatabase()
+	cc := DefaultCacheConfigWithScheme(rawdb.PathScheme)
+
+	blockchain, _ := NewBlockChain(db, cc, genesis, nil, ethash.NewFaker(), vm.Config{}, nil, nil)
+	<-time.After(3 * time.Second)
+	blockchain.Stop()
+	genesis.Config.ShanghaiTime = &time2
+	_, _ = NewBlockChain(db, cc, genesis, nil, ethash.NewFaker(), vm.Config{}, nil, nil)
+
+	<-time.After(3 * time.Second)
 }
