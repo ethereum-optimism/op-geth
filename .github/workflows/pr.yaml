@@ -1,0 +1,17 @@
+name: PR only
+
+on:
+  pull_request:
+    branches:
+      - master
+      - celo*
+
+jobs:
+  dependencies:
+    concurrency: ci-${{ github.ref }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Dependency Review"
+        uses: actions/dependency-review-action@v4
+        with:
+          warn-only: true
