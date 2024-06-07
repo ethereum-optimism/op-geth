@@ -30,7 +30,6 @@ func TestCheckCompatible(t *testing.T) {
 	type test struct {
 		stored, new *ChainConfig
 		headBlock,
-		genesisBlock,
 		headTimestamp,
 		genesisTimestamp uint64
 		wantErr *ConfigCompatError
@@ -146,7 +145,7 @@ func TestCheckCompatible(t *testing.T) {
 
 	for i, test := range tests {
 		t.Run(fmt.Sprintf("case %d", i), func(t *testing.T) {
-			err := test.stored.CheckCompatible(test.new, test.headBlock, test.headTimestamp, test.genesisBlock, test.genesisTimestamp)
+			err := test.stored.CheckCompatible(test.new, test.headBlock, test.headTimestamp, test.genesisTimestamp)
 			if !reflect.DeepEqual(err, test.wantErr) {
 				t.Errorf("error mismatch:\nstored: %v\nnew: %v\nheadBlock: %v\nheadTimestamp: %v\nerr: %v\nwant: %v", test.stored, test.new, test.headBlock, test.headTimestamp, err, test.wantErr)
 			}
