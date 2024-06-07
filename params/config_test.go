@@ -151,7 +151,6 @@ func TestCheckCompatible(t *testing.T) {
 				t.Errorf("error mismatch:\nstored: %v\nnew: %v\nheadBlock: %v\nheadTimestamp: %v\nerr: %v\nwant: %v", test.stored, test.new, test.headBlock, test.headTimestamp, err, test.wantErr)
 			}
 		})
-
 	}
 }
 
