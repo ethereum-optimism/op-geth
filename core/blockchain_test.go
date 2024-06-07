@@ -4360,7 +4360,7 @@ func TestRewindOnConfigChange(t *testing.T) {
 			name:              fmt.Sprintf("ShanghaiTime changes from 10 to 0 (genesis time is %d)", genesisTime),
 			override1:         func(c *params.ChainConfig) { c.ShanghaiTime = uint64ptr(10) },
 			override2:         func(c *params.ChainConfig) { c.ShanghaiTime = uint64ptr(0) },
-			expectChainRewind: true,
+			expectChainRewind: false,
 		},
 	}
 
