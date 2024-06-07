@@ -27,10 +27,11 @@ import (
 
 func TestCheckCompatible(t *testing.T) {
 	type test struct {
-		stored, new   *ChainConfig
-		headBlock     uint64
-		headTimestamp uint64
-		wantErr       *ConfigCompatError
+		stored, new *ChainConfig
+		headBlock,
+		headTimestamp,
+		genesisTimestamp uint64
+		wantErr *ConfigCompatError
 	}
 	tests := []test{
 		{stored: AllEthashProtocolChanges, new: AllEthashProtocolChanges, headBlock: 0, headTimestamp: 0, wantErr: nil},
@@ -109,10 +110,21 @@ func TestCheckCompatible(t *testing.T) {
 				RewindToTime: 9,
 			},
 		},
+		{
+			stored:        &ChainConfig{ShanghaiTime: newUint64(10)},
+			new:           &ChainConfig{ShanghaiTime: newUint64(20)},
+			headTimestamp: 25,
+			wantErr: &ConfigCompatError{
+				What:         "Shanghai fork timestamp",
+				StoredTime:   newUint64(10),
+				NewTime:      newUint64(20),
+				RewindToTime: 9,
+			},
+		},
 	}
 
 	for _, test := range tests {
-		err := test.stored.CheckCompatible(test.new, test.headBlock, test.headTimestamp)
+		err := test.stored.CheckCompatible(test.new, test.headBlock, test.headTimestamp, test.genesisTimestamp)
 		if !reflect.DeepEqual(err, test.wantErr) {
 			t.Errorf("error mismatch:\nstored: %v\nnew: %v\nheadBlock: %v\nheadTimestamp: %v\nerr: %v\nwant: %v", test.stored, test.new, test.headBlock, test.headTimestamp, err, test.wantErr)
 		}
