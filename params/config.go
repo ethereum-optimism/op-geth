@@ -872,6 +872,24 @@ func (c *ChainConfig) checkCompatible(newcfg *ChainConfig, headNumber *big.Int, 
 	if isForkTimestampIncompatible(c.VerkleTime, newcfg.VerkleTime, headTimestamp) {
 		return newTimestampCompatError("Verkle fork timestamp", c.VerkleTime, newcfg.VerkleTime)
 	}
+	if isForkBlockIncompatible(c.BedrockBlock, newcfg.BedrockBlock, headNumber) {
+		return newBlockCompatError("Bedrock fork block", c.BedrockBlock, newcfg.BedrockBlock)
+	}
+	if isForkTimestampIncompatible(c.RegolithTime, newcfg.RegolithTime, headTimestamp) {
+		return newTimestampCompatError("Regolith fork timestamp", c.RegolithTime, newcfg.RegolithTime)
+	}
+	if isForkTimestampIncompatible(c.CanyonTime, newcfg.CanyonTime, headTimestamp) {
+		return newTimestampCompatError("Canyon fork timestamp", c.CanyonTime, newcfg.CanyonTime)
+	}
+	if isForkTimestampIncompatible(c.EcotoneTime, newcfg.EcotoneTime, headTimestamp) {
+		return newTimestampCompatError("Ecotone fork timestamp", c.EcotoneTime, newcfg.EcotoneTime)
+	}
+	if isForkTimestampIncompatible(c.FjordTime, newcfg.FjordTime, headTimestamp) {
+		return newTimestampCompatError("Fjord fork timestamp", c.FjordTime, newcfg.FjordTime)
+	}
+	if isForkTimestampIncompatible(c.InteropTime, newcfg.InteropTime, headTimestamp) {
+		return newTimestampCompatError("Interop fork timestamp", c.InteropTime, newcfg.InteropTime)
+	}
 	return nil
 }
 
