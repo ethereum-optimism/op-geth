@@ -121,6 +121,25 @@ func TestCheckCompatible(t *testing.T) {
 				RewindToTime: 9,
 			},
 		},
+		{
+			stored:           &ChainConfig{CanyonTime: newUint64(10)},
+			new:              &ChainConfig{CanyonTime: newUint64(20)},
+			headTimestamp:    25,
+			genesisTimestamp: 2,
+			wantErr: &ConfigCompatError{
+				What:         "Canyon fork timestamp",
+				StoredTime:   newUint64(10),
+				NewTime:      newUint64(20),
+				RewindToTime: 9,
+			},
+		},
+		{
+			stored:           &ChainConfig{CanyonTime: newUint64(10)},
+			new:              &ChainConfig{CanyonTime: newUint64(20)},
+			headTimestamp:    25,
+			genesisTimestamp: 24,
+			wantErr:          nil,
+		},
 	}
 
 	for _, test := range tests {
