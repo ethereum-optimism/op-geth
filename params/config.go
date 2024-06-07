@@ -713,15 +713,16 @@ func (c *ChainConfig) IsOptimismPreBedrock(num *big.Int) bool {
 
 // CheckCompatible checks whether scheduled fork transitions have been imported
 // with a mismatching chain configuration.
-func (c *ChainConfig) CheckCompatible(newcfg *ChainConfig, height uint64, time uint64, genesisTimestamp uint64) *ConfigCompatError {
+func (c *ChainConfig) CheckCompatible(newcfg *ChainConfig, height, time, genesisNumber, genesisTimestamp uint64) *ConfigCompatError {
 	var (
+		gen   = new(big.Int).SetUint64(genesisNumber)
 		bhead = new(big.Int).SetUint64(height)
 		btime = time
 	)
 	// Iterate checkCompatible to find the lowest conflict.
 	var lasterr *ConfigCompatError
 	for {
-		err := c.checkCompatible(newcfg, bhead, btime, genesisTimestamp)
+		err := c.checkCompatible(newcfg, bhead, btime, gen, genesisTimestamp)
 		if err == nil || (lasterr != nil && err.RewindToBlock == lasterr.RewindToBlock && err.RewindToTime == lasterr.RewindToTime) {
 			break
 		}
@@ -804,90 +805,90 @@ func (c *ChainConfig) CheckConfigForkOrder() error {
 	return nil
 }
 
-func (c *ChainConfig) checkCompatible(newcfg *ChainConfig, headNumber *big.Int, headTimestamp uint64, genesisTimeStamp uint64) *ConfigCompatError {
-	if isForkBlockIncompatible(c.HomesteadBlock, newcfg.HomesteadBlock, headNumber) {
+func (c *ChainConfig) checkCompatible(newcfg *ChainConfig, headNumber *big.Int, headTimestamp uint64, genesisNumber *big.Int, genesisTimestamp uint64) *ConfigCompatError {
+	if isForkBlockIncompatible(c.HomesteadBlock, newcfg.HomesteadBlock, headNumber, genesisNumber) {
 		return newBlockCompatError("Homestead fork block", c.HomesteadBlock, newcfg.HomesteadBlock)
 	}
-	if isForkBlockIncompatible(c.DAOForkBlock, newcfg.DAOForkBlock, headNumber) {
+	if isForkBlockIncompatible(c.DAOForkBlock, newcfg.DAOForkBlock, headNumber, genesisNumber) {
 		return newBlockCompatError("DAO fork block", c.DAOForkBlock, newcfg.DAOForkBlock)
 	}
 	if c.IsDAOFork(headNumber) && c.DAOForkSupport != newcfg.DAOForkSupport {
 		return newBlockCompatError("DAO fork support flag", c.DAOForkBlock, newcfg.DAOForkBlock)
 	}
-	if isForkBlockIncompatible(c.EIP150Block, newcfg.EIP150Block, headNumber) {
+	if isForkBlockIncompatible(c.EIP150Block, newcfg.EIP150Block, headNumber, genesisNumber) {
 		return newBlockCompatError("EIP150 fork block", c.EIP150Block, newcfg.EIP150Block)
 	}
-	if isForkBlockIncompatible(c.EIP155Block, newcfg.EIP155Block, headNumber) {
+	if isForkBlockIncompatible(c.EIP155Block, newcfg.EIP155Block, headNumber, genesisNumber) {
 		return newBlockCompatError("EIP155 fork block", c.EIP155Block, newcfg.EIP155Block)
 	}
-	if isForkBlockIncompatible(c.EIP158Block, newcfg.EIP158Block, headNumber) {
+	if isForkBlockIncompatible(c.EIP158Block, newcfg.EIP158Block, headNumber, genesisNumber) {
 		return newBlockCompatError("EIP158 fork block", c.EIP158Block, newcfg.EIP158Block)
 	}
 	if c.IsEIP158(headNumber) && !configBlockEqual(c.ChainID, newcfg.ChainID) {
 		return newBlockCompatError("EIP158 chain ID", c.EIP158Block, newcfg.EIP158Block)
 	}
-	if isForkBlockIncompatible(c.ByzantiumBlock, newcfg.ByzantiumBlock, headNumber) {
+	if isForkBlockIncompatible(c.ByzantiumBlock, newcfg.ByzantiumBlock, headNumber, genesisNumber) {
 		return newBlockCompatError("Byzantium fork block", c.ByzantiumBlock, newcfg.ByzantiumBlock)
 	}
-	if isForkBlockIncompatible(c.ConstantinopleBlock, newcfg.ConstantinopleBlock, headNumber) {
+	if isForkBlockIncompatible(c.ConstantinopleBlock, newcfg.ConstantinopleBlock, headNumber, genesisNumber) {
 		return newBlockCompatError("Constantinople fork block", c.ConstantinopleBlock, newcfg.ConstantinopleBlock)
 	}
-	if isForkBlockIncompatible(c.PetersburgBlock, newcfg.PetersburgBlock, headNumber) {
+	if isForkBlockIncompatible(c.PetersburgBlock, newcfg.PetersburgBlock, headNumber, genesisNumber) {
 		// the only case where we allow Petersburg to be set in the past is if it is equal to Constantinople
 		// mainly to satisfy fork ordering requirements which state that Petersburg fork be set if Constantinople fork is set
-		if isForkBlockIncompatible(c.ConstantinopleBlock, newcfg.PetersburgBlock, headNumber) {
+		if isForkBlockIncompatible(c.ConstantinopleBlock, newcfg.PetersburgBlock, headNumber, genesisNumber) {
 			return newBlockCompatError("Petersburg fork block", c.PetersburgBlock, newcfg.PetersburgBlock)
 		}
 	}
-	if isForkBlockIncompatible(c.IstanbulBlock, newcfg.IstanbulBlock, headNumber) {
+	if isForkBlockIncompatible(c.IstanbulBlock, newcfg.IstanbulBlock, headNumber, genesisNumber) {
 		return newBlockCompatError("Istanbul fork block", c.IstanbulBlock, newcfg.IstanbulBlock)
 	}
-	if isForkBlockIncompatible(c.MuirGlacierBlock, newcfg.MuirGlacierBlock, headNumber) {
+	if isForkBlockIncompatible(c.MuirGlacierBlock, newcfg.MuirGlacierBlock, headNumber, genesisNumber) {
 		return newBlockCompatError("Muir Glacier fork block", c.MuirGlacierBlock, newcfg.MuirGlacierBlock)
 	}
-	if isForkBlockIncompatible(c.BerlinBlock, newcfg.BerlinBlock, headNumber) {
+	if isForkBlockIncompatible(c.BerlinBlock, newcfg.BerlinBlock, headNumber, genesisNumber) {
 		return newBlockCompatError("Berlin fork block", c.BerlinBlock, newcfg.BerlinBlock)
 	}
-	if isForkBlockIncompatible(c.LondonBlock, newcfg.LondonBlock, headNumber) {
+	if isForkBlockIncompatible(c.LondonBlock, newcfg.LondonBlock, headNumber, genesisNumber) {
 		return newBlockCompatError("London fork block", c.LondonBlock, newcfg.LondonBlock)
 	}
-	if isForkBlockIncompatible(c.ArrowGlacierBlock, newcfg.ArrowGlacierBlock, headNumber) {
+	if isForkBlockIncompatible(c.ArrowGlacierBlock, newcfg.ArrowGlacierBlock, headNumber, genesisNumber) {
 		return newBlockCompatError("Arrow Glacier fork block", c.ArrowGlacierBlock, newcfg.ArrowGlacierBlock)
 	}
-	if isForkBlockIncompatible(c.GrayGlacierBlock, newcfg.GrayGlacierBlock, headNumber) {
+	if isForkBlockIncompatible(c.GrayGlacierBlock, newcfg.GrayGlacierBlock, headNumber, genesisNumber) {
 		return newBlockCompatError("Gray Glacier fork block", c.GrayGlacierBlock, newcfg.GrayGlacierBlock)
 	}
-	if isForkBlockIncompatible(c.MergeNetsplitBlock, newcfg.MergeNetsplitBlock, headNumber) {
+	if isForkBlockIncompatible(c.MergeNetsplitBlock, newcfg.MergeNetsplitBlock, headNumber, genesisNumber) {
 		return newBlockCompatError("Merge netsplit fork block", c.MergeNetsplitBlock, newcfg.MergeNetsplitBlock)
 	}
-	if isForkTimestampIncompatible(c.ShanghaiTime, newcfg.ShanghaiTime, headTimestamp) {
+	if isForkTimestampIncompatible(c.ShanghaiTime, newcfg.ShanghaiTime, headTimestamp, genesisTimestamp) {
 		return newTimestampCompatError("Shanghai fork timestamp", c.ShanghaiTime, newcfg.ShanghaiTime)
 	}
-	if isForkTimestampIncompatible(c.CancunTime, newcfg.CancunTime, headTimestamp) {
+	if isForkTimestampIncompatible(c.CancunTime, newcfg.CancunTime, headTimestamp, genesisTimestamp) {
 		return newTimestampCompatError("Cancun fork timestamp", c.CancunTime, newcfg.CancunTime)
 	}
-	if isForkTimestampIncompatible(c.PragueTime, newcfg.PragueTime, headTimestamp) {
+	if isForkTimestampIncompatible(c.PragueTime, newcfg.PragueTime, headTimestamp, genesisTimestamp) {
 		return newTimestampCompatError("Prague fork timestamp", c.PragueTime, newcfg.PragueTime)
 	}
-	if isForkTimestampIncompatible(c.VerkleTime, newcfg.VerkleTime, headTimestamp) {
+	if isForkTimestampIncompatible(c.VerkleTime, newcfg.VerkleTime, headTimestamp, genesisTimestamp) {
 		return newTimestampCompatError("Verkle fork timestamp", c.VerkleTime, newcfg.VerkleTime)
 	}
-	if isForkBlockIncompatible(c.BedrockBlock, newcfg.BedrockBlock, headNumber) {
+	if isForkBlockIncompatible(c.BedrockBlock, newcfg.BedrockBlock, headNumber, genesisNumber) {
 		return newBlockCompatError("Bedrock fork block", c.BedrockBlock, newcfg.BedrockBlock)
 	}
-	if isForkTimestampIncompatible(c.RegolithTime, newcfg.RegolithTime, headTimestamp) {
+	if isForkTimestampIncompatible(c.RegolithTime, newcfg.RegolithTime, headTimestamp, genesisTimestamp) {
 		return newTimestampCompatError("Regolith fork timestamp", c.RegolithTime, newcfg.RegolithTime)
 	}
-	if isForkTimestampIncompatible(c.CanyonTime, newcfg.CanyonTime, headTimestamp) {
+	if isForkTimestampIncompatible(c.CanyonTime, newcfg.CanyonTime, headTimestamp, genesisTimestamp) {
 		return newTimestampCompatError("Canyon fork timestamp", c.CanyonTime, newcfg.CanyonTime)
 	}
-	if isForkTimestampIncompatible(c.EcotoneTime, newcfg.EcotoneTime, headTimestamp) {
+	if isForkTimestampIncompatible(c.EcotoneTime, newcfg.EcotoneTime, headTimestamp, genesisTimestamp) {
 		return newTimestampCompatError("Ecotone fork timestamp", c.EcotoneTime, newcfg.EcotoneTime)
 	}
-	if isForkTimestampIncompatible(c.FjordTime, newcfg.FjordTime, headTimestamp) {
+	if isForkTimestampIncompatible(c.FjordTime, newcfg.FjordTime, headTimestamp, genesisTimestamp) {
 		return newTimestampCompatError("Fjord fork timestamp", c.FjordTime, newcfg.FjordTime)
 	}
-	if isForkTimestampIncompatible(c.InteropTime, newcfg.InteropTime, headTimestamp) {
+	if isForkTimestampIncompatible(c.InteropTime, newcfg.InteropTime, headTimestamp, genesisTimestamp) {
 		return newTimestampCompatError("Interop fork timestamp", c.InteropTime, newcfg.InteropTime)
 	}
 	return nil
@@ -931,9 +932,16 @@ func (c *ChainConfig) LatestFork(time uint64) forks.Fork {
 }
 
 // isForkBlockIncompatible returns true if a fork scheduled at block s1 cannot be
-// rescheduled to block s2 because head is already past the fork.
-func isForkBlockIncompatible(s1, s2, head *big.Int) bool {
-	return (isBlockForked(s1, head) || isBlockForked(s2, head)) && !configBlockEqual(s1, s2)
+// rescheduled to block s2 because head is already past the fork and the fork was scheduled after genesis
+func isForkBlockIncompatible(s1, s2, head *big.Int, genesis *big.Int) bool {
+	return (isBlockForked(s1, head) || isBlockForked(s2, head)) && !configBlockEqual(s1, s2) && !isBlockPreGenesis(s1, genesis) && !isBlockPreGenesis(s2, genesis)
+}
+
+func isBlockPreGenesis(s, genesis *big.Int) bool {
+	if s == nil || genesis == nil {
+		return false
+	}
+	return s.Cmp(genesis) < 0
 }
 
 // isBlockForked returns whether a fork scheduled at block s is active at the
@@ -958,8 +966,15 @@ func configBlockEqual(x, y *big.Int) bool {
 
 // isForkTimestampIncompatible returns true if a fork scheduled at timestamp s1
 // cannot be rescheduled to timestamp s2 because head is already past the fork.
-func isForkTimestampIncompatible(s1, s2 *uint64, head uint64) bool {
-	return (isTimestampForked(s1, head) || isTimestampForked(s2, head)) && !configTimestampEqual(s1, s2)
+func isForkTimestampIncompatible(s1, s2 *uint64, head, genesis uint64) bool {
+	return (isTimestampForked(s1, head) || isTimestampForked(s2, head)) && !configTimestampEqual(s1, s2) && !isTimestampPreGenesis(s1, genesis) && !isTimestampPreGenesis(s2, genesis)
+}
+
+func isTimestampPreGenesis(s *uint64, genesis uint64) bool {
+	if s == nil {
+		return false
+	}
+	return *s < genesis
 }
 
 // isTimestampForked returns whether a fork scheduled at timestamp s is active
