@@ -264,23 +264,23 @@ func newCeloBackendMock() *celoBackendMock {
 	}
 }
 
-func (c *celoBackendMock) GetFeeBalance(ctx context.Context, atBlock common.Hash, account common.Address, feeCurrency *common.Address) (*big.Int, error) {
+func (c *celoBackendMock) GetFeeBalance(ctx context.Context, blockNumOrHash rpc.BlockNumberOrHash, account common.Address, feeCurrency *common.Address) (*big.Int, error) {
 	// Celo specific backend features are currently not tested
 	return nil, errCeloNotImplemented
 }
 
-func (c *celoBackendMock) GetExchangeRates(ctx context.Context, atBlock common.Hash) (common.ExchangeRates, error) {
+func (c *celoBackendMock) GetExchangeRates(ctx context.Context, blockNumOrHash rpc.BlockNumberOrHash) (common.ExchangeRates, error) {
 	var er common.ExchangeRates
 	// Celo specific backend features are currently not tested
 	return er, errCeloNotImplemented
 }
 
-func (c *celoBackendMock) ConvertToCurrency(ctx context.Context, atBlock common.Hash, value *big.Int, fromFeeCurrency *common.Address) (*big.Int, error) {
+func (c *celoBackendMock) ConvertToCurrency(ctx context.Context, blockNumOrHash rpc.BlockNumberOrHash, value *big.Int, fromFeeCurrency *common.Address) (*big.Int, error) {
 	// Celo specific backend features are currently not tested
 	return nil, errCeloNotImplemented
 }
 
-func (c *celoBackendMock) ConvertToGold(ctx context.Context, atBlock common.Hash, value *big.Int, toFeeCurrency *common.Address) (*big.Int, error) {
+func (c *celoBackendMock) ConvertToGold(ctx context.Context, blockNumOrHash rpc.BlockNumberOrHash, value *big.Int, toFeeCurrency *common.Address) (*big.Int, error) {
 	// Celo specific backend features are currently not tested
 	return nil, errCeloNotImplemented
 }
