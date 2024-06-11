@@ -1315,9 +1315,9 @@ func DoEstimateGas(ctx context.Context, b CeloBackend, args TransactionArgs, blo
 	// Celo specific: get exchange rates if fee currency is specified
 	exchangeRates := emptyExchangeRates
 	if args.FeeCurrency != nil {
-		// It is debatable whether we should use Hash or ParentHash here. Usually,
-		// user would probably like the recent rates after the block, so we use Hash.
-		exchangeRates, err = b.GetExchangeRates(ctx, header.Hash())
+		// It is debatable whether we should use the block itself or the parent block here.
+		// Usually, user would probably like the recent rates after the block, so we use the block itself.
+		exchangeRates, err = b.GetExchangeRates(ctx, blockNrOrHash)
 		if err != nil {
 			return 0, fmt.Errorf("get exchange rates for block: %v err: %w", header.Hash(), err)
 		}
@@ -1326,7 +1326,7 @@ func DoEstimateGas(ctx context.Context, b CeloBackend, args TransactionArgs, blo
 	call := args.ToMessage(header.BaseFee, exchangeRates)
 
 	// Celo specific: get balance
-	balance, err := b.GetFeeBalance(ctx, opts.Header.Hash(), call.From, args.FeeCurrency)
+	balance, err := b.GetFeeBalance(ctx, blockNrOrHash, call.From, args.FeeCurrency)
 	if err != nil {
 		return 0, err
 	}
@@ -1752,7 +1752,7 @@ func AccessList(ctx context.Context, b CeloBackend, blockNrOrHash rpc.BlockNumbe
 			// Always use the header's parent here, since we want to create the list at the
 			// queried block, but want to use the exchange rates before (at the beginning of)
 			// the queried block
-			exchangeRates, err = b.GetExchangeRates(ctx, header.ParentHash)
+			exchangeRates, err = b.GetExchangeRates(ctx, rpc.BlockNumberOrHashWithHash(header.ParentHash, false))
 			if err != nil {
 				return nil, 0, nil, fmt.Errorf("get exchange rates for block: %v err: %w", header.Hash(), err)
 			}

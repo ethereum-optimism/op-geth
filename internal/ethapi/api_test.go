@@ -590,9 +590,9 @@ type celoTestBackend struct {
 	*testBackend
 }
 
-func (c *celoTestBackend) GetFeeBalance(ctx context.Context, atBlock common.Hash, account common.Address, feeCurrency *common.Address) (*big.Int, error) {
+func (c *celoTestBackend) GetFeeBalance(ctx context.Context, blockNumOrHash rpc.BlockNumberOrHash, account common.Address, feeCurrency *common.Address) (*big.Int, error) {
 	if feeCurrency == nil {
-		header, err := c.HeaderByHash(ctx, atBlock)
+		header, err := c.HeaderByNumberOrHash(ctx, blockNumOrHash)
 		if err != nil {
 			return nil, fmt.Errorf("retrieve header by hash in testBackend: %w", err)
 		}
@@ -607,12 +607,12 @@ func (c *celoTestBackend) GetFeeBalance(ctx context.Context, atBlock common.Hash
 	return nil, errCeloNotImplemented
 }
 
-func (c *celoTestBackend) GetExchangeRates(ctx context.Context, atBlock common.Hash) (common.ExchangeRates, error) {
+func (c *celoTestBackend) GetExchangeRates(ctx context.Context, blockNumOrHash rpc.BlockNumberOrHash) (common.ExchangeRates, error) {
 	var er common.ExchangeRates
 	return er, nil
 }
 
-func (c *celoTestBackend) ConvertToCurrency(ctx context.Context, atBlock common.Hash, value *big.Int, feeCurrency *common.Address) (*big.Int, error) {
+func (c *celoTestBackend) ConvertToCurrency(ctx context.Context, blockNumOrHash rpc.BlockNumberOrHash, value *big.Int, feeCurrency *common.Address) (*big.Int, error) {
 	if feeCurrency == nil {
 		return value, nil
 	}
@@ -620,7 +620,7 @@ func (c *celoTestBackend) ConvertToCurrency(ctx context.Context, atBlock common.
 	return nil, errCeloNotImplemented
 }
 
-func (c *celoTestBackend) ConvertToGold(ctx context.Context, atBlock common.Hash, value *big.Int, feeCurrency *common.Address) (*big.Int, error) {
+func (c *celoTestBackend) ConvertToCelo(ctx context.Context, blockNumOrHash rpc.BlockNumberOrHash, value *big.Int, feeCurrency *common.Address) (*big.Int, error) {
 	if feeCurrency == nil {
 		return value, nil
 	}

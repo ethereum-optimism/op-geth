@@ -40,10 +40,10 @@ import (
 type CeloBackend interface {
 	Backend
 
-	GetFeeBalance(ctx context.Context, atBlock common.Hash, account common.Address, feeCurrency *common.Address) (*big.Int, error)
-	GetExchangeRates(ctx context.Context, atBlock common.Hash) (common.ExchangeRates, error)
-	ConvertToCurrency(ctx context.Context, atBlock common.Hash, value *big.Int, feeCurrency *common.Address) (*big.Int, error)
-	ConvertToGold(ctx context.Context, atBlock common.Hash, value *big.Int, feeCurrency *common.Address) (*big.Int, error)
+	GetFeeBalance(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash, account common.Address, feeCurrency *common.Address) (*big.Int, error)
+	GetExchangeRates(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (common.ExchangeRates, error)
+	ConvertToCurrency(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash, value *big.Int, feeCurrency *common.Address) (*big.Int, error)
+	ConvertToCelo(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash, value *big.Int, feeCurrency *common.Address) (*big.Int, error)
 }
 
 // Backend interface provides the common API services (that are provided by both full and light clients) with access to necessary functions.
