@@ -2204,6 +2204,61 @@ func (s *TransactionAPI) Resend(ctx context.Context, sendArgs TransactionArgs, g
 	return common.Hash{}, fmt.Errorf("transaction %#x not found", matchTx.Hash())
 }
 
+// SendInteropBundleArgs represents the arguments for a SendInteropBundle call.
+type SendInteropBundleArgs struct {
+	Txs          []hexutil.Bytes `json:"txs"`
+	BlockNumber  rpc.BlockNumber `json:"blockNumber"`
+	MinTimestamp *uint64         `json:"minTimestamp"`
+	MaxTimestamp *uint64         `json:"maxTimestamp"`
+}
+
+type SendInteropBundleResponse struct {
+	BlockNumber uint64       `json:"blockNumber"`
+	Timestamp   uint64       `json:"timestamp"`
+	Logs        []*types.Log `json:"logs"`
+	BundleHash  common.Hash  `json:"bundleHash"`
+}
+
+// SendInteropBundle will add the signed transaction to the transaction pool.
+// The sender is responsible for signing the transaction and using the correct nonce and ensuring validity
+func (s *TransactionAPI) SendInteropBundle(ctx context.Context, args SendInteropBundleArgs) (*SendInteropBundleResponse, error) {
+	var txs types.Transactions
+	if len(args.Txs) == 0 {
+		return nil, errors.New("bundle missing txs")
+	}
+	if args.BlockNumber == 0 {
+		args.BlockNumber = rpc.PendingBlockNumber
+	}
+
+	for _, encodedTx := range args.Txs {
+		tx := new(types.Transaction)
+		if err := tx.UnmarshalBinary(encodedTx); err != nil {
+			return nil, err
+		}
+		txs = append(txs, tx)
+	}
+
+	var minTimestamp, maxTimestamp uint64
+	if args.MinTimestamp != nil {
+		minTimestamp = *args.MinTimestamp
+	}
+	if args.MaxTimestamp != nil {
+		maxTimestamp = *args.MaxTimestamp
+	}
+
+	bundle, err := s.b.SendInteropBundle(ctx, txs, args.BlockNumber, minTimestamp, maxTimestamp)
+	if err != nil {
+		return nil, err
+	}
+
+	return &SendInteropBundleResponse{
+		BlockNumber: s.b.CurrentHeader().Number.Uint64() + 1,
+		Timestamp:   s.b.CurrentHeader().Time + 2, // assume l2 slot time is 2 seconds
+		BundleHash:  bundle.OriginalBundle.Hash,
+		Logs:        bundle.Logs,
+	}, nil
+}
+
 // DebugAPI is the collection of Ethereum APIs exposed over the debugging
 // namespace.
 type DebugAPI struct {

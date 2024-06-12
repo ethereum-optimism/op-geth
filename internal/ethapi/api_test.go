@@ -744,6 +744,9 @@ func (b testBackend) SubscribeChainSideEvent(ch chan<- core.ChainSideEvent) even
 func (b testBackend) SendTx(ctx context.Context, signedTx *types.Transaction) error {
 	panic("implement me")
 }
+func (b testBackend) SendInteropBundle(ctx context.Context, txs types.Transactions, blockNumber rpc.BlockNumber, minTimestamp uint64, maxTimestamp uint64) (*types.SimulatedBundle, error) {
+	panic("implement me")
+}
 func (b testBackend) GetTransaction(ctx context.Context, txHash common.Hash) (bool, *types.Transaction, common.Hash, uint64, uint64, error) {
 	tx, blockHash, blockNumber, index := rawdb.ReadTransaction(b.db, txHash)
 	return true, tx, blockHash, blockNumber, index, nil
@@ -917,7 +920,7 @@ func TestEstimateGas(t *testing.T) {
 				From:       &accounts[0].addr,
 				To:         &accounts[1].addr,
 				Value:      (*hexutil.Big)(big.NewInt(1)),
-				BlobHashes: []common.Hash{common.Hash{0x01, 0x22}},
+				BlobHashes: []common.Hash{{0x01, 0x22}},
 				BlobFeeCap: (*hexutil.Big)(big.NewInt(1)),
 			},
 			want: 21000,
@@ -1105,7 +1108,7 @@ func TestCall(t *testing.T) {
 			call: TransactionArgs{
 				From:       &accounts[1].addr,
 				To:         &randomAccounts[2].addr,
-				BlobHashes: []common.Hash{common.Hash{0x01, 0x22}},
+				BlobHashes: []common.Hash{{0x01, 0x22}},
 				BlobFeeCap: (*hexutil.Big)(big.NewInt(1)),
 			},
 			overrides: StateOverride{
@@ -1232,7 +1235,7 @@ func TestSendBlobTransaction(t *testing.T) {
 		From:       &b.acc.Address,
 		To:         &to,
 		Value:      (*hexutil.Big)(big.NewInt(1)),
-		BlobHashes: []common.Hash{common.Hash{0x01, 0x22}},
+		BlobHashes: []common.Hash{{0x01, 0x22}},
 	})
 	if err != nil {
 		t.Fatalf("failed to fill tx defaults: %v\n", err)

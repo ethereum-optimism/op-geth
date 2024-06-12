@@ -77,6 +77,9 @@ type TxPool struct {
 	term chan struct{}           // Termination channel to detect a closed pool
 
 	sync chan chan error // Testing / simulator channel to block until internal reset is done
+
+	mevBundles []types.MevBundle
+	mu         sync.RWMutex
 }
 
 // New creates a new transaction pool to gather, sort and filter inbound

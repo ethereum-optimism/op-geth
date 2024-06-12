@@ -112,22 +112,22 @@ func TestSuggestOptimismPriorityFee(t *testing.T) {
 	}{
 		{
 			// block well under capacity, expect min priority fee suggestion
-			txdata: []testTxData{testTxData{params.GWei, 21000}},
+			txdata: []testTxData{{params.GWei, 21000}},
 			want:   minSuggestion,
 		},
 		{
 			// 2 txs, still under capacity, expect min priority fee suggestion
-			txdata: []testTxData{testTxData{params.GWei, 21000}, testTxData{params.GWei, 21000}},
+			txdata: []testTxData{{params.GWei, 21000}, {params.GWei, 21000}},
 			want:   minSuggestion,
 		},
 		{
 			// 2 txs w same priority fee (1 gwei), but second tx puts it right over capacity
-			txdata: []testTxData{testTxData{params.GWei, 21000}, testTxData{params.GWei, 21001}},
+			txdata: []testTxData{{params.GWei, 21000}, {params.GWei, 21001}},
 			want:   big.NewInt(1100000000), // 10 percent over 1 gwei, the median
 		},
 		{
 			// 3 txs, full block. return 10% over the median tx (10 gwei * 10% == 11 gwei)
-			txdata: []testTxData{testTxData{10 * params.GWei, 21000}, testTxData{1 * params.GWei, 21000}, testTxData{100 * params.GWei, 21000}},
+			txdata: []testTxData{{10 * params.GWei, 21000}, {1 * params.GWei, 21000}, {100 * params.GWei, 21000}},
 			want:   big.NewInt(11 * params.GWei),
 		},
 	}

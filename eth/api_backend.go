@@ -43,6 +43,7 @@ import (
 	"github.com/ethereum/go-ethereum/miner"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
+	"golang.org/x/crypto/sha3"
 )
 
 // EthAPIBackend implements ethapi.Backend and tracers.Backend for full nodes
@@ -317,6 +318,36 @@ func (b *EthAPIBackend) SendTx(ctx context.Context, signedTx *types.Transaction)
 		return nil
 	}
 	return b.eth.txPool.Add([]*types.Transaction{signedTx}, true, false)[0]
+}
+
+func (b *EthAPIBackend) SendInteropBundle(ctx context.Context, txs types.Transactions, blockNumber rpc.BlockNumber, minTimestamp uint64, maxTimestamp uint64) (*types.SimulatedBundle, error) {
+	for _, tx := range txs {
+		if b.ChainConfig().IsOptimism() && tx.Type() == types.BlobTxType {
+			return nil, types.ErrTxTypeNotSupported
+		}
+	}
+
+	bundleHasher := sha3.NewLegacyKeccak256()
+	for _, tx := range txs {
+		_, err := bundleHasher.Write(tx.Hash().Bytes())
+		if err != nil {
+			return nil, err
+		}
+	}
+	bundleHash := common.BytesToHash(bundleHasher.Sum(nil))
+	if blockNumber == rpc.PendingBlockNumber {
+		bundle := types.MevBundle{
+			Txs:          txs,
+			BlockNumber:  big.NewInt(int64(b.eth.blockchain.CurrentBlock().Number.Uint64() + 1)),
+			MinTimestamp: minTimestamp,
+			MaxTimestamp: maxTimestamp,
+			Hash:         bundleHash,
+		}
+
+		return b.eth.miner.SimulateBundle(bundle)
+	}
+
+	return nil, errors.New("only pending block is supported")
 }
 
 func (b *EthAPIBackend) GetPoolTransactions() (types.Transactions, error) {

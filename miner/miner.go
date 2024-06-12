@@ -258,3 +258,11 @@ func (miner *Miner) SubscribePendingLogs(ch chan<- []*types.Log) event.Subscript
 func (miner *Miner) BuildPayload(args *BuildPayloadArgs) (*Payload, error) {
 	return miner.worker.buildPayload(args)
 }
+
+func (miner *Miner) SimulateBundle(bundle types.MevBundle) (*types.SimulatedBundle, error) {
+	return miner.worker.simulateBundle(bundle)
+}
+
+func (mint *Miner) GetTopBundle() (*types.SimulatedBundle, error) {
+	return mint.worker.getTopBundle()
+}

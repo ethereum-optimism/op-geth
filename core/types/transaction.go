@@ -30,6 +30,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/holiman/uint256"
 )
 
 var (
@@ -671,4 +672,22 @@ func copyAddressPtr(a *common.Address) *common.Address {
 	}
 	cpy := *a
 	return &cpy
+}
+
+type MevBundle struct {
+	Txs          Transactions
+	BlockNumber  *big.Int
+	MinTimestamp uint64
+	MaxTimestamp uint64
+	Hash         common.Hash
+}
+
+type SimulatedBundle struct {
+	MevGasPrice    *uint256.Int
+	TotalProfit    *uint256.Int
+	TotalGasUsed   uint64
+	Logs           []*Log
+	Revert         []byte
+	ExecError      string
+	OriginalBundle MevBundle
 }
