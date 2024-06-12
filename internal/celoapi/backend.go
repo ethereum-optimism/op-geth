@@ -60,18 +60,18 @@ func (b *CeloAPIBackend) GetExchangeRates(ctx context.Context, blockNumOrHash rp
 	return er, nil
 }
 
-func (b *CeloAPIBackend) ConvertToCurrency(ctx context.Context, blockNumOrHash rpc.BlockNumberOrHash, value *big.Int, fromFeeCurrency *common.Address) (*big.Int, error) {
+func (b *CeloAPIBackend) ConvertToCurrency(ctx context.Context, blockNumOrHash rpc.BlockNumberOrHash, goldAmount *big.Int, toFeeCurrency *common.Address) (*big.Int, error) {
 	er, err := b.GetExchangeRates(ctx, blockNumOrHash)
 	if err != nil {
 		return nil, err
 	}
-	return exchange.ConvertGoldToCurrency(er, fromFeeCurrency, value)
+	return exchange.ConvertGoldToCurrency(er, toFeeCurrency, goldAmount)
 }
 
-func (b *CeloAPIBackend) ConvertToGold(ctx context.Context, blockNumOrHash rpc.BlockNumberOrHash, value *big.Int, toFeeCurrency *common.Address) (*big.Int, error) {
+func (b *CeloAPIBackend) ConvertToGold(ctx context.Context, blockNumOrHash rpc.BlockNumberOrHash, currencyAmount *big.Int, fromFeeCurrency *common.Address) (*big.Int, error) {
 	er, err := b.GetExchangeRates(ctx, blockNumOrHash)
 	if err != nil {
 		return nil, err
 	}
-	return exchange.ConvertCurrencyToGold(er, value, toFeeCurrency)
+	return exchange.ConvertCurrencyToGold(er, currencyAmount, fromFeeCurrency)
 }

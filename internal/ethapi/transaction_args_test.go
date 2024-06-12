@@ -51,11 +51,14 @@ func TestSetFeeDefaults(t *testing.T) {
 	}
 
 	var (
-		b        = newCeloBackendMock()
-		zero     = (*hexutil.Big)(big.NewInt(0))
-		fortytwo = (*hexutil.Big)(big.NewInt(42))
-		maxFee   = (*hexutil.Big)(new(big.Int).Add(new(big.Int).Mul(b.current.BaseFee, big.NewInt(2)), fortytwo.ToInt()))
-		al       = &types.AccessList{types.AccessTuple{Address: common.Address{0xaa}, StorageKeys: []common.Hash{{0x01}}}}
+		b            = newCeloBackendMock()
+		zero         = (*hexutil.Big)(big.NewInt(0))
+		fortytwo     = (*hexutil.Big)(big.NewInt(42))
+		maxFee       = (*hexutil.Big)(new(big.Int).Add(new(big.Int).Mul(b.current.BaseFee, big.NewInt(2)), fortytwo.ToInt()))
+		al           = &types.AccessList{types.AccessTuple{Address: common.Address{0xaa}, StorageKeys: []common.Hash{{0x01}}}}
+		feeCurrency  = common.BigToAddress(big.NewInt(42))
+		eightyfour   = (*hexutil.Big)(big.NewInt(84))
+		doubleMaxFee = (*hexutil.Big)(new(big.Int).Mul(maxFee.ToInt(), big.NewInt(2)))
 	)
 
 	tests := []test{
@@ -228,6 +231,37 @@ func TestSetFeeDefaults(t *testing.T) {
 			&TransactionArgs{BlobHashes: []common.Hash{}, BlobFeeCap: (*hexutil.Big)(big.NewInt(4)), MaxFeePerGas: maxFee, MaxPriorityFeePerGas: fortytwo},
 			nil,
 		},
+		// CIP-64
+		{
+			"Fee-currency denominated tx, set maxPriorityFeePerGas in converted valued",
+			"cancun",
+			&TransactionArgs{MaxFeePerGas: doubleMaxFee, FeeCurrency: &feeCurrency},
+			// maxPriorityFeePerGas is double in feeCurrency
+			&TransactionArgs{MaxFeePerGas: doubleMaxFee, MaxPriorityFeePerGas: eightyfour, FeeCurrency: &feeCurrency},
+			nil,
+		},
+		{
+			"Fee-currency denominated tx, set maxFeePerGas in converted valued",
+			"cancun",
+			&TransactionArgs{MaxPriorityFeePerGas: eightyfour, FeeCurrency: &feeCurrency},
+			&TransactionArgs{MaxFeePerGas: doubleMaxFee, MaxPriorityFeePerGas: eightyfour, FeeCurrency: &feeCurrency},
+			nil,
+		},
+		// CIP-66
+		{
+			"CIP-66 transaction, maxPriorityFeePerGas gets set in non-converted value",
+			"cancun",
+			&TransactionArgs{MaxFeePerGas: maxFee, MaxFeeInFeeCurrency: fortytwo, FeeCurrency: &feeCurrency},
+			&TransactionArgs{MaxFeePerGas: maxFee, MaxPriorityFeePerGas: fortytwo, MaxFeeInFeeCurrency: fortytwo, FeeCurrency: &feeCurrency},
+			nil,
+		},
+		{
+			"set maxFeeInFeeCurrency without feeCurrency",
+			"cancun",
+			&TransactionArgs{MaxFeePerGas: maxFee, MaxPriorityFeePerGas: fortytwo, MaxFeeInFeeCurrency: fortytwo},
+			nil,
+			errors.New("feeCurrency must be set when maxFeeInFeeCurrency is given"),
+		},
 	}
 
 	ctx := context.Background()
@@ -271,18 +305,22 @@ func (c *celoBackendMock) GetFeeBalance(ctx context.Context, blockNumOrHash rpc.
 
 func (c *celoBackendMock) GetExchangeRates(ctx context.Context, blockNumOrHash rpc.BlockNumberOrHash) (common.ExchangeRates, error) {
 	var er common.ExchangeRates
-	// Celo specific backend features are currently not tested
+	// This Celo specific backend features are currently not tested
 	return er, errCeloNotImplemented
 }
 
 func (c *celoBackendMock) ConvertToCurrency(ctx context.Context, blockNumOrHash rpc.BlockNumberOrHash, value *big.Int, fromFeeCurrency *common.Address) (*big.Int, error) {
-	// Celo specific backend features are currently not tested
-	return nil, errCeloNotImplemented
+	if fromFeeCurrency == nil {
+		return value, nil
+	}
+	return new(big.Int).Mul(value, big.NewInt(2)), nil
 }
 
 func (c *celoBackendMock) ConvertToGold(ctx context.Context, blockNumOrHash rpc.BlockNumberOrHash, value *big.Int, toFeeCurrency *common.Address) (*big.Int, error) {
-	// Celo specific backend features are currently not tested
-	return nil, errCeloNotImplemented
+	if toFeeCurrency == nil {
+		return value, nil
+	}
+	return new(big.Int).Div(value, big.NewInt(2)), nil
 }
 
 type backendMock struct {

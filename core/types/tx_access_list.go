@@ -129,4 +129,5 @@ func (tx *AccessListTx) decode(input []byte) error {
 	return rlp.DecodeBytes(input, tx)
 }
 
-func (tx *AccessListTx) feeCurrency() *common.Address { return nil }
+func (tx *AccessListTx) feeCurrency() *common.Address  { return nil }
+func (tx *AccessListTx) maxFeeInFeeCurrency() *big.Int { return nil }

@@ -114,4 +114,5 @@ func (tx *CeloDynamicFeeTx) decode(input []byte) error {
 	return rlp.DecodeBytes(input, tx)
 }
 
-func (tx *CeloDynamicFeeTx) feeCurrency() *common.Address { return tx.FeeCurrency }
+func (tx *CeloDynamicFeeTx) feeCurrency() *common.Address  { return tx.FeeCurrency }
+func (tx *CeloDynamicFeeTx) maxFeeInFeeCurrency() *big.Int { return nil }
