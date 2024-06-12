@@ -36,7 +36,7 @@ func NewCel2Signer(chainId *big.Int) Signer {
 }
 
 func (s cel2Signer) Sender(tx *Transaction) (common.Address, error) {
-	if tx.Type() != CeloDynamicFeeTxType {
+	if tx.Type() != CeloDynamicFeeTxType && tx.Type() != CeloDenominatedTxType {
 		return s.londonSigner.Sender(tx)
 	}
 	V, R, S := tx.RawSignatureValues()
@@ -55,13 +55,14 @@ func (s cel2Signer) Equal(s2 Signer) bool {
 }
 
 func (s cel2Signer) SignatureValues(tx *Transaction, sig []byte) (R, S, V *big.Int, err error) {
-	txdata, ok := tx.inner.(*CeloDynamicFeeTx)
-	if !ok {
+	if tx.Type() != CeloDynamicFeeTxType && tx.Type() != CeloDenominatedTxType {
 		return s.londonSigner.SignatureValues(tx, sig)
 	}
+
 	// Check that chain ID of tx matches the signer. We also accept ID zero here,
 	// because it indicates that the chain ID was not specified in the tx.
-	if txdata.ChainID.Sign() != 0 && txdata.ChainID.Cmp(s.chainId) != 0 {
+	chainID := tx.inner.chainID()
+	if chainID.Sign() != 0 && chainID.Cmp(s.chainId) != 0 {
 		return nil, nil, nil, ErrInvalidChainId
 	}
 	R, S, _ = decodeSignature(sig)
@@ -86,6 +87,23 @@ func (s cel2Signer) Hash(tx *Transaction) common.Hash {
 				tx.Data(),
 				tx.AccessList(),
 				tx.FeeCurrency(),
+			})
+	}
+	if tx.Type() == CeloDenominatedTxType {
+		return prefixedRlpHash(
+			tx.Type(),
+			[]interface{}{
+				s.chainId,
+				tx.Nonce(),
+				tx.GasTipCap(),
+				tx.GasFeeCap(),
+				tx.Gas(),
+				tx.To(),
+				tx.Value(),
+				tx.Data(),
+				tx.AccessList(),
+				tx.FeeCurrency(),
+				tx.MaxFeeInFeeCurrency(),
 			})
 	}
 	return s.londonSigner.Hash(tx)

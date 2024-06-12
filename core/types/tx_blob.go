@@ -244,4 +244,5 @@ func (tx *BlobTx) decode(input []byte) error {
 	return nil
 }
 
-func (tx *BlobTx) feeCurrency() *common.Address { return nil }
+func (tx *BlobTx) feeCurrency() *common.Address  { return nil }
+func (tx *BlobTx) maxFeeInFeeCurrency() *big.Int { return nil }

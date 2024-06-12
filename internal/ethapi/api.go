@@ -1502,7 +1502,8 @@ type RPCTransaction struct {
 	DepositReceiptVersion *hexutil.Uint64 `json:"depositReceiptVersion,omitempty"`
 
 	// Celo
-	FeeCurrency *common.Address `json:"feeCurrency,omitempty"`
+	FeeCurrency         *common.Address `json:"feeCurrency,omitempty"`
+	MaxFeeInFeeCurrency *hexutil.Big    `json:"maxFeeInFeeCurrency,omitempty"`
 }
 
 // newRPCTransaction returns a transaction that will serialize to the RPC
@@ -1525,7 +1526,8 @@ func newRPCTransaction(tx *types.Transaction, blockHash common.Hash, blockNumber
 		R:        (*hexutil.Big)(r),
 		S:        (*hexutil.Big)(s),
 		// Celo
-		FeeCurrency: tx.FeeCurrency(),
+		FeeCurrency:         tx.FeeCurrency(),
+		MaxFeeInFeeCurrency: (*hexutil.Big)(tx.MaxFeeInFeeCurrency()),
 	}
 	if blockHash != (common.Hash{}) {
 		result.BlockHash = &blockHash
@@ -1567,7 +1569,7 @@ func newRPCTransaction(tx *types.Transaction, blockHash common.Hash, blockNumber
 		result.ChainID = (*hexutil.Big)(tx.ChainId())
 		result.YParity = &yparity
 
-	case types.DynamicFeeTxType, types.CeloDynamicFeeTxType:
+	case types.DynamicFeeTxType, types.CeloDynamicFeeTxType, types.CeloDenominatedTxType:
 		al := tx.AccessList()
 		yparity := hexutil.Uint64(v.Sign())
 		result.Accesses = &al

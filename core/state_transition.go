@@ -183,8 +183,7 @@ type Message struct {
 	// FeeCurrency specifies the currency for gas fees.
 	// `nil` corresponds to CELO (native currency).
 	// All other values should correspond to ERC20 contract addresses.
-	FeeCurrency *common.Address
-
+	FeeCurrency         *common.Address
 	MaxFeeInFeeCurrency *big.Int // MaxFeeInFeeCurrency is the maximum fee that can be charged in the fee currency.
 }
 

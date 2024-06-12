@@ -102,4 +102,5 @@ func (tx *DepositTx) decode(input []byte) error {
 	return rlp.DecodeBytes(input, tx)
 }
 
-func (tx *DepositTx) feeCurrency() *common.Address { return nil }
+func (tx *DepositTx) feeCurrency() *common.Address  { return nil }
+func (tx *DepositTx) maxFeeInFeeCurrency() *big.Int { return nil }
