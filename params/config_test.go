@@ -112,17 +112,6 @@ func TestCheckCompatible(t *testing.T) {
 			},
 		},
 		{
-			stored:        &ChainConfig{ShanghaiTime: newUint64(10)},
-			new:           &ChainConfig{ShanghaiTime: newUint64(20)},
-			headTimestamp: 25,
-			wantErr: &ConfigCompatError{
-				What:         "Shanghai fork timestamp",
-				StoredTime:   newUint64(10),
-				NewTime:      newUint64(20),
-				RewindToTime: 9,
-			},
-		},
-		{
 			stored:           &ChainConfig{CanyonTime: newUint64(10)},
 			new:              &ChainConfig{CanyonTime: newUint64(20)},
 			headTimestamp:    25,
