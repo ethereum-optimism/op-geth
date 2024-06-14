@@ -19,7 +19,6 @@ package core
 import (
 	"errors"
 	"fmt"
-
 	"math/big"
 	"math/rand"
 	"os"
