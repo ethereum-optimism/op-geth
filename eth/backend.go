@@ -387,6 +387,9 @@ func (s *Ethereum) APIs() []rpc.API {
 		}, {
 			Namespace: "net",
 			Service:   s.netRPCService,
+		}, {
+			Namespace: "overlay",
+			Service:   ethapi.NewOverlayAPI(s.APIBackend),
 		},
 	}...)
 }

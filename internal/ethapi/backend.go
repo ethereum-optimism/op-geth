@@ -125,6 +125,9 @@ func GetAPIs(apiBackend Backend) []rpc.API {
 		}, {
 			Namespace: "personal",
 			Service:   NewPersonalAccountAPI(apiBackend, nonceLock),
+		}, {
+			Namespace: "overlay",
+			Service:   NewOverlayAPI(apiBackend),
 		},
 	}
 }

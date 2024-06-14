@@ -2215,6 +2215,11 @@ func NewDebugAPI(b Backend) *DebugAPI {
 	return &DebugAPI{b: b}
 }
 
+// NewDebugAPI creates a new instance of DebugAPI.
+func NewOverlayAPI(b Backend) *DebugAPI {
+	return &DebugAPI{b: b}
+}
+
 // GetRawHeader retrieves the RLP encoding for a single header.
 func (api *DebugAPI) GetRawHeader(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (hexutil.Bytes, error) {
 	var hash common.Hash
