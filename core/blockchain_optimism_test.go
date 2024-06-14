@@ -2,7 +2,6 @@ package core
 
 import (
 	"bytes"
-	"fmt"
 	"math/big"
 	"strings"
 	"testing"
@@ -29,19 +28,19 @@ func TestRewindOnConfigChange(t *testing.T) {
 
 	tcs := []testCase{
 		{
-			name:              fmt.Sprintf("CanyonTime changes from 10 to 0 (genesis time is %d)", genesisTime),
+			name:              "Canyon",
 			override1:         func(c *params.ChainConfig) { c.CanyonTime = uint64ptr(10) },
 			override2:         func(c *params.ChainConfig) { c.CanyonTime = uint64ptr(0) },
 			expectChainRewind: false,
 		},
 		{
-			name:              fmt.Sprintf("RegolithTime changes from 10 to 0 (genesis time is %d)", genesisTime),
+			name:              "Regolith",
 			override1:         func(c *params.ChainConfig) { c.RegolithTime = uint64ptr(10) },
 			override2:         func(c *params.ChainConfig) { c.RegolithTime = uint64ptr(0) },
 			expectChainRewind: false,
 		},
 		{
-			name:              fmt.Sprintf("ShanghaiTime changes from 10 to 0 (genesis time is %d)", genesisTime),
+			name:              "Shanghai",
 			override1:         func(c *params.ChainConfig) { c.ShanghaiTime = uint64ptr(10) },
 			override2:         func(c *params.ChainConfig) { c.ShanghaiTime = uint64ptr(0) },
 			expectChainRewind: false,
