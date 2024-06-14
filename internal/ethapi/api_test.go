@@ -1946,7 +1946,11 @@ func TestRPCGetBlockOrHeader(t *testing.T) {
 			continue
 		}
 
-		testRPCResponseWithFile(t, i, result, rpc, tt.file)
+		// Compare the result with the expected output
+		// nil is used as the type struct to unmarshal into
+		// because the type struct is not currently compatible with the api struct
+		// (has no omitempty tags, and totalDifficulty is not a member of Headers)
+		testRPCResponseWithFile(t, i, result, rpc, tt.file, nil)
 	}
 }
 
@@ -2104,7 +2108,7 @@ func TestRPCGetTransactionReceipt(t *testing.T) {
 			t.Errorf("test %d: want no error, have %v", i, err)
 			continue
 		}
-		testRPCResponseWithFile(t, i, result, "eth_getTransactionReceipt", tt.file)
+		testRPCResponseWithFile(t, i, result, "eth_getTransactionReceipt", tt.file, new(types.Receipt))
 	}
 }
 
@@ -2202,11 +2206,11 @@ func TestRPCGetBlockReceipts(t *testing.T) {
 			t.Errorf("test %d: want no error, have %v", i, err)
 			continue
 		}
-		testRPCResponseWithFile(t, i, result, "eth_getBlockReceipts", tt.file)
+		testRPCResponseWithFile(t, i, result, "eth_getBlockReceipts", tt.file, new(types.Receipts))
 	}
 }
 
-func testRPCResponseWithFile(t *testing.T, testid int, result interface{}, rpc string, file string) {
+func testRPCResponseWithFile(t *testing.T, testid int, result interface{}, rpc string, file string, unmarshalTo any) {
 	data, err := json.MarshalIndent(result, "", "  ")
 	if err != nil {
 		t.Errorf("test %d: json marshal error", testid)
@@ -2221,4 +2225,16 @@ func testRPCResponseWithFile(t *testing.T, testid int, result interface{}, rpc s
 		t.Fatalf("error reading expected test file: %s output: %v", outputFile, err)
 	}
 	require.JSONEqf(t, string(want), string(data), "test %d: json not match, want: %s, have: %s", testid, string(want), string(data))
+
+	// if unmarshalTo is provided, confirm the result can be unmarshaled to the provided type
+	if unmarshalTo != nil {
+		require.NoError(t, json.Unmarshal(data, unmarshalTo))
+		// further, confirm that the unmarshaled result can be marshaled back to json and matches the original json
+		data2, err := json.MarshalIndent(unmarshalTo, "", "  ")
+		if err != nil {
+			t.Errorf("test %d: type struct marshal error", testid)
+			return
+		}
+		require.JSONEqf(t, string(want), string(data2), "test %d: json does not match type struct, want: %s, have: %s", testid, string(want), string(data2))
+	}
 }
