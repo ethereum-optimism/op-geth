@@ -34,9 +34,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var (
-	testNodeKey, _ = crypto.GenerateKey()
-)
+var testNodeKey, _ = crypto.GenerateKey()
 
 func testNodeConfig() *Config {
 	return &Config{
@@ -152,7 +150,7 @@ func TestNodeCloseClosesDB(t *testing.T) {
 	stack, _ := New(testNodeConfig())
 	defer stack.Close()
 
-	db, err := stack.OpenDatabase("mydb", 0, 0, "", false)
+	db, err := stack.OpenDatabase("mydb", 0, 0, "", false, true)
 	if err != nil {
 		t.Fatal("can't open DB:", err)
 	}
@@ -175,7 +173,7 @@ func TestNodeOpenDatabaseFromLifecycleStart(t *testing.T) {
 	var err error
 	stack.RegisterLifecycle(&InstrumentedService{
 		startHook: func() {
-			db, err = stack.OpenDatabase("mydb", 0, 0, "", false)
+			db, err = stack.OpenDatabase("mydb", 0, 0, "", false, true)
 			if err != nil {
 				t.Fatal("can't open DB:", err)
 			}
@@ -196,7 +194,7 @@ func TestNodeOpenDatabaseFromLifecycleStop(t *testing.T) {
 
 	stack.RegisterLifecycle(&InstrumentedService{
 		stopHook: func() {
-			db, err := stack.OpenDatabase("mydb", 0, 0, "", false)
+			db, err := stack.OpenDatabase("mydb", 0, 0, "", false, true)
 			if err != nil {
 				t.Fatal("can't open DB:", err)
 			}
