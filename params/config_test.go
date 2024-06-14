@@ -28,11 +28,12 @@ import (
 
 func TestCheckCompatible(t *testing.T) {
 	type test struct {
-		stored, new *ChainConfig
-		headBlock,
-		headTimestamp,
+		stored, new   *ChainConfig
+		headBlock     uint64
+		headTimestamp uint64
+		wantErr       *ConfigCompatError
+
 		genesisTimestamp uint64
-		wantErr *ConfigCompatError
 	}
 	tests := []test{
 		{stored: AllEthashProtocolChanges, new: AllEthashProtocolChanges, headBlock: 0, headTimestamp: 0, wantErr: nil},
