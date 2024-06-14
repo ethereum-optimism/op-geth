@@ -34,7 +34,7 @@ func (r Receipt) MarshalJSON() ([]byte, error) {
 		BlockNumber           *hexutil.Big    `json:"blockNumber,omitempty"`
 		TransactionIndex      hexutil.Uint    `json:"transactionIndex"`
 		L1GasPrice            *hexutil.Big    `json:"l1GasPrice,omitempty"`
-		L1BlobBaseFee         *hexutil.Big    `json:"l1BlobBaseFee,omitempty"`
+		L1BlobBaseFee         interface{}     `json:"l1BlobBaseFee,omitempty"`
 		L1GasUsed             *hexutil.Big    `json:"l1GasUsed,omitempty"`
 		L1Fee                 *hexutil.Big    `json:"l1Fee,omitempty"`
 		FeeScalar             *big.Float      `json:"l1FeeScalar,omitempty"`
@@ -60,7 +60,7 @@ func (r Receipt) MarshalJSON() ([]byte, error) {
 	enc.BlockNumber = (*hexutil.Big)(r.BlockNumber)
 	enc.TransactionIndex = hexutil.Uint(r.TransactionIndex)
 	enc.L1GasPrice = (*hexutil.Big)(r.L1GasPrice)
-	enc.L1BlobBaseFee = (*hexutil.Big)(r.L1BlobBaseFee)
+	enc.L1BlobBaseFee = r.L1BlobBaseFee
 	enc.L1GasUsed = (*hexutil.Big)(r.L1GasUsed)
 	enc.L1Fee = (*hexutil.Big)(r.L1Fee)
 	enc.FeeScalar = r.FeeScalar
@@ -90,7 +90,7 @@ func (r *Receipt) UnmarshalJSON(input []byte) error {
 		BlockNumber           *hexutil.Big    `json:"blockNumber,omitempty"`
 		TransactionIndex      *hexutil.Uint   `json:"transactionIndex"`
 		L1GasPrice            *hexutil.Big    `json:"l1GasPrice,omitempty"`
-		L1BlobBaseFee         *hexutil.Big    `json:"l1BlobBaseFee,omitempty"`
+		L1BlobBaseFee         interface{}     `json:"l1BlobBaseFee,omitempty"`
 		L1GasUsed             *hexutil.Big    `json:"l1GasUsed,omitempty"`
 		L1Fee                 *hexutil.Big    `json:"l1Fee,omitempty"`
 		FeeScalar             *big.Float      `json:"l1FeeScalar,omitempty"`
@@ -161,7 +161,7 @@ func (r *Receipt) UnmarshalJSON(input []byte) error {
 		r.L1GasPrice = (*big.Int)(dec.L1GasPrice)
 	}
 	if dec.L1BlobBaseFee != nil {
-		r.L1BlobBaseFee = (*big.Int)(dec.L1BlobBaseFee)
+		r.L1BlobBaseFee = dec.L1BlobBaseFee
 	}
 	if dec.L1GasUsed != nil {
 		r.L1GasUsed = (*big.Int)(dec.L1GasUsed)
