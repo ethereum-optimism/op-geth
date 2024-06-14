@@ -17,6 +17,7 @@
 package params
 
 import (
+	"fmt"
 	"math/big"
 	"reflect"
 	"testing"
@@ -31,6 +32,8 @@ func TestCheckCompatible(t *testing.T) {
 		headBlock     uint64
 		headTimestamp uint64
 		wantErr       *ConfigCompatError
+
+		genesisTimestamp *uint64
 	}
 	tests := []test{
 		{stored: AllEthashProtocolChanges, new: AllEthashProtocolChanges, headBlock: 0, headTimestamp: 0, wantErr: nil},
@@ -109,13 +112,46 @@ func TestCheckCompatible(t *testing.T) {
 				RewindToTime: 9,
 			},
 		},
+		{
+			stored:           &ChainConfig{CanyonTime: newUint64(10)},
+			new:              &ChainConfig{CanyonTime: newUint64(20)},
+			headTimestamp:    25,
+			genesisTimestamp: newUint64(2),
+			wantErr: &ConfigCompatError{
+				What:         "Canyon fork timestamp",
+				StoredTime:   newUint64(10),
+				NewTime:      newUint64(20),
+				RewindToTime: 9,
+			},
+		},
+		{
+			stored:           &ChainConfig{CanyonTime: newUint64(10)},
+			new:              &ChainConfig{CanyonTime: newUint64(20)},
+			headTimestamp:    25,
+			genesisTimestamp: nil,
+			wantErr: &ConfigCompatError{
+				What:         "Canyon fork timestamp",
+				StoredTime:   newUint64(10),
+				NewTime:      newUint64(20),
+				RewindToTime: 9,
+			},
+		},
+		{
+			stored:           &ChainConfig{CanyonTime: newUint64(10)},
+			new:              &ChainConfig{CanyonTime: newUint64(20)},
+			headTimestamp:    25,
+			genesisTimestamp: newUint64(24),
+			wantErr:          nil,
+		},
 	}
 
-	for _, test := range tests {
-		err := test.stored.CheckCompatible(test.new, test.headBlock, test.headTimestamp)
-		if !reflect.DeepEqual(err, test.wantErr) {
-			t.Errorf("error mismatch:\nstored: %v\nnew: %v\nheadBlock: %v\nheadTimestamp: %v\nerr: %v\nwant: %v", test.stored, test.new, test.headBlock, test.headTimestamp, err, test.wantErr)
-		}
+	for i, test := range tests {
+		t.Run(fmt.Sprintf("case %d", i), func(t *testing.T) {
+			err := test.stored.CheckCompatible(test.new, test.headBlock, test.headTimestamp, test.genesisTimestamp)
+			if !reflect.DeepEqual(err, test.wantErr) {
+				t.Errorf("error mismatch:\nstored: %v\nnew: %v\nheadBlock: %v\nheadTimestamp: %v\nerr: %v\nwant: %v", test.stored, test.new, test.headBlock, test.headTimestamp, err, test.wantErr)
+			}
+		})
 	}
 }
 
