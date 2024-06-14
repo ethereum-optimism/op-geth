@@ -38,6 +38,8 @@ const (
 	MiscCategory       = "MISC"
 	TestingCategory    = "TESTING"
 	DeprecatedCategory = "ALIASED (deprecated)"
+
+	PebbleCategory = "PEBBLE DB"
 )
 
 func init() {
