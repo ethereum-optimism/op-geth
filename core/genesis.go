@@ -376,9 +376,9 @@ func SetupGenesisBlockWithOverride(db ethdb.Database, triedb *triedb.Database, g
 	if head == nil {
 		return newcfg, stored, errors.New("missing head header")
 	}
-	genesisTimestamp := uint64(0)
+	var genesisTimestamp *uint64
 	if genesis != nil {
-		genesisTimestamp = genesis.Timestamp
+		genesisTimestamp = &genesis.Timestamp
 	}
 	compatErr := storedcfg.CheckCompatible(newcfg, head.Number.Uint64(), head.Time, genesisTimestamp)
 	if compatErr != nil && ((head.Number.Uint64() != 0 && compatErr.RewindToBlock != 0) || (head.Time != 0 && compatErr.RewindToTime != 0)) {

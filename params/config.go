@@ -713,7 +713,7 @@ func (c *ChainConfig) IsOptimismPreBedrock(num *big.Int) bool {
 
 // CheckCompatible checks whether scheduled fork transitions have been imported
 // with a mismatching chain configuration.
-func (c *ChainConfig) CheckCompatible(newcfg *ChainConfig, height, time, genesisTimestamp uint64) *ConfigCompatError {
+func (c *ChainConfig) CheckCompatible(newcfg *ChainConfig, height, time uint64, genesisTimestamp *uint64) *ConfigCompatError {
 	var (
 		bhead = new(big.Int).SetUint64(height)
 		btime = time
@@ -804,7 +804,7 @@ func (c *ChainConfig) CheckConfigForkOrder() error {
 	return nil
 }
 
-func (c *ChainConfig) checkCompatible(newcfg *ChainConfig, headNumber *big.Int, headTimestamp uint64, genesisTimestamp uint64) *ConfigCompatError {
+func (c *ChainConfig) checkCompatible(newcfg *ChainConfig, headNumber *big.Int, headTimestamp uint64, genesisTimestamp *uint64) *ConfigCompatError {
 	if isForkBlockIncompatible(c.HomesteadBlock, newcfg.HomesteadBlock, headNumber) {
 		return newBlockCompatError("Homestead fork block", c.HomesteadBlock, newcfg.HomesteadBlock)
 	}
@@ -958,15 +958,15 @@ func configBlockEqual(x, y *big.Int) bool {
 
 // isForkTimestampIncompatible returns true if a fork scheduled at timestamp s1
 // cannot be rescheduled to timestamp s2 because head is already past the fork.
-func isForkTimestampIncompatible(s1, s2 *uint64, head, genesis uint64) bool {
+func isForkTimestampIncompatible(s1, s2 *uint64, head uint64, genesis *uint64) bool {
 	return (isTimestampForked(s1, head) || isTimestampForked(s2, head)) && !configTimestampEqual(s1, s2) && !isTimestampPreGenesis(s1, genesis) && !isTimestampPreGenesis(s2, genesis)
 }
 
-func isTimestampPreGenesis(s *uint64, genesis uint64) bool {
-	if s == nil {
+func isTimestampPreGenesis(s, genesis *uint64) bool {
+	if s == nil || genesis == nil {
 		return false
 	}
-	return *s < genesis
+	return *s < *genesis
 }
 
 // isTimestampForked returns whether a fork scheduled at timestamp s is active
