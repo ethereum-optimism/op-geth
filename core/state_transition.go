@@ -727,6 +727,9 @@ func (st *StateTransition) distributeTxFees() error {
 
 	feeCurrency := st.msg.FeeCurrency
 	feeHandlerAddress := addresses.FeeHandlerAddress
+	if st.evm.ChainConfig().ChainID != nil && st.evm.ChainConfig().ChainID.Uint64() == addresses.AlfajoresChainID {
+		feeHandlerAddress = addresses.FeeHandlerAlfajoresAddress
+	}
 
 	log.Trace("distributeTxFees", "from", from, "refund", refund, "feeCurrency", st.msg.FeeCurrency,
 		"coinbaseFeeRecipient", st.evm.Context.Coinbase, "coinbaseFee", tipTxFee,
