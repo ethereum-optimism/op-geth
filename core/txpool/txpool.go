@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"math/big"
 	"sync"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
@@ -49,6 +50,8 @@ var (
 	// This is mostly a sanity metric to ensure there's no bug that would make
 	// some subpool hog all the reservations due to mis-accounting.
 	reservationsGaugeName = "txpool/reservations"
+	// resetTimerName is the prefix of a tx-pool reset duration metric.
+	resetTimerName = "txpool/reset"
 )
 
 // BlockChain defines the minimal set of methods needed to back a tx pool with
@@ -222,6 +225,10 @@ func (p *TxPool) loop(head *types.Header, chain BlockChain) {
 			case resetBusy <- struct{}{}:
 				// Busy marker injected, start a new subpool reset
 				go func(oldHead, newHead *types.Header) {
+					if metrics.Enabled {
+						start := time.Now()
+						defer metrics.GetOrRegisterTimer(resetTimerName, nil).UpdateSince(start)
+					}
 					for _, subpool := range p.subpools {
 						subpool.Reset(oldHead, newHead)
 					}
