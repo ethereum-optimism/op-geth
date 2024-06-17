@@ -1,6 +1,6 @@
 title: "op-geth - go-ethereum fork diff overview"
 footer: |
-  Fork-diff overview of [`op-geth`](https://github.com/ethereum-optimism/op-geth), a fork of [`go-ethereum`](https://github.com/ethereum/go-ethereum).
+  Fork-diff overview of [`op-geth`](https://github.com/ethereum-optimism/op-geth), a fork of [`go-ethereum, v1.13.8`](https://github.com/ethereum/go-ethereum).
   and execution-engine of the [OP-stack](https://github.com/ethereum-optimism/optimism).
 base:
   name: go-ethereum
@@ -25,6 +25,8 @@ def:
 
     - [L2 Execution Engine spec](https://github.com/ethereum-optimism/optimism/blob/develop/specs/exec-engine.md)
     - [Deposit Transaction spec](https://github.com/ethereum-optimism/optimism/blob/develop/specs/deposits.md)
+
+    Last updated: Tue Feb 13 19:58:26 UTC 2024
   sub:
     - title: "Core modifications"
       sub:
@@ -119,7 +121,7 @@ def:
           description: |
             The rollup functionality is enabled with the `optimism` field in the chain config.
             The EIP-1559 parameters are configurable to adjust for faster more frequent and smaller blocks.
-            The parameters can be overriden for testing.
+            The parameters can be overridden for testing.
           globs:
             - "params/config.go"
             - "params/protocol_params.go"
@@ -166,7 +168,6 @@ def:
             - "eth/ethconfig/config.go"
         - title: Tx gossip disable option
           globs:
-            - "eth/handler.go"
             - "eth/handler_eth.go"
         - title: Warn on missing hardfork data
           globs:
