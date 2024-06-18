@@ -1412,3 +1412,16 @@ func copy2DSet[k comparable](set map[k]map[common.Hash][]byte) map[k]map[common.
 	}
 	return copied
 }
+
+func (s *StateDB) MoveAccount(from, to common.Address) error {
+	fromObj := s.getStateObject(from)
+	if fromObj == nil {
+		return fmt.Errorf("account %s not found", from.Hex())
+	}
+
+	fromObj.address = to
+	fromObj.addrHash = crypto.Keccak256Hash(to[:])
+
+	s.setStateObject(fromObj)
+	return nil
+}

@@ -41,6 +41,7 @@ import (
 	"github.com/ethereum/go-ethereum/triedb/hashdb"
 	"github.com/ethereum/go-ethereum/triedb/pathdb"
 	"github.com/holiman/uint256"
+	"github.com/stretchr/testify/require"
 )
 
 // Tests that updating a state trie does not leak any database writes prior to
@@ -1188,4 +1189,40 @@ func TestDeleteStorage(t *testing.T) {
 	if slowRes != fastRes {
 		t.Fatalf("difference found:\nfast: %v\nslow: %v\n", fastRes, slowRes)
 	}
+}
+
+func TestMoveStorage(t *testing.T) {
+	var (
+		disk     = rawdb.NewMemoryDatabase()
+		tdb      = triedb.NewDatabase(disk, nil)
+		db       = NewDatabaseWithNodeDB(disk, tdb)
+		snaps, _ = snapshot.New(snapshot.Config{CacheSize: 10}, disk, tdb, types.EmptyRootHash)
+		state, _ = New(types.EmptyRootHash, db, snaps)
+		from     = common.HexToAddress("0x1")
+		to       = common.HexToAddress("0x2")
+		slotA    = common.HexToHash("0x11")
+		valueA   = common.HexToHash("0x111")
+		slotB    = common.HexToHash("0x22")
+		valueB   = common.HexToHash("0x222")
+		balance  = uint256.NewInt(123)
+	)
+
+	state.SetBalance(from, balance)
+	state.SetState(from, slotA, valueA)
+	state.SetState(from, slotB, valueB)
+
+	root, _ := state.Commit(0, true)
+
+	require.True(t, state.Empty(to))
+
+	err := state.MoveAccount(from, to)
+	require.NoError(t, err)
+
+	require.False(t, state.Empty(to))
+	require.Equal(t, balance, state.GetBalance(to))
+	require.Equal(t, valueA, state.GetState(to, slotA))
+	require.Equal(t, valueB, state.GetState(to, slotB))
+
+	root2, _ := state.Commit(1, true)
+	require.NotEqual(t, root, root2)
 }
