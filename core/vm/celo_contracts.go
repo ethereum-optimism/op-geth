@@ -46,10 +46,10 @@ func celoPrecompileAddress(index byte) common.Address {
 	return common.BytesToAddress(append([]byte{0}, (celoPrecompiledContractsAddressOffset - index)))
 }
 
-func (ctx *celoPrecompileContext) IsCallerGoldToken() (bool, error) {
-	tokenAddress := addresses.GoldTokenAddress
+func (ctx *celoPrecompileContext) IsCallerCeloToken() (bool, error) {
+	tokenAddress := addresses.CeloTokenAddress
 	if ctx.evm.ChainConfig().ChainID != nil && ctx.evm.ChainConfig().ChainID.Uint64() == addresses.AlfajoresChainID {
-		tokenAddress = addresses.GoldTokenAlfajoresAddress
+		tokenAddress = addresses.CeloTokenAlfajoresAddress
 	}
 	return tokenAddress == ctx.caller, nil
 }
@@ -62,9 +62,9 @@ func (c *transfer) RequiredGas(input []byte) uint64 {
 }
 
 func (c *transfer) Run(input []byte, ctx *celoPrecompileContext) ([]byte, error) {
-	if isGoldToken, err := ctx.IsCallerGoldToken(); err != nil {
+	if isCeloToken, err := ctx.IsCallerCeloToken(); err != nil {
 		return nil, err
-	} else if !isGoldToken {
+	} else if !isCeloToken {
 		return nil, fmt.Errorf("unable to call transfer from unpermissioned address")
 	}
 

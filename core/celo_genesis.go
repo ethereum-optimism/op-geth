@@ -108,7 +108,7 @@ func celoGenesisAccounts(fundedAddr common.Address) GenesisAlloc {
 			Code:    registryBytecode,
 			Balance: big.NewInt(0),
 		},
-		addresses.GoldTokenAddress: { // GoldToken Proxy
+		addresses.CeloTokenAddress: { // GoldToken Proxy
 			Code: proxyBytecode,
 			Storage: map[common.Hash]common.Hash{
 				proxy_implementation_slot: common.HexToHash("0xce13"),

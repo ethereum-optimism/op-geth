@@ -80,7 +80,7 @@ func TestPrecompileTransfer(t *testing.T) {
 			name: "Test transfer with short input",
 			args: args{
 				input: []byte("0000"),
-				ctx:   NewContext(addresses.GoldTokenAddress, mockEVM),
+				ctx:   NewContext(addresses.CeloTokenAddress, mockEVM),
 			},
 			wantErr:     true,
 			expectedErr: "invalid input length",
