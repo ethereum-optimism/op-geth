@@ -29,113 +29,113 @@ var (
 	_ = abi.ConvertType
 )
 
-// GoldTokenMetaData contains all meta data concerning the GoldToken contract.
-var GoldTokenMetaData = &bind.MetaData{
+// CeloTokenMetaData contains all meta data concerning the CeloToken contract.
+var CeloTokenMetaData = &bind.MetaData{
 	ABI: "[{\"inputs\":[{\"internalType\":\"bool\",\"name\":\"test\",\"type\":\"bool\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"owner\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"spender\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"value\",\"type\":\"uint256\"}],\"name\":\"Approval\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"previousOwner\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"newOwner\",\"type\":\"address\"}],\"name\":\"OwnershipTransferred\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"registryAddress\",\"type\":\"address\"}],\"name\":\"RegistrySet\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"from\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"to\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"value\",\"type\":\"uint256\"}],\"name\":\"Transfer\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"string\",\"name\":\"comment\",\"type\":\"string\"}],\"name\":\"TransferComment\",\"type\":\"event\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"owner\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"spender\",\"type\":\"address\"}],\"name\":\"allowance\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"spender\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"value\",\"type\":\"uint256\"}],\"name\":\"approve\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"owner\",\"type\":\"address\"}],\"name\":\"balanceOf\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"value\",\"type\":\"uint256\"}],\"name\":\"burn\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"circulatingSupply\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"decimals\",\"outputs\":[{\"internalType\":\"uint8\",\"name\":\"\",\"type\":\"uint8\"}],\"stateMutability\":\"pure\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"spender\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"value\",\"type\":\"uint256\"}],\"name\":\"decreaseAllowance\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getBurnedAmount\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getVersionNumber\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"pure\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"spender\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"value\",\"type\":\"uint256\"}],\"name\":\"increaseAllowance\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"increaseSupply\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"registryAddress\",\"type\":\"address\"}],\"name\":\"initialize\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"initialized\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"to\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"value\",\"type\":\"uint256\"}],\"name\":\"mint\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"name\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"}],\"stateMutability\":\"pure\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"owner\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"registry\",\"outputs\":[{\"internalType\":\"contractICeloRegistry\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"renounceOwnership\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"registryAddress\",\"type\":\"address\"}],\"name\":\"setRegistry\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"symbol\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"}],\"stateMutability\":\"pure\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"totalSupply\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"to\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"value\",\"type\":\"uint256\"}],\"name\":\"transfer\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"from\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"to\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"value\",\"type\":\"uint256\"}],\"name\":\"transferFrom\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"newOwner\",\"type\":\"address\"}],\"name\":\"transferOwnership\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"to\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"value\",\"type\":\"uint256\"},{\"internalType\":\"string\",\"name\":\"comment\",\"type\":\"string\"}],\"name\":\"transferWithComment\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]",
 }
 
-// GoldTokenABI is the input ABI used to generate the binding from.
-// Deprecated: Use GoldTokenMetaData.ABI instead.
-var GoldTokenABI = GoldTokenMetaData.ABI
+// CeloTokenABI is the input ABI used to generate the binding from.
+// Deprecated: Use CeloTokenMetaData.ABI instead.
+var CeloTokenABI = CeloTokenMetaData.ABI
 
-// GoldToken is an auto generated Go binding around an Ethereum contract.
-type GoldToken struct {
-	GoldTokenCaller     // Read-only binding to the contract
-	GoldTokenTransactor // Write-only binding to the contract
-	GoldTokenFilterer   // Log filterer for contract events
+// CeloToken is an auto generated Go binding around an Ethereum contract.
+type CeloToken struct {
+	CeloTokenCaller     // Read-only binding to the contract
+	CeloTokenTransactor // Write-only binding to the contract
+	CeloTokenFilterer   // Log filterer for contract events
 }
 
-// GoldTokenCaller is an auto generated read-only Go binding around an Ethereum contract.
-type GoldTokenCaller struct {
+// CeloTokenCaller is an auto generated read-only Go binding around an Ethereum contract.
+type CeloTokenCaller struct {
 	contract *bind.BoundContract // Generic contract wrapper for the low level calls
 }
 
-// GoldTokenTransactor is an auto generated write-only Go binding around an Ethereum contract.
-type GoldTokenTransactor struct {
+// CeloTokenTransactor is an auto generated write-only Go binding around an Ethereum contract.
+type CeloTokenTransactor struct {
 	contract *bind.BoundContract // Generic contract wrapper for the low level calls
 }
 
-// GoldTokenFilterer is an auto generated log filtering Go binding around an Ethereum contract events.
-type GoldTokenFilterer struct {
+// CeloTokenFilterer is an auto generated log filtering Go binding around an Ethereum contract events.
+type CeloTokenFilterer struct {
 	contract *bind.BoundContract // Generic contract wrapper for the low level calls
 }
 
-// GoldTokenSession is an auto generated Go binding around an Ethereum contract,
+// CeloTokenSession is an auto generated Go binding around an Ethereum contract,
 // with pre-set call and transact options.
-type GoldTokenSession struct {
-	Contract     *GoldToken        // Generic contract binding to set the session for
+type CeloTokenSession struct {
+	Contract     *CeloToken        // Generic contract binding to set the session for
 	CallOpts     bind.CallOpts     // Call options to use throughout this session
 	TransactOpts bind.TransactOpts // Transaction auth options to use throughout this session
 }
 
-// GoldTokenCallerSession is an auto generated read-only Go binding around an Ethereum contract,
+// CeloTokenCallerSession is an auto generated read-only Go binding around an Ethereum contract,
 // with pre-set call options.
-type GoldTokenCallerSession struct {
-	Contract *GoldTokenCaller // Generic contract caller binding to set the session for
+type CeloTokenCallerSession struct {
+	Contract *CeloTokenCaller // Generic contract caller binding to set the session for
 	CallOpts bind.CallOpts    // Call options to use throughout this session
 }
 
-// GoldTokenTransactorSession is an auto generated write-only Go binding around an Ethereum contract,
+// CeloTokenTransactorSession is an auto generated write-only Go binding around an Ethereum contract,
 // with pre-set transact options.
-type GoldTokenTransactorSession struct {
-	Contract     *GoldTokenTransactor // Generic contract transactor binding to set the session for
+type CeloTokenTransactorSession struct {
+	Contract     *CeloTokenTransactor // Generic contract transactor binding to set the session for
 	TransactOpts bind.TransactOpts    // Transaction auth options to use throughout this session
 }
 
-// GoldTokenRaw is an auto generated low-level Go binding around an Ethereum contract.
-type GoldTokenRaw struct {
-	Contract *GoldToken // Generic contract binding to access the raw methods on
+// CeloTokenRaw is an auto generated low-level Go binding around an Ethereum contract.
+type CeloTokenRaw struct {
+	Contract *CeloToken // Generic contract binding to access the raw methods on
 }
 
-// GoldTokenCallerRaw is an auto generated low-level read-only Go binding around an Ethereum contract.
-type GoldTokenCallerRaw struct {
-	Contract *GoldTokenCaller // Generic read-only contract binding to access the raw methods on
+// CeloTokenCallerRaw is an auto generated low-level read-only Go binding around an Ethereum contract.
+type CeloTokenCallerRaw struct {
+	Contract *CeloTokenCaller // Generic read-only contract binding to access the raw methods on
 }
 
-// GoldTokenTransactorRaw is an auto generated low-level write-only Go binding around an Ethereum contract.
-type GoldTokenTransactorRaw struct {
-	Contract *GoldTokenTransactor // Generic write-only contract binding to access the raw methods on
+// CeloTokenTransactorRaw is an auto generated low-level write-only Go binding around an Ethereum contract.
+type CeloTokenTransactorRaw struct {
+	Contract *CeloTokenTransactor // Generic write-only contract binding to access the raw methods on
 }
 
-// NewGoldToken creates a new instance of GoldToken, bound to a specific deployed contract.
-func NewGoldToken(address common.Address, backend bind.ContractBackend) (*GoldToken, error) {
-	contract, err := bindGoldToken(address, backend, backend, backend)
+// NewCeloToken creates a new instance of CeloToken, bound to a specific deployed contract.
+func NewCeloToken(address common.Address, backend bind.ContractBackend) (*CeloToken, error) {
+	contract, err := bindCeloToken(address, backend, backend, backend)
 	if err != nil {
 		return nil, err
 	}
-	return &GoldToken{GoldTokenCaller: GoldTokenCaller{contract: contract}, GoldTokenTransactor: GoldTokenTransactor{contract: contract}, GoldTokenFilterer: GoldTokenFilterer{contract: contract}}, nil
+	return &CeloToken{CeloTokenCaller: CeloTokenCaller{contract: contract}, CeloTokenTransactor: CeloTokenTransactor{contract: contract}, CeloTokenFilterer: CeloTokenFilterer{contract: contract}}, nil
 }
 
-// NewGoldTokenCaller creates a new read-only instance of GoldToken, bound to a specific deployed contract.
-func NewGoldTokenCaller(address common.Address, caller bind.ContractCaller) (*GoldTokenCaller, error) {
-	contract, err := bindGoldToken(address, caller, nil, nil)
+// NewCeloTokenCaller creates a new read-only instance of CeloToken, bound to a specific deployed contract.
+func NewCeloTokenCaller(address common.Address, caller bind.ContractCaller) (*CeloTokenCaller, error) {
+	contract, err := bindCeloToken(address, caller, nil, nil)
 	if err != nil {
 		return nil, err
 	}
-	return &GoldTokenCaller{contract: contract}, nil
+	return &CeloTokenCaller{contract: contract}, nil
 }
 
-// NewGoldTokenTransactor creates a new write-only instance of GoldToken, bound to a specific deployed contract.
-func NewGoldTokenTransactor(address common.Address, transactor bind.ContractTransactor) (*GoldTokenTransactor, error) {
-	contract, err := bindGoldToken(address, nil, transactor, nil)
+// NewCeloTokenTransactor creates a new write-only instance of CeloToken, bound to a specific deployed contract.
+func NewCeloTokenTransactor(address common.Address, transactor bind.ContractTransactor) (*CeloTokenTransactor, error) {
+	contract, err := bindCeloToken(address, nil, transactor, nil)
 	if err != nil {
 		return nil, err
 	}
-	return &GoldTokenTransactor{contract: contract}, nil
+	return &CeloTokenTransactor{contract: contract}, nil
 }
 
-// NewGoldTokenFilterer creates a new log filterer instance of GoldToken, bound to a specific deployed contract.
-func NewGoldTokenFilterer(address common.Address, filterer bind.ContractFilterer) (*GoldTokenFilterer, error) {
-	contract, err := bindGoldToken(address, nil, nil, filterer)
+// NewCeloTokenFilterer creates a new log filterer instance of CeloToken, bound to a specific deployed contract.
+func NewCeloTokenFilterer(address common.Address, filterer bind.ContractFilterer) (*CeloTokenFilterer, error) {
+	contract, err := bindCeloToken(address, nil, nil, filterer)
 	if err != nil {
 		return nil, err
 	}
-	return &GoldTokenFilterer{contract: contract}, nil
+	return &CeloTokenFilterer{contract: contract}, nil
 }
 
-// bindGoldToken binds a generic wrapper to an already deployed contract.
-func bindGoldToken(address common.Address, caller bind.ContractCaller, transactor bind.ContractTransactor, filterer bind.ContractFilterer) (*bind.BoundContract, error) {
-	parsed, err := GoldTokenMetaData.GetAbi()
+// bindCeloToken binds a generic wrapper to an already deployed contract.
+func bindCeloToken(address common.Address, caller bind.ContractCaller, transactor bind.ContractTransactor, filterer bind.ContractFilterer) (*bind.BoundContract, error) {
+	parsed, err := CeloTokenMetaData.GetAbi()
 	if err != nil {
 		return nil, err
 	}
@@ -146,46 +146,46 @@ func bindGoldToken(address common.Address, caller bind.ContractCaller, transacto
 // sets the output to result. The result type might be a single field for simple
 // returns, a slice of interfaces for anonymous returns and a struct for named
 // returns.
-func (_GoldToken *GoldTokenRaw) Call(opts *bind.CallOpts, result *[]interface{}, method string, params ...interface{}) error {
-	return _GoldToken.Contract.GoldTokenCaller.contract.Call(opts, result, method, params...)
+func (_CeloToken *CeloTokenRaw) Call(opts *bind.CallOpts, result *[]interface{}, method string, params ...interface{}) error {
+	return _CeloToken.Contract.CeloTokenCaller.contract.Call(opts, result, method, params...)
 }
 
 // Transfer initiates a plain transaction to move funds to the contract, calling
 // its default method if one is available.
-func (_GoldToken *GoldTokenRaw) Transfer(opts *bind.TransactOpts) (*types.Transaction, error) {
-	return _GoldToken.Contract.GoldTokenTransactor.contract.Transfer(opts)
+func (_CeloToken *CeloTokenRaw) Transfer(opts *bind.TransactOpts) (*types.Transaction, error) {
+	return _CeloToken.Contract.CeloTokenTransactor.contract.Transfer(opts)
 }
 
 // Transact invokes the (paid) contract method with params as input values.
-func (_GoldToken *GoldTokenRaw) Transact(opts *bind.TransactOpts, method string, params ...interface{}) (*types.Transaction, error) {
-	return _GoldToken.Contract.GoldTokenTransactor.contract.Transact(opts, method, params...)
+func (_CeloToken *CeloTokenRaw) Transact(opts *bind.TransactOpts, method string, params ...interface{}) (*types.Transaction, error) {
+	return _CeloToken.Contract.CeloTokenTransactor.contract.Transact(opts, method, params...)
 }
 
 // Call invokes the (constant) contract method with params as input values and
 // sets the output to result. The result type might be a single field for simple
 // returns, a slice of interfaces for anonymous returns and a struct for named
 // returns.
-func (_GoldToken *GoldTokenCallerRaw) Call(opts *bind.CallOpts, result *[]interface{}, method string, params ...interface{}) error {
-	return _GoldToken.Contract.contract.Call(opts, result, method, params...)
+func (_CeloToken *CeloTokenCallerRaw) Call(opts *bind.CallOpts, result *[]interface{}, method string, params ...interface{}) error {
+	return _CeloToken.Contract.contract.Call(opts, result, method, params...)
 }
 
 // Transfer initiates a plain transaction to move funds to the contract, calling
 // its default method if one is available.
-func (_GoldToken *GoldTokenTransactorRaw) Transfer(opts *bind.TransactOpts) (*types.Transaction, error) {
-	return _GoldToken.Contract.contract.Transfer(opts)
+func (_CeloToken *CeloTokenTransactorRaw) Transfer(opts *bind.TransactOpts) (*types.Transaction, error) {
+	return _CeloToken.Contract.contract.Transfer(opts)
 }
 
 // Transact invokes the (paid) contract method with params as input values.
-func (_GoldToken *GoldTokenTransactorRaw) Transact(opts *bind.TransactOpts, method string, params ...interface{}) (*types.Transaction, error) {
-	return _GoldToken.Contract.contract.Transact(opts, method, params...)
+func (_CeloToken *CeloTokenTransactorRaw) Transact(opts *bind.TransactOpts, method string, params ...interface{}) (*types.Transaction, error) {
+	return _CeloToken.Contract.contract.Transact(opts, method, params...)
 }
 
 // Allowance is a free data retrieval call binding the contract method 0xdd62ed3e.
 //
 // Solidity: function allowance(address owner, address spender) view returns(uint256)
-func (_GoldToken *GoldTokenCaller) Allowance(opts *bind.CallOpts, owner common.Address, spender common.Address) (*big.Int, error) {
+func (_CeloToken *CeloTokenCaller) Allowance(opts *bind.CallOpts, owner common.Address, spender common.Address) (*big.Int, error) {
 	var out []interface{}
-	err := _GoldToken.contract.Call(opts, &out, "allowance", owner, spender)
+	err := _CeloToken.contract.Call(opts, &out, "allowance", owner, spender)
 
 	if err != nil {
 		return *new(*big.Int), err
@@ -200,23 +200,23 @@ func (_GoldToken *GoldTokenCaller) Allowance(opts *bind.CallOpts, owner common.A
 // Allowance is a free data retrieval call binding the contract method 0xdd62ed3e.
 //
 // Solidity: function allowance(address owner, address spender) view returns(uint256)
-func (_GoldToken *GoldTokenSession) Allowance(owner common.Address, spender common.Address) (*big.Int, error) {
-	return _GoldToken.Contract.Allowance(&_GoldToken.CallOpts, owner, spender)
+func (_CeloToken *CeloTokenSession) Allowance(owner common.Address, spender common.Address) (*big.Int, error) {
+	return _CeloToken.Contract.Allowance(&_CeloToken.CallOpts, owner, spender)
 }
 
 // Allowance is a free data retrieval call binding the contract method 0xdd62ed3e.
 //
 // Solidity: function allowance(address owner, address spender) view returns(uint256)
-func (_GoldToken *GoldTokenCallerSession) Allowance(owner common.Address, spender common.Address) (*big.Int, error) {
-	return _GoldToken.Contract.Allowance(&_GoldToken.CallOpts, owner, spender)
+func (_CeloToken *CeloTokenCallerSession) Allowance(owner common.Address, spender common.Address) (*big.Int, error) {
+	return _CeloToken.Contract.Allowance(&_CeloToken.CallOpts, owner, spender)
 }
 
 // BalanceOf is a free data retrieval call binding the contract method 0x70a08231.
 //
 // Solidity: function balanceOf(address owner) view returns(uint256)
-func (_GoldToken *GoldTokenCaller) BalanceOf(opts *bind.CallOpts, owner common.Address) (*big.Int, error) {
+func (_CeloToken *CeloTokenCaller) BalanceOf(opts *bind.CallOpts, owner common.Address) (*big.Int, error) {
 	var out []interface{}
-	err := _GoldToken.contract.Call(opts, &out, "balanceOf", owner)
+	err := _CeloToken.contract.Call(opts, &out, "balanceOf", owner)
 
 	if err != nil {
 		return *new(*big.Int), err
@@ -231,23 +231,23 @@ func (_GoldToken *GoldTokenCaller) BalanceOf(opts *bind.CallOpts, owner common.A
 // BalanceOf is a free data retrieval call binding the contract method 0x70a08231.
 //
 // Solidity: function balanceOf(address owner) view returns(uint256)
-func (_GoldToken *GoldTokenSession) BalanceOf(owner common.Address) (*big.Int, error) {
-	return _GoldToken.Contract.BalanceOf(&_GoldToken.CallOpts, owner)
+func (_CeloToken *CeloTokenSession) BalanceOf(owner common.Address) (*big.Int, error) {
+	return _CeloToken.Contract.BalanceOf(&_CeloToken.CallOpts, owner)
 }
 
 // BalanceOf is a free data retrieval call binding the contract method 0x70a08231.
 //
 // Solidity: function balanceOf(address owner) view returns(uint256)
-func (_GoldToken *GoldTokenCallerSession) BalanceOf(owner common.Address) (*big.Int, error) {
-	return _GoldToken.Contract.BalanceOf(&_GoldToken.CallOpts, owner)
+func (_CeloToken *CeloTokenCallerSession) BalanceOf(owner common.Address) (*big.Int, error) {
+	return _CeloToken.Contract.BalanceOf(&_CeloToken.CallOpts, owner)
 }
 
 // CirculatingSupply is a free data retrieval call binding the contract method 0x9358928b.
 //
 // Solidity: function circulatingSupply() view returns(uint256)
-func (_GoldToken *GoldTokenCaller) CirculatingSupply(opts *bind.CallOpts) (*big.Int, error) {
+func (_CeloToken *CeloTokenCaller) CirculatingSupply(opts *bind.CallOpts) (*big.Int, error) {
 	var out []interface{}
-	err := _GoldToken.contract.Call(opts, &out, "circulatingSupply")
+	err := _CeloToken.contract.Call(opts, &out, "circulatingSupply")
 
 	if err != nil {
 		return *new(*big.Int), err
@@ -262,23 +262,23 @@ func (_GoldToken *GoldTokenCaller) CirculatingSupply(opts *bind.CallOpts) (*big.
 // CirculatingSupply is a free data retrieval call binding the contract method 0x9358928b.
 //
 // Solidity: function circulatingSupply() view returns(uint256)
-func (_GoldToken *GoldTokenSession) CirculatingSupply() (*big.Int, error) {
-	return _GoldToken.Contract.CirculatingSupply(&_GoldToken.CallOpts)
+func (_CeloToken *CeloTokenSession) CirculatingSupply() (*big.Int, error) {
+	return _CeloToken.Contract.CirculatingSupply(&_CeloToken.CallOpts)
 }
 
 // CirculatingSupply is a free data retrieval call binding the contract method 0x9358928b.
 //
 // Solidity: function circulatingSupply() view returns(uint256)
-func (_GoldToken *GoldTokenCallerSession) CirculatingSupply() (*big.Int, error) {
-	return _GoldToken.Contract.CirculatingSupply(&_GoldToken.CallOpts)
+func (_CeloToken *CeloTokenCallerSession) CirculatingSupply() (*big.Int, error) {
+	return _CeloToken.Contract.CirculatingSupply(&_CeloToken.CallOpts)
 }
 
 // Decimals is a free data retrieval call binding the contract method 0x313ce567.
 //
 // Solidity: function decimals() pure returns(uint8)
-func (_GoldToken *GoldTokenCaller) Decimals(opts *bind.CallOpts) (uint8, error) {
+func (_CeloToken *CeloTokenCaller) Decimals(opts *bind.CallOpts) (uint8, error) {
 	var out []interface{}
-	err := _GoldToken.contract.Call(opts, &out, "decimals")
+	err := _CeloToken.contract.Call(opts, &out, "decimals")
 
 	if err != nil {
 		return *new(uint8), err
@@ -293,23 +293,23 @@ func (_GoldToken *GoldTokenCaller) Decimals(opts *bind.CallOpts) (uint8, error) 
 // Decimals is a free data retrieval call binding the contract method 0x313ce567.
 //
 // Solidity: function decimals() pure returns(uint8)
-func (_GoldToken *GoldTokenSession) Decimals() (uint8, error) {
-	return _GoldToken.Contract.Decimals(&_GoldToken.CallOpts)
+func (_CeloToken *CeloTokenSession) Decimals() (uint8, error) {
+	return _CeloToken.Contract.Decimals(&_CeloToken.CallOpts)
 }
 
 // Decimals is a free data retrieval call binding the contract method 0x313ce567.
 //
 // Solidity: function decimals() pure returns(uint8)
-func (_GoldToken *GoldTokenCallerSession) Decimals() (uint8, error) {
-	return _GoldToken.Contract.Decimals(&_GoldToken.CallOpts)
+func (_CeloToken *CeloTokenCallerSession) Decimals() (uint8, error) {
+	return _CeloToken.Contract.Decimals(&_CeloToken.CallOpts)
 }
 
 // GetBurnedAmount is a free data retrieval call binding the contract method 0x265126bd.
 //
 // Solidity: function getBurnedAmount() view returns(uint256)
-func (_GoldToken *GoldTokenCaller) GetBurnedAmount(opts *bind.CallOpts) (*big.Int, error) {
+func (_CeloToken *CeloTokenCaller) GetBurnedAmount(opts *bind.CallOpts) (*big.Int, error) {
 	var out []interface{}
-	err := _GoldToken.contract.Call(opts, &out, "getBurnedAmount")
+	err := _CeloToken.contract.Call(opts, &out, "getBurnedAmount")
 
 	if err != nil {
 		return *new(*big.Int), err
@@ -324,23 +324,23 @@ func (_GoldToken *GoldTokenCaller) GetBurnedAmount(opts *bind.CallOpts) (*big.In
 // GetBurnedAmount is a free data retrieval call binding the contract method 0x265126bd.
 //
 // Solidity: function getBurnedAmount() view returns(uint256)
-func (_GoldToken *GoldTokenSession) GetBurnedAmount() (*big.Int, error) {
-	return _GoldToken.Contract.GetBurnedAmount(&_GoldToken.CallOpts)
+func (_CeloToken *CeloTokenSession) GetBurnedAmount() (*big.Int, error) {
+	return _CeloToken.Contract.GetBurnedAmount(&_CeloToken.CallOpts)
 }
 
 // GetBurnedAmount is a free data retrieval call binding the contract method 0x265126bd.
 //
 // Solidity: function getBurnedAmount() view returns(uint256)
-func (_GoldToken *GoldTokenCallerSession) GetBurnedAmount() (*big.Int, error) {
-	return _GoldToken.Contract.GetBurnedAmount(&_GoldToken.CallOpts)
+func (_CeloToken *CeloTokenCallerSession) GetBurnedAmount() (*big.Int, error) {
+	return _CeloToken.Contract.GetBurnedAmount(&_CeloToken.CallOpts)
 }
 
 // GetVersionNumber is a free data retrieval call binding the contract method 0x54255be0.
 //
 // Solidity: function getVersionNumber() pure returns(uint256, uint256, uint256, uint256)
-func (_GoldToken *GoldTokenCaller) GetVersionNumber(opts *bind.CallOpts) (*big.Int, *big.Int, *big.Int, *big.Int, error) {
+func (_CeloToken *CeloTokenCaller) GetVersionNumber(opts *bind.CallOpts) (*big.Int, *big.Int, *big.Int, *big.Int, error) {
 	var out []interface{}
-	err := _GoldToken.contract.Call(opts, &out, "getVersionNumber")
+	err := _CeloToken.contract.Call(opts, &out, "getVersionNumber")
 
 	if err != nil {
 		return *new(*big.Int), *new(*big.Int), *new(*big.Int), *new(*big.Int), err
@@ -358,23 +358,23 @@ func (_GoldToken *GoldTokenCaller) GetVersionNumber(opts *bind.CallOpts) (*big.I
 // GetVersionNumber is a free data retrieval call binding the contract method 0x54255be0.
 //
 // Solidity: function getVersionNumber() pure returns(uint256, uint256, uint256, uint256)
-func (_GoldToken *GoldTokenSession) GetVersionNumber() (*big.Int, *big.Int, *big.Int, *big.Int, error) {
-	return _GoldToken.Contract.GetVersionNumber(&_GoldToken.CallOpts)
+func (_CeloToken *CeloTokenSession) GetVersionNumber() (*big.Int, *big.Int, *big.Int, *big.Int, error) {
+	return _CeloToken.Contract.GetVersionNumber(&_CeloToken.CallOpts)
 }
 
 // GetVersionNumber is a free data retrieval call binding the contract method 0x54255be0.
 //
 // Solidity: function getVersionNumber() pure returns(uint256, uint256, uint256, uint256)
-func (_GoldToken *GoldTokenCallerSession) GetVersionNumber() (*big.Int, *big.Int, *big.Int, *big.Int, error) {
-	return _GoldToken.Contract.GetVersionNumber(&_GoldToken.CallOpts)
+func (_CeloToken *CeloTokenCallerSession) GetVersionNumber() (*big.Int, *big.Int, *big.Int, *big.Int, error) {
+	return _CeloToken.Contract.GetVersionNumber(&_CeloToken.CallOpts)
 }
 
 // Initialized is a free data retrieval call binding the contract method 0x158ef93e.
 //
 // Solidity: function initialized() view returns(bool)
-func (_GoldToken *GoldTokenCaller) Initialized(opts *bind.CallOpts) (bool, error) {
+func (_CeloToken *CeloTokenCaller) Initialized(opts *bind.CallOpts) (bool, error) {
 	var out []interface{}
-	err := _GoldToken.contract.Call(opts, &out, "initialized")
+	err := _CeloToken.contract.Call(opts, &out, "initialized")
 
 	if err != nil {
 		return *new(bool), err
@@ -389,23 +389,23 @@ func (_GoldToken *GoldTokenCaller) Initialized(opts *bind.CallOpts) (bool, error
 // Initialized is a free data retrieval call binding the contract method 0x158ef93e.
 //
 // Solidity: function initialized() view returns(bool)
-func (_GoldToken *GoldTokenSession) Initialized() (bool, error) {
-	return _GoldToken.Contract.Initialized(&_GoldToken.CallOpts)
+func (_CeloToken *CeloTokenSession) Initialized() (bool, error) {
+	return _CeloToken.Contract.Initialized(&_CeloToken.CallOpts)
 }
 
 // Initialized is a free data retrieval call binding the contract method 0x158ef93e.
 //
 // Solidity: function initialized() view returns(bool)
-func (_GoldToken *GoldTokenCallerSession) Initialized() (bool, error) {
-	return _GoldToken.Contract.Initialized(&_GoldToken.CallOpts)
+func (_CeloToken *CeloTokenCallerSession) Initialized() (bool, error) {
+	return _CeloToken.Contract.Initialized(&_CeloToken.CallOpts)
 }
 
 // Name is a free data retrieval call binding the contract method 0x06fdde03.
 //
 // Solidity: function name() pure returns(string)
-func (_GoldToken *GoldTokenCaller) Name(opts *bind.CallOpts) (string, error) {
+func (_CeloToken *CeloTokenCaller) Name(opts *bind.CallOpts) (string, error) {
 	var out []interface{}
-	err := _GoldToken.contract.Call(opts, &out, "name")
+	err := _CeloToken.contract.Call(opts, &out, "name")
 
 	if err != nil {
 		return *new(string), err
@@ -420,23 +420,23 @@ func (_GoldToken *GoldTokenCaller) Name(opts *bind.CallOpts) (string, error) {
 // Name is a free data retrieval call binding the contract method 0x06fdde03.
 //
 // Solidity: function name() pure returns(string)
-func (_GoldToken *GoldTokenSession) Name() (string, error) {
-	return _GoldToken.Contract.Name(&_GoldToken.CallOpts)
+func (_CeloToken *CeloTokenSession) Name() (string, error) {
+	return _CeloToken.Contract.Name(&_CeloToken.CallOpts)
 }
 
 // Name is a free data retrieval call binding the contract method 0x06fdde03.
 //
 // Solidity: function name() pure returns(string)
-func (_GoldToken *GoldTokenCallerSession) Name() (string, error) {
-	return _GoldToken.Contract.Name(&_GoldToken.CallOpts)
+func (_CeloToken *CeloTokenCallerSession) Name() (string, error) {
+	return _CeloToken.Contract.Name(&_CeloToken.CallOpts)
 }
 
 // Owner is a free data retrieval call binding the contract method 0x8da5cb5b.
 //
 // Solidity: function owner() view returns(address)
-func (_GoldToken *GoldTokenCaller) Owner(opts *bind.CallOpts) (common.Address, error) {
+func (_CeloToken *CeloTokenCaller) Owner(opts *bind.CallOpts) (common.Address, error) {
 	var out []interface{}
-	err := _GoldToken.contract.Call(opts, &out, "owner")
+	err := _CeloToken.contract.Call(opts, &out, "owner")
 
 	if err != nil {
 		return *new(common.Address), err
@@ -451,23 +451,23 @@ func (_GoldToken *GoldTokenCaller) Owner(opts *bind.CallOpts) (common.Address, e
 // Owner is a free data retrieval call binding the contract method 0x8da5cb5b.
 //
 // Solidity: function owner() view returns(address)
-func (_GoldToken *GoldTokenSession) Owner() (common.Address, error) {
-	return _GoldToken.Contract.Owner(&_GoldToken.CallOpts)
+func (_CeloToken *CeloTokenSession) Owner() (common.Address, error) {
+	return _CeloToken.Contract.Owner(&_CeloToken.CallOpts)
 }
 
 // Owner is a free data retrieval call binding the contract method 0x8da5cb5b.
 //
 // Solidity: function owner() view returns(address)
-func (_GoldToken *GoldTokenCallerSession) Owner() (common.Address, error) {
-	return _GoldToken.Contract.Owner(&_GoldToken.CallOpts)
+func (_CeloToken *CeloTokenCallerSession) Owner() (common.Address, error) {
+	return _CeloToken.Contract.Owner(&_CeloToken.CallOpts)
 }
 
 // Registry is a free data retrieval call binding the contract method 0x7b103999.
 //
 // Solidity: function registry() view returns(address)
-func (_GoldToken *GoldTokenCaller) Registry(opts *bind.CallOpts) (common.Address, error) {
+func (_CeloToken *CeloTokenCaller) Registry(opts *bind.CallOpts) (common.Address, error) {
 	var out []interface{}
-	err := _GoldToken.contract.Call(opts, &out, "registry")
+	err := _CeloToken.contract.Call(opts, &out, "registry")
 
 	if err != nil {
 		return *new(common.Address), err
@@ -482,23 +482,23 @@ func (_GoldToken *GoldTokenCaller) Registry(opts *bind.CallOpts) (common.Address
 // Registry is a free data retrieval call binding the contract method 0x7b103999.
 //
 // Solidity: function registry() view returns(address)
-func (_GoldToken *GoldTokenSession) Registry() (common.Address, error) {
-	return _GoldToken.Contract.Registry(&_GoldToken.CallOpts)
+func (_CeloToken *CeloTokenSession) Registry() (common.Address, error) {
+	return _CeloToken.Contract.Registry(&_CeloToken.CallOpts)
 }
 
 // Registry is a free data retrieval call binding the contract method 0x7b103999.
 //
 // Solidity: function registry() view returns(address)
-func (_GoldToken *GoldTokenCallerSession) Registry() (common.Address, error) {
-	return _GoldToken.Contract.Registry(&_GoldToken.CallOpts)
+func (_CeloToken *CeloTokenCallerSession) Registry() (common.Address, error) {
+	return _CeloToken.Contract.Registry(&_CeloToken.CallOpts)
 }
 
 // Symbol is a free data retrieval call binding the contract method 0x95d89b41.
 //
 // Solidity: function symbol() pure returns(string)
-func (_GoldToken *GoldTokenCaller) Symbol(opts *bind.CallOpts) (string, error) {
+func (_CeloToken *CeloTokenCaller) Symbol(opts *bind.CallOpts) (string, error) {
 	var out []interface{}
-	err := _GoldToken.contract.Call(opts, &out, "symbol")
+	err := _CeloToken.contract.Call(opts, &out, "symbol")
 
 	if err != nil {
 		return *new(string), err
@@ -513,23 +513,23 @@ func (_GoldToken *GoldTokenCaller) Symbol(opts *bind.CallOpts) (string, error) {
 // Symbol is a free data retrieval call binding the contract method 0x95d89b41.
 //
 // Solidity: function symbol() pure returns(string)
-func (_GoldToken *GoldTokenSession) Symbol() (string, error) {
-	return _GoldToken.Contract.Symbol(&_GoldToken.CallOpts)
+func (_CeloToken *CeloTokenSession) Symbol() (string, error) {
+	return _CeloToken.Contract.Symbol(&_CeloToken.CallOpts)
 }
 
 // Symbol is a free data retrieval call binding the contract method 0x95d89b41.
 //
 // Solidity: function symbol() pure returns(string)
-func (_GoldToken *GoldTokenCallerSession) Symbol() (string, error) {
-	return _GoldToken.Contract.Symbol(&_GoldToken.CallOpts)
+func (_CeloToken *CeloTokenCallerSession) Symbol() (string, error) {
+	return _CeloToken.Contract.Symbol(&_CeloToken.CallOpts)
 }
 
 // TotalSupply is a free data retrieval call binding the contract method 0x18160ddd.
 //
 // Solidity: function totalSupply() view returns(uint256)
-func (_GoldToken *GoldTokenCaller) TotalSupply(opts *bind.CallOpts) (*big.Int, error) {
+func (_CeloToken *CeloTokenCaller) TotalSupply(opts *bind.CallOpts) (*big.Int, error) {
 	var out []interface{}
-	err := _GoldToken.contract.Call(opts, &out, "totalSupply")
+	err := _CeloToken.contract.Call(opts, &out, "totalSupply")
 
 	if err != nil {
 		return *new(*big.Int), err
@@ -544,293 +544,293 @@ func (_GoldToken *GoldTokenCaller) TotalSupply(opts *bind.CallOpts) (*big.Int, e
 // TotalSupply is a free data retrieval call binding the contract method 0x18160ddd.
 //
 // Solidity: function totalSupply() view returns(uint256)
-func (_GoldToken *GoldTokenSession) TotalSupply() (*big.Int, error) {
-	return _GoldToken.Contract.TotalSupply(&_GoldToken.CallOpts)
+func (_CeloToken *CeloTokenSession) TotalSupply() (*big.Int, error) {
+	return _CeloToken.Contract.TotalSupply(&_CeloToken.CallOpts)
 }
 
 // TotalSupply is a free data retrieval call binding the contract method 0x18160ddd.
 //
 // Solidity: function totalSupply() view returns(uint256)
-func (_GoldToken *GoldTokenCallerSession) TotalSupply() (*big.Int, error) {
-	return _GoldToken.Contract.TotalSupply(&_GoldToken.CallOpts)
+func (_CeloToken *CeloTokenCallerSession) TotalSupply() (*big.Int, error) {
+	return _CeloToken.Contract.TotalSupply(&_CeloToken.CallOpts)
 }
 
 // Approve is a paid mutator transaction binding the contract method 0x095ea7b3.
 //
 // Solidity: function approve(address spender, uint256 value) returns(bool)
-func (_GoldToken *GoldTokenTransactor) Approve(opts *bind.TransactOpts, spender common.Address, value *big.Int) (*types.Transaction, error) {
-	return _GoldToken.contract.Transact(opts, "approve", spender, value)
+func (_CeloToken *CeloTokenTransactor) Approve(opts *bind.TransactOpts, spender common.Address, value *big.Int) (*types.Transaction, error) {
+	return _CeloToken.contract.Transact(opts, "approve", spender, value)
 }
 
 // Approve is a paid mutator transaction binding the contract method 0x095ea7b3.
 //
 // Solidity: function approve(address spender, uint256 value) returns(bool)
-func (_GoldToken *GoldTokenSession) Approve(spender common.Address, value *big.Int) (*types.Transaction, error) {
-	return _GoldToken.Contract.Approve(&_GoldToken.TransactOpts, spender, value)
+func (_CeloToken *CeloTokenSession) Approve(spender common.Address, value *big.Int) (*types.Transaction, error) {
+	return _CeloToken.Contract.Approve(&_CeloToken.TransactOpts, spender, value)
 }
 
 // Approve is a paid mutator transaction binding the contract method 0x095ea7b3.
 //
 // Solidity: function approve(address spender, uint256 value) returns(bool)
-func (_GoldToken *GoldTokenTransactorSession) Approve(spender common.Address, value *big.Int) (*types.Transaction, error) {
-	return _GoldToken.Contract.Approve(&_GoldToken.TransactOpts, spender, value)
+func (_CeloToken *CeloTokenTransactorSession) Approve(spender common.Address, value *big.Int) (*types.Transaction, error) {
+	return _CeloToken.Contract.Approve(&_CeloToken.TransactOpts, spender, value)
 }
 
 // Burn is a paid mutator transaction binding the contract method 0x42966c68.
 //
 // Solidity: function burn(uint256 value) returns(bool)
-func (_GoldToken *GoldTokenTransactor) Burn(opts *bind.TransactOpts, value *big.Int) (*types.Transaction, error) {
-	return _GoldToken.contract.Transact(opts, "burn", value)
+func (_CeloToken *CeloTokenTransactor) Burn(opts *bind.TransactOpts, value *big.Int) (*types.Transaction, error) {
+	return _CeloToken.contract.Transact(opts, "burn", value)
 }
 
 // Burn is a paid mutator transaction binding the contract method 0x42966c68.
 //
 // Solidity: function burn(uint256 value) returns(bool)
-func (_GoldToken *GoldTokenSession) Burn(value *big.Int) (*types.Transaction, error) {
-	return _GoldToken.Contract.Burn(&_GoldToken.TransactOpts, value)
+func (_CeloToken *CeloTokenSession) Burn(value *big.Int) (*types.Transaction, error) {
+	return _CeloToken.Contract.Burn(&_CeloToken.TransactOpts, value)
 }
 
 // Burn is a paid mutator transaction binding the contract method 0x42966c68.
 //
 // Solidity: function burn(uint256 value) returns(bool)
-func (_GoldToken *GoldTokenTransactorSession) Burn(value *big.Int) (*types.Transaction, error) {
-	return _GoldToken.Contract.Burn(&_GoldToken.TransactOpts, value)
+func (_CeloToken *CeloTokenTransactorSession) Burn(value *big.Int) (*types.Transaction, error) {
+	return _CeloToken.Contract.Burn(&_CeloToken.TransactOpts, value)
 }
 
 // DecreaseAllowance is a paid mutator transaction binding the contract method 0xa457c2d7.
 //
 // Solidity: function decreaseAllowance(address spender, uint256 value) returns(bool)
-func (_GoldToken *GoldTokenTransactor) DecreaseAllowance(opts *bind.TransactOpts, spender common.Address, value *big.Int) (*types.Transaction, error) {
-	return _GoldToken.contract.Transact(opts, "decreaseAllowance", spender, value)
+func (_CeloToken *CeloTokenTransactor) DecreaseAllowance(opts *bind.TransactOpts, spender common.Address, value *big.Int) (*types.Transaction, error) {
+	return _CeloToken.contract.Transact(opts, "decreaseAllowance", spender, value)
 }
 
 // DecreaseAllowance is a paid mutator transaction binding the contract method 0xa457c2d7.
 //
 // Solidity: function decreaseAllowance(address spender, uint256 value) returns(bool)
-func (_GoldToken *GoldTokenSession) DecreaseAllowance(spender common.Address, value *big.Int) (*types.Transaction, error) {
-	return _GoldToken.Contract.DecreaseAllowance(&_GoldToken.TransactOpts, spender, value)
+func (_CeloToken *CeloTokenSession) DecreaseAllowance(spender common.Address, value *big.Int) (*types.Transaction, error) {
+	return _CeloToken.Contract.DecreaseAllowance(&_CeloToken.TransactOpts, spender, value)
 }
 
 // DecreaseAllowance is a paid mutator transaction binding the contract method 0xa457c2d7.
 //
 // Solidity: function decreaseAllowance(address spender, uint256 value) returns(bool)
-func (_GoldToken *GoldTokenTransactorSession) DecreaseAllowance(spender common.Address, value *big.Int) (*types.Transaction, error) {
-	return _GoldToken.Contract.DecreaseAllowance(&_GoldToken.TransactOpts, spender, value)
+func (_CeloToken *CeloTokenTransactorSession) DecreaseAllowance(spender common.Address, value *big.Int) (*types.Transaction, error) {
+	return _CeloToken.Contract.DecreaseAllowance(&_CeloToken.TransactOpts, spender, value)
 }
 
 // IncreaseAllowance is a paid mutator transaction binding the contract method 0x39509351.
 //
 // Solidity: function increaseAllowance(address spender, uint256 value) returns(bool)
-func (_GoldToken *GoldTokenTransactor) IncreaseAllowance(opts *bind.TransactOpts, spender common.Address, value *big.Int) (*types.Transaction, error) {
-	return _GoldToken.contract.Transact(opts, "increaseAllowance", spender, value)
+func (_CeloToken *CeloTokenTransactor) IncreaseAllowance(opts *bind.TransactOpts, spender common.Address, value *big.Int) (*types.Transaction, error) {
+	return _CeloToken.contract.Transact(opts, "increaseAllowance", spender, value)
 }
 
 // IncreaseAllowance is a paid mutator transaction binding the contract method 0x39509351.
 //
 // Solidity: function increaseAllowance(address spender, uint256 value) returns(bool)
-func (_GoldToken *GoldTokenSession) IncreaseAllowance(spender common.Address, value *big.Int) (*types.Transaction, error) {
-	return _GoldToken.Contract.IncreaseAllowance(&_GoldToken.TransactOpts, spender, value)
+func (_CeloToken *CeloTokenSession) IncreaseAllowance(spender common.Address, value *big.Int) (*types.Transaction, error) {
+	return _CeloToken.Contract.IncreaseAllowance(&_CeloToken.TransactOpts, spender, value)
 }
 
 // IncreaseAllowance is a paid mutator transaction binding the contract method 0x39509351.
 //
 // Solidity: function increaseAllowance(address spender, uint256 value) returns(bool)
-func (_GoldToken *GoldTokenTransactorSession) IncreaseAllowance(spender common.Address, value *big.Int) (*types.Transaction, error) {
-	return _GoldToken.Contract.IncreaseAllowance(&_GoldToken.TransactOpts, spender, value)
+func (_CeloToken *CeloTokenTransactorSession) IncreaseAllowance(spender common.Address, value *big.Int) (*types.Transaction, error) {
+	return _CeloToken.Contract.IncreaseAllowance(&_CeloToken.TransactOpts, spender, value)
 }
 
 // IncreaseSupply is a paid mutator transaction binding the contract method 0xb921e163.
 //
 // Solidity: function increaseSupply(uint256 amount) returns()
-func (_GoldToken *GoldTokenTransactor) IncreaseSupply(opts *bind.TransactOpts, amount *big.Int) (*types.Transaction, error) {
-	return _GoldToken.contract.Transact(opts, "increaseSupply", amount)
+func (_CeloToken *CeloTokenTransactor) IncreaseSupply(opts *bind.TransactOpts, amount *big.Int) (*types.Transaction, error) {
+	return _CeloToken.contract.Transact(opts, "increaseSupply", amount)
 }
 
 // IncreaseSupply is a paid mutator transaction binding the contract method 0xb921e163.
 //
 // Solidity: function increaseSupply(uint256 amount) returns()
-func (_GoldToken *GoldTokenSession) IncreaseSupply(amount *big.Int) (*types.Transaction, error) {
-	return _GoldToken.Contract.IncreaseSupply(&_GoldToken.TransactOpts, amount)
+func (_CeloToken *CeloTokenSession) IncreaseSupply(amount *big.Int) (*types.Transaction, error) {
+	return _CeloToken.Contract.IncreaseSupply(&_CeloToken.TransactOpts, amount)
 }
 
 // IncreaseSupply is a paid mutator transaction binding the contract method 0xb921e163.
 //
 // Solidity: function increaseSupply(uint256 amount) returns()
-func (_GoldToken *GoldTokenTransactorSession) IncreaseSupply(amount *big.Int) (*types.Transaction, error) {
-	return _GoldToken.Contract.IncreaseSupply(&_GoldToken.TransactOpts, amount)
+func (_CeloToken *CeloTokenTransactorSession) IncreaseSupply(amount *big.Int) (*types.Transaction, error) {
+	return _CeloToken.Contract.IncreaseSupply(&_CeloToken.TransactOpts, amount)
 }
 
 // Initialize is a paid mutator transaction binding the contract method 0xc4d66de8.
 //
 // Solidity: function initialize(address registryAddress) returns()
-func (_GoldToken *GoldTokenTransactor) Initialize(opts *bind.TransactOpts, registryAddress common.Address) (*types.Transaction, error) {
-	return _GoldToken.contract.Transact(opts, "initialize", registryAddress)
+func (_CeloToken *CeloTokenTransactor) Initialize(opts *bind.TransactOpts, registryAddress common.Address) (*types.Transaction, error) {
+	return _CeloToken.contract.Transact(opts, "initialize", registryAddress)
 }
 
 // Initialize is a paid mutator transaction binding the contract method 0xc4d66de8.
 //
 // Solidity: function initialize(address registryAddress) returns()
-func (_GoldToken *GoldTokenSession) Initialize(registryAddress common.Address) (*types.Transaction, error) {
-	return _GoldToken.Contract.Initialize(&_GoldToken.TransactOpts, registryAddress)
+func (_CeloToken *CeloTokenSession) Initialize(registryAddress common.Address) (*types.Transaction, error) {
+	return _CeloToken.Contract.Initialize(&_CeloToken.TransactOpts, registryAddress)
 }
 
 // Initialize is a paid mutator transaction binding the contract method 0xc4d66de8.
 //
 // Solidity: function initialize(address registryAddress) returns()
-func (_GoldToken *GoldTokenTransactorSession) Initialize(registryAddress common.Address) (*types.Transaction, error) {
-	return _GoldToken.Contract.Initialize(&_GoldToken.TransactOpts, registryAddress)
+func (_CeloToken *CeloTokenTransactorSession) Initialize(registryAddress common.Address) (*types.Transaction, error) {
+	return _CeloToken.Contract.Initialize(&_CeloToken.TransactOpts, registryAddress)
 }
 
 // Mint is a paid mutator transaction binding the contract method 0x40c10f19.
 //
 // Solidity: function mint(address to, uint256 value) returns(bool)
-func (_GoldToken *GoldTokenTransactor) Mint(opts *bind.TransactOpts, to common.Address, value *big.Int) (*types.Transaction, error) {
-	return _GoldToken.contract.Transact(opts, "mint", to, value)
+func (_CeloToken *CeloTokenTransactor) Mint(opts *bind.TransactOpts, to common.Address, value *big.Int) (*types.Transaction, error) {
+	return _CeloToken.contract.Transact(opts, "mint", to, value)
 }
 
 // Mint is a paid mutator transaction binding the contract method 0x40c10f19.
 //
 // Solidity: function mint(address to, uint256 value) returns(bool)
-func (_GoldToken *GoldTokenSession) Mint(to common.Address, value *big.Int) (*types.Transaction, error) {
-	return _GoldToken.Contract.Mint(&_GoldToken.TransactOpts, to, value)
+func (_CeloToken *CeloTokenSession) Mint(to common.Address, value *big.Int) (*types.Transaction, error) {
+	return _CeloToken.Contract.Mint(&_CeloToken.TransactOpts, to, value)
 }
 
 // Mint is a paid mutator transaction binding the contract method 0x40c10f19.
 //
 // Solidity: function mint(address to, uint256 value) returns(bool)
-func (_GoldToken *GoldTokenTransactorSession) Mint(to common.Address, value *big.Int) (*types.Transaction, error) {
-	return _GoldToken.Contract.Mint(&_GoldToken.TransactOpts, to, value)
+func (_CeloToken *CeloTokenTransactorSession) Mint(to common.Address, value *big.Int) (*types.Transaction, error) {
+	return _CeloToken.Contract.Mint(&_CeloToken.TransactOpts, to, value)
 }
 
 // RenounceOwnership is a paid mutator transaction binding the contract method 0x715018a6.
 //
 // Solidity: function renounceOwnership() returns()
-func (_GoldToken *GoldTokenTransactor) RenounceOwnership(opts *bind.TransactOpts) (*types.Transaction, error) {
-	return _GoldToken.contract.Transact(opts, "renounceOwnership")
+func (_CeloToken *CeloTokenTransactor) RenounceOwnership(opts *bind.TransactOpts) (*types.Transaction, error) {
+	return _CeloToken.contract.Transact(opts, "renounceOwnership")
 }
 
 // RenounceOwnership is a paid mutator transaction binding the contract method 0x715018a6.
 //
 // Solidity: function renounceOwnership() returns()
-func (_GoldToken *GoldTokenSession) RenounceOwnership() (*types.Transaction, error) {
-	return _GoldToken.Contract.RenounceOwnership(&_GoldToken.TransactOpts)
+func (_CeloToken *CeloTokenSession) RenounceOwnership() (*types.Transaction, error) {
+	return _CeloToken.Contract.RenounceOwnership(&_CeloToken.TransactOpts)
 }
 
 // RenounceOwnership is a paid mutator transaction binding the contract method 0x715018a6.
 //
 // Solidity: function renounceOwnership() returns()
-func (_GoldToken *GoldTokenTransactorSession) RenounceOwnership() (*types.Transaction, error) {
-	return _GoldToken.Contract.RenounceOwnership(&_GoldToken.TransactOpts)
+func (_CeloToken *CeloTokenTransactorSession) RenounceOwnership() (*types.Transaction, error) {
+	return _CeloToken.Contract.RenounceOwnership(&_CeloToken.TransactOpts)
 }
 
 // SetRegistry is a paid mutator transaction binding the contract method 0xa91ee0dc.
 //
 // Solidity: function setRegistry(address registryAddress) returns()
-func (_GoldToken *GoldTokenTransactor) SetRegistry(opts *bind.TransactOpts, registryAddress common.Address) (*types.Transaction, error) {
-	return _GoldToken.contract.Transact(opts, "setRegistry", registryAddress)
+func (_CeloToken *CeloTokenTransactor) SetRegistry(opts *bind.TransactOpts, registryAddress common.Address) (*types.Transaction, error) {
+	return _CeloToken.contract.Transact(opts, "setRegistry", registryAddress)
 }
 
 // SetRegistry is a paid mutator transaction binding the contract method 0xa91ee0dc.
 //
 // Solidity: function setRegistry(address registryAddress) returns()
-func (_GoldToken *GoldTokenSession) SetRegistry(registryAddress common.Address) (*types.Transaction, error) {
-	return _GoldToken.Contract.SetRegistry(&_GoldToken.TransactOpts, registryAddress)
+func (_CeloToken *CeloTokenSession) SetRegistry(registryAddress common.Address) (*types.Transaction, error) {
+	return _CeloToken.Contract.SetRegistry(&_CeloToken.TransactOpts, registryAddress)
 }
 
 // SetRegistry is a paid mutator transaction binding the contract method 0xa91ee0dc.
 //
 // Solidity: function setRegistry(address registryAddress) returns()
-func (_GoldToken *GoldTokenTransactorSession) SetRegistry(registryAddress common.Address) (*types.Transaction, error) {
-	return _GoldToken.Contract.SetRegistry(&_GoldToken.TransactOpts, registryAddress)
+func (_CeloToken *CeloTokenTransactorSession) SetRegistry(registryAddress common.Address) (*types.Transaction, error) {
+	return _CeloToken.Contract.SetRegistry(&_CeloToken.TransactOpts, registryAddress)
 }
 
 // Transfer is a paid mutator transaction binding the contract method 0xa9059cbb.
 //
 // Solidity: function transfer(address to, uint256 value) returns(bool)
-func (_GoldToken *GoldTokenTransactor) Transfer(opts *bind.TransactOpts, to common.Address, value *big.Int) (*types.Transaction, error) {
-	return _GoldToken.contract.Transact(opts, "transfer", to, value)
+func (_CeloToken *CeloTokenTransactor) Transfer(opts *bind.TransactOpts, to common.Address, value *big.Int) (*types.Transaction, error) {
+	return _CeloToken.contract.Transact(opts, "transfer", to, value)
 }
 
 // Transfer is a paid mutator transaction binding the contract method 0xa9059cbb.
 //
 // Solidity: function transfer(address to, uint256 value) returns(bool)
-func (_GoldToken *GoldTokenSession) Transfer(to common.Address, value *big.Int) (*types.Transaction, error) {
-	return _GoldToken.Contract.Transfer(&_GoldToken.TransactOpts, to, value)
+func (_CeloToken *CeloTokenSession) Transfer(to common.Address, value *big.Int) (*types.Transaction, error) {
+	return _CeloToken.Contract.Transfer(&_CeloToken.TransactOpts, to, value)
 }
 
 // Transfer is a paid mutator transaction binding the contract method 0xa9059cbb.
 //
 // Solidity: function transfer(address to, uint256 value) returns(bool)
-func (_GoldToken *GoldTokenTransactorSession) Transfer(to common.Address, value *big.Int) (*types.Transaction, error) {
-	return _GoldToken.Contract.Transfer(&_GoldToken.TransactOpts, to, value)
+func (_CeloToken *CeloTokenTransactorSession) Transfer(to common.Address, value *big.Int) (*types.Transaction, error) {
+	return _CeloToken.Contract.Transfer(&_CeloToken.TransactOpts, to, value)
 }
 
 // TransferFrom is a paid mutator transaction binding the contract method 0x23b872dd.
 //
 // Solidity: function transferFrom(address from, address to, uint256 value) returns(bool)
-func (_GoldToken *GoldTokenTransactor) TransferFrom(opts *bind.TransactOpts, from common.Address, to common.Address, value *big.Int) (*types.Transaction, error) {
-	return _GoldToken.contract.Transact(opts, "transferFrom", from, to, value)
+func (_CeloToken *CeloTokenTransactor) TransferFrom(opts *bind.TransactOpts, from common.Address, to common.Address, value *big.Int) (*types.Transaction, error) {
+	return _CeloToken.contract.Transact(opts, "transferFrom", from, to, value)
 }
 
 // TransferFrom is a paid mutator transaction binding the contract method 0x23b872dd.
 //
 // Solidity: function transferFrom(address from, address to, uint256 value) returns(bool)
-func (_GoldToken *GoldTokenSession) TransferFrom(from common.Address, to common.Address, value *big.Int) (*types.Transaction, error) {
-	return _GoldToken.Contract.TransferFrom(&_GoldToken.TransactOpts, from, to, value)
+func (_CeloToken *CeloTokenSession) TransferFrom(from common.Address, to common.Address, value *big.Int) (*types.Transaction, error) {
+	return _CeloToken.Contract.TransferFrom(&_CeloToken.TransactOpts, from, to, value)
 }
 
 // TransferFrom is a paid mutator transaction binding the contract method 0x23b872dd.
 //
 // Solidity: function transferFrom(address from, address to, uint256 value) returns(bool)
-func (_GoldToken *GoldTokenTransactorSession) TransferFrom(from common.Address, to common.Address, value *big.Int) (*types.Transaction, error) {
-	return _GoldToken.Contract.TransferFrom(&_GoldToken.TransactOpts, from, to, value)
+func (_CeloToken *CeloTokenTransactorSession) TransferFrom(from common.Address, to common.Address, value *big.Int) (*types.Transaction, error) {
+	return _CeloToken.Contract.TransferFrom(&_CeloToken.TransactOpts, from, to, value)
 }
 
 // TransferOwnership is a paid mutator transaction binding the contract method 0xf2fde38b.
 //
 // Solidity: function transferOwnership(address newOwner) returns()
-func (_GoldToken *GoldTokenTransactor) TransferOwnership(opts *bind.TransactOpts, newOwner common.Address) (*types.Transaction, error) {
-	return _GoldToken.contract.Transact(opts, "transferOwnership", newOwner)
+func (_CeloToken *CeloTokenTransactor) TransferOwnership(opts *bind.TransactOpts, newOwner common.Address) (*types.Transaction, error) {
+	return _CeloToken.contract.Transact(opts, "transferOwnership", newOwner)
 }
 
 // TransferOwnership is a paid mutator transaction binding the contract method 0xf2fde38b.
 //
 // Solidity: function transferOwnership(address newOwner) returns()
-func (_GoldToken *GoldTokenSession) TransferOwnership(newOwner common.Address) (*types.Transaction, error) {
-	return _GoldToken.Contract.TransferOwnership(&_GoldToken.TransactOpts, newOwner)
+func (_CeloToken *CeloTokenSession) TransferOwnership(newOwner common.Address) (*types.Transaction, error) {
+	return _CeloToken.Contract.TransferOwnership(&_CeloToken.TransactOpts, newOwner)
 }
 
 // TransferOwnership is a paid mutator transaction binding the contract method 0xf2fde38b.
 //
 // Solidity: function transferOwnership(address newOwner) returns()
-func (_GoldToken *GoldTokenTransactorSession) TransferOwnership(newOwner common.Address) (*types.Transaction, error) {
-	return _GoldToken.Contract.TransferOwnership(&_GoldToken.TransactOpts, newOwner)
+func (_CeloToken *CeloTokenTransactorSession) TransferOwnership(newOwner common.Address) (*types.Transaction, error) {
+	return _CeloToken.Contract.TransferOwnership(&_CeloToken.TransactOpts, newOwner)
 }
 
 // TransferWithComment is a paid mutator transaction binding the contract method 0xe1d6aceb.
 //
 // Solidity: function transferWithComment(address to, uint256 value, string comment) returns(bool)
-func (_GoldToken *GoldTokenTransactor) TransferWithComment(opts *bind.TransactOpts, to common.Address, value *big.Int, comment string) (*types.Transaction, error) {
-	return _GoldToken.contract.Transact(opts, "transferWithComment", to, value, comment)
+func (_CeloToken *CeloTokenTransactor) TransferWithComment(opts *bind.TransactOpts, to common.Address, value *big.Int, comment string) (*types.Transaction, error) {
+	return _CeloToken.contract.Transact(opts, "transferWithComment", to, value, comment)
 }
 
 // TransferWithComment is a paid mutator transaction binding the contract method 0xe1d6aceb.
 //
 // Solidity: function transferWithComment(address to, uint256 value, string comment) returns(bool)
-func (_GoldToken *GoldTokenSession) TransferWithComment(to common.Address, value *big.Int, comment string) (*types.Transaction, error) {
-	return _GoldToken.Contract.TransferWithComment(&_GoldToken.TransactOpts, to, value, comment)
+func (_CeloToken *CeloTokenSession) TransferWithComment(to common.Address, value *big.Int, comment string) (*types.Transaction, error) {
+	return _CeloToken.Contract.TransferWithComment(&_CeloToken.TransactOpts, to, value, comment)
 }
 
 // TransferWithComment is a paid mutator transaction binding the contract method 0xe1d6aceb.
 //
 // Solidity: function transferWithComment(address to, uint256 value, string comment) returns(bool)
-func (_GoldToken *GoldTokenTransactorSession) TransferWithComment(to common.Address, value *big.Int, comment string) (*types.Transaction, error) {
-	return _GoldToken.Contract.TransferWithComment(&_GoldToken.TransactOpts, to, value, comment)
+func (_CeloToken *CeloTokenTransactorSession) TransferWithComment(to common.Address, value *big.Int, comment string) (*types.Transaction, error) {
+	return _CeloToken.Contract.TransferWithComment(&_CeloToken.TransactOpts, to, value, comment)
 }
 
-// GoldTokenApprovalIterator is returned from FilterApproval and is used to iterate over the raw logs and unpacked data for Approval events raised by the GoldToken contract.
-type GoldTokenApprovalIterator struct {
-	Event *GoldTokenApproval // Event containing the contract specifics and raw log
+// CeloTokenApprovalIterator is returned from FilterApproval and is used to iterate over the raw logs and unpacked data for Approval events raised by the CeloToken contract.
+type CeloTokenApprovalIterator struct {
+	Event *CeloTokenApproval // Event containing the contract specifics and raw log
 
 	contract *bind.BoundContract // Generic contract to use for unpacking event data
 	event    string              // Event name to use for unpacking event data
@@ -844,7 +844,7 @@ type GoldTokenApprovalIterator struct {
 // Next advances the iterator to the subsequent event, returning whether there
 // are any more events found. In case of a retrieval or parsing error, false is
 // returned and Error() can be queried for the exact failure.
-func (it *GoldTokenApprovalIterator) Next() bool {
+func (it *CeloTokenApprovalIterator) Next() bool {
 	// If the iterator failed, stop iterating
 	if it.fail != nil {
 		return false
@@ -853,7 +853,7 @@ func (it *GoldTokenApprovalIterator) Next() bool {
 	if it.done {
 		select {
 		case log := <-it.logs:
-			it.Event = new(GoldTokenApproval)
+			it.Event = new(CeloTokenApproval)
 			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
 				it.fail = err
 				return false
@@ -868,7 +868,7 @@ func (it *GoldTokenApprovalIterator) Next() bool {
 	// Iterator still in progress, wait for either a data or an error event
 	select {
 	case log := <-it.logs:
-		it.Event = new(GoldTokenApproval)
+		it.Event = new(CeloTokenApproval)
 		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
 			it.fail = err
 			return false
@@ -884,19 +884,19 @@ func (it *GoldTokenApprovalIterator) Next() bool {
 }
 
 // Error returns any retrieval or parsing error occurred during filtering.
-func (it *GoldTokenApprovalIterator) Error() error {
+func (it *CeloTokenApprovalIterator) Error() error {
 	return it.fail
 }
 
 // Close terminates the iteration process, releasing any pending underlying
 // resources.
-func (it *GoldTokenApprovalIterator) Close() error {
+func (it *CeloTokenApprovalIterator) Close() error {
 	it.sub.Unsubscribe()
 	return nil
 }
 
-// GoldTokenApproval represents a Approval event raised by the GoldToken contract.
-type GoldTokenApproval struct {
+// CeloTokenApproval represents a Approval event raised by the CeloToken contract.
+type CeloTokenApproval struct {
 	Owner   common.Address
 	Spender common.Address
 	Value   *big.Int
@@ -906,7 +906,7 @@ type GoldTokenApproval struct {
 // FilterApproval is a free log retrieval operation binding the contract event 0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925.
 //
 // Solidity: event Approval(address indexed owner, address indexed spender, uint256 value)
-func (_GoldToken *GoldTokenFilterer) FilterApproval(opts *bind.FilterOpts, owner []common.Address, spender []common.Address) (*GoldTokenApprovalIterator, error) {
+func (_CeloToken *CeloTokenFilterer) FilterApproval(opts *bind.FilterOpts, owner []common.Address, spender []common.Address) (*CeloTokenApprovalIterator, error) {
 
 	var ownerRule []interface{}
 	for _, ownerItem := range owner {
@@ -917,17 +917,17 @@ func (_GoldToken *GoldTokenFilterer) FilterApproval(opts *bind.FilterOpts, owner
 		spenderRule = append(spenderRule, spenderItem)
 	}
 
-	logs, sub, err := _GoldToken.contract.FilterLogs(opts, "Approval", ownerRule, spenderRule)
+	logs, sub, err := _CeloToken.contract.FilterLogs(opts, "Approval", ownerRule, spenderRule)
 	if err != nil {
 		return nil, err
 	}
-	return &GoldTokenApprovalIterator{contract: _GoldToken.contract, event: "Approval", logs: logs, sub: sub}, nil
+	return &CeloTokenApprovalIterator{contract: _CeloToken.contract, event: "Approval", logs: logs, sub: sub}, nil
 }
 
 // WatchApproval is a free log subscription operation binding the contract event 0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925.
 //
 // Solidity: event Approval(address indexed owner, address indexed spender, uint256 value)
-func (_GoldToken *GoldTokenFilterer) WatchApproval(opts *bind.WatchOpts, sink chan<- *GoldTokenApproval, owner []common.Address, spender []common.Address) (event.Subscription, error) {
+func (_CeloToken *CeloTokenFilterer) WatchApproval(opts *bind.WatchOpts, sink chan<- *CeloTokenApproval, owner []common.Address, spender []common.Address) (event.Subscription, error) {
 
 	var ownerRule []interface{}
 	for _, ownerItem := range owner {
@@ -938,7 +938,7 @@ func (_GoldToken *GoldTokenFilterer) WatchApproval(opts *bind.WatchOpts, sink ch
 		spenderRule = append(spenderRule, spenderItem)
 	}
 
-	logs, sub, err := _GoldToken.contract.WatchLogs(opts, "Approval", ownerRule, spenderRule)
+	logs, sub, err := _CeloToken.contract.WatchLogs(opts, "Approval", ownerRule, spenderRule)
 	if err != nil {
 		return nil, err
 	}
@@ -948,8 +948,8 @@ func (_GoldToken *GoldTokenFilterer) WatchApproval(opts *bind.WatchOpts, sink ch
 			select {
 			case log := <-logs:
 				// New log arrived, parse the event and forward to the user
-				event := new(GoldTokenApproval)
-				if err := _GoldToken.contract.UnpackLog(event, "Approval", log); err != nil {
+				event := new(CeloTokenApproval)
+				if err := _CeloToken.contract.UnpackLog(event, "Approval", log); err != nil {
 					return err
 				}
 				event.Raw = log
@@ -973,18 +973,18 @@ func (_GoldToken *GoldTokenFilterer) WatchApproval(opts *bind.WatchOpts, sink ch
 // ParseApproval is a log parse operation binding the contract event 0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925.
 //
 // Solidity: event Approval(address indexed owner, address indexed spender, uint256 value)
-func (_GoldToken *GoldTokenFilterer) ParseApproval(log types.Log) (*GoldTokenApproval, error) {
-	event := new(GoldTokenApproval)
-	if err := _GoldToken.contract.UnpackLog(event, "Approval", log); err != nil {
+func (_CeloToken *CeloTokenFilterer) ParseApproval(log types.Log) (*CeloTokenApproval, error) {
+	event := new(CeloTokenApproval)
+	if err := _CeloToken.contract.UnpackLog(event, "Approval", log); err != nil {
 		return nil, err
 	}
 	event.Raw = log
 	return event, nil
 }
 
-// GoldTokenOwnershipTransferredIterator is returned from FilterOwnershipTransferred and is used to iterate over the raw logs and unpacked data for OwnershipTransferred events raised by the GoldToken contract.
-type GoldTokenOwnershipTransferredIterator struct {
-	Event *GoldTokenOwnershipTransferred // Event containing the contract specifics and raw log
+// CeloTokenOwnershipTransferredIterator is returned from FilterOwnershipTransferred and is used to iterate over the raw logs and unpacked data for OwnershipTransferred events raised by the CeloToken contract.
+type CeloTokenOwnershipTransferredIterator struct {
+	Event *CeloTokenOwnershipTransferred // Event containing the contract specifics and raw log
 
 	contract *bind.BoundContract // Generic contract to use for unpacking event data
 	event    string              // Event name to use for unpacking event data
@@ -998,7 +998,7 @@ type GoldTokenOwnershipTransferredIterator struct {
 // Next advances the iterator to the subsequent event, returning whether there
 // are any more events found. In case of a retrieval or parsing error, false is
 // returned and Error() can be queried for the exact failure.
-func (it *GoldTokenOwnershipTransferredIterator) Next() bool {
+func (it *CeloTokenOwnershipTransferredIterator) Next() bool {
 	// If the iterator failed, stop iterating
 	if it.fail != nil {
 		return false
@@ -1007,7 +1007,7 @@ func (it *GoldTokenOwnershipTransferredIterator) Next() bool {
 	if it.done {
 		select {
 		case log := <-it.logs:
-			it.Event = new(GoldTokenOwnershipTransferred)
+			it.Event = new(CeloTokenOwnershipTransferred)
 			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
 				it.fail = err
 				return false
@@ -1022,7 +1022,7 @@ func (it *GoldTokenOwnershipTransferredIterator) Next() bool {
 	// Iterator still in progress, wait for either a data or an error event
 	select {
 	case log := <-it.logs:
-		it.Event = new(GoldTokenOwnershipTransferred)
+		it.Event = new(CeloTokenOwnershipTransferred)
 		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
 			it.fail = err
 			return false
@@ -1038,19 +1038,19 @@ func (it *GoldTokenOwnershipTransferredIterator) Next() bool {
 }
 
 // Error returns any retrieval or parsing error occurred during filtering.
-func (it *GoldTokenOwnershipTransferredIterator) Error() error {
+func (it *CeloTokenOwnershipTransferredIterator) Error() error {
 	return it.fail
 }
 
 // Close terminates the iteration process, releasing any pending underlying
 // resources.
-func (it *GoldTokenOwnershipTransferredIterator) Close() error {
+func (it *CeloTokenOwnershipTransferredIterator) Close() error {
 	it.sub.Unsubscribe()
 	return nil
 }
 
-// GoldTokenOwnershipTransferred represents a OwnershipTransferred event raised by the GoldToken contract.
-type GoldTokenOwnershipTransferred struct {
+// CeloTokenOwnershipTransferred represents a OwnershipTransferred event raised by the CeloToken contract.
+type CeloTokenOwnershipTransferred struct {
 	PreviousOwner common.Address
 	NewOwner      common.Address
 	Raw           types.Log // Blockchain specific contextual infos
@@ -1059,7 +1059,7 @@ type GoldTokenOwnershipTransferred struct {
 // FilterOwnershipTransferred is a free log retrieval operation binding the contract event 0x8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e0.
 //
 // Solidity: event OwnershipTransferred(address indexed previousOwner, address indexed newOwner)
-func (_GoldToken *GoldTokenFilterer) FilterOwnershipTransferred(opts *bind.FilterOpts, previousOwner []common.Address, newOwner []common.Address) (*GoldTokenOwnershipTransferredIterator, error) {
+func (_CeloToken *CeloTokenFilterer) FilterOwnershipTransferred(opts *bind.FilterOpts, previousOwner []common.Address, newOwner []common.Address) (*CeloTokenOwnershipTransferredIterator, error) {
 
 	var previousOwnerRule []interface{}
 	for _, previousOwnerItem := range previousOwner {
@@ -1070,17 +1070,17 @@ func (_GoldToken *GoldTokenFilterer) FilterOwnershipTransferred(opts *bind.Filte
 		newOwnerRule = append(newOwnerRule, newOwnerItem)
 	}
 
-	logs, sub, err := _GoldToken.contract.FilterLogs(opts, "OwnershipTransferred", previousOwnerRule, newOwnerRule)
+	logs, sub, err := _CeloToken.contract.FilterLogs(opts, "OwnershipTransferred", previousOwnerRule, newOwnerRule)
 	if err != nil {
 		return nil, err
 	}
-	return &GoldTokenOwnershipTransferredIterator{contract: _GoldToken.contract, event: "OwnershipTransferred", logs: logs, sub: sub}, nil
+	return &CeloTokenOwnershipTransferredIterator{contract: _CeloToken.contract, event: "OwnershipTransferred", logs: logs, sub: sub}, nil
 }
 
 // WatchOwnershipTransferred is a free log subscription operation binding the contract event 0x8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e0.
 //
 // Solidity: event OwnershipTransferred(address indexed previousOwner, address indexed newOwner)
-func (_GoldToken *GoldTokenFilterer) WatchOwnershipTransferred(opts *bind.WatchOpts, sink chan<- *GoldTokenOwnershipTransferred, previousOwner []common.Address, newOwner []common.Address) (event.Subscription, error) {
+func (_CeloToken *CeloTokenFilterer) WatchOwnershipTransferred(opts *bind.WatchOpts, sink chan<- *CeloTokenOwnershipTransferred, previousOwner []common.Address, newOwner []common.Address) (event.Subscription, error) {
 
 	var previousOwnerRule []interface{}
 	for _, previousOwnerItem := range previousOwner {
@@ -1091,7 +1091,7 @@ func (_GoldToken *GoldTokenFilterer) WatchOwnershipTransferred(opts *bind.WatchO
 		newOwnerRule = append(newOwnerRule, newOwnerItem)
 	}
 
-	logs, sub, err := _GoldToken.contract.WatchLogs(opts, "OwnershipTransferred", previousOwnerRule, newOwnerRule)
+	logs, sub, err := _CeloToken.contract.WatchLogs(opts, "OwnershipTransferred", previousOwnerRule, newOwnerRule)
 	if err != nil {
 		return nil, err
 	}
@@ -1101,8 +1101,8 @@ func (_GoldToken *GoldTokenFilterer) WatchOwnershipTransferred(opts *bind.WatchO
 			select {
 			case log := <-logs:
 				// New log arrived, parse the event and forward to the user
-				event := new(GoldTokenOwnershipTransferred)
-				if err := _GoldToken.contract.UnpackLog(event, "OwnershipTransferred", log); err != nil {
+				event := new(CeloTokenOwnershipTransferred)
+				if err := _CeloToken.contract.UnpackLog(event, "OwnershipTransferred", log); err != nil {
 					return err
 				}
 				event.Raw = log
@@ -1126,18 +1126,18 @@ func (_GoldToken *GoldTokenFilterer) WatchOwnershipTransferred(opts *bind.WatchO
 // ParseOwnershipTransferred is a log parse operation binding the contract event 0x8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e0.
 //
 // Solidity: event OwnershipTransferred(address indexed previousOwner, address indexed newOwner)
-func (_GoldToken *GoldTokenFilterer) ParseOwnershipTransferred(log types.Log) (*GoldTokenOwnershipTransferred, error) {
-	event := new(GoldTokenOwnershipTransferred)
-	if err := _GoldToken.contract.UnpackLog(event, "OwnershipTransferred", log); err != nil {
+func (_CeloToken *CeloTokenFilterer) ParseOwnershipTransferred(log types.Log) (*CeloTokenOwnershipTransferred, error) {
+	event := new(CeloTokenOwnershipTransferred)
+	if err := _CeloToken.contract.UnpackLog(event, "OwnershipTransferred", log); err != nil {
 		return nil, err
 	}
 	event.Raw = log
 	return event, nil
 }
 
-// GoldTokenRegistrySetIterator is returned from FilterRegistrySet and is used to iterate over the raw logs and unpacked data for RegistrySet events raised by the GoldToken contract.
-type GoldTokenRegistrySetIterator struct {
-	Event *GoldTokenRegistrySet // Event containing the contract specifics and raw log
+// CeloTokenRegistrySetIterator is returned from FilterRegistrySet and is used to iterate over the raw logs and unpacked data for RegistrySet events raised by the CeloToken contract.
+type CeloTokenRegistrySetIterator struct {
+	Event *CeloTokenRegistrySet // Event containing the contract specifics and raw log
 
 	contract *bind.BoundContract // Generic contract to use for unpacking event data
 	event    string              // Event name to use for unpacking event data
@@ -1151,7 +1151,7 @@ type GoldTokenRegistrySetIterator struct {
 // Next advances the iterator to the subsequent event, returning whether there
 // are any more events found. In case of a retrieval or parsing error, false is
 // returned and Error() can be queried for the exact failure.
-func (it *GoldTokenRegistrySetIterator) Next() bool {
+func (it *CeloTokenRegistrySetIterator) Next() bool {
 	// If the iterator failed, stop iterating
 	if it.fail != nil {
 		return false
@@ -1160,7 +1160,7 @@ func (it *GoldTokenRegistrySetIterator) Next() bool {
 	if it.done {
 		select {
 		case log := <-it.logs:
-			it.Event = new(GoldTokenRegistrySet)
+			it.Event = new(CeloTokenRegistrySet)
 			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
 				it.fail = err
 				return false
@@ -1175,7 +1175,7 @@ func (it *GoldTokenRegistrySetIterator) Next() bool {
 	// Iterator still in progress, wait for either a data or an error event
 	select {
 	case log := <-it.logs:
-		it.Event = new(GoldTokenRegistrySet)
+		it.Event = new(CeloTokenRegistrySet)
 		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
 			it.fail = err
 			return false
@@ -1191,19 +1191,19 @@ func (it *GoldTokenRegistrySetIterator) Next() bool {
 }
 
 // Error returns any retrieval or parsing error occurred during filtering.
-func (it *GoldTokenRegistrySetIterator) Error() error {
+func (it *CeloTokenRegistrySetIterator) Error() error {
 	return it.fail
 }
 
 // Close terminates the iteration process, releasing any pending underlying
 // resources.
-func (it *GoldTokenRegistrySetIterator) Close() error {
+func (it *CeloTokenRegistrySetIterator) Close() error {
 	it.sub.Unsubscribe()
 	return nil
 }
 
-// GoldTokenRegistrySet represents a RegistrySet event raised by the GoldToken contract.
-type GoldTokenRegistrySet struct {
+// CeloTokenRegistrySet represents a RegistrySet event raised by the CeloToken contract.
+type CeloTokenRegistrySet struct {
 	RegistryAddress common.Address
 	Raw             types.Log // Blockchain specific contextual infos
 }
@@ -1211,31 +1211,31 @@ type GoldTokenRegistrySet struct {
 // FilterRegistrySet is a free log retrieval operation binding the contract event 0x27fe5f0c1c3b1ed427cc63d0f05759ffdecf9aec9e18d31ef366fc8a6cb5dc3b.
 //
 // Solidity: event RegistrySet(address indexed registryAddress)
-func (_GoldToken *GoldTokenFilterer) FilterRegistrySet(opts *bind.FilterOpts, registryAddress []common.Address) (*GoldTokenRegistrySetIterator, error) {
+func (_CeloToken *CeloTokenFilterer) FilterRegistrySet(opts *bind.FilterOpts, registryAddress []common.Address) (*CeloTokenRegistrySetIterator, error) {
 
 	var registryAddressRule []interface{}
 	for _, registryAddressItem := range registryAddress {
 		registryAddressRule = append(registryAddressRule, registryAddressItem)
 	}
 
-	logs, sub, err := _GoldToken.contract.FilterLogs(opts, "RegistrySet", registryAddressRule)
+	logs, sub, err := _CeloToken.contract.FilterLogs(opts, "RegistrySet", registryAddressRule)
 	if err != nil {
 		return nil, err
 	}
-	return &GoldTokenRegistrySetIterator{contract: _GoldToken.contract, event: "RegistrySet", logs: logs, sub: sub}, nil
+	return &CeloTokenRegistrySetIterator{contract: _CeloToken.contract, event: "RegistrySet", logs: logs, sub: sub}, nil
 }
 
 // WatchRegistrySet is a free log subscription operation binding the contract event 0x27fe5f0c1c3b1ed427cc63d0f05759ffdecf9aec9e18d31ef366fc8a6cb5dc3b.
 //
 // Solidity: event RegistrySet(address indexed registryAddress)
-func (_GoldToken *GoldTokenFilterer) WatchRegistrySet(opts *bind.WatchOpts, sink chan<- *GoldTokenRegistrySet, registryAddress []common.Address) (event.Subscription, error) {
+func (_CeloToken *CeloTokenFilterer) WatchRegistrySet(opts *bind.WatchOpts, sink chan<- *CeloTokenRegistrySet, registryAddress []common.Address) (event.Subscription, error) {
 
 	var registryAddressRule []interface{}
 	for _, registryAddressItem := range registryAddress {
 		registryAddressRule = append(registryAddressRule, registryAddressItem)
 	}
 
-	logs, sub, err := _GoldToken.contract.WatchLogs(opts, "RegistrySet", registryAddressRule)
+	logs, sub, err := _CeloToken.contract.WatchLogs(opts, "RegistrySet", registryAddressRule)
 	if err != nil {
 		return nil, err
 	}
@@ -1245,8 +1245,8 @@ func (_GoldToken *GoldTokenFilterer) WatchRegistrySet(opts *bind.WatchOpts, sink
 			select {
 			case log := <-logs:
 				// New log arrived, parse the event and forward to the user
-				event := new(GoldTokenRegistrySet)
-				if err := _GoldToken.contract.UnpackLog(event, "RegistrySet", log); err != nil {
+				event := new(CeloTokenRegistrySet)
+				if err := _CeloToken.contract.UnpackLog(event, "RegistrySet", log); err != nil {
 					return err
 				}
 				event.Raw = log
@@ -1270,18 +1270,18 @@ func (_GoldToken *GoldTokenFilterer) WatchRegistrySet(opts *bind.WatchOpts, sink
 // ParseRegistrySet is a log parse operation binding the contract event 0x27fe5f0c1c3b1ed427cc63d0f05759ffdecf9aec9e18d31ef366fc8a6cb5dc3b.
 //
 // Solidity: event RegistrySet(address indexed registryAddress)
-func (_GoldToken *GoldTokenFilterer) ParseRegistrySet(log types.Log) (*GoldTokenRegistrySet, error) {
-	event := new(GoldTokenRegistrySet)
-	if err := _GoldToken.contract.UnpackLog(event, "RegistrySet", log); err != nil {
+func (_CeloToken *CeloTokenFilterer) ParseRegistrySet(log types.Log) (*CeloTokenRegistrySet, error) {
+	event := new(CeloTokenRegistrySet)
+	if err := _CeloToken.contract.UnpackLog(event, "RegistrySet", log); err != nil {
 		return nil, err
 	}
 	event.Raw = log
 	return event, nil
 }
 
-// GoldTokenTransferIterator is returned from FilterTransfer and is used to iterate over the raw logs and unpacked data for Transfer events raised by the GoldToken contract.
-type GoldTokenTransferIterator struct {
-	Event *GoldTokenTransfer // Event containing the contract specifics and raw log
+// CeloTokenTransferIterator is returned from FilterTransfer and is used to iterate over the raw logs and unpacked data for Transfer events raised by the CeloToken contract.
+type CeloTokenTransferIterator struct {
+	Event *CeloTokenTransfer // Event containing the contract specifics and raw log
 
 	contract *bind.BoundContract // Generic contract to use for unpacking event data
 	event    string              // Event name to use for unpacking event data
@@ -1295,7 +1295,7 @@ type GoldTokenTransferIterator struct {
 // Next advances the iterator to the subsequent event, returning whether there
 // are any more events found. In case of a retrieval or parsing error, false is
 // returned and Error() can be queried for the exact failure.
-func (it *GoldTokenTransferIterator) Next() bool {
+func (it *CeloTokenTransferIterator) Next() bool {
 	// If the iterator failed, stop iterating
 	if it.fail != nil {
 		return false
@@ -1304,7 +1304,7 @@ func (it *GoldTokenTransferIterator) Next() bool {
 	if it.done {
 		select {
 		case log := <-it.logs:
-			it.Event = new(GoldTokenTransfer)
+			it.Event = new(CeloTokenTransfer)
 			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
 				it.fail = err
 				return false
@@ -1319,7 +1319,7 @@ func (it *GoldTokenTransferIterator) Next() bool {
 	// Iterator still in progress, wait for either a data or an error event
 	select {
 	case log := <-it.logs:
-		it.Event = new(GoldTokenTransfer)
+		it.Event = new(CeloTokenTransfer)
 		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
 			it.fail = err
 			return false
@@ -1335,19 +1335,19 @@ func (it *GoldTokenTransferIterator) Next() bool {
 }
 
 // Error returns any retrieval or parsing error occurred during filtering.
-func (it *GoldTokenTransferIterator) Error() error {
+func (it *CeloTokenTransferIterator) Error() error {
 	return it.fail
 }
 
 // Close terminates the iteration process, releasing any pending underlying
 // resources.
-func (it *GoldTokenTransferIterator) Close() error {
+func (it *CeloTokenTransferIterator) Close() error {
 	it.sub.Unsubscribe()
 	return nil
 }
 
-// GoldTokenTransfer represents a Transfer event raised by the GoldToken contract.
-type GoldTokenTransfer struct {
+// CeloTokenTransfer represents a Transfer event raised by the CeloToken contract.
+type CeloTokenTransfer struct {
 	From  common.Address
 	To    common.Address
 	Value *big.Int
@@ -1357,7 +1357,7 @@ type GoldTokenTransfer struct {
 // FilterTransfer is a free log retrieval operation binding the contract event 0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef.
 //
 // Solidity: event Transfer(address indexed from, address indexed to, uint256 value)
-func (_GoldToken *GoldTokenFilterer) FilterTransfer(opts *bind.FilterOpts, from []common.Address, to []common.Address) (*GoldTokenTransferIterator, error) {
+func (_CeloToken *CeloTokenFilterer) FilterTransfer(opts *bind.FilterOpts, from []common.Address, to []common.Address) (*CeloTokenTransferIterator, error) {
 
 	var fromRule []interface{}
 	for _, fromItem := range from {
@@ -1368,17 +1368,17 @@ func (_GoldToken *GoldTokenFilterer) FilterTransfer(opts *bind.FilterOpts, from 
 		toRule = append(toRule, toItem)
 	}
 
-	logs, sub, err := _GoldToken.contract.FilterLogs(opts, "Transfer", fromRule, toRule)
+	logs, sub, err := _CeloToken.contract.FilterLogs(opts, "Transfer", fromRule, toRule)
 	if err != nil {
 		return nil, err
 	}
-	return &GoldTokenTransferIterator{contract: _GoldToken.contract, event: "Transfer", logs: logs, sub: sub}, nil
+	return &CeloTokenTransferIterator{contract: _CeloToken.contract, event: "Transfer", logs: logs, sub: sub}, nil
 }
 
 // WatchTransfer is a free log subscription operation binding the contract event 0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef.
 //
 // Solidity: event Transfer(address indexed from, address indexed to, uint256 value)
-func (_GoldToken *GoldTokenFilterer) WatchTransfer(opts *bind.WatchOpts, sink chan<- *GoldTokenTransfer, from []common.Address, to []common.Address) (event.Subscription, error) {
+func (_CeloToken *CeloTokenFilterer) WatchTransfer(opts *bind.WatchOpts, sink chan<- *CeloTokenTransfer, from []common.Address, to []common.Address) (event.Subscription, error) {
 
 	var fromRule []interface{}
 	for _, fromItem := range from {
@@ -1389,7 +1389,7 @@ func (_GoldToken *GoldTokenFilterer) WatchTransfer(opts *bind.WatchOpts, sink ch
 		toRule = append(toRule, toItem)
 	}
 
-	logs, sub, err := _GoldToken.contract.WatchLogs(opts, "Transfer", fromRule, toRule)
+	logs, sub, err := _CeloToken.contract.WatchLogs(opts, "Transfer", fromRule, toRule)
 	if err != nil {
 		return nil, err
 	}
@@ -1399,8 +1399,8 @@ func (_GoldToken *GoldTokenFilterer) WatchTransfer(opts *bind.WatchOpts, sink ch
 			select {
 			case log := <-logs:
 				// New log arrived, parse the event and forward to the user
-				event := new(GoldTokenTransfer)
-				if err := _GoldToken.contract.UnpackLog(event, "Transfer", log); err != nil {
+				event := new(CeloTokenTransfer)
+				if err := _CeloToken.contract.UnpackLog(event, "Transfer", log); err != nil {
 					return err
 				}
 				event.Raw = log
@@ -1424,18 +1424,18 @@ func (_GoldToken *GoldTokenFilterer) WatchTransfer(opts *bind.WatchOpts, sink ch
 // ParseTransfer is a log parse operation binding the contract event 0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef.
 //
 // Solidity: event Transfer(address indexed from, address indexed to, uint256 value)
-func (_GoldToken *GoldTokenFilterer) ParseTransfer(log types.Log) (*GoldTokenTransfer, error) {
-	event := new(GoldTokenTransfer)
-	if err := _GoldToken.contract.UnpackLog(event, "Transfer", log); err != nil {
+func (_CeloToken *CeloTokenFilterer) ParseTransfer(log types.Log) (*CeloTokenTransfer, error) {
+	event := new(CeloTokenTransfer)
+	if err := _CeloToken.contract.UnpackLog(event, "Transfer", log); err != nil {
 		return nil, err
 	}
 	event.Raw = log
 	return event, nil
 }
 
-// GoldTokenTransferCommentIterator is returned from FilterTransferComment and is used to iterate over the raw logs and unpacked data for TransferComment events raised by the GoldToken contract.
-type GoldTokenTransferCommentIterator struct {
-	Event *GoldTokenTransferComment // Event containing the contract specifics and raw log
+// CeloTokenTransferCommentIterator is returned from FilterTransferComment and is used to iterate over the raw logs and unpacked data for TransferComment events raised by the CeloToken contract.
+type CeloTokenTransferCommentIterator struct {
+	Event *CeloTokenTransferComment // Event containing the contract specifics and raw log
 
 	contract *bind.BoundContract // Generic contract to use for unpacking event data
 	event    string              // Event name to use for unpacking event data
@@ -1449,7 +1449,7 @@ type GoldTokenTransferCommentIterator struct {
 // Next advances the iterator to the subsequent event, returning whether there
 // are any more events found. In case of a retrieval or parsing error, false is
 // returned and Error() can be queried for the exact failure.
-func (it *GoldTokenTransferCommentIterator) Next() bool {
+func (it *CeloTokenTransferCommentIterator) Next() bool {
 	// If the iterator failed, stop iterating
 	if it.fail != nil {
 		return false
@@ -1458,7 +1458,7 @@ func (it *GoldTokenTransferCommentIterator) Next() bool {
 	if it.done {
 		select {
 		case log := <-it.logs:
-			it.Event = new(GoldTokenTransferComment)
+			it.Event = new(CeloTokenTransferComment)
 			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
 				it.fail = err
 				return false
@@ -1473,7 +1473,7 @@ func (it *GoldTokenTransferCommentIterator) Next() bool {
 	// Iterator still in progress, wait for either a data or an error event
 	select {
 	case log := <-it.logs:
-		it.Event = new(GoldTokenTransferComment)
+		it.Event = new(CeloTokenTransferComment)
 		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
 			it.fail = err
 			return false
@@ -1489,19 +1489,19 @@ func (it *GoldTokenTransferCommentIterator) Next() bool {
 }
 
 // Error returns any retrieval or parsing error occurred during filtering.
-func (it *GoldTokenTransferCommentIterator) Error() error {
+func (it *CeloTokenTransferCommentIterator) Error() error {
 	return it.fail
 }
 
 // Close terminates the iteration process, releasing any pending underlying
 // resources.
-func (it *GoldTokenTransferCommentIterator) Close() error {
+func (it *CeloTokenTransferCommentIterator) Close() error {
 	it.sub.Unsubscribe()
 	return nil
 }
 
-// GoldTokenTransferComment represents a TransferComment event raised by the GoldToken contract.
-type GoldTokenTransferComment struct {
+// CeloTokenTransferComment represents a TransferComment event raised by the CeloToken contract.
+type CeloTokenTransferComment struct {
 	Comment string
 	Raw     types.Log // Blockchain specific contextual infos
 }
@@ -1509,21 +1509,21 @@ type GoldTokenTransferComment struct {
 // FilterTransferComment is a free log retrieval operation binding the contract event 0xe5d4e30fb8364e57bc4d662a07d0cf36f4c34552004c4c3624620a2c1d1c03dc.
 //
 // Solidity: event TransferComment(string comment)
-func (_GoldToken *GoldTokenFilterer) FilterTransferComment(opts *bind.FilterOpts) (*GoldTokenTransferCommentIterator, error) {
+func (_CeloToken *CeloTokenFilterer) FilterTransferComment(opts *bind.FilterOpts) (*CeloTokenTransferCommentIterator, error) {
 
-	logs, sub, err := _GoldToken.contract.FilterLogs(opts, "TransferComment")
+	logs, sub, err := _CeloToken.contract.FilterLogs(opts, "TransferComment")
 	if err != nil {
 		return nil, err
 	}
-	return &GoldTokenTransferCommentIterator{contract: _GoldToken.contract, event: "TransferComment", logs: logs, sub: sub}, nil
+	return &CeloTokenTransferCommentIterator{contract: _CeloToken.contract, event: "TransferComment", logs: logs, sub: sub}, nil
 }
 
 // WatchTransferComment is a free log subscription operation binding the contract event 0xe5d4e30fb8364e57bc4d662a07d0cf36f4c34552004c4c3624620a2c1d1c03dc.
 //
 // Solidity: event TransferComment(string comment)
-func (_GoldToken *GoldTokenFilterer) WatchTransferComment(opts *bind.WatchOpts, sink chan<- *GoldTokenTransferComment) (event.Subscription, error) {
+func (_CeloToken *CeloTokenFilterer) WatchTransferComment(opts *bind.WatchOpts, sink chan<- *CeloTokenTransferComment) (event.Subscription, error) {
 
-	logs, sub, err := _GoldToken.contract.WatchLogs(opts, "TransferComment")
+	logs, sub, err := _CeloToken.contract.WatchLogs(opts, "TransferComment")
 	if err != nil {
 		return nil, err
 	}
@@ -1533,8 +1533,8 @@ func (_GoldToken *GoldTokenFilterer) WatchTransferComment(opts *bind.WatchOpts, 
 			select {
 			case log := <-logs:
 				// New log arrived, parse the event and forward to the user
-				event := new(GoldTokenTransferComment)
-				if err := _GoldToken.contract.UnpackLog(event, "TransferComment", log); err != nil {
+				event := new(CeloTokenTransferComment)
+				if err := _CeloToken.contract.UnpackLog(event, "TransferComment", log); err != nil {
 					return err
 				}
 				event.Raw = log
@@ -1558,9 +1558,9 @@ func (_GoldToken *GoldTokenFilterer) WatchTransferComment(opts *bind.WatchOpts, 
 // ParseTransferComment is a log parse operation binding the contract event 0xe5d4e30fb8364e57bc4d662a07d0cf36f4c34552004c4c3624620a2c1d1c03dc.
 //
 // Solidity: event TransferComment(string comment)
-func (_GoldToken *GoldTokenFilterer) ParseTransferComment(log types.Log) (*GoldTokenTransferComment, error) {
-	event := new(GoldTokenTransferComment)
-	if err := _GoldToken.contract.UnpackLog(event, "TransferComment", log); err != nil {
+func (_CeloToken *CeloTokenFilterer) ParseTransferComment(log types.Log) (*CeloTokenTransferComment, error) {
+	event := new(CeloTokenTransferComment)
+	if err := _CeloToken.contract.UnpackLog(event, "TransferComment", log); err != nil {
 		return nil, err
 	}
 	event.Raw = log

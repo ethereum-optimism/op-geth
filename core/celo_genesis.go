@@ -64,7 +64,7 @@ func celoGenesisAccounts(fundedAddr common.Address) GenesisAlloc {
 	if err != nil {
 		panic(err)
 	}
-	goldTokenBytecode, err := DecodeHex(celo.GoldTokenBytecodeRaw)
+	celoTokenBytecode, err := DecodeHex(celo.CeloTokenBytecodeRaw)
 	if err != nil {
 		panic(err)
 	}
@@ -108,7 +108,7 @@ func celoGenesisAccounts(fundedAddr common.Address) GenesisAlloc {
 			Code:    registryBytecode,
 			Balance: big.NewInt(0),
 		},
-		addresses.CeloTokenAddress: { // GoldToken Proxy
+		addresses.CeloTokenAddress: { // CeloToken Proxy
 			Code: proxyBytecode,
 			Storage: map[common.Hash]common.Hash{
 				proxy_implementation_slot: common.HexToHash("0xce13"),
@@ -116,8 +116,8 @@ func celoGenesisAccounts(fundedAddr common.Address) GenesisAlloc {
 			},
 			Balance: big.NewInt(0),
 		},
-		common.HexToAddress("0xce13"): { // GoldToken Implementation
-			Code:    goldTokenBytecode,
+		common.HexToAddress("0xce13"): { // CeloToken Implementation
+			Code:    celoTokenBytecode,
 			Balance: big.NewInt(0),
 		},
 		DevFeeCurrencyAddr: {
