@@ -60,8 +60,8 @@ type Genesis struct {
 	Nonce      uint64              `json:"nonce"`
 	Timestamp  uint64              `json:"timestamp"`
 	ExtraData  []byte              `json:"extraData"`
-	GasLimit   uint64              `json:"gasLimit"   gencodec:"required"`
-	Difficulty *big.Int            `json:"difficulty" gencodec:"required"`
+	GasLimit   uint64              `json:"gasLimit"`
+	Difficulty *big.Int            `json:"difficulty"`
 	Mixhash    common.Hash         `json:"mixHash"`
 	Coinbase   common.Address      `json:"coinbase"`
 	Alloc      types.GenesisAlloc  `json:"alloc"      gencodec:"required"`
@@ -475,11 +475,16 @@ func (g *Genesis) ToBlock() *types.Block {
 		Coinbase:   g.Coinbase,
 		Root:       root,
 	}
-	if g.GasLimit == 0 {
-		head.GasLimit = params.GenesisGasLimit
-	}
-	if g.Difficulty == nil && g.Mixhash == (common.Hash{}) {
-		head.Difficulty = params.GenesisDifficulty
+	// Don't set defaults for gas limit and difficulty for migrated celo chains.
+	// I.E. when Cel2Time is set & non zero. Since migrated celo chains can
+	// have gas limit and difficulty unset in the genesis.
+	if g.Config.Cel2Time == nil || g.Config.IsCel2(0) {
+		if g.GasLimit == 0 {
+			head.GasLimit = params.GenesisGasLimit
+		}
+		if g.Difficulty == nil && g.Mixhash == (common.Hash{}) {
+			head.Difficulty = params.GenesisDifficulty
+		}
 	}
 	if g.Config != nil && g.Config.IsLondon(common.Big0) {
 		if g.BaseFee != nil {
