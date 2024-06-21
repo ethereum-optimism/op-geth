@@ -153,7 +153,7 @@ func applyTransaction(msg *Message, config *params.ChainConfig, gp *GasPool, sta
 			*receipt.DepositReceiptVersion = types.CanyonDepositReceiptVersion
 		}
 	}
-	if tx.Type() == types.CeloDynamicFeeTxType {
+	if tx.Type() == types.CeloDynamicFeeTxV2Type {
 		alternativeBaseFee := evm.Context.BaseFee
 		if msg.FeeCurrency != nil {
 			alternativeBaseFee, err = exchange.ConvertGoldToCurrency(evm.Context.ExchangeRates, msg.FeeCurrency, evm.Context.BaseFee)

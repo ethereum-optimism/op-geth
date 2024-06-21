@@ -1,4 +1,18 @@
-// TODO: needs copyright header?
+// Copyright 2024 The Celo Authors
+// This file is part of the celo library.
+//
+// The celo library is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// The celo library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with the celo library. If not, see <http://www.gnu.org/licenses/>.
 
 package types
 
@@ -10,19 +24,21 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
-// CeloDynamicFeeTx represents a CIP-64 transaction.
-type CeloDynamicFeeTx struct {
-	ChainID    *big.Int
-	Nonce      uint64
-	GasTipCap  *big.Int
-	GasFeeCap  *big.Int
-	Gas        uint64
-	To         *common.Address `rlp:"nil"` // nil means contract creation
-	Value      *big.Int
-	Data       []byte
-	AccessList AccessList
+const CeloDynamicFeeTxType = 0x7c
 
-	FeeCurrency *common.Address `rlp:"nil"` // nil means native currency
+type CeloDynamicFeeTx struct {
+	ChainID             *big.Int
+	Nonce               uint64
+	GasTipCap           *big.Int
+	GasFeeCap           *big.Int
+	Gas                 uint64
+	FeeCurrency         *common.Address `rlp:"nil"` // nil means native currency
+	GatewayFeeRecipient *common.Address `rlp:"nil"` // nil means no gateway fee is paid
+	GatewayFee          *big.Int        `rlp:"nil"`
+	To                  *common.Address `rlp:"nil"` // nil means contract creation
+	Value               *big.Int
+	Data                []byte
+	AccessList          AccessList
 
 	// Signature values
 	V *big.Int `json:"v" gencodec:"required"`
@@ -33,13 +49,15 @@ type CeloDynamicFeeTx struct {
 // copy creates a deep copy of the transaction data and initializes all fields.
 func (tx *CeloDynamicFeeTx) copy() TxData {
 	cpy := &CeloDynamicFeeTx{
-		Nonce:       tx.Nonce,
-		To:          copyAddressPtr(tx.To),
-		Data:        common.CopyBytes(tx.Data),
-		Gas:         tx.Gas,
-		FeeCurrency: copyAddressPtr(tx.FeeCurrency),
+		Nonce:               tx.Nonce,
+		To:                  copyAddressPtr(tx.To),
+		Data:                common.CopyBytes(tx.Data),
+		Gas:                 tx.Gas,
+		FeeCurrency:         copyAddressPtr(tx.FeeCurrency),
+		GatewayFeeRecipient: copyAddressPtr(tx.GatewayFeeRecipient),
 		// These are copied below.
 		AccessList: make(AccessList, len(tx.AccessList)),
+		GatewayFee: new(big.Int),
 		Value:      new(big.Int),
 		ChainID:    new(big.Int),
 		GasTipCap:  new(big.Int),
@@ -60,6 +78,9 @@ func (tx *CeloDynamicFeeTx) copy() TxData {
 	}
 	if tx.GasFeeCap != nil {
 		cpy.GasFeeCap.Set(tx.GasFeeCap)
+	}
+	if tx.GatewayFee != nil {
+		cpy.GatewayFee.Set(tx.GatewayFee)
 	}
 	if tx.V != nil {
 		cpy.V.Set(tx.V)
@@ -113,6 +134,3 @@ func (tx *CeloDynamicFeeTx) encode(b *bytes.Buffer) error {
 func (tx *CeloDynamicFeeTx) decode(input []byte) error {
 	return rlp.DecodeBytes(input, tx)
 }
-
-func (tx *CeloDynamicFeeTx) feeCurrency() *common.Address  { return tx.FeeCurrency }
-func (tx *CeloDynamicFeeTx) maxFeeInFeeCurrency() *big.Int { return nil }

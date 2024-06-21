@@ -8,6 +8,8 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
+const CeloDenominatedTxType = 0x7a
+
 type CeloDenominatedTx struct {
 	ChainID    *big.Int
 	Nonce      uint64
@@ -115,7 +117,3 @@ func (tx *CeloDenominatedTx) encode(b *bytes.Buffer) error {
 func (tx *CeloDenominatedTx) decode(input []byte) error {
 	return rlp.DecodeBytes(input, tx)
 }
-
-func (tx *CeloDenominatedTx) feeCurrency() *common.Address { return tx.FeeCurrency }
-
-func (tx *CeloDenominatedTx) maxFeeInFeeCurrency() *big.Int { return tx.MaxFeeInFeeCurrency }

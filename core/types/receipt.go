@@ -278,7 +278,7 @@ func (r *Receipt) EncodeRLP(w io.Writer) error {
 func (r *Receipt) encodeTyped(data *receiptRLP, w *bytes.Buffer) error {
 	w.WriteByte(r.Type)
 	switch r.Type {
-	case CeloDynamicFeeTxType:
+	case CeloDynamicFeeTxV2Type:
 		withBaseFee := &celoDynamicReceiptRLP{data.PostStateOrStatus, data.CumulativeGasUsed, data.Bloom, data.Logs, r.BaseFee}
 		return rlp.Encode(w, withBaseFee)
 	case DepositTxType:
@@ -362,7 +362,7 @@ func (r *Receipt) decodeTyped(b []byte) error {
 		}
 		r.Type = b[0]
 		return r.setFromRLP(data)
-	case CeloDynamicFeeTxType:
+	case CeloDynamicFeeTxV2Type:
 		var data celoDynamicReceiptRLP
 		err := rlp.DecodeBytes(b[1:], &data)
 		if err != nil {
@@ -435,7 +435,7 @@ type ReceiptForStorage Receipt
 func (r *ReceiptForStorage) EncodeRLP(_w io.Writer) error {
 	w := rlp.NewEncoderBuffer(_w)
 	outerList := w.List()
-	if r.Type == CeloDynamicFeeTxType {
+	if r.Type == CeloDynamicFeeTxV2Type {
 		// Mark receipt as CeloDynamicFee receipt by starting with an empty list
 		listIndex := w.List()
 		w.ListEnd(listIndex)
@@ -455,7 +455,7 @@ func (r *ReceiptForStorage) EncodeRLP(_w io.Writer) error {
 			w.WriteUint64(*r.DepositReceiptVersion)
 		}
 	}
-	if r.Type == CeloDynamicFeeTxType {
+	if r.Type == CeloDynamicFeeTxV2Type {
 		w.WriteBigInt(r.BaseFee)
 	}
 	w.ListEnd(outerList)
@@ -576,7 +576,7 @@ func (rs Receipts) EncodeIndex(i int, w *bytes.Buffer) {
 	switch r.Type {
 	case AccessListTxType, DynamicFeeTxType, BlobTxType:
 		rlp.Encode(w, data)
-	case CeloDynamicFeeTxType:
+	case CeloDynamicFeeTxV2Type:
 		celoDynamicData := &celoDynamicReceiptRLP{data.PostStateOrStatus, data.CumulativeGasUsed, data.Bloom, data.Logs, r.BaseFee}
 		rlp.Encode(w, celoDynamicData)
 	case DepositTxType:
@@ -608,7 +608,7 @@ func (rs Receipts) DeriveFields(config *params.ChainConfig, hash common.Hash, nu
 		rs[i].Type = txs[i].Type()
 		rs[i].TxHash = txs[i].Hash()
 		// The CeloDynamicFeeTxs set the baseFee in the receipt
-		if txs[i].Type() != CeloDynamicFeeTxType {
+		if txs[i].Type() != CeloDynamicFeeTxV2Type {
 			rs[i].EffectiveGasPrice = txs[i].inner.effectiveGasPrice(new(big.Int), baseFee)
 		} else {
 			rs[i].EffectiveGasPrice = txs[i].inner.effectiveGasPrice(new(big.Int), rs[i].BaseFee)

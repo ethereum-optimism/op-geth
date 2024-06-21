@@ -115,7 +115,7 @@ var (
 			},
 		},
 		BaseFee: new(big.Int).SetUint64(1),
-		Type:    CeloDynamicFeeTxType,
+		Type:    CeloDynamicFeeTxV2Type,
 	}
 	depositReceiptNoNonce = &Receipt{
 		Status:            ReceiptStatusFailed,
@@ -1094,7 +1094,7 @@ func TestRoundTripReceiptForStorage(t *testing.T) {
 			require.Equal(t, test.rcpt.Logs, d.Logs)
 			require.Equal(t, test.rcpt.DepositNonce, d.DepositNonce)
 			require.Equal(t, test.rcpt.DepositReceiptVersion, d.DepositReceiptVersion)
-			if test.rcpt.Type == CeloDynamicFeeTxType {
+			if test.rcpt.Type == CeloDynamicFeeTxV2Type {
 				require.Equal(t, test.rcpt.EffectiveGasPrice, d.EffectiveGasPrice)
 			}
 		})

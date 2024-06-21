@@ -1,18 +1,18 @@
-// Copyright 2016 The go-ethereum Authors
-// This file is part of the go-ethereum library.
+// Copyright 2024 The Celo Authors
+// This file is part of the celo library.
 //
-// The go-ethereum library is free software: you can redistribute it and/or modify
+// The celo library is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
-// The go-ethereum library is distributed in the hope that it will be useful,
+// The celo library is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU Lesser General Public License for more details.
 //
 // You should have received a copy of the GNU Lesser General Public License
-// along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
+// along with the celo library. If not, see <http://www.gnu.org/licenses/>.
 
 package types
 
@@ -36,7 +36,7 @@ func NewCel2Signer(chainId *big.Int) Signer {
 }
 
 func (s cel2Signer) Sender(tx *Transaction) (common.Address, error) {
-	if tx.Type() != CeloDynamicFeeTxType && tx.Type() != CeloDenominatedTxType {
+	if tx.Type() != CeloDynamicFeeTxV2Type && tx.Type() != CeloDenominatedTxType {
 		return s.londonSigner.Sender(tx)
 	}
 	V, R, S := tx.RawSignatureValues()
@@ -55,7 +55,7 @@ func (s cel2Signer) Equal(s2 Signer) bool {
 }
 
 func (s cel2Signer) SignatureValues(tx *Transaction, sig []byte) (R, S, V *big.Int, err error) {
-	if tx.Type() != CeloDynamicFeeTxType && tx.Type() != CeloDenominatedTxType {
+	if tx.Type() != CeloDynamicFeeTxV2Type && tx.Type() != CeloDenominatedTxType {
 		return s.londonSigner.SignatureValues(tx, sig)
 	}
 
@@ -73,7 +73,7 @@ func (s cel2Signer) SignatureValues(tx *Transaction, sig []byte) (R, S, V *big.I
 // Hash returns the hash to be signed by the sender.
 // It does not uniquely identify the transaction.
 func (s cel2Signer) Hash(tx *Transaction) common.Hash {
-	if tx.Type() == CeloDynamicFeeTxType {
+	if tx.Type() == CeloDynamicFeeTxV2Type {
 		return prefixedRlpHash(
 			tx.Type(),
 			[]interface{}{

@@ -212,7 +212,7 @@ func TransactionToMessage(tx *types.Transaction, s types.Signer, baseFee *big.In
 	}
 	// If baseFee provided, set gasPrice to effectiveGasPrice.
 	if baseFee != nil {
-		if tx.Type() == types.CeloDynamicFeeTxType {
+		if tx.Type() == types.CeloDynamicFeeTxV2Type {
 			var err error
 			baseFee, err = exchange.ConvertGoldToCurrency(exchangeRates, msg.FeeCurrency, baseFee)
 			if err != nil {

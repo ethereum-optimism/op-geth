@@ -556,7 +556,7 @@ func (args *TransactionArgs) toTransaction() *types.Transaction {
 		}
 		if args.FeeCurrency != nil {
 			if args.IsFeeCurrencyDenominated() {
-				data = &types.CeloDynamicFeeTx{
+				data = &types.CeloDynamicFeeTxV2{
 					To:          args.To,
 					ChainID:     (*big.Int)(args.ChainID),
 					Nonce:       uint64(*args.Nonce),

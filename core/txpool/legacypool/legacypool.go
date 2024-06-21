@@ -290,7 +290,7 @@ func New(config Config, chain BlockChain) *LegacyPool {
 // pool, specifically, whether it is a Legacy, AccessList or Dynamic transaction.
 func (pool *LegacyPool) Filter(tx *types.Transaction) bool {
 	switch tx.Type() {
-	case types.LegacyTxType, types.AccessListTxType, types.DynamicFeeTxType, types.CeloDynamicFeeTxType:
+	case types.LegacyTxType, types.AccessListTxType, types.DynamicFeeTxType, types.CeloDynamicFeeTxV2Type:
 		return true
 	default:
 		return false
@@ -642,7 +642,7 @@ func (pool *LegacyPool) validateTxBasics(tx *types.Transaction, local bool) erro
 			types.LegacyTxType,
 			types.AccessListTxType,
 			types.DynamicFeeTxType,
-			types.CeloDynamicFeeTxType),
+			types.CeloDynamicFeeTxV2Type),
 		MaxSize:          txMaxSize,
 		MinTip:           pool.gasTip.Load().ToBig(),
 		EffectiveGasCeil: pool.config.EffectiveGasCeil,
