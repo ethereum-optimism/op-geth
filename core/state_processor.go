@@ -164,7 +164,7 @@ func ApplyTransactionWithEVM(msg *Message, config *params.ChainConfig, gp *GasPo
 			*receipt.DepositReceiptVersion = types.CanyonDepositReceiptVersion
 		}
 	}
-	if tx.Type() == types.CeloDynamicFeeTxType {
+	if tx.Type() == types.CeloDynamicFeeTxV2Type {
 		alternativeBaseFee := evm.Context.BaseFee
 		if msg.FeeCurrency != nil {
 			alternativeBaseFee, err = exchange.ConvertCeloToCurrency(evm.Context.ExchangeRates, msg.FeeCurrency, evm.Context.BaseFee)

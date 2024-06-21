@@ -77,7 +77,7 @@ func testNativeTransferWithFeeCurrency(t *testing.T, scheme string, feeCurrencyA
 	_, blocks, _ := GenerateChainWithGenesis(gspec, engine, 1, func(i int, b *BlockGen) {
 		b.SetCoinbase(common.Address{1})
 
-		txdata := &types.CeloDynamicFeeTx{
+		txdata := &types.CeloDynamicFeeTxV2{
 			ChainID:     gspec.Config.ChainID,
 			Nonce:       0,
 			To:          &aa,

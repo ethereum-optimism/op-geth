@@ -11,7 +11,7 @@ import (
 )
 
 func txC(nonce int, feeCap int, tipCap int, gas int, currency *common.Address) *types.Transaction {
-	return types.NewTx(&types.CeloDynamicFeeTx{
+	return types.NewTx(&types.CeloDynamicFeeTxV2{
 		GasFeeCap:   big.NewInt(int64(feeCap)),
 		GasTipCap:   big.NewInt(int64(tipCap)),
 		FeeCurrency: currency,

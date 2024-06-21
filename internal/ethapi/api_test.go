@@ -2351,7 +2351,7 @@ func TestCeloTransaction_RoundTripRpcJSON(t *testing.T) {
 }
 func celoTransactionTypes(addr common.Address, config *params.ChainConfig) []types.TxData {
 	return []types.TxData{
-		&types.CeloDynamicFeeTx{
+		&types.CeloDynamicFeeTxV2{
 			ChainID:     config.ChainID,
 			Nonce:       5,
 			GasTipCap:   big.NewInt(6),
@@ -2371,7 +2371,7 @@ func celoTransactionTypes(addr common.Address, config *params.ChainConfig) []typ
 			R: big.NewInt(10),
 			S: big.NewInt(11),
 		},
-		&types.CeloDynamicFeeTx{
+		&types.CeloDynamicFeeTxV2{
 			ChainID:     config.ChainID,
 			Nonce:       5,
 			GasTipCap:   big.NewInt(6),
