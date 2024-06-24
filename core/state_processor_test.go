@@ -128,8 +128,8 @@ func TestStateProcessorErrors(t *testing.T) {
 					},
 				},
 			}
-			blockchain, _  = NewBlockChain(db, nil, gspec, nil, beacon.New(ethash.NewFaker()), vm.Config{}, nil, nil)
-			tooBigInitCode = [params.MaxInitCodeSize + 1]byte{}
+			blockchain, _ = NewBlockChain(db, nil, gspec, nil, beacon.New(ethash.NewFaker()), vm.Config{}, nil, nil)
+			//tooBigInitCode = [params.MaxInitCodeSize + 1]byte{}
 		)
 
 		defer blockchain.Stop()
@@ -234,12 +234,13 @@ func TestStateProcessorErrors(t *testing.T) {
 				},
 				want: "could not apply tx 0 [0xd82a0c2519acfeac9a948258c47e784acd20651d9d80f9a1c67b4137651c3a24]: insufficient funds for gas * price + value: address 0x71562b71999873DB5b286dF957af199Ec94617F7 required balance exceeds 256 bits",
 			},
-			{ // ErrMaxInitCodeSizeExceeded
-				txs: []*types.Transaction{
-					mkDynamicCreationTx(0, 500000, common.Big0, big.NewInt(params.InitialBaseFee), tooBigInitCode[:]),
-				},
-				want: "could not apply tx 0 [0xd491405f06c92d118dd3208376fcee18a57c54bc52063ee4a26b1cf296857c25]: max initcode size exceeded: code size 49153 limit 49152",
-			},
+			// Disabled due to Celo MaxCodeSize change
+			// { // ErrMaxInitCodeSizeExceeded
+			// 	txs: []*types.Transaction{
+			// 		mkDynamicCreationTx(0, 500000, common.Big0, big.NewInt(params.InitialBaseFee), tooBigInitCode[:]),
+			// 	},
+			// 	want: "could not apply tx 0 [0xd491405f06c92d118dd3208376fcee18a57c54bc52063ee4a26b1cf296857c25]: max initcode size exceeded: code size 49153 limit 49152",
+			// },
 			{ // ErrIntrinsicGas: Not enough gas to cover init code
 				txs: []*types.Transaction{
 					mkDynamicCreationTx(0, 54299, common.Big0, big.NewInt(params.InitialBaseFee), make([]byte, 320)),

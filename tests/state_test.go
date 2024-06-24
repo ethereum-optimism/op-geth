@@ -25,6 +25,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -98,6 +99,13 @@ func TestExecutionSpecState(t *testing.T) {
 	st := new(testMatcher)
 
 	st.walk(t, executionSpecStateTestDir, func(t *testing.T, name string, test *StateTest) {
+		matches, err := regexp.MatchString("state_test-(create2?-)?over_limit_(ones|zeros)", name)
+		if err != nil {
+			t.Errorf("Bad regexp: %s", err)
+		}
+		if matches {
+			t.Skipf("Celo has increased the MaxCodeSize, which makes some tests invalid")
+		}
 		execStateTest(t, st, test)
 	})
 }
