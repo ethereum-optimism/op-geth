@@ -40,7 +40,11 @@ func (b *CeloBackend) CallContract(ctx context.Context, call ethereum.CallMsg, b
 	if blockNumber == nil {
 		blockNumber = common.Big0
 	}
-	blockCtx := vm.BlockContext{BlockNumber: blockNumber, Time: 0}
+	blockCtx := vm.BlockContext{
+		BlockNumber: blockNumber,
+		Time:        0,
+		Random:      &common.Hash{}, // Setting this is important since it is used to set IsMerge
+	}
 	txCtx := vm.TxContext{}
 	vmConfig := vm.Config{}
 
