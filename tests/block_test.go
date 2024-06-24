@@ -18,6 +18,7 @@ package tests
 
 import (
 	"math/rand"
+	"regexp"
 	"runtime"
 	"testing"
 
@@ -69,6 +70,13 @@ func TestExecutionSpecBlocktests(t *testing.T) {
 	bt := new(testMatcher)
 
 	bt.walk(t, executionSpecBlockchainTestDir, func(t *testing.T, name string, test *BlockTest) {
+		matches, err := regexp.MatchString("blockchain_test-create2?-over_limit_(ones|zeros)", name)
+		if err != nil {
+			t.Errorf("Bad regexp: %s", err)
+		}
+		if matches {
+			t.Skipf("Celo has increased the MaxCodeSize, which makes some tests invalid")
+		}
 		execBlockTest(t, bt, test)
 	})
 }
