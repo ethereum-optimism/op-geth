@@ -30,7 +30,12 @@ var testHeader = makeTestHeader(big.NewInt(10000))
 
 var vmBlockCtx = BlockContext{
 	CanTransfer: func(db StateDB, addr common.Address, amount *uint256.Int) bool {
-		return db.GetBalance(addr).Cmp(amount) >= 0
+		// Assume all addresses but the zero address can transfer for testing
+		if addr == common.ZeroAddress {
+			return false
+		} else {
+			return true
+		}
 	},
 	Transfer: func(db StateDB, a1, a2 common.Address, i *uint256.Int) {
 		panic("transfer: not implemented")
@@ -84,6 +89,19 @@ func TestPrecompileTransfer(t *testing.T) {
 			},
 			wantErr:     true,
 			expectedErr: "invalid input length",
+		}, {
+			name: "Test transferring from zero address (was used for minting on Celo L1)",
+			args: args{
+				// input consists of (from, to, value), each 32 bytes. In this case (0x0, 0x1, 2).
+				input: []byte{
+					0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+					0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+					0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2,
+				},
+				ctx: NewContext(addresses.CeloTokenAddress, mockEVM),
+			},
+			wantErr:     true,
+			expectedErr: "insufficient balance for transfer",
 		},
 	}
 	for _, tt := range tests {
