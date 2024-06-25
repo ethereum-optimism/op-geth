@@ -600,13 +600,16 @@ func (rs Receipts) DeriveFields(config *params.ChainConfig, hash common.Hash, nu
 	signer := MakeSigner(config, new(big.Int).SetUint64(number), time)
 
 	logIndex := uint(0)
-	if len(txs) != len(rs) {
+
+	// If rs are one longer than txs it indicates the presence of a celo block receipt.
+	if len(txs) != len(rs) && len(txs)+1 != len(rs) {
 		return errors.New("transaction and receipt count mismatch")
 	}
-	for i := 0; i < len(rs); i++ {
+	for i := 0; i < len(txs); i++ {
 		// The transaction type and hash can be retrieved from the transaction itself
 		rs[i].Type = txs[i].Type()
 		rs[i].TxHash = txs[i].Hash()
+
 		// The CeloDynamicFeeTxs set the baseFee in the receipt
 		if txs[i].Type() != CeloDynamicFeeTxV2Type {
 			rs[i].EffectiveGasPrice = txs[i].inner.effectiveGasPrice(new(big.Int), baseFee)
@@ -655,6 +658,20 @@ func (rs Receipts) DeriveFields(config *params.ChainConfig, hash common.Hash, nu
 			logIndex++
 		}
 	}
+
+	// This is a celo block receipt, which uses the block hash in place of the tx hash.
+	if len(txs)+1 == len(rs) {
+		j := len(txs)
+		for k := 0; k < len(rs[j].Logs); k++ {
+			rs[j].Logs[k].BlockNumber = number
+			rs[j].Logs[k].BlockHash = hash
+			rs[j].Logs[k].TxHash = hash
+			rs[j].Logs[k].TxIndex = uint(j)
+			rs[j].Logs[k].Index = logIndex
+			logIndex++
+		}
+	}
+
 	if config.Optimism != nil && len(txs) >= 2 && config.IsBedrock(new(big.Int).SetUint64(number)) { // need at least an info tx and a non-info tx
 		gasParams, err := extractL1GasParams(config, time, txs[0].Data())
 		if err != nil {

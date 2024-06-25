@@ -53,6 +53,7 @@ func (h *Header) DecodeRLP(s *rlp.Stream) error {
 		h.GasUsed = decodedHeader.GasUsed
 		h.Time = decodedHeader.Time
 		h.Extra = decodedHeader.Extra
+		h.Difficulty = new(big.Int)
 	} else {
 		// After gingerbread
 		decodedHeader := afterGingerbreadHeader{}
@@ -85,13 +86,7 @@ func (h *Header) DecodeRLP(s *rlp.Stream) error {
 
 // EncodeRLP implements encodes the Header to an RLP data stream.
 func (h *Header) EncodeRLP(w io.Writer) error {
-	// We check for a pre gingerbread header by looking for (GasLimit == 0)
-	// here. We don't use Difficulty  because CopyHeader can end up setting a
-	// nil Difficulty to a zero difficulty, so testing for nil difficulty is
-	// not reliable, and post gingerbread difficulty is hardcoded to zero. Also
-	// testing for base fee is not reliable because some older eth blocks had
-	// no base fee and they are used in some tests.
-	if h.GasLimit == 0 {
+	if h.IsPreGingerbread() {
 		// Encode the header
 		encodedHeader := beforeGingerbreadHeader{
 			ParentHash:  h.ParentHash,
@@ -151,4 +146,16 @@ func isPreGingerbreadHeader(buf []byte) (bool, error) {
 	}
 
 	return contentSize == common.AddressLength, nil
+}
+
+// Returns if the header is a gingerbread header by looking at the gas limit.
+func (h *Header) IsPreGingerbread() bool {
+	// We check for a pre gingerbread header by looking for (GasLimit == 0)
+	// here. We don't use Difficulty because we ensure that headers have a zero
+	// difficulty, even if it's not set in the rlp encoded form (we do this
+	// because the go ethereum codebase assumed non nil difficulties) and post
+	// gingerbread difficulty is hardcoded to zero. Also testing for base fee
+	// is not reliable because some older eth blocks had no base fee and they
+	// are used in some tests.
+	return h.GasLimit == 0
 }

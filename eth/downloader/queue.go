@@ -792,7 +792,8 @@ func (q *queue) DeliverBodies(id string, txLists [][]*types.Transaction, txListH
 		if txListHashes[index] != header.TxHash {
 			return errInvalidBody
 		}
-		if uncleListHashes[index] != header.UncleHash {
+		// Pre gingerbread headers do not have a valid uncle hash.
+		if !header.IsPreGingerbread() && uncleListHashes[index] != header.UncleHash {
 			return errInvalidBody
 		}
 		if header.WithdrawalsHash == nil {
