@@ -90,17 +90,12 @@ func (c *transfer) Run(input []byte, ctx *celoPrecompileContext) ([]byte, error)
 		return nil, fmt.Errorf("Error parsing transfer: value overflow")
 	}
 
-	if from == common.ZeroAddress {
-		// Mint case: Create cGLD out of thin air
-		ctx.evm.StateDB.AddBalance(to, valueU256)
-	} else {
-		// Fail if we're trying to transfer more than the available balance
-		if !ctx.CanTransfer(ctx.evm.StateDB, from, valueU256) {
-			return nil, ErrInsufficientBalance
-		}
-
-		ctx.Transfer(ctx.evm.StateDB, from, to, valueU256)
+	// Fail if we're trying to transfer more than the available balance
+	if !ctx.CanTransfer(ctx.evm.StateDB, from, valueU256) {
+		return nil, ErrInsufficientBalance
 	}
+
+	ctx.Transfer(ctx.evm.StateDB, from, to, valueU256)
 
 	return input, nil
 }
