@@ -391,6 +391,10 @@ func (s *Ethereum) APIs() []rpc.API {
 	}...)
 }
 
+func (s *Ethereum) RegisterBundleFetcher(fetcher txpool.IFetcher) {
+	s.txPool.RegisterBundleFetcher(fetcher)
+}
+
 func (s *Ethereum) ResetWithGenesisBlock(gb *types.Block) {
 	s.blockchain.ResetWithGenesisBlock(gb)
 }

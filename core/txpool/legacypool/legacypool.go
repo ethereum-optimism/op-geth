@@ -239,6 +239,8 @@ type LegacyPool struct {
 	changesSinceReorg int // A counter for how many drops we've performed in-between reorg.
 
 	l1CostFn txpool.L1CostFunc // To apply L1 costs as rollup, optional field, may be nil.
+
+	privateTxs *types.TimestampedTxHashSet
 }
 
 type txpoolResetRequest struct {
@@ -438,6 +440,11 @@ func (pool *LegacyPool) SubscribeTransactions(ch chan<- core.NewTxsEvent, reorgs
 	// is because the new txs are added to the queue, resurrected ones too and
 	// reorgs run lazily, so separating the two would need a marker.
 	return pool.txFeed.Subscribe(ch)
+}
+
+// IsPrivateTxHash indicates whether the transaction should be shared with peers
+func (pool *LegacyPool) IsPrivateTxHash(hash common.Hash) bool {
+	return pool.privateTxs.Contains(hash)
 }
 
 // SetGasTip updates the minimum gas tip required by the transaction pool for a
@@ -971,7 +978,7 @@ func (pool *LegacyPool) promoteTx(addr common.Address, hash common.Hash, tx *typ
 // This method is used to add transactions from the RPC API and performs synchronous pool
 // reorganization and event propagation.
 func (pool *LegacyPool) addLocals(txs []*types.Transaction) []error {
-	return pool.Add(txs, !pool.config.NoLocals, true)
+	return pool.Add(txs, !pool.config.NoLocals, true, false)
 }
 
 // addLocal enqueues a single local transaction into the pool if it is valid. This is
@@ -986,7 +993,7 @@ func (pool *LegacyPool) addLocal(tx *types.Transaction) error {
 // This method is used to add transactions from the p2p network and does not wait for pool
 // reorganization and internal event propagation.
 func (pool *LegacyPool) addRemotes(txs []*types.Transaction) []error {
-	return pool.Add(txs, false, false)
+	return pool.Add(txs, false, false, false)
 }
 
 // addRemote enqueues a single transaction into the pool if it is valid. This is a convenience
@@ -997,12 +1004,12 @@ func (pool *LegacyPool) addRemote(tx *types.Transaction) error {
 
 // addRemotesSync is like addRemotes, but waits for pool reorganization. Tests use this method.
 func (pool *LegacyPool) addRemotesSync(txs []*types.Transaction) []error {
-	return pool.Add(txs, false, true)
+	return pool.Add(txs, false, true, false)
 }
 
 // This is like addRemotes with a single transaction, but waits for pool reorganization. Tests use this method.
 func (pool *LegacyPool) addRemoteSync(tx *types.Transaction) error {
-	return pool.Add([]*types.Transaction{tx}, false, true)[0]
+	return pool.Add([]*types.Transaction{tx}, false, true, false)[0]
 }
 
 // Add enqueues a batch of transactions into the pool if they are valid. Depending
@@ -1010,7 +1017,7 @@ func (pool *LegacyPool) addRemoteSync(tx *types.Transaction) error {
 //
 // If sync is set, the method will block until all internal maintenance related
 // to the add is finished. Only use this during tests for determinism!
-func (pool *LegacyPool) Add(txs []*types.Transaction, local, sync bool) []error {
+func (pool *LegacyPool) Add(txs []*types.Transaction, local, sync, private bool) []error {
 	// Do not treat as local if local transactions have been disabled
 	local = local && !pool.config.NoLocals
 

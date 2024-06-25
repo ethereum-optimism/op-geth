@@ -39,8 +39,9 @@ type LazyTransaction struct {
 	GasFeeCap *uint256.Int // Maximum fee per gas the transaction may consume
 	GasTipCap *uint256.Int // Maximum miner tip per gas the transaction can pay
 
-	Gas     uint64 // Amount of gas required by the transaction
-	BlobGas uint64 // Amount of blob gas required by the transaction
+	Gas      uint64       // Amount of gas required by the transaction
+	BlobGas  uint64       // Amount of blob gas required by the transaction
+	GasPrice *uint256.Int // Gas price of the transaction
 }
 
 // Resolve retrieves the full transaction belonging to a lazy handle if it is still
@@ -126,7 +127,9 @@ type SubPool interface {
 	// Add enqueues a batch of transactions into the pool if they are valid. Due
 	// to the large transaction churn, add may postpone fully integrating the tx
 	// to a later point to batch multiple ones together.
-	Add(txs []*types.Transaction, local bool, sync bool) []error
+	Add(txs []*types.Transaction, local bool, sync bool, private bool) []error
+
+	IsPrivateTxHash(hash common.Hash) bool
 
 	// Pending retrieves all currently processable transactions, grouped by origin
 	// account and sorted by nonce.

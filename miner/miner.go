@@ -62,6 +62,7 @@ type Config struct {
 
 	RollupComputePendingBlock bool   // Compute the pending block from tx-pool, instead of copying the latest-block
 	EffectiveGasCeil          uint64 // if non-zero, a gas ceiling to apply independent of the header's gaslimit value
+	PriceCutoffPercent        int    // Effective gas price cutoff % used for bucketing transactions by price (only useful in greedy-buckets AlgoType)
 }
 
 // DefaultConfig contains default settings for miner.
@@ -253,6 +254,10 @@ func (miner *Miner) SetGasCeil(ceil uint64) {
 func (miner *Miner) SubscribePendingLogs(ch chan<- []*types.Log) event.Subscription {
 	return miner.worker.pendingLogsFeed.Subscribe(ch)
 }
+
+// Accepts the block, time at which orders were taken, bundles which were used to build the block and all bundles that were considered for the block
+// TODO (deneb): refactor into block hook args
+type BlockHookFn = func(*types.Block, *big.Int, []*types.BlobTxSidecar, time.Time, []types.SimulatedBundle, []types.SimulatedBundle, []types.UsedSBundle)
 
 // BuildPayload builds the payload according to the provided parameters.
 func (miner *Miner) BuildPayload(args *BuildPayloadArgs) (*Payload, error) {

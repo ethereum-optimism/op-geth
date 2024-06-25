@@ -48,6 +48,8 @@ type BuildPayloadArgs struct {
 	NoTxPool     bool                 // Optimism addition: option to disable tx pool contents from being included
 	Transactions []*types.Transaction // Optimism addition: txs forced into the block via engine API
 	GasLimit     *uint64              // Optimism addition: override gas limit of the block to build
+
+	BlockHook BlockHookFn
 }
 
 // Id computes an 8-byte identifier by hashing the components of the payload arguments.
@@ -161,6 +163,16 @@ func (payload *Payload) update(r *newPayloadResult, elapsed time.Duration) {
 			"elapsed", common.PrettyDuration(elapsed),
 		)
 	}
+}
+
+func (payload *Payload) Cancel() {
+	select {
+	case <-payload.stop:
+	default:
+		close(payload.stop)
+	}
+
+	payload.cond.Broadcast()
 }
 
 // Resolve returns the latest built payload and also terminates the background

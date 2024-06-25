@@ -17,12 +17,18 @@
 package engine
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"math/big"
 
+	denebapi "github.com/attestantio/go-builder-client/api/deneb"
+	"github.com/attestantio/go-eth2-client/spec/bellatrix"
+	"github.com/attestantio/go-eth2-client/spec/capella"
+	"github.com/attestantio/go-eth2-client/spec/deneb"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto/kzg4844"
 	"github.com/ethereum/go-ethereum/trie"
 )
 
@@ -322,6 +328,127 @@ func BlockToExecutableData(block *types.Block, fees *big.Int, sidecars []*types.
 type ExecutionPayloadBodyV1 struct {
 	TransactionData []hexutil.Bytes     `json:"transactions"`
 	Withdrawals     []*types.Withdrawal `json:"withdrawals"`
+}
+
+func ExecutionPayloadV1ToBlock(payload *bellatrix.ExecutionPayload) (*types.Block, error) {
+	// base fee per gas is stored little-endian but we need it
+	// big-endian for big.Int.
+	var baseFeePerGasBytes [32]byte
+	for i := 0; i < 32; i++ {
+		baseFeePerGasBytes[i] = payload.BaseFeePerGas[32-1-i]
+	}
+	baseFeePerGas := new(big.Int).SetBytes(baseFeePerGasBytes[:])
+
+	txs := make([][]byte, len(payload.Transactions))
+	for i, txHexBytes := range payload.Transactions {
+		txs[i] = txHexBytes
+	}
+	executableData := ExecutableData{
+		ParentHash:    common.Hash(payload.ParentHash),
+		FeeRecipient:  common.Address(payload.FeeRecipient),
+		StateRoot:     common.Hash(payload.StateRoot),
+		ReceiptsRoot:  common.Hash(payload.ReceiptsRoot),
+		LogsBloom:     payload.LogsBloom[:],
+		Random:        common.Hash(payload.PrevRandao),
+		Number:        payload.BlockNumber,
+		GasLimit:      payload.GasLimit,
+		GasUsed:       payload.GasUsed,
+		Timestamp:     payload.Timestamp,
+		ExtraData:     payload.ExtraData,
+		BaseFeePerGas: baseFeePerGas,
+		BlockHash:     common.Hash(payload.BlockHash),
+		Transactions:  txs,
+	}
+	return ExecutableDataToBlock(executableData, nil, nil)
+}
+
+func ExecutionPayloadV2ToBlock(payload *capella.ExecutionPayload) (*types.Block, error) {
+	// base fee per gas is stored little-endian but we need it
+	// big-endian for big.Int.
+	var baseFeePerGasBytes [32]byte
+	for i := 0; i < 32; i++ {
+		baseFeePerGasBytes[i] = payload.BaseFeePerGas[32-1-i]
+	}
+	baseFeePerGas := new(big.Int).SetBytes(baseFeePerGasBytes[:])
+
+	txs := make([][]byte, len(payload.Transactions))
+	for i, txHexBytes := range payload.Transactions {
+		txs[i] = txHexBytes
+	}
+
+	withdrawals := make([]*types.Withdrawal, len(payload.Withdrawals))
+	for i, withdrawal := range payload.Withdrawals {
+		withdrawals[i] = &types.Withdrawal{
+			Index:     uint64(withdrawal.Index),
+			Validator: uint64(withdrawal.ValidatorIndex),
+			Address:   common.Address(withdrawal.Address),
+			Amount:    uint64(withdrawal.Amount),
+		}
+	}
+	executableData := ExecutableData{
+		ParentHash:    common.Hash(payload.ParentHash),
+		FeeRecipient:  common.Address(payload.FeeRecipient),
+		StateRoot:     common.Hash(payload.StateRoot),
+		ReceiptsRoot:  common.Hash(payload.ReceiptsRoot),
+		LogsBloom:     payload.LogsBloom[:],
+		Random:        common.Hash(payload.PrevRandao),
+		Number:        payload.BlockNumber,
+		GasLimit:      payload.GasLimit,
+		GasUsed:       payload.GasUsed,
+		Timestamp:     payload.Timestamp,
+		ExtraData:     payload.ExtraData,
+		BaseFeePerGas: baseFeePerGas,
+		BlockHash:     common.Hash(payload.BlockHash),
+		Transactions:  txs,
+		Withdrawals:   withdrawals,
+	}
+	return ExecutableDataToBlock(executableData, nil, nil)
+}
+
+func ExecutionPayloadV3ToBlock(payload *deneb.ExecutionPayload, blobsBundle *denebapi.BlobsBundle, parentBeaconBlockRoot common.Hash) (*types.Block, error) {
+	txs := make([][]byte, len(payload.Transactions))
+	for i, txHexBytes := range payload.Transactions {
+		txs[i] = txHexBytes
+	}
+
+	withdrawals := make([]*types.Withdrawal, len(payload.Withdrawals))
+	for i, withdrawal := range payload.Withdrawals {
+		withdrawals[i] = &types.Withdrawal{
+			Index:     uint64(withdrawal.Index),
+			Validator: uint64(withdrawal.ValidatorIndex),
+			Address:   common.Address(withdrawal.Address),
+			Amount:    uint64(withdrawal.Amount),
+		}
+	}
+
+	hasher := sha256.New()
+	versionedHashes := make([]common.Hash, len(blobsBundle.Commitments))
+	for i, commitment := range blobsBundle.Commitments {
+		c := kzg4844.Commitment(commitment)
+		computed := kzg4844.CalcBlobHashV1(hasher, &c)
+		versionedHashes[i] = common.Hash(computed)
+	}
+
+	executableData := ExecutableData{
+		ParentHash:    common.Hash(payload.ParentHash),
+		FeeRecipient:  common.Address(payload.FeeRecipient),
+		StateRoot:     common.Hash(payload.StateRoot),
+		ReceiptsRoot:  common.Hash(payload.ReceiptsRoot),
+		LogsBloom:     payload.LogsBloom[:],
+		Random:        common.Hash(payload.PrevRandao),
+		Number:        payload.BlockNumber,
+		GasLimit:      payload.GasLimit,
+		GasUsed:       payload.GasUsed,
+		Timestamp:     payload.Timestamp,
+		ExtraData:     payload.ExtraData,
+		BaseFeePerGas: payload.BaseFeePerGas.ToBig(),
+		BlockHash:     common.Hash(payload.BlockHash),
+		Transactions:  txs,
+		Withdrawals:   withdrawals,
+		BlobGasUsed:   &payload.BlobGasUsed,
+		ExcessBlobGas: &payload.ExcessBlobGas,
+	}
+	return ExecutableDataToBlock(executableData, versionedHashes, &parentBeaconBlockRoot)
 }
 
 // Client identifiers to support ClientVersionV1.

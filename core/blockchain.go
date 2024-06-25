@@ -50,6 +50,7 @@ import (
 	"github.com/ethereum/go-ethereum/triedb"
 	"github.com/ethereum/go-ethereum/triedb/hashdb"
 	"github.com/ethereum/go-ethereum/triedb/pathdb"
+	"github.com/holiman/uint256"
 	"golang.org/x/exp/slices"
 )
 
@@ -2450,6 +2451,145 @@ func (bc *BlockChain) InsertHeaderChain(chain []*types.Header) (int, error) {
 func (bc *BlockChain) SetBlockValidatorAndProcessorForTesting(v Validator, p Processor) {
 	bc.validator = v
 	bc.processor = p
+}
+
+// ValidatePayload validates the payload of the block.
+// It returns nil if the payload is valid, otherwise it returns an error.
+//   - `useBalanceDiffProfit` if set to false, proposer payment is assumed to be in the last transaction of the block
+//     otherwise we use proposer balance changes after the block to calculate proposer payment (see details in the code)
+//   - `excludeWithdrawals` if set to true, withdrawals to the fee recipient are excluded from the balance change
+func (bc *BlockChain) ValidatePayload(block *types.Block, feeRecipient common.Address, expectedProfit *big.Int, registeredGasLimit uint64, vmConfig vm.Config, useBalanceDiffProfit, excludeWithdrawals bool) error {
+	header := block.Header()
+	if err := bc.engine.VerifyHeader(bc, header); err != nil {
+		return err
+	}
+
+	current := bc.CurrentBlock()
+	reorg, err := bc.forker.ReorgNeeded(current, header)
+	if err == nil && reorg {
+		return errors.New("block requires a reorg")
+	}
+
+	parent := bc.GetHeader(block.ParentHash(), block.NumberU64()-1)
+	if parent == nil {
+		return errors.New("parent not found")
+	}
+
+	calculatedGasLimit := CalcGasLimit(parent.GasLimit, registeredGasLimit)
+	if calculatedGasLimit != header.GasLimit {
+		return errors.New("incorrect gas limit set")
+	}
+
+	statedb, err := bc.StateAt(parent.Root)
+	if err != nil {
+		return err
+	}
+
+	// The chain importer is starting and stopping trie prefetchers. If a bad
+	// block or other error is hit however, an early return may not properly
+	// terminate the background threads. This defer ensures that we clean up
+	// and dangling prefetcher, without defering each and holding on live refs.
+	defer statedb.StopPrefetcher()
+
+	feeRecipientBalanceBefore := new(uint256.Int).Set(statedb.GetBalance(feeRecipient))
+
+	receipts, _, usedGas, err := bc.processor.Process(block, statedb, vmConfig)
+	if err != nil {
+		return err
+	}
+
+	feeRecipientBalanceDelta := new(uint256.Int).Set(statedb.GetBalance(feeRecipient))
+	feeRecipientBalanceDelta.Sub(feeRecipientBalanceDelta, feeRecipientBalanceBefore)
+	if excludeWithdrawals {
+		for _, w := range block.Withdrawals() {
+			if w.Address == feeRecipient {
+				amount := new(uint256.Int).Mul(new(uint256.Int).SetUint64(w.Amount), uint256.NewInt(params.GWei))
+				feeRecipientBalanceDelta.Sub(feeRecipientBalanceDelta, amount)
+			}
+		}
+	}
+
+	if bc.Config().IsShanghai(header.Number, header.Time) {
+		if header.WithdrawalsHash == nil {
+			return fmt.Errorf("withdrawals hash is missing")
+		}
+		// withdrawals hash and withdrawals validated later in ValidateBody
+	} else {
+		if header.WithdrawalsHash != nil {
+			return fmt.Errorf("withdrawals hash present before shanghai")
+		}
+		if block.Withdrawals() != nil {
+			return fmt.Errorf("withdrawals list present in block body before shanghai")
+		}
+	}
+
+	if err := bc.validator.ValidateBody(block); err != nil {
+		return err
+	}
+
+	if err := bc.validator.ValidateState(block, statedb, receipts, usedGas); err != nil {
+		return err
+	}
+
+	// Validate proposer payment
+
+	if useBalanceDiffProfit {
+		uint256ExpectedProfit, ok := uint256.FromBig(expectedProfit)
+		if !ok {
+			if feeRecipientBalanceDelta.Cmp(uint256ExpectedProfit) >= 0 {
+				if feeRecipientBalanceDelta.Cmp(uint256ExpectedProfit) > 0 {
+					log.Warn("builder claimed profit is lower than calculated profit", "expected", expectedProfit, "actual", feeRecipientBalanceDelta)
+				}
+				return nil
+			}
+			log.Warn("proposer payment not enough, trying last tx payment validation", "expected", expectedProfit, "actual", feeRecipientBalanceDelta)
+		}
+	}
+
+	if len(receipts) == 0 {
+		return errors.New("no proposer payment receipt")
+	}
+
+	lastReceipt := receipts[len(receipts)-1]
+	if lastReceipt.Status != types.ReceiptStatusSuccessful {
+		return errors.New("proposer payment not successful")
+	}
+	txIndex := lastReceipt.TransactionIndex
+	if txIndex+1 != uint(len(block.Transactions())) {
+		return fmt.Errorf("proposer payment index not last transaction in the block (%d of %d)", txIndex, len(block.Transactions())-1)
+	}
+
+	paymentTx := block.Transaction(lastReceipt.TxHash)
+	if paymentTx == nil {
+		return errors.New("payment tx not in the block")
+	}
+
+	paymentTo := paymentTx.To()
+	if paymentTo == nil || *paymentTo != feeRecipient {
+		return fmt.Errorf("payment tx not to the proposers fee recipient (%v)", paymentTo)
+	}
+
+	if paymentTx.Value().Cmp(expectedProfit) != 0 {
+		return fmt.Errorf("inaccurate payment %s, expected %s", paymentTx.Value().String(), expectedProfit.String())
+	}
+
+	if len(paymentTx.Data()) != 0 {
+		return fmt.Errorf("malformed proposer payment, contains calldata")
+	}
+
+	if paymentTx.GasPrice().Cmp(block.BaseFee()) != 0 {
+		return fmt.Errorf("malformed proposer payment, gas price not equal to base fee")
+	}
+
+	if paymentTx.GasTipCap().Cmp(block.BaseFee()) != 0 && paymentTx.GasTipCap().Sign() != 0 {
+		return fmt.Errorf("malformed proposer payment, unexpected gas tip cap")
+	}
+
+	if paymentTx.GasFeeCap().Cmp(block.BaseFee()) != 0 {
+		return fmt.Errorf("malformed proposer payment, unexpected gas fee cap")
+	}
+
+	return nil
 }
 
 // SetTrieFlushInterval configures how often in-memory tries are persisted to disk.

@@ -17,10 +17,12 @@
 package txpool
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"math/big"
 	"sync"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
@@ -28,6 +30,9 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
+	"github.com/ethereum/go-ethereum/params"
+	"github.com/google/uuid"
+	"golang.org/x/crypto/sha3"
 )
 
 type L1CostFunc func(dataGas types.RollupCostData) *big.Int
@@ -51,9 +56,16 @@ var (
 	reservationsGaugeName = "txpool/reservations"
 )
 
+type IFetcher interface {
+	GetLatestUuidBundles(ctx context.Context, blockNum int64) ([]types.LatestUuidBundle, error)
+}
+
 // BlockChain defines the minimal set of methods needed to back a tx pool with
 // a chain. Exists to allow mocking the live chain out of tests.
 type BlockChain interface {
+	// Config retrieves the chain's fork configuration.
+	Config() *params.ChainConfig
+
 	// CurrentBlock returns the current head of the chain.
 	CurrentBlock() *types.Header
 
@@ -77,6 +89,11 @@ type TxPool struct {
 	term chan struct{}           // Termination channel to detect a closed pool
 
 	sync chan chan error // Testing / simulator channel to block until internal reset is done
+
+	bundleLock    sync.RWMutex // Mutex protecting the pool when adding bundles
+	mevBundles    []types.MevBundle
+	bundleFetcher IFetcher
+	sbundles      *SBundlePool
 }
 
 // New creates a new transaction pool to gather, sort and filter inbound
@@ -93,6 +110,7 @@ func New(gasTip uint64, chain BlockChain, subpools []SubPool) (*TxPool, error) {
 		quit:         make(chan chan error),
 		term:         make(chan struct{}),
 		sync:         make(chan chan error),
+		sbundles:     NewSBundlePool(chain.Config()),
 	}
 	for i, subpool := range subpools {
 		if err := subpool.Init(gasTip, head, pool.reserver(i, subpool)); err != nil {
@@ -102,6 +120,9 @@ func New(gasTip uint64, chain BlockChain, subpools []SubPool) (*TxPool, error) {
 			return nil, err
 		}
 	}
+
+	pool.sbundles.ResetPoolData(head)
+
 	go pool.loop(head, chain)
 	return pool, nil
 }
@@ -225,6 +246,7 @@ func (p *TxPool) loop(head *types.Header, chain BlockChain) {
 					for _, subpool := range p.subpools {
 						subpool.Reset(oldHead, newHead)
 					}
+					p.sbundles.ResetPoolData(newHead)
 					resetDone <- newHead
 				}(oldHead, newHead)
 
@@ -310,7 +332,7 @@ func (p *TxPool) Get(hash common.Hash) *types.Transaction {
 // Add enqueues a batch of transactions into the pool if they are valid. Due
 // to the large transaction churn, add may postpone fully integrating the tx
 // to a later point to batch multiple ones together.
-func (p *TxPool) Add(txs []*types.Transaction, local bool, sync bool) []error {
+func (p *TxPool) Add(txs []*types.Transaction, local bool, sync bool, private bool) []error {
 	// Split the input transactions between the subpools. It shouldn't really
 	// happen that we receive merged batches, but better graceful than strange
 	// errors.
@@ -337,7 +359,7 @@ func (p *TxPool) Add(txs []*types.Transaction, local bool, sync bool) []error {
 	// back the errors into the original sort order.
 	errsets := make([][]error, len(p.subpools))
 	for i := 0; i < len(p.subpools); i++ {
-		errsets[i] = p.subpools[i].Add(txsets[i], local, sync)
+		errsets[i] = p.subpools[i].Add(txsets[i], local, sync, private)
 	}
 	errs := make([]error, len(txs))
 	for i, split := range splits {
@@ -481,4 +503,195 @@ func (p *TxPool) Sync() error {
 	case <-p.term:
 		return errors.New("pool already terminated")
 	}
+}
+
+func (p *TxPool) IsPrivateTxHash(hash common.Hash) bool {
+	for _, subpool := range p.subpools {
+		if subpool.IsPrivateTxHash(hash) {
+			return true
+		}
+	}
+	return false
+}
+
+// MevBundle methods
+
+// AddMevBundle enqueues a bundle of transactions into the pool if they are valid.
+func (p *TxPool) AddMevBundle(txs []*types.Transaction, blockNumber *big.Int, replacementUuid uuid.UUID, signingAddress common.Address, minTimestamp, maxTimestamp uint64, revertingTxHashes []common.Hash) error {
+	bundleHasher := sha3.NewLegacyKeccak256()
+	for _, tx := range txs {
+		_, err := bundleHasher.Write(tx.Hash().Bytes())
+		if err != nil {
+			return err
+		}
+	}
+	bundleHash := common.BytesToHash(bundleHasher.Sum(nil))
+
+	p.bundleLock.Lock()
+	defer p.bundleLock.Unlock()
+
+	p.mevBundles = append(p.mevBundles, types.MevBundle{
+		Txs:               txs,
+		BlockNumber:       blockNumber,
+		Uuid:              replacementUuid,
+		SigningAddress:    signingAddress,
+		MinTimestamp:      minTimestamp,
+		MaxTimestamp:      maxTimestamp,
+		RevertingTxHashes: revertingTxHashes,
+		Hash:              bundleHash,
+	})
+	return nil
+}
+
+func (p *TxPool) AddMevBundles(bundles []types.MevBundle) {
+	p.bundleLock.Lock()
+	defer p.bundleLock.Unlock()
+
+	p.mevBundles = append(p.mevBundles, bundles...)
+}
+
+// MevBundles returns a list of bundles valid for the given blockNumber/blockTimestamp
+// also prunes bundles that are outdated
+// Returns regular bundles and a function resolving to current cancellable bundles
+func (p *TxPool) MevBundles(blockNumber *big.Int, blockTimestamp uint64) ([]types.MevBundle, chan []types.MevBundle) {
+	p.bundleLock.Lock()
+	defer p.bundleLock.Unlock()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	lubCh, errCh := p.fetchLatestCancellableBundles(ctx, blockNumber)
+
+	// returned values
+	var ret []types.MevBundle
+	// rolled over values
+	var bundles []types.MevBundle
+	// (uuid, signingAddress) -> list of bundles
+	var uuidBundles = make(map[uuidBundleKey][]types.MevBundle)
+
+	for _, bundle := range p.mevBundles {
+		// Prune outdated bundles
+		if (bundle.MaxTimestamp != 0 && blockTimestamp > bundle.MaxTimestamp) || blockNumber.Cmp(bundle.BlockNumber) > 0 {
+			continue
+		}
+
+		// Roll over future bundles
+		if (bundle.MinTimestamp != 0 && blockTimestamp < bundle.MinTimestamp) || blockNumber.Cmp(bundle.BlockNumber) < 0 {
+			bundles = append(bundles, bundle)
+			continue
+		}
+
+		// keep the bundles around internally until they need to be pruned
+		bundles = append(bundles, bundle)
+
+		// TODO: omit duplicates
+
+		// do not append to the return quite yet, check the DB for the latest bundle for that uuid
+		if bundle.Uuid != types.EmptyUUID {
+			ubk := uuidBundleKey{bundle.Uuid, bundle.SigningAddress}
+			uuidBundles[ubk] = append(uuidBundles[ubk], bundle)
+			continue
+		}
+
+		// return the ones which are in time
+		ret = append(ret, bundle)
+	}
+
+	p.mevBundles = bundles
+
+	cancellableBundlesCh := make(chan []types.MevBundle, 1)
+	go func() {
+		cancellableBundlesCh <- resolveCancellableBundles(lubCh, errCh, uuidBundles)
+		cancel()
+	}()
+
+	return ret, cancellableBundlesCh
+}
+
+func (p *TxPool) AddSBundle(bundle *types.SBundle) error {
+	return p.sbundles.Add(bundle)
+}
+
+func (p *TxPool) CancelSBundles(hashes []common.Hash) {
+	p.sbundles.Cancel(hashes)
+}
+
+func (p *TxPool) GetSBundles(block *big.Int) []*types.SBundle {
+	return p.sbundles.GetSBundles(block.Uint64())
+}
+
+// Bundle Fetcher methods
+func (p *TxPool) RegisterBundleFetcher(fetcher IFetcher) {
+	p.bundleLock.Lock()
+	defer p.bundleLock.Unlock()
+
+	p.bundleFetcher = fetcher
+}
+
+type uuidBundleKey struct {
+	Uuid           uuid.UUID
+	SigningAddress common.Address
+}
+
+func (p *TxPool) fetchLatestCancellableBundles(ctx context.Context, blockNumber *big.Int) (chan []types.LatestUuidBundle, chan error) {
+	if p.bundleFetcher == nil {
+		return nil, nil
+	}
+	errCh := make(chan error, 1)
+	lubCh := make(chan []types.LatestUuidBundle, 1)
+	go func(blockNum int64) {
+		lub, err := p.bundleFetcher.GetLatestUuidBundles(ctx, blockNum)
+		errCh <- err
+		lubCh <- lub
+	}(blockNumber.Int64())
+	return lubCh, errCh
+}
+
+func resolveCancellableBundles(lubCh chan []types.LatestUuidBundle, errCh chan error, uuidBundles map[uuidBundleKey][]types.MevBundle) []types.MevBundle {
+	if lubCh == nil || errCh == nil {
+		return nil
+	}
+
+	if len(uuidBundles) == 0 {
+		return nil
+	}
+
+	err := <-errCh
+	if err != nil {
+		log.Error("could not fetch latest bundles uuid map", "err", err)
+		return nil
+	}
+
+	currentCancellableBundles := []types.MevBundle{}
+
+	log.Trace("Processing uuid bundles", "uuidBundles", uuidBundles)
+
+	lubs := <-lubCh
+LubLoop:
+	for _, lub := range lubs {
+		ubk := uuidBundleKey{lub.Uuid, lub.SigningAddress}
+		bundles, found := uuidBundles[ubk]
+		if !found {
+			log.Trace("missing uuid bundle", "ubk", ubk)
+			continue
+		}
+
+		// If lub has bundle_uuid set, and we can find corresponding bundle we prefer it, if not we fallback to bundle_hash equivalence
+		if lub.BundleUUID != types.EmptyUUID {
+			for _, bundle := range bundles {
+				if bundle.ComputeUUID() == lub.BundleUUID {
+					log.Trace("adding uuid bundle", "bundle hash", bundle.Hash.String(), "lub", lub)
+					currentCancellableBundles = append(currentCancellableBundles, bundle)
+					continue LubLoop
+				}
+			}
+		}
+
+		for _, bundle := range bundles {
+			if bundle.Hash == lub.BundleHash {
+				log.Trace("adding uuid bundle", "bundle hash", bundle.Hash.String(), "lub", lub)
+				currentCancellableBundles = append(currentCancellableBundles, bundle)
+				break
+			}
+		}
+	}
+	return currentCancellableBundles
 }
