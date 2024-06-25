@@ -325,7 +325,13 @@ func (f *Filter) checkMatches(ctx context.Context, header *types.Header) ([]*typ
 	for i, log := range logs {
 		// Copy log not to modify cache elements
 		logcopy := *log
-		logcopy.TxHash = body.Transactions[logcopy.TxIndex].Hash()
+		// Block receipts reference a non existent transaction ocurring after the last transaction.
+		// We use the block hash in place of the transaction hash for the block receipt.
+		if logcopy.TxIndex == uint(len(body.Transactions)) {
+			logcopy.TxHash = logcopy.BlockHash
+		} else {
+			logcopy.TxHash = body.Transactions[logcopy.TxIndex].Hash()
+		}
 		logs[i] = &logcopy
 	}
 	return logs, nil
