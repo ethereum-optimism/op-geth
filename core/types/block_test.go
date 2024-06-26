@@ -317,3 +317,109 @@ func TestRlpDecodeParentHash(t *testing.T) {
 		}
 	}
 }
+
+func TestCheckTransactionConditional(t *testing.T) {
+	u64Ptr := func(n uint64) *uint64 {
+		return &n
+	}
+
+	tests := []struct {
+		name   string
+		header Header
+		cond   TransactionConditional
+		valid  bool
+	}{
+		{
+			"BlockNumberMaxFails",
+			Header{Number: big.NewInt(2)},
+			TransactionConditional{BlockNumberMax: big.NewInt(1)},
+			false,
+		},
+		{
+			"BlockNumberMaxEqualSucceeds",
+			Header{Number: big.NewInt(2)},
+			TransactionConditional{BlockNumberMax: big.NewInt(2)},
+			true,
+		},
+		{
+			"BlockNumberMaxSucceeds",
+			Header{Number: big.NewInt(1)},
+			TransactionConditional{BlockNumberMax: big.NewInt(2)},
+			true,
+		},
+		{
+			"BlockNumberMinFails",
+			Header{Number: big.NewInt(1)},
+			TransactionConditional{BlockNumberMin: big.NewInt(2)},
+			false,
+		},
+		{
+			"BlockNumberMinEqualSuccess",
+			Header{Number: big.NewInt(2)},
+			TransactionConditional{BlockNumberMin: big.NewInt(2)},
+			true,
+		},
+		{
+			"BlockNumberMinSuccess",
+			Header{Number: big.NewInt(4)},
+			TransactionConditional{BlockNumberMin: big.NewInt(3)},
+			true,
+		},
+		{
+			"BlockNumberRangeSucceeds",
+			Header{Number: big.NewInt(5)},
+			TransactionConditional{BlockNumberMin: big.NewInt(1), BlockNumberMax: big.NewInt(10)},
+			true,
+		},
+		{
+			"BlockNumberRangeFails",
+			Header{Number: big.NewInt(15)},
+			TransactionConditional{BlockNumberMin: big.NewInt(1), BlockNumberMax: big.NewInt(10)},
+			false,
+		},
+		{
+			"BlockTimestampMinFails",
+			Header{Time: 1},
+			TransactionConditional{TimestampMin: u64Ptr(2)},
+			false,
+		},
+		{
+			"BlockTimestampMinSucceeds",
+			Header{Time: 2},
+			TransactionConditional{TimestampMin: u64Ptr(1)},
+			true,
+		},
+		{
+			"BlockTimestampMinEqualSucceeds",
+			Header{Time: 1},
+			TransactionConditional{TimestampMin: u64Ptr(1)},
+			true,
+		},
+		{
+			"BlockTimestampMaxFails",
+			Header{Time: 2},
+			TransactionConditional{TimestampMax: u64Ptr(1)},
+			false,
+		},
+		{
+			"BlockTimestampMaxSucceeds",
+			Header{Time: 1},
+			TransactionConditional{TimestampMax: u64Ptr(2)},
+			true,
+		},
+		{
+			"BlockTimestampMaxEqualSucceeds",
+			Header{Time: 2},
+			TransactionConditional{TimestampMax: u64Ptr(2)},
+			true,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if err := test.header.CheckTransactionConditional(&test.cond); err == nil && !test.valid {
+				t.Errorf("Test %s got unvalid value, want %v, got err %v", test.name, test.valid, err)
+			}
+		})
+	}
+}

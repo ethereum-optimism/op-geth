@@ -64,6 +64,12 @@ type Transaction struct {
 
 	// cache of details to compute the data availability fee
 	rollupCostData atomic.Value
+
+	// optional preconditions for inclusion
+	conditional atomic.Pointer[TransactionConditional]
+
+	// an indicator if this transaction is rejected during block building
+	rejected atomic.Bool
 }
 
 // NewTx creates a new transaction.
@@ -387,6 +393,26 @@ func (tx *Transaction) RollupCostData() RollupCostData {
 	return out
 }
 
+// Conditional returns the conditional attached to the transaction
+func (tx *Transaction) Conditional() *TransactionConditional {
+	return tx.conditional.Load()
+}
+
+// SetConditional attaches a conditional to the transaction
+func (tx *Transaction) SetConditional(cond *TransactionConditional) {
+	tx.conditional.Store(cond)
+}
+
+// Rejected will mark this transaction as rejected.
+func (tx *Transaction) SetRejected() {
+	tx.rejected.Store(true)
+}
+
+// Rejected returns the rejected status of this tx
+func (tx *Transaction) Rejected() bool {
+	return tx.rejected.Load()
+}
+
 // RawSignatureValues returns the V, R, S signature values of the transaction.
 // The return values should not be modified by the caller.
 // The return values may be nil or zero, if the transaction is unsigned.
@@ -549,9 +575,9 @@ func (tx *Transaction) WithBlobTxSidecar(sideCar *BlobTxSidecar) *Transaction {
 	return cpy
 }
 
-// SetTime sets the decoding time of a transaction. This is used by tests to set
-// arbitrary times and by persistent transaction pools when loading old txs from
-// disk.
+// SetTime sets the decoding time of a transaction. Used by the sequencer API to
+// determine mempool time spent by conditional txs and by tests to set arbitrary
+// times and by persistent transaction pools when loading old txs from disk.
 func (tx *Transaction) SetTime(t time.Time) {
 	tx.time = t
 }

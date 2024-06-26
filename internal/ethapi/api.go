@@ -2415,3 +2415,8 @@ func checkTxFee(gasPrice *big.Int, gas uint64, cap float64) error {
 	}
 	return nil
 }
+
+// CheckTxFee exports a helper function used to check whether the fee is reasonable
+func CheckTxFee(gasPrice *big.Int, gas uint64, cap float64) error {
+	return checkTxFee(gasPrice, gas, cap)
+}

@@ -1733,6 +1733,16 @@ func (pool *LegacyPool) demoteUnexecutables() {
 		}
 		pendingNofundsMeter.Mark(int64(len(drops)))
 
+		// Drop all transactions that were rejected by the miner
+		rejectedDrops := list.txs.Filter(func(tx *types.Transaction) bool {
+			return tx.Rejected()
+		})
+		for _, tx := range rejectedDrops {
+			hash := tx.Hash()
+			pool.all.Remove(hash)
+			log.Trace("Removed rejected transaction", "hash", hash)
+		}
+
 		for _, tx := range invalids {
 			hash := tx.Hash()
 			log.Trace("Demoting pending transaction", "hash", hash)
@@ -1740,9 +1750,9 @@ func (pool *LegacyPool) demoteUnexecutables() {
 			// Internal shuffle shouldn't touch the lookup set.
 			pool.enqueueTx(hash, tx, false, false)
 		}
-		pendingGauge.Dec(int64(len(olds) + len(drops) + len(invalids)))
+		pendingGauge.Dec(int64(len(olds) + len(drops) + len(invalids) + len(rejectedDrops)))
 		if pool.locals.contains(addr) {
-			localGauge.Dec(int64(len(olds) + len(drops) + len(invalids)))
+			localGauge.Dec(int64(len(olds) + len(drops) + len(invalids) + len(rejectedDrops)))
 		}
 		// If there's a gap in front, alert (should never happen) and postpone all transactions
 		if list.Len() > 0 && list.txs.Get(nonce) == nil {

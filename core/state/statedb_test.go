@@ -1373,3 +1373,221 @@ func TestStorageDirtiness(t *testing.T) {
 	state.RevertToSnapshot(snap)
 	checkDirty(common.Hash{0x1}, common.Hash{0x1}, true)
 }
+
+func TestCheckTransactionConditional(t *testing.T) {
+	type preAction struct {
+		Account common.Address
+		Slots   map[common.Hash]common.Hash
+	}
+
+	tests := []struct {
+		name       string
+		preActions []preAction
+		cond       types.TransactionConditional
+		valid      bool
+	}{
+		{
+			// Clean Prestate, no defined cond
+			name:       "clean prestate",
+			preActions: []preAction{},
+			cond:       types.TransactionConditional{},
+			valid:      true,
+		},
+		{
+			// Prestate:
+			// - address(1)
+			//   - bytes32(0): bytes32(1)
+			// cond:
+			// - address(1)
+			//   - bytes32(0): bytes32(1)
+			name: "matching storage slots",
+			preActions: []preAction{
+				{
+					Account: common.Address{19: 1},
+					Slots: map[common.Hash]common.Hash{
+						common.Hash{}: common.Hash{31: 1},
+					},
+				},
+			},
+			cond: types.TransactionConditional{
+				KnownAccounts: map[common.Address]types.KnownAccount{
+					common.Address{19: 1}: types.KnownAccount{
+						StorageSlots: map[common.Hash]common.Hash{
+							common.Hash{}: common.Hash{31: 1},
+						},
+					},
+				},
+			},
+			valid: true,
+		},
+		{
+			// Prestate:
+			// - address(1)
+			//   - bytes32(0): bytes32(1)
+			// cond:
+			// - address(1)
+			//   - bytes32(0): bytes32(2)
+			name: "mismatched storage slots",
+			preActions: []preAction{
+				{
+					Account: common.Address{19: 1},
+					Slots: map[common.Hash]common.Hash{
+						common.Hash{}: common.Hash{31: 1},
+					},
+				},
+			},
+			cond: types.TransactionConditional{
+				KnownAccounts: map[common.Address]types.KnownAccount{
+					common.Address{19: 1}: types.KnownAccount{
+						StorageSlots: map[common.Hash]common.Hash{
+							common.Hash{}: common.Hash{31: 2},
+						},
+					},
+				},
+			},
+			valid: false,
+		},
+		{
+			// Clean Prestate
+			// cond:
+			// - address(1)
+			//   - emptyRoot
+			name:       "matching storage root",
+			preActions: []preAction{},
+			cond: types.TransactionConditional{
+				KnownAccounts: map[common.Address]types.KnownAccount{
+					common.Address{19: 1}: types.KnownAccount{
+						StorageRoot: &types.EmptyRootHash,
+					},
+				},
+			},
+			valid: true,
+		},
+		{
+			// Prestate:
+			// - address(1)
+			//   - bytes32(0): bytes32(1)
+			// cond:
+			// - address(1)
+			//   - emptyRoot
+			name: "mismatched storage root",
+			preActions: []preAction{
+				{
+					Account: common.Address{19: 1},
+					Slots: map[common.Hash]common.Hash{
+						common.Hash{}: common.Hash{31: 1},
+					},
+				},
+			},
+			cond: types.TransactionConditional{
+				KnownAccounts: map[common.Address]types.KnownAccount{
+					common.Address{19: 1}: types.KnownAccount{
+						StorageRoot: &types.EmptyRootHash,
+					},
+				},
+			},
+			valid: false,
+		},
+		{
+			// Prestate:
+			// - address(1)
+			//   - bytes32(0): bytes32(1)
+			// - address(2)
+			//   - bytes32(0): bytes32(2)
+			// cond:
+			// - address(1)
+			//   - bytes32(0): bytes32(1)
+			// - address(2)
+			//   - bytes32(0): bytes32(2)
+			name: "multiple matching",
+			preActions: []preAction{
+				{
+					Account: common.Address{19: 1},
+					Slots: map[common.Hash]common.Hash{
+						common.Hash{}: common.Hash{31: 1},
+					},
+				},
+				{
+					Account: common.Address{19: 2},
+					Slots: map[common.Hash]common.Hash{
+						common.Hash{}: common.Hash{31: 2},
+					},
+				},
+			},
+			cond: types.TransactionConditional{
+				KnownAccounts: map[common.Address]types.KnownAccount{
+					common.Address{19: 1}: types.KnownAccount{
+						StorageSlots: map[common.Hash]common.Hash{
+							common.Hash{}: common.Hash{31: 1},
+						},
+					},
+					common.Address{19: 2}: types.KnownAccount{
+						StorageSlots: map[common.Hash]common.Hash{
+							common.Hash{}: common.Hash{31: 2},
+						},
+					},
+				},
+			},
+			valid: true,
+		},
+		{
+			// Prestate:
+			// - address(1)
+			//   - bytes32(0): bytes32(1)
+			// - address(2)
+			//   - bytes32(0): bytes32(3)
+			// cond:
+			// - address(1)
+			//   - bytes32(0): bytes32(1)
+			// - address(2)
+			//   - bytes32(0): bytes32(2)
+			name: "multiple mismatch single",
+			preActions: []preAction{
+				{
+					Account: common.Address{19: 1},
+					Slots: map[common.Hash]common.Hash{
+						common.Hash{}: common.Hash{31: 1},
+					},
+				},
+				{
+					Account: common.Address{19: 2},
+					Slots: map[common.Hash]common.Hash{
+						common.Hash{}: common.Hash{31: 3},
+					},
+				},
+			},
+			cond: types.TransactionConditional{
+				KnownAccounts: map[common.Address]types.KnownAccount{
+					common.Address{19: 1}: types.KnownAccount{
+						StorageSlots: map[common.Hash]common.Hash{
+							common.Hash{}: common.Hash{31: 1},
+						},
+					},
+					common.Address{19: 2}: types.KnownAccount{
+						StorageSlots: map[common.Hash]common.Hash{
+							common.Hash{}: common.Hash{31: 2},
+						},
+					},
+				},
+			},
+			valid: false,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			state, _ := New(types.EmptyRootHash, NewDatabase(rawdb.NewMemoryDatabase()), nil)
+			for _, action := range test.preActions {
+				for key, value := range action.Slots {
+					state.SetState(action.Account, key, value)
+				}
+			}
+
+			// write modifications to the trie
+			state.IntermediateRoot(false)
+			if err := state.CheckTransactionConditional(&test.cond); err == nil && !test.valid {
+				t.Errorf("Test %s got unvalid value: want %v, got err %v", test.name, test.valid, err)
+			}
+		})
+	}
+}

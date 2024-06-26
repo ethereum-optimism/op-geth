@@ -166,6 +166,23 @@ func (h *Header) EmptyReceipts() bool {
 	return h.ReceiptHash == EmptyReceiptsHash
 }
 
+// CheckTransactionConditional validates the block preconditions against the header
+func (h *Header) CheckTransactionConditional(cond *TransactionConditional) error {
+	if cond.BlockNumberMin != nil && cond.BlockNumberMin.Cmp(h.Number) > 0 {
+		return fmt.Errorf("failed block number minimum constraint")
+	}
+	if cond.BlockNumberMax != nil && cond.BlockNumberMax.Cmp(h.Number) < 0 {
+		return fmt.Errorf("failed block number maximmum constraint")
+	}
+	if cond.TimestampMin != nil && *cond.TimestampMin > h.Time {
+		return fmt.Errorf("failed timestamp minimum constraint")
+	}
+	if cond.TimestampMax != nil && *cond.TimestampMax < h.Time {
+		return fmt.Errorf("failed timestamp maximum constraint")
+	}
+	return nil
+}
+
 // Body is a simple (mutable, non-safe) data container for storing and moving
 // a block's data contents (transactions and uncles) together.
 type Body struct {
