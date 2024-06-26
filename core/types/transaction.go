@@ -64,6 +64,9 @@ type Transaction struct {
 
 	// cache of details to compute the data availability fee
 	rollupCostData atomic.Value
+
+	// optional preconditions for inclusion
+	conditional atomic.Value
 }
 
 // NewTx creates a new transaction.
@@ -385,6 +388,20 @@ func (tx *Transaction) RollupCostData() RollupCostData {
 	out := NewRollupCostData(data)
 	tx.rollupCostData.Store(out)
 	return out
+}
+
+// Conditional returns the conditional attached to the transaction
+func (tx *Transaction) Conditional() *TransactionConditional {
+	v := tx.conditional.Load()
+	if v == nil {
+		return nil
+	}
+	return v.(*TransactionConditional)
+}
+
+// SetConditional attaches a conditional to the transaction
+func (tx *Transaction) SetConditional(cond *TransactionConditional) {
+	tx.conditional.Store(cond)
 }
 
 // RawSignatureValues returns the V, R, S signature values of the transaction.

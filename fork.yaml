@@ -275,6 +275,25 @@ def:
             and the chain ID formula on signature data must not be used, or an underflow happens.
           globs:
             - "internal/ethapi/testdata/eth_getBlockByNumber-tag-pending-fullTx.json"
+    - title: "4337 Improvements"
+      description: ""
+      sub:
+        - title: eth_sendRawTransactionConditional
+          description: sequencer api for conditional transaction inclusion enforced out of protocol
+          globs:
+            - "cmd/geth/main.go"
+            - "cmd/utils/flags.go"
+            - "core/state/statedb.go"
+            - "core/types/block.go"
+            - "core/types/transaction.go"
+            - "core/types/transaction_conditional.go"
+            - "eth/backend.go"
+            - "eth/ethconfig/config.go"
+            - "eth/protocols/eth/broadcast.go"
+            - "internal/sequencerapi/api.go"
+            - "internal/sequencerapi/errors.go"
+            - "miner/worker.go"
+            - "miner/miner.go"
     - title: "Geth extras"
       description: Extend the tools available in geth to improve external testing and tooling.
       sub:

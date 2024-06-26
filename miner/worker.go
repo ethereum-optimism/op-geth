@@ -35,6 +35,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/eth/tracers"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/holiman/uint256"
 )
@@ -46,10 +47,16 @@ const (
 )
 
 var (
+	errTxConditionalInvalid     = errors.New("transaction conditional failed")
+	errTxConditionalRateLimited = errors.New("transaction conditional rate limited")
+
 	errBlockInterruptedByNewHead  = errors.New("new head arrived while building block")
 	errBlockInterruptedByRecommit = errors.New("recommit interrupt while building block")
 	errBlockInterruptedByTimeout  = errors.New("timeout while building block")
 	errBlockInterruptedByResolve  = errors.New("payload resolution while building block")
+
+	txConditionalRejectedCounter = metrics.NewRegisteredCounter("miner/transactionConditional/rejected", nil)
+	txConditionalMinedTimer      = metrics.NewRegisteredTimer("miner/transactionConditional/elapsedtime", nil)
 )
 
 // environment is the worker's current environment and holds all
@@ -287,6 +294,29 @@ func (miner *Miner) commitTransaction(env *environment, tx *types.Transaction) e
 	if tx.Type() == types.BlobTxType {
 		return miner.commitBlobTransaction(env, tx)
 	}
+
+	// If a conditional is set, check prior to applying
+	if conditional := tx.Conditional(); conditional != nil {
+		now, cost := time.Now(), conditional.Cost()
+		if !miner.conditionalLimiter.AllowN(now, cost) {
+			return fmt.Errorf("exceeded rate limit: cost %d, tokens %f: %w", cost, miner.conditionalLimiter.Tokens(), errTxConditionalRateLimited)
+		}
+
+		// ditch the reservation as we've checked that we're allowed `cost` units by the limiter
+		miner.conditionalLimiter.ReserveN(now, cost)
+		txConditionalMinedTimer.UpdateSince(conditional.SubmissionTime)
+
+		// check the conditional
+		if err := env.header.CheckTransactionConditional(conditional); err != nil {
+			conditional.Rejected.Store(true)
+			return fmt.Errorf("failed header check: %s: %w", err, errTxConditionalInvalid)
+		}
+		if err := env.state.CheckTransactionConditional(conditional); err != nil {
+			conditional.Rejected.Store(true)
+			return fmt.Errorf("failed state check: %s: %w", err, errTxConditionalInvalid)
+		}
+	}
+
 	receipt, err := miner.applyTransaction(env, tx)
 	if err != nil {
 		return err
@@ -421,6 +451,18 @@ func (miner *Miner) commitTransactions(env *environment, plainTxs, blobTxs *tran
 			// New head notification data race between the transaction pool and miner, shift
 			log.Trace("Skipping transaction with low nonce", "hash", ltx.Hash, "sender", from, "nonce", tx.Nonce())
 			txs.Shift()
+
+		case errors.Is(err, errTxConditionalInvalid):
+			// err contains contextual info on the failed conditional
+			txConditionalRejectedCounter.Inc(1)
+			log.Debug("Skipping account, transaction with failed conditional", "sender", from, "hash", ltx.Hash, "err", err)
+			txs.Pop()
+
+		case errors.Is(err, errTxConditionalRateLimited):
+			// err contains contextual info of the cost and limiter tokens available
+			txConditionalRejectedCounter.Inc(1)
+			log.Debug("Skipping account, transaction with conditional rate limited", "sender", from, "hash", ltx.Hash, "err", err)
+			txs.Pop()
 
 		case errors.Is(err, nil):
 			// Everything ok, collect the logs and shift in the next transaction from the same account

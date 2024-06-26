@@ -33,6 +33,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth/tracers"
 	"github.com/ethereum/go-ethereum/params"
+	"golang.org/x/time/rate"
 )
 
 // Backend wraps all methods required for mining. Only full node is capable
@@ -55,8 +56,10 @@ type Config struct {
 	GasPrice            *big.Int       // Minimum gas price for mining a transaction
 	Recommit            time.Duration  // The time interval for miner to re-create mining work.
 
-	RollupComputePendingBlock bool   // Compute the pending block from tx-pool, instead of copying the latest-block
-	EffectiveGasCeil          uint64 // if non-zero, a gas ceiling to apply independent of the header's gaslimit value
+	RollupComputePendingBlock             bool // Compute the pending block from tx-pool, instead of copying the latest-block
+	RollupTransactionConditionalBurstRate int  // Total number of conditional cost units allowed in a second
+
+	EffectiveGasCeil uint64 // if non-zero, a gas ceiling to apply independent of the header's gaslimit value
 }
 
 // DefaultConfig contains default settings for miner.
@@ -84,18 +87,22 @@ type Miner struct {
 	pendingMu   sync.Mutex // Lock protects the pending block
 
 	backend Backend
+
+	// TransactionConditional safegaurds
+	conditionalLimiter *rate.Limiter
 }
 
 // New creates a new miner with provided config.
 func New(eth Backend, config Config, engine consensus.Engine) *Miner {
 	return &Miner{
-		backend:     eth,
-		config:      &config,
-		chainConfig: eth.BlockChain().Config(),
-		engine:      engine,
-		txpool:      eth.TxPool(),
-		chain:       eth.BlockChain(),
-		pending:     &pending{},
+		backend:            eth,
+		config:             &config,
+		chainConfig:        eth.BlockChain().Config(),
+		engine:             engine,
+		txpool:             eth.TxPool(),
+		chain:              eth.BlockChain(),
+		pending:            &pending{},
+		conditionalLimiter: rate.NewLimiter(types.TransactionConditionalMaxCost, config.RollupTransactionConditionalBurstRate),
 	}
 }
 

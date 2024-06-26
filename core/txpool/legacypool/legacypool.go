@@ -1724,6 +1724,7 @@ func (pool *LegacyPool) demoteUnexecutables() {
 		}
 		balance := pool.currentState.GetBalance(addr)
 		balance = pool.reduceBalanceByL1Cost(list, balance)
+
 		// Drop all transactions that are too costly (low balance or out of gas), and queue any invalids back for later
 		drops, invalids := list.Filter(balance, gasLimit)
 		for _, tx := range drops {
@@ -1733,6 +1734,19 @@ func (pool *LegacyPool) demoteUnexecutables() {
 		}
 		pendingNofundsMeter.Mark(int64(len(drops)))
 
+		// Drop all conditional transactions that was rejected by the miner
+		conditionalDrops := list.txs.Filter(func(tx *types.Transaction) bool {
+			if conditional := tx.Conditional(); conditional != nil {
+				return conditional.Rejected.Load()
+			}
+			return false
+		})
+		for _, tx := range conditionalDrops {
+			hash := tx.Hash()
+			log.Trace("Removed conditional transaction rejected by the miner", "hash", hash)
+			pool.all.Remove(hash)
+		}
+
 		for _, tx := range invalids {
 			hash := tx.Hash()
 			log.Trace("Demoting pending transaction", "hash", hash)
@@ -1740,9 +1754,9 @@ func (pool *LegacyPool) demoteUnexecutables() {
 			// Internal shuffle shouldn't touch the lookup set.
 			pool.enqueueTx(hash, tx, false, false)
 		}
-		pendingGauge.Dec(int64(len(olds) + len(drops) + len(invalids)))
+		pendingGauge.Dec(int64(len(olds) + len(drops) + len(invalids) + len(conditionalDrops)))
 		if pool.locals.contains(addr) {
-			localGauge.Dec(int64(len(olds) + len(drops) + len(invalids)))
+			localGauge.Dec(int64(len(olds) + len(drops) + len(invalids) + len(conditionalDrops)))
 		}
 		// If there's a gap in front, alert (should never happen) and postpone all transactions
 		if list.Len() > 0 && list.txs.Get(nonce) == nil {

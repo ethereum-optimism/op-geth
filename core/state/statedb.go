@@ -425,6 +425,38 @@ func (s *StateDB) HasSelfDestructed(addr common.Address) bool {
 	return false
 }
 
+// CheckTransactionConditional validates the account preconditions against the statedb.
+//
+// NOTE: A lock is not held on the db while the conditional is checked. The caller must
+// ensure no state changes occur while this check is executed.
+func (s *StateDB) CheckTransactionConditional(cond *types.TransactionConditional) error {
+	cost := cond.Cost()
+	if cost > types.TransactionConditionalMaxCost {
+		return fmt.Errorf("conditional cost, %d, exceeded max: %d", cost, types.TransactionConditionalMaxCost)
+	}
+
+	for addr, acct := range cond.KnownAccounts {
+		if root, isRoot := acct.Root(); isRoot {
+			storageRoot := s.GetStorageRoot(addr)
+			if storageRoot == (common.Hash{}) { // if the root is not found, replace with the empty root hash
+				storageRoot = types.EmptyRootHash
+			}
+			if root != storageRoot {
+				return fmt.Errorf("failed account storage root constraint. Got %s, Expected %s", storageRoot, root)
+			}
+		}
+		if slots, isSlots := acct.Slots(); isSlots {
+			for key, state := range slots {
+				accState := s.GetState(addr, key)
+				if state != accState {
+					return fmt.Errorf("failed account storage slot key %s constraint. Got %s, Expected %s", key, accState, state)
+				}
+			}
+		}
+	}
+	return nil
+}
+
 /*
  * SETTERS
  */

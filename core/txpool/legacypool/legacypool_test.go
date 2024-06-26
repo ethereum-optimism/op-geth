@@ -690,6 +690,43 @@ func TestDropping(t *testing.T) {
 	}
 }
 
+// Tests that transactions marked as reject (by the miner in practice)
+// are removed from the pool
+func TestRejectedConditionalDropping(t *testing.T) {
+	t.Parallel()
+
+	pool, key := setupPool()
+	defer pool.Close()
+
+	account := crypto.PubkeyToAddress(key.PublicKey)
+	testAddBalance(pool, account, big.NewInt(1000))
+
+	// create some txs. tx0 has a conditional
+	tx0, tx1 := transaction(0, 100, key), transaction(1, 200, key)
+	tx0.SetConditional(&types.TransactionConditional{
+		BlockNumberMin: big.NewInt(1),
+		Rejected:       &atomic.Bool{},
+	})
+
+	pool.all.Add(tx0, false)
+	pool.all.Add(tx1, false)
+	pool.promoteTx(account, tx0.Hash(), tx0)
+	pool.promoteTx(account, tx1.Hash(), tx1)
+
+	// pool state is unchanged
+	<-pool.requestReset(nil, nil)
+	if pool.all.Count() != 2 {
+		t.Errorf("total transaction mismatch: have %d, want %d", pool.all.Count(), 2)
+	}
+
+	// tx0 conditional is marked as rejected and should be removed
+	tx0.Conditional().Rejected.Store(true)
+	<-pool.requestReset(nil, nil)
+	if pool.all.Count() != 1 {
+		t.Errorf("total transaction mismatch: have %d, want %d", pool.all.Count(), 1)
+	}
+}
+
 // Tests that if a transaction is dropped from the current pending pool (e.g. out
 // of fund), all consecutive (still valid, but not executable) transactions are
 // postponed back into the future queue to prevent broadcasting them.
