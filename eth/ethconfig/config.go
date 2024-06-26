@@ -184,6 +184,7 @@ type Config struct {
 	ApplySuperchainUpgrades bool `toml:",omitempty"`
 
 	RollupSequencerHTTP                     string
+	RollupSequencerEnableTxConditional      bool
 	RollupHistoricalRPC                     string
 	RollupHistoricalRPCTimeout              time.Duration
 	RollupDisableTxPoolGossip               bool
