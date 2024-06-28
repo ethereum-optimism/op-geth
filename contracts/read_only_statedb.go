@@ -15,6 +15,7 @@ import (
 //	GetState(common.Address, common.Hash) common.Hash
 //	GetCodeHash(common.Address) common.Hash
 //	GetCode(common.Address) []byte
+//	GetCodeSize(common.Address) int
 //	GetBalance(common.Address) *uint256.Int
 //	Exists(common.Address) bool
 //	Empty(common.Address) bool
@@ -49,10 +50,6 @@ func (r *ReadOnlyStateDB) SetNonce(common.Address, uint64) {
 }
 
 func (r *ReadOnlyStateDB) SetCode(common.Address, []byte) {
-	panic("not implemented")
-}
-
-func (r *ReadOnlyStateDB) GetCodeSize(common.Address) int {
 	panic("not implemented")
 }
 
