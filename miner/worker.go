@@ -38,9 +38,11 @@ import (
 	"github.com/ethereum/go-ethereum/eth/tracers"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/trie"
 	"github.com/holiman/uint256"
+	"golang.org/x/time/rate"
 )
 
 const (
@@ -78,10 +80,16 @@ const (
 )
 
 var (
+	errTxConditionalInvalid     = errors.New("transaction conditional failed")
+	errTxConditionalRateLimited = errors.New("transaction conditional rate limited")
+
 	errBlockInterruptedByNewHead  = errors.New("new head arrived while building block")
 	errBlockInterruptedByRecommit = errors.New("recommit interrupt while building block")
 	errBlockInterruptedByTimeout  = errors.New("timeout while building block")
 	errBlockInterruptedByResolve  = errors.New("payload resolution while building block")
+
+	txConditionalRejectedCounter = metrics.NewRegisteredCounter("miner/transactionConditional/rejected", nil)
+	txConditionalMinedTimer      = metrics.NewRegisteredTimer("miner/transactionConditional/elapsedtime", nil)
 )
 
 // environment is the worker's current environment and holds all
@@ -245,6 +253,9 @@ type worker struct {
 	skipSealHook func(*task) bool                   // Method to decide whether skipping the sealing.
 	fullTaskHook func()                             // Method to call before pushing the full sealing task.
 	resubmitHook func(time.Duration, time.Duration) // Method to call upon updating resubmitting interval.
+
+	// TransactionConditional safegaurds
+	conditionalLimiter *rate.Limiter
 }
 
 func newWorker(config *Config, chainConfig *params.ChainConfig, engine consensus.Engine, eth Backend, mux *event.TypeMux, isLocalBlock func(header *types.Header) bool, init bool) *worker {
@@ -275,6 +286,8 @@ func newWorker(config *Config, chainConfig *params.ChainConfig, engine consensus
 	worker.txsSub = eth.TxPool().SubscribeTransactions(worker.txsCh, true)
 	// Subscribe events for blockchain
 	worker.chainHeadSub = eth.BlockChain().SubscribeChainHeadEvent(worker.chainHeadCh)
+	// Initialize the limiter for conditional txs
+	worker.conditionalLimiter = rate.NewLimiter(types.TransactionConditionalMaxCost, config.RollupTransactionConditionalBurstRate)
 
 	// Sanitize recommit interval if the user-specified one is too short.
 	recommit := worker.config.Recommit
@@ -799,6 +812,27 @@ func (w *worker) commitTransaction(env *environment, tx *types.Transaction) ([]*
 	if tx.Type() == types.BlobTxType {
 		return w.commitBlobTransaction(env, tx)
 	}
+
+	// If a conditional is set, check prior to applying
+	if conditional := tx.Conditional(); conditional != nil {
+		now, cost := time.Now(), conditional.Cost()
+		if !w.conditionalLimiter.AllowN(now, cost) {
+			return nil, fmt.Errorf("exceeded rate limit: cost %d, tokens %f: %w", cost, w.conditionalLimiter.Tokens(), errTxConditionalRateLimited)
+		}
+
+		// ditch the reservation as we've checked that we're allowed `cost` units by the limiter
+		w.conditionalLimiter.ReserveN(now, cost)
+		txConditionalMinedTimer.UpdateSince(conditional.SubmissionTime)
+
+		// check the conditional
+		if err := env.header.CheckTransactionConditional(conditional); err != nil {
+			return nil, fmt.Errorf("failed header check: %s: %w", err, errTxConditionalInvalid)
+		}
+		if err := env.state.CheckTransactionConditional(conditional); err != nil {
+			return nil, fmt.Errorf("failed state check: %s: %w", err, errTxConditionalInvalid)
+		}
+	}
+
 	receipt, err := w.applyTransaction(env, tx)
 	if err != nil {
 		return nil, err
@@ -933,6 +967,18 @@ func (w *worker) commitTransactions(env *environment, plainTxs, blobTxs *transac
 			// New head notification data race between the transaction pool and miner, shift
 			log.Trace("Skipping transaction with low nonce", "hash", ltx.Hash, "sender", from, "nonce", tx.Nonce())
 			txs.Shift()
+
+		case errors.Is(err, errTxConditionalInvalid):
+			// err contains contextual info on the failed conditional
+			txConditionalRejectedCounter.Inc(1)
+			log.Debug("Skipping transaction with failed conditional", "sender", from, "hash", ltx.Hash, "err", err)
+			txs.Pop()
+
+		case errors.Is(err, errTxConditionalRateLimited):
+			// err contains contextual info of the cost and limiter tokens available
+			txConditionalRejectedCounter.Inc(1)
+			log.Debug("Skipping transaction with conditional due to rate limit", "sender", from, "hash", ltx.Hash, "err", err)
+			txs.Pop()
 
 		case errors.Is(err, nil):
 			// Everything ok, collect the logs and shift in the next transaction from the same account

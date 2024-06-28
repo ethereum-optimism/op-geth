@@ -60,8 +60,10 @@ type Config struct {
 
 	NewPayloadTimeout time.Duration // The maximum time allowance for creating a new payload
 
-	RollupComputePendingBlock bool   // Compute the pending block from tx-pool, instead of copying the latest-block
-	EffectiveGasCeil          uint64 // if non-zero, a gas ceiling to apply independent of the header's gaslimit value
+	RollupComputePendingBlock             bool // Compute the pending block from tx-pool, instead of copying the latest-block
+	RollupTransactionConditionalBurstRate int  // Total number of conditional cost units allowed in a second
+
+	EffectiveGasCeil uint64 // if non-zero, a gas ceiling to apply independent of the header's gaslimit value
 }
 
 // DefaultConfig contains default settings for miner.

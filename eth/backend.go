@@ -49,6 +49,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
+	"github.com/ethereum/go-ethereum/internal/sequencerapi"
 	"github.com/ethereum/go-ethereum/internal/shutdowncheck"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/miner"
@@ -366,6 +367,11 @@ func (s *Ethereum) APIs() []rpc.API {
 
 	// Append any APIs exposed explicitly by the consensus engine
 	apis = append(apis, s.engine.APIs(s.BlockChain())...)
+
+	// Append any Sequencer APIs as enabled
+	if s.config.RollupSequencerEnableTxConditional {
+		apis = append(apis, sequencerapi.GetSendRawTxConditionalAPI(s.APIBackend))
+	}
 
 	// Append all the local APIs and return
 	return append(apis, []rpc.API{
