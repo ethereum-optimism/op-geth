@@ -17,6 +17,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/stretchr/testify/require"
 )
@@ -36,7 +37,7 @@ func TestCompatibilityOfChain(t *testing.T) {
 	defer cancel()
 
 	// celo-blockchain
-	c1, err := rpc.DialContext(ctx, "http://localhost:9545")
+	c1, err := rpc.DialContext(ctx, "https://alfajores-forno.celo-testnet.org")
 
 	// op-geth
 	c2, err := rpc.DialContext(ctx, "http://localhost:8545")
@@ -95,8 +96,7 @@ func TestCompatibilityOfChain(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, bbMarshalled, b2bMarshalled)
 
-		res, err = rpcCallCompare(t, c1, c2, dumpOutput, failOnFirstMismatch, "eth_getBlockByNumber", hexutil.EncodeUint64(i), true)
-		require.NoError(t, err)
+		res = rpcCallCompare(t, c1, c2, dumpOutput, failOnFirstMismatch, "eth_getBlockByNumber", hexutil.EncodeUint64(i), true)
 		// Check we got a block
 		require.NotEqual(t, "null", string(res), "block %d should not be null", i)
 		blockHash := blockHash{}
@@ -119,9 +119,9 @@ func TestCompatibilityOfChain(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, tx.Hash(), tx2.Hash())
 
-			_, err = rpcCallCompare(t, c1, c2, dumpOutput, failOnFirstMismatch, "eth_getTransactionByHash", tx.Hash())
+			_ = rpcCallCompare(t, c1, c2, dumpOutput, failOnFirstMismatch, "eth_getTransactionByHash", tx.Hash())
 			require.NoError(t, err)
-			res, err = rpcCallCompare(t, c1, c2, dumpOutput, failOnFirstMismatch, "eth_getTransactionReceipt", tx.Hash())
+			res = rpcCallCompare(t, c1, c2, dumpOutput, failOnFirstMismatch, "eth_getTransactionReceipt", tx.Hash())
 			require.NoError(t, err)
 			r := types.Receipt{}
 			err = json.Unmarshal(res, &r)
@@ -136,8 +136,7 @@ func TestCompatibilityOfChain(t *testing.T) {
 			incrementalLogs = append(incrementalLogs, r.Logs...)
 		}
 		// Get the Celo block receipt. See https://docs.celo.org/developer/migrate/from-ethereum#core-contract-calls
-		res, err = rpcCallCompare(t, c1, c2, dumpOutput, failOnFirstMismatch, "eth_getBlockReceipt", blockHash.Hash)
-		require.NoError(t, err)
+		res = rpcCallCompare(t, c1, c2, dumpOutput, failOnFirstMismatch, "eth_getBlockReceipt", blockHash.Hash)
 		if string(res) != "null" {
 			r := types.Receipt{}
 			err = json.Unmarshal(res, &r)
@@ -153,8 +152,7 @@ func TestCompatibilityOfChain(t *testing.T) {
 		}
 
 		blockReceipts := types.Receipts{}
-		res, err = rpcCallCompare(t, c1, c2, dumpOutput, failOnFirstMismatch, "eth_getBlockReceipts", hexutil.EncodeUint64(i))
-		require.NoError(t, err)
+		res = rpcCallCompare(t, c1, c2, dumpOutput, failOnFirstMismatch, "eth_getBlockReceipts", hexutil.EncodeUint64(i))
 		err = json.Unmarshal(res, &blockReceipts)
 		require.NoError(t, err)
 		require.Equal(t, incrementalBlockReceipts, blockReceipts)
@@ -163,11 +161,10 @@ func TestCompatibilityOfChain(t *testing.T) {
 	// Get all logs for the range and compare with the logs extracted from receipts.
 	from := rpc.BlockNumber(startBlock)
 	to := rpc.BlockNumber(amount + startBlock)
-	res, err = rpcCallCompare(t, c1, c2, dumpOutput, failOnFirstMismatch, "eth_getLogs", filterQuery{
+	res = rpcCallCompare(t, c1, c2, dumpOutput, failOnFirstMismatch, "eth_getLogs", filterQuery{
 		FromBlock: &from,
 		ToBlock:   &to,
 	})
-	require.NoError(t, err)
 	var logs []*types.Log
 	err = json.Unmarshal(res, &logs)
 	require.NoError(t, err)
@@ -195,34 +192,21 @@ type filterQuery struct {
 	Topics    []interface{}    `json:"topics"`
 }
 
-// TODO (Alec)
-func rpcCallCompare(t *testing.T, c1, c2 *rpc.Client, dumpOutput, failOnFirstMismatch bool, method string, args ...interface{}) (json.RawMessage, error) {
-
+func rpcCallCompare(t *testing.T, c1, c2 *rpc.Client, dumpOutput, failOnFirstMismatch bool, method string, args ...interface{}) json.RawMessage {
 	res1, err := rpcCall(c1, dumpOutput, method, args...)
-	if err != nil {
-		return nil, err
-	}
-
-	// Filter out null feeCurrency fields in transactions, in CEL2 we will omit them as empty.
-	res1Filtered, err := execJQ(res1, `if type != "array" and has("transactions") and has("totalDifficulty") and has("parentHash") and (.transactions | length > 0) then .transactions |= map(if .feeCurrency == null then del(.feeCurrency) else . end) else . end`)
 	require.NoError(t, err)
-
-	res1Filtered, err = execJQ(res1Filtered, `if type != "array" and has("transactionIndex") and has("nonce") and has("type") then del(.gatewayFee, .gatewayFeeRecipient, .ethCompatible) | if .feeCurrency == null then del(.feeCurrency) else . end else . end`)
-	require.NoError(t, err)
-
 	res2, err := rpcCall(c2, dumpOutput, method, args...)
 	require.NoError(t, err)
 
-	res2Filtered, err := execJQ(res2, `if type != "array" and has("transactionIndex") and has("nonce") and has("type") then del(.chainId) else . end`)
+	res1Filtered, res2Filtered, err := filterResponses(res1, res2)
 	require.NoError(t, err)
 
 	dst1 := &bytes.Buffer{}
 	err = json.Indent(dst1, res1Filtered, "", "  ")
 	require.NoError(t, err, "res1: %v\n\nres1filtered: %v\n", string(res1), string(res1Filtered))
-
 	dst2 := &bytes.Buffer{}
 	err = json.Indent(dst2, res2Filtered, "", "  ")
-	require.NoError(t, err)
+	require.NoError(t, err, "res2: %v\n\nres2filtered: %v\n", string(res2), string(res2Filtered))
 
 	if strings.TrimSpace(dst1.String()) != strings.TrimSpace(dst2.String()) {
 		fmt.Printf("\nmethod: %v\nexpected (c1):\n%v,\nactual (c2):\n%v\n", method, dst1.String(), dst2.String())
@@ -231,7 +215,115 @@ func rpcCallCompare(t *testing.T, c1, c2 *rpc.Client, dumpOutput, failOnFirstMis
 		}
 	}
 
-	return res2Filtered, nil
+	return res2Filtered
+}
+
+var (
+	IstanbulExtraVanity = 32 // Fixed number of extra-data bytes reserved for validator vanity
+)
+
+// IstanbulAggregatedSeal is the aggregated seal for Istanbul blocks
+type IstanbulAggregatedSeal struct {
+	// Bitmap is a bitmap having an active bit for each validator that signed this block
+	Bitmap *big.Int
+	// Signature is an aggregated BLS signature resulting from signatures by each validator that signed this block
+	Signature []byte
+	// Round is the round in which the signature was created.
+	Round *big.Int
+}
+
+// IstanbulExtra is the extra-data for Istanbul blocks
+type IstanbulExtra struct {
+	// AddedValidators are the validators that have been added in the block
+	AddedValidators []common.Address
+	// AddedValidatorsPublicKeys are the BLS public keys for the validators added in the block
+	AddedValidatorsPublicKeys [][96]byte
+	// RemovedValidators is a bitmap having an active bit for each removed validator in the block
+	RemovedValidators *big.Int
+	// Seal is an ECDSA signature by the proposer
+	Seal []byte
+	// AggregatedSeal contains the aggregated BLS signature created via IBFT consensus.
+	AggregatedSeal IstanbulAggregatedSeal
+	// ParentAggregatedSeal contains and aggregated BLS signature for the previous block.
+	ParentAggregatedSeal IstanbulAggregatedSeal
+}
+
+func filterResponses(res1, res2 json.RawMessage) (json.RawMessage, json.RawMessage, error) {
+	// // For block responses, filter out null feeCurrency fields in transactions. In CEL2 we will omit them as empty.
+	// resFiltered, err := execJQ(res, `if type != "array" and has("transactions") and has("totalDifficulty") and has("parentHash") and (.transactions | length > 0) then .transactions |= map(if .feeCurrency == null then del(.feeCurrency) else . end) else . end`)
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	// //
+	// resFiltered, err := execJQ(res, `if type != "array" and has("transactionIndex") and has("nonce") and has("type") then del(.gatewayFee, .gatewayFeeRecipient, .ethCompatible) | if .feeCurrency == null then del(.feeCurrency) else . end else . end`)
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	parsed2, err := gabs.ParseJSON(res2)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// block
+	if parsed2.Exists("parentHash") && parsed2.Exists("totalDifficulty") {
+		res1Filtered, err := execJQ([]byte(res1), "del(.gasLimit, .randomness, .uncles, .sha3Uncles, .size, .epochSnarkData, .transactions[].chainId)")
+		if err != nil {
+			return nil, nil, err
+		}
+		res2Filtered, err := execJQ([]byte(res2), "del(.gasLimit, .randomness, .uncles, .sha3Uncles, .size, .epochSnarkData, .transactions[].chainId, .mixHash, .nonce)")
+		if err != nil {
+			return nil, nil, err
+		}
+
+		extraData1, err := execJQ([]byte(res1), ".extraData")
+		if err != nil {
+			return nil, nil, err
+		}
+
+		if len(extraData1) < IstanbulExtraVanity {
+			return nil, nil, fmt.Errorf("invalid istanbul header extra-data length from res1: %d", len(extraData1))
+		}
+
+		istanbulExtra := IstanbulExtra{}
+		err = rlp.DecodeBytes(hexutil.Bytes(extraData1)[IstanbulExtraVanity:], &istanbulExtra)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		// istanbulExtra := IstanbulExtra{}
+		// err = json.Unmarshal(.UnmarshalJSON).UnmarshalFixedJSON()Bytes(extraData1)[IstanbulExtraVanity:], &istanbulExtra)
+		// if err != nil {
+		// 	return nil, nil, err
+		// }
+
+		istanbulExtra.AggregatedSeal = IstanbulAggregatedSeal{}
+
+		payload, err := json.Marshal(&istanbulExtra)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		res1Filtered, err = execJQ([]byte(res1Filtered), ".extraData |=", string(append(extraData1[:IstanbulExtraVanity], payload...)))
+
+		return res1Filtered, res2Filtered, nil
+	}
+
+	// transaction
+	if parsed2.Exists("transactionIndex") && parsed2.Exists("nonce") && parsed2.Exists("type") {
+		res1Filtered, err := execJQ([]byte(res1), "del(.chainId) else . end")
+		if err != nil {
+			return nil, nil, err
+		}
+		res2Filtered, err := execJQ([]byte(res2), "del(.chainId) else . end")
+		if err != nil {
+			return nil, nil, err
+		}
+		return res1Filtered, res2Filtered, nil
+	}
+
+	return res1, res2, nil
 }
 
 func rpcCall(c *rpc.Client, dumpOutput bool, method string, args ...interface{}) (json.RawMessage, error) {
@@ -250,17 +342,7 @@ func rpcCall(c *rpc.Client, dumpOutput bool, method string, args ...interface{})
 		}
 		fmt.Printf("%v\n%v\n", method, dst.String())
 	}
-
-	parsed, err := gabs.ParseJSON(m)
-	if err != nil {
-		return nil, err
-	}
-	// Check to see if this is a block
-	if parsed.Exists("parentHash") && parsed.Exists("totalDifficulty") {
-		return execJQ([]byte(m), "del(.gasLimit, .randomness, .uncles, .sha3Uncles, .size, .epochSnarkData, .mixHash, .nonce, .transactions[].gatewayFee, .transactions[].gatewayFeeRecipient, .transactions[].ethCompatible, .transactions[].chainId)")
-	}
 	return m, nil
-
 }
 
 func execJQ(json []byte, command ...string) ([]byte, error) {
