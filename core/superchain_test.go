@@ -37,17 +37,57 @@ func TestRegistryChainConfigOverride(t *testing.T) {
 	rawdb.WriteCanonicalHash(db, bl.Hash(), 0)
 	rawdb.WriteBlock(db, bl)
 
-	// create chain config, even with incomplete genesis input: the chain config should be corrected
-	chainConfig, _, err := SetupGenesisBlockWithOverride(db, tdb, genesis, &ChainOverrides{
-		ApplySuperchainUpgrades: true,
-	})
-	if err != nil {
-		t.Fatal(err)
+	var tests = []struct {
+		name                string
+		overrides           *ChainOverrides
+		setDenominator      *uint64
+		expectedDenominator uint64
+	}{
+		{
+			name:                "ApplySuperchainUpgrades",
+			overrides:           &ChainOverrides{ApplySuperchainUpgrades: true},
+			setDenominator:      uint64ptr(50),
+			expectedDenominator: 250,
+		},
+		{
+			name:                "OverrideOptimismCanyon_denom_nil",
+			overrides:           &ChainOverrides{OverrideOptimismCanyon: uint64ptr(1)},
+			setDenominator:      nil,
+			expectedDenominator: 250,
+		},
+		{
+			name:                "OverrideOptimismCanyon_denom_0",
+			overrides:           &ChainOverrides{OverrideOptimismCanyon: uint64ptr(1)},
+			setDenominator:      uint64ptr(0),
+			expectedDenominator: 250,
+		},
+		{
+			name:                "OverrideOptimismCanyon_ignore_override",
+			overrides:           &ChainOverrides{OverrideOptimismCanyon: uint64ptr(1)},
+			setDenominator:      uint64ptr(100),
+			expectedDenominator: 100,
+		},
 	}
-	// check if we have a corrected chain config
-	if chainConfig.RegolithTime == nil {
-		t.Fatal("expected regolith time to be corrected, but time is still nil")
-	} else if *chainConfig.RegolithTime != expectedRegolithTime {
-		t.Fatalf("expected regolith time to be %d, but got %d", expectedRegolithTime, *chainConfig.RegolithTime)
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			genesis.Config.Optimism.EIP1559DenominatorCanyon = tt.setDenominator
+			// create chain config, even with incomplete genesis input: the chain config should be corrected
+			chainConfig, _, err := SetupGenesisBlockWithOverride(db, tdb, genesis, tt.overrides)
+			if err != nil {
+				t.Fatal(err)
+			}
+			// check if we have a corrected chain config
+			if chainConfig.RegolithTime == nil {
+				t.Fatal("expected regolith time to be corrected, but time is still nil")
+			} else if *chainConfig.RegolithTime != expectedRegolithTime {
+				t.Fatalf("expected regolith time to be %d, but got %d", expectedRegolithTime, *chainConfig.RegolithTime)
+			}
+
+			if tt.expectedDenominator != *chainConfig.Optimism.EIP1559DenominatorCanyon {
+				t.Fatalf("expected EIP1559DenominatorCanyon to be %d, but got %d", tt.expectedDenominator, *chainConfig.Optimism.EIP1559DenominatorCanyon)
+			}
+		})
 	}
+
 }
