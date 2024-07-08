@@ -23,14 +23,56 @@ import (
 	"github.com/ethereum/go-ethereum/common/exchange"
 )
 
+// IsCeloLegacy returns true if the transaction is a legacy celo transaction.
+// I.E. it has the fields feeCurrency, gatewayFee and gatewayFeeRecipient.
+func (tx *Transaction) IsCeloLegacy() bool {
+	switch t := tx.inner.(type) {
+	case *LegacyTx:
+		return t.CeloLegacy
+	}
+	return false
+}
+
 // FeeCurrency returns the fee currency of the transaction if there is one.
 func (tx *Transaction) FeeCurrency() *common.Address {
 	var feeCurrency *common.Address
 	switch t := tx.inner.(type) {
+	case *CeloDynamicFeeTx:
+		feeCurrency = t.FeeCurrency
 	case *CeloDynamicFeeTxV2:
+		feeCurrency = t.FeeCurrency
+	case *CeloDenominatedTx:
+		feeCurrency = t.FeeCurrency
+	case *LegacyTx:
 		feeCurrency = t.FeeCurrency
 	}
 	return feeCurrency
+}
+
+// GatewayFee returns the gateway fee of the transaction if there is one.
+// Note: this is here to support serving legacy transactions over the RPC, it should not be used in new code.
+func (tx *Transaction) GatewayFee() *big.Int {
+	var gatewayFee *big.Int
+	switch t := tx.inner.(type) {
+	case *CeloDynamicFeeTx:
+		gatewayFee = t.GatewayFee
+	case *LegacyTx:
+		gatewayFee = t.GatewayFee
+	}
+	return gatewayFee
+}
+
+// GatewayFeeRecipient returns the gateway fee recipient of the transaction if there is one.
+// Note: this is here to support serving legacy transactions over the RPC, it should not be used in new code.
+func (tx *Transaction) GatewayFeeRecipient() *common.Address {
+	var gatewayFeeRecipient *common.Address
+	switch t := tx.inner.(type) {
+	case *CeloDynamicFeeTx:
+		gatewayFeeRecipient = t.GatewayFeeRecipient
+	case *LegacyTx:
+		gatewayFeeRecipient = t.GatewayFeeRecipient
+	}
+	return gatewayFeeRecipient
 }
 
 // MaxFeeInFeeCurrency returns the maximum fee in the fee currency of the transaction if there is one.

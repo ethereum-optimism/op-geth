@@ -17,94 +17,102 @@
 package types
 
 import (
+	"errors"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/params"
 )
 
-type cel2Signer struct{ londonSigner }
+var (
+	ErrDeprecatedTxType = errors.New("deprecated transaction type")
+)
 
-// NewCel2Signer returns a signer that accepts
-// - CIP-64 celo dynamic fee transaction (v2)
-// - EIP-4844 blob transactions
-// - EIP-1559 dynamic fee transactions
-// - EIP-2930 access list transactions,
-// - EIP-155 replay protected transactions, and
-// - legacy Homestead transactions.
-func NewCel2Signer(chainId *big.Int) Signer {
-	return cel2Signer{londonSigner{eip2930Signer{NewEIP155Signer(chainId)}}}
+// celoSigner acts as an overlay signer that handles celo specific signing
+// functionality and hands off to an upstream signer for any other transaction
+// types. Unlike the signers in the go-ethereum library, the celoSigner is
+// configured with a list of forks that determine it's signing capabilities so
+// there should not be a need to create any further signers to handle celo
+// specific transaction types.
+type celoSigner struct {
+	upstreamSigner Signer
+	chainID        *big.Int
+	activatedForks forks
 }
 
-func (s cel2Signer) Sender(tx *Transaction) (common.Address, error) {
-	if tx.Type() != CeloDynamicFeeTxV2Type && tx.Type() != CeloDenominatedTxType {
-		return s.londonSigner.Sender(tx)
+// makeCeloSigner creates a new celoSigner that is configured to handle all
+// celo forks that are active at the given block time. If there are no active
+// celo forks the upstream signer will be returned.
+func makeCeloSigner(chainConfig *params.ChainConfig, blockTime uint64, upstreamSigner Signer) Signer {
+	s := &celoSigner{
+		chainID:        chainConfig.ChainID,
+		upstreamSigner: upstreamSigner,
+		activatedForks: celoForks.activeForks(blockTime, chainConfig),
 	}
-	V, R, S := tx.RawSignatureValues()
-	// DynamicFee txs are defined to use 0 and 1 as their recovery
-	// id, add 27 to become equivalent to unprotected Homestead signatures.
-	V = new(big.Int).Add(V, big.NewInt(27))
-	if tx.ChainId().Cmp(s.chainId) != 0 {
-		return common.Address{}, ErrInvalidChainId
+
+	// If there are no active celo forks, return the upstream signer
+	if len(s.activatedForks) == 0 {
+		return upstreamSigner
 	}
-	return recoverPlain(s.Hash(tx), R, S, V, true)
+	return s
 }
 
-func (s cel2Signer) Equal(s2 Signer) bool {
-	x, ok := s2.(cel2Signer)
-	return ok && x.chainId.Cmp(s.chainId) == 0
+// latestCeloSigner creates a new celoSigner that is configured to handle all
+// celo forks for non celo transaction types it will delegate to the given
+// upstream signer.
+func latestCeloSigner(chainID *big.Int, upstreamSigner Signer) Signer {
+	return &celoSigner{
+		chainID:        chainID,
+		upstreamSigner: upstreamSigner,
+		activatedForks: celoForks,
+	}
 }
 
-func (s cel2Signer) SignatureValues(tx *Transaction, sig []byte) (R, S, V *big.Int, err error) {
-	if tx.Type() != CeloDynamicFeeTxV2Type && tx.Type() != CeloDenominatedTxType {
-		return s.londonSigner.SignatureValues(tx, sig)
+// Sender implements Signer.
+func (c *celoSigner) Sender(tx *Transaction) (common.Address, error) {
+	if funcs := c.findTxFuncs(tx); funcs != nil {
+		return funcs.sender(tx, funcs.hash, c.ChainID())
 	}
-
-	// Check that chain ID of tx matches the signer. We also accept ID zero here,
-	// because it indicates that the chain ID was not specified in the tx.
-	chainID := tx.inner.chainID()
-	if chainID.Sign() != 0 && chainID.Cmp(s.chainId) != 0 {
-		return nil, nil, nil, ErrInvalidChainId
-	}
-	R, S, _ = decodeSignature(sig)
-	V = big.NewInt(int64(sig[64]))
-	return R, S, V, nil
+	return c.upstreamSigner.Sender(tx)
 }
 
-// Hash returns the hash to be signed by the sender.
-// It does not uniquely identify the transaction.
-func (s cel2Signer) Hash(tx *Transaction) common.Hash {
-	if tx.Type() == CeloDynamicFeeTxV2Type {
-		return prefixedRlpHash(
-			tx.Type(),
-			[]interface{}{
-				s.chainId,
-				tx.Nonce(),
-				tx.GasTipCap(),
-				tx.GasFeeCap(),
-				tx.Gas(),
-				tx.To(),
-				tx.Value(),
-				tx.Data(),
-				tx.AccessList(),
-				tx.FeeCurrency(),
-			})
+// SignatureValues implements Signer.
+func (c *celoSigner) SignatureValues(tx *Transaction, sig []byte) (r *big.Int, s *big.Int, v *big.Int, err error) {
+	if funcs := c.findTxFuncs(tx); funcs != nil {
+		return funcs.signatureValues(tx, sig, c.ChainID())
 	}
-	if tx.Type() == CeloDenominatedTxType {
-		return prefixedRlpHash(
-			tx.Type(),
-			[]interface{}{
-				s.chainId,
-				tx.Nonce(),
-				tx.GasTipCap(),
-				tx.GasFeeCap(),
-				tx.Gas(),
-				tx.To(),
-				tx.Value(),
-				tx.Data(),
-				tx.AccessList(),
-				tx.FeeCurrency(),
-				tx.MaxFeeInFeeCurrency(),
-			})
+	return c.upstreamSigner.SignatureValues(tx, sig)
+}
+
+// Hash implements Signer.
+func (c *celoSigner) Hash(tx *Transaction) common.Hash {
+	if funcs := c.findTxFuncs(tx); funcs != nil {
+		return funcs.hash(tx, c.ChainID())
 	}
-	return s.londonSigner.Hash(tx)
+	return c.upstreamSigner.Hash(tx)
+}
+
+// findTxFuncs returns the txFuncs for the given tx if it is supported by one
+// of the active forks. Note that this mechanism can be used to deprecate
+// support for tx types by having forks return deprecatedTxFuncs for a tx type.
+func (c *celoSigner) findTxFuncs(tx *Transaction) *txFuncs {
+	return c.activatedForks.findTxFuncs(tx)
+}
+
+// ChainID implements Signer.
+func (c *celoSigner) ChainID() *big.Int {
+	return c.chainID
+}
+
+// Equal implements Signer.
+func (c *celoSigner) Equal(s Signer) bool {
+	// Normally signers just check to see if the chainID and type are equal,
+	// because their logic is hardcoded to a specific fork. In our case we need
+	// to also know that the two signers have matching latest forks.
+	other, ok := s.(*celoSigner)
+	return ok && c.ChainID() == other.ChainID() && c.latestFork().equal(other.latestFork())
+}
+
+func (c *celoSigner) latestFork() fork {
+	return c.activatedForks[len(c.activatedForks)-1]
 }
