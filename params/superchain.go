@@ -43,6 +43,7 @@ func LoadOPStackChainConfig(chainID uint64) (*ChainConfig, error) {
 	}
 
 	genesisActivation := uint64(0)
+	eip1559DenominatorCanyon := uint64(250)
 	out := &ChainConfig{
 		ChainID:                       new(big.Int).SetUint64(chainID),
 		HomesteadBlock:                common.Big0,
@@ -76,7 +77,7 @@ func LoadOPStackChainConfig(chainID uint64) (*ChainConfig, error) {
 		Optimism: &OptimismConfig{
 			EIP1559Elasticity:        6,
 			EIP1559Denominator:       50,
-			EIP1559DenominatorCanyon: 250,
+			EIP1559DenominatorCanyon: &eip1559DenominatorCanyon,
 		},
 	}
 

@@ -59,11 +59,12 @@ func opConfig() *params.ChainConfig {
 	config := copyConfig(params.TestChainConfig)
 	config.LondonBlock = big.NewInt(5)
 	ct := uint64(10)
+	eip1559DenominatorCanyon := uint64(250)
 	config.CanyonTime = &ct
 	config.Optimism = &params.OptimismConfig{
 		EIP1559Elasticity:        6,
 		EIP1559Denominator:       50,
-		EIP1559DenominatorCanyon: 250,
+		EIP1559DenominatorCanyon: &eip1559DenominatorCanyon,
 	}
 	return config
 }
