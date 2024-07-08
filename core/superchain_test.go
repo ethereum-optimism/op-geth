@@ -89,5 +89,4 @@ func TestRegistryChainConfigOverride(t *testing.T) {
 			}
 		})
 	}
-
 }
