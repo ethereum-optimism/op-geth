@@ -680,6 +680,12 @@ func DeveloperGenesisBlock(gasLimit uint64, faucet *common.Address) *Genesis {
 	if faucet != nil {
 		genesis.Alloc[*faucet] = types.Account{Balance: new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 256), big.NewInt(9))}
 	}
+
+	// Add state from celoGenesisAccounts
+	for addr, data := range celoGenesisAccounts(common.HexToAddress("0x2")) {
+		genesis.Alloc[addr] = data
+	}
+
 	return genesis
 }
 
