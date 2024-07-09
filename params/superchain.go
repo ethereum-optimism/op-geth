@@ -76,7 +76,7 @@ func LoadOPStackChainConfig(chainID uint64) (*ChainConfig, error) {
 		Optimism: &OptimismConfig{
 			EIP1559Elasticity:        6,
 			EIP1559Denominator:       50,
-			EIP1559DenominatorCanyon: 250,
+			EIP1559DenominatorCanyon: newUint64(250),
 		},
 	}
 
