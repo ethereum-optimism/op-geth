@@ -61,7 +61,7 @@ var (
 		},
 	}
 
-	CeloDynamicFeeTxFuncs = &txFuncs{
+	celoDynamicFeeTxFuncs = &txFuncs{
 		hash: func(tx *Transaction, chainID *big.Int) common.Hash {
 			return prefixedRlpHash(
 				tx.Type(),
@@ -94,6 +94,9 @@ var (
 	}
 
 	// Custom signing functionality for CeloDenominatedTx txs.
+	//
+	// TODO remove this nolint directive when we do enable support for cip66 transactions.
+	//nolint:unused
 	celoDenominatedTxFuncs = &txFuncs{
 		hash: func(tx *Transaction, chainID *big.Int) common.Hash {
 			return prefixedRlpHash(tx.Type(), append(baseDynomicatedTxSigningFields(tx, chainID), tx.MaxFeeInFeeCurrency()))
