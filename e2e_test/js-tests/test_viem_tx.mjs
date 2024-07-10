@@ -244,4 +244,33 @@ describe("viem send tx", () => {
 			false,
 		);
 	}).timeout(10_000);
+
+	it("send tx with non-whitelisted fee currency", async () => {
+		const request = await walletClient.prepareTransactionRequest({
+			account,
+			to: "0x00000000000000000000000000000000DeaDBeef",
+			value: 2,
+			gas: 90000,
+			feeCurrency: "0x000000000000000000000000000000000badc310",
+			maxFeePerGas: 1000000000n,
+			maxPriorityFeePerGas: 0n,
+		});
+		const signature = await walletClient.signTransaction(request);
+		try {
+			await walletClient.sendRawTransaction({
+				serializedTransaction: signature,
+			});
+			assert.fail("Failed to filter nonwhitelisted feeCurrency");
+		} catch (err) {
+			// TODO: find a better way to check the error type
+			if (
+				err.cause.details ==
+				"Fee currency given is not whitelisted at current block"
+			) {
+				// Test success
+			} else {
+				throw err;
+			}
+		}
+	}).timeout(10_000);
 });
