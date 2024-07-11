@@ -99,7 +99,7 @@ func LatestSignerForChainID(chainID *big.Int) Signer {
 	if chainID == nil {
 		return HomesteadSigner{}
 	}
-	return NewCancunSigner(chainID)
+	return latestCeloSigner(chainID, NewCancunSigner(chainID))
 }
 
 // SignTx signs the transaction using the given signer and private key.
