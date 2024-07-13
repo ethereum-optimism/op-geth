@@ -39,10 +39,10 @@ import (
 )
 
 var (
-	MaxBlockFetch   = 128 // Amount of blocks to be fetched per retrieval request
-	MaxHeaderFetch  = 192 // Amount of block headers to be fetched per retrieval request
-	MaxSkeletonSize = 128 // Number of header fetches to need for a skeleton assembly
-	MaxReceiptFetch = 256 // Amount of transaction receipts to allow fetching per request
+	MaxBlockFetch   = 128 // Number of blocks to be fetched per retrieval request
+	MaxHeaderFetch  = 192 // Number of block headers to be fetched per retrieval request
+	MaxSkeletonSize = 128 // Number of header fetches needed for a skeleton assembly
+	MaxReceiptFetch = 256 // Number of transaction receipts to allow fetching per request
 
 	maxQueuedHeaders            = 32 * 1024                         // [eth/62] Maximum number of headers to queue for import (DOS protection)
 	maxHeadersProcess           = 2048                              // Number of header download results to import at once into the chain
@@ -1280,7 +1280,10 @@ func (d *Downloader) processHeaders(origin uint64, td, ttd *big.Int, beaconMode 
 	var (
 		mode       = d.getMode()
 		gotHeaders = false // Wait for batches of headers to process
+		timer      = time.NewTimer(time.Second)
 	)
+	defer timer.Stop()
+
 	for {
 		select {
 		case <-d.cancelCh:
@@ -1401,10 +1404,11 @@ func (d *Downloader) processHeaders(origin uint64, td, ttd *big.Int, beaconMode 
 				if mode == FullSync || mode == SnapSync {
 					// If we've reached the allowed number of pending headers, stall a bit
 					for d.queue.PendingBodies() >= maxQueuedHeaders || d.queue.PendingReceipts() >= maxQueuedHeaders {
+						timer.Reset(time.Second)
 						select {
 						case <-d.cancelCh:
 							return errCanceled
-						case <-time.After(time.Second):
+						case <-timer.C:
 						}
 					}
 					// Otherwise insert the headers for content retrieval
@@ -1571,7 +1575,10 @@ func (d *Downloader) processSnapSyncContent() error {
 	var (
 		oldPivot *fetchResult   // Locked in pivot block, might change eventually
 		oldTail  []*fetchResult // Downloaded content after the pivot
+		timer    = time.NewTimer(time.Second)
 	)
+	defer timer.Stop()
+
 	for {
 		// Wait for the next batch of downloaded data to be available. If we have
 		// not yet reached the pivot point, wait blockingly as there's no need to
@@ -1654,6 +1661,7 @@ func (d *Downloader) processSnapSyncContent() error {
 				oldPivot = P
 			}
 			// Wait for completion, occasionally checking for pivot staleness
+			timer.Reset(time.Second)
 			select {
 			case <-sync.done:
 				if sync.err != nil {
@@ -1664,7 +1672,7 @@ func (d *Downloader) processSnapSyncContent() error {
 				}
 				oldPivot = nil
 
-			case <-time.After(time.Second):
+			case <-timer.C:
 				oldTail = afterP
 				continue
 			}
