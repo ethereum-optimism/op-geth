@@ -26,6 +26,7 @@ import (
 	"net"
 	"net/http"
 	"reflect"
+	"slices"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -48,7 +49,6 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/stretchr/testify/mock"
-	"golang.org/x/exp/slices"
 )
 
 var (
@@ -129,7 +129,7 @@ type testBackend struct {
 	mockHistorical *mockHistoricalBackend
 }
 
-// testBackend creates a new test backend. OBS: After test is done, teardown must be
+// newTestBackend creates a new test backend. OBS: After test is done, teardown must be
 // invoked in order to release associated resources.
 func newTestBackend(t *testing.T, n int, gspec *core.Genesis, generator func(i int, b *core.BlockGen)) *testBackend {
 	mock := new(mockHistoricalBackend)
@@ -233,7 +233,7 @@ func (b *testBackend) StateAtBlock(ctx context.Context, block *types.Block, reex
 	return statedb, release, nil
 }
 
-func (b *testBackend) StateAtTransaction(ctx context.Context, block *types.Block, txIndex int, reexec uint64) (*core.Message, vm.BlockContext, *state.StateDB, StateReleaseFunc, error) {
+func (b *testBackend) StateAtTransaction(ctx context.Context, block *types.Block, txIndex int, reexec uint64) (*types.Transaction, vm.BlockContext, *state.StateDB, StateReleaseFunc, error) {
 	parent := b.chain.GetBlock(block.ParentHash(), block.NumberU64()-1)
 	if parent == nil {
 		return nil, vm.BlockContext{}, nil, nil, errBlockNotFound
@@ -252,7 +252,7 @@ func (b *testBackend) StateAtTransaction(ctx context.Context, block *types.Block
 		txContext := core.NewEVMTxContext(msg)
 		context := core.NewEVMBlockContext(block.Header(), b.chain, nil, b.chainConfig, statedb)
 		if idx == txIndex {
-			return msg, context, statedb, release, nil
+			return tx, context, statedb, release, nil
 		}
 		vmenv := vm.NewEVM(context, txContext, statedb, b.chainConfig, vm.Config{})
 		if _, err := core.ApplyMessage(vmenv, msg, new(core.GasPool).AddGas(tx.Gas())); err != nil {
@@ -848,7 +848,6 @@ func TestTracingWithOverrides(t *testing.T) {
 				From: &accounts[0].addr,
 				// BLOCKNUMBER PUSH1 MSTORE
 				Input: newRPCBytes(common.Hex2Bytes("4360005260206000f3")),
-				//&hexutil.Bytes{0x43}, // blocknumber
 			},
 			config: &TraceCallConfig{
 				BlockOverrides: &ethapi.BlockOverrides{Number: (*hexutil.Big)(big.NewInt(0x1337))},

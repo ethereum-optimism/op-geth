@@ -52,7 +52,6 @@ type BuildPayloadArgs struct {
 
 // Id computes an 8-byte identifier by hashing the components of the payload arguments.
 func (args *BuildPayloadArgs) Id() engine.PayloadID {
-	// Hash
 	hasher := sha256.New()
 	hasher.Write(args.Parent[:])
 	binary.Write(hasher, binary.BigEndian, args.Timestamp)
@@ -254,7 +253,7 @@ func (payload *Payload) stopBuilding() {
 }
 
 // buildPayload builds the payload according to the provided parameters.
-func (w *worker) buildPayload(args *BuildPayloadArgs) (*Payload, error) {
+func (miner *Miner) buildPayload(args *BuildPayloadArgs) (*Payload, error) {
 	if args.NoTxPool { // don't start the background payload updating job if there is no tx pool to pull from
 		// Build the initial version with no transaction included. It should be fast
 		// enough to run. The empty payload can at least make sure there is something
@@ -272,7 +271,7 @@ func (w *worker) buildPayload(args *BuildPayloadArgs) (*Payload, error) {
 			txs:         args.Transactions,
 			gasLimit:    args.GasLimit,
 		}
-		empty := w.getSealingBlock(emptyParams)
+		empty := miner.generateWork(emptyParams)
 		if empty.err != nil {
 			return nil, empty.err
 		}
@@ -299,7 +298,7 @@ func (w *worker) buildPayload(args *BuildPayloadArgs) (*Payload, error) {
 
 	// Since we skip building the empty block when using the tx pool, we need to explicitly
 	// validate the BuildPayloadArgs here.
-	blockTime, err := w.validateParams(fullParams)
+	blockTime, err := miner.validateParams(fullParams)
 	if err != nil {
 		return nil, err
 	}
@@ -335,7 +334,7 @@ func (w *worker) buildPayload(args *BuildPayloadArgs) (*Payload, error) {
 		updatePayload := func() time.Duration {
 			start := time.Now()
 			// getSealingBlock is interrupted by shared interrupt
-			r := w.getSealingBlock(fullParams)
+			r := miner.generateWork(fullParams)
 			dur := time.Since(start)
 			// update handles error case
 			payload.update(r, dur)
@@ -343,7 +342,7 @@ func (w *worker) buildPayload(args *BuildPayloadArgs) (*Payload, error) {
 				// after first successful pass, we're updating
 				fullParams.isUpdate = true
 			}
-			timer.Reset(w.recommit)
+			timer.Reset(miner.config.Recommit)
 			return dur
 		}
 

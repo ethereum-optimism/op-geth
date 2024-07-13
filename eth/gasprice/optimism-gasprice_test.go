@@ -23,6 +23,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/event"
@@ -57,7 +58,7 @@ func (b *opTestBackend) GetReceipts(ctx context.Context, hash common.Hash) (type
 	return b.receipts, nil
 }
 
-func (b *opTestBackend) PendingBlockAndReceipts() (*types.Block, types.Receipts) {
+func (b *opTestBackend) Pending() (*types.Block, types.Receipts, *state.StateDB) {
 	panic("not implemented")
 }
 
@@ -68,6 +69,8 @@ func (b *opTestBackend) ChainConfig() *params.ChainConfig {
 func (b *opTestBackend) SubscribeChainHeadEvent(ch chan<- core.ChainHeadEvent) event.Subscription {
 	return nil
 }
+
+var _ OracleBackend = (*opTestBackend)(nil)
 
 func newOpTestBackend(t *testing.T, txs []testTxData) *opTestBackend {
 	var (

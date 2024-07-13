@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"math/big"
 	"os"
 	"strings"
@@ -12,7 +13,6 @@ import (
 	"time"
 
 	"github.com/holiman/uint256"
-	"golang.org/x/exp/slog"
 )
 
 // TestLoggingWithVmodule checks that vmodule works.
@@ -47,6 +47,25 @@ func TestTerminalHandlerWithAttrs(t *testing.T) {
 	want := " a message                                baz=bat foo=bar\n"
 	if have != want {
 		t.Errorf("\nhave: %q\nwant: %q\n", have, want)
+	}
+}
+
+// Make sure the default json handler outputs debug log lines
+func TestJSONHandler(t *testing.T) {
+	out := new(bytes.Buffer)
+	handler := JSONHandler(out)
+	logger := slog.New(handler)
+	logger.Debug("hi there")
+	if len(out.String()) == 0 {
+		t.Error("expected non-empty debug log output from default JSON Handler")
+	}
+
+	out.Reset()
+	handler = JSONHandlerWithLevel(out, slog.LevelInfo)
+	logger = slog.New(handler)
+	logger.Debug("hi there")
+	if len(out.String()) != 0 {
+		t.Errorf("expected empty debug log output, but got: %v", out.String())
 	}
 }
 

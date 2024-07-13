@@ -24,6 +24,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -38,7 +39,6 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/enr"
 	"github.com/ethereum/go-ethereum/p2p/nat"
 	"github.com/ethereum/go-ethereum/p2p/netutil"
-	"golang.org/x/exp/slices"
 )
 
 const (
@@ -772,8 +772,10 @@ running:
 				if p.Inbound() {
 					inboundCount++
 					serveSuccessMeter.Mark(1)
+					activeInboundPeerGauge.Inc(1)
 				} else {
 					dialSuccessMeter.Mark(1)
+					activeOutboundPeerGauge.Inc(1)
 				}
 				activePeerGauge.Inc(1)
 			}
@@ -787,6 +789,9 @@ running:
 			srv.dialsched.peerRemoved(pd.rw)
 			if pd.Inbound() {
 				inboundCount--
+				activeInboundPeerGauge.Dec(1)
+			} else {
+				activeOutboundPeerGauge.Dec(1)
 			}
 			activePeerGauge.Dec(1)
 		}
@@ -938,7 +943,7 @@ func (srv *Server) SetupConn(fd net.Conn, flags connFlag, dialDest *enode.Node) 
 		c.transport = srv.newTransport(fd, dialDest.Pubkey())
 	}
 
-	err := srv.setupConn(c, flags, dialDest)
+	err := srv.setupConn(c, dialDest)
 	if err != nil {
 		if !c.is(inboundConn) {
 			markDialError(err)
@@ -948,7 +953,7 @@ func (srv *Server) SetupConn(fd net.Conn, flags connFlag, dialDest *enode.Node) 
 	return err
 }
 
-func (srv *Server) setupConn(c *conn, flags connFlag, dialDest *enode.Node) error {
+func (srv *Server) setupConn(c *conn, dialDest *enode.Node) error {
 	// Prevent leftover pending conns from entering the handshake.
 	srv.lock.Lock()
 	running := srv.running

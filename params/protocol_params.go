@@ -157,14 +157,14 @@ const (
 	Bn256PairingPerPointGasByzantium uint64 = 80000  // Byzantium per-point price for an elliptic curve pairing check
 	Bn256PairingPerPointGasIstanbul  uint64 = 34000  // Per-point price for an elliptic curve pairing check
 
-	Bls12381G1AddGas          uint64 = 600    // Price for BLS12-381 elliptic curve G1 point addition
-	Bls12381G1MulGas          uint64 = 12000  // Price for BLS12-381 elliptic curve G1 point scalar multiplication
-	Bls12381G2AddGas          uint64 = 4500   // Price for BLS12-381 elliptic curve G2 point addition
-	Bls12381G2MulGas          uint64 = 55000  // Price for BLS12-381 elliptic curve G2 point scalar multiplication
-	Bls12381PairingBaseGas    uint64 = 115000 // Base gas price for BLS12-381 elliptic curve pairing check
-	Bls12381PairingPerPairGas uint64 = 23000  // Per-point pair gas price for BLS12-381 elliptic curve pairing check
-	Bls12381MapG1Gas          uint64 = 5500   // Gas price for BLS12-381 mapping field element to G1 operation
-	Bls12381MapG2Gas          uint64 = 110000 // Gas price for BLS12-381 mapping field element to G2 operation
+	Bls12381G1AddGas          uint64 = 500   // Price for BLS12-381 elliptic curve G1 point addition
+	Bls12381G1MulGas          uint64 = 12000 // Price for BLS12-381 elliptic curve G1 point scalar multiplication
+	Bls12381G2AddGas          uint64 = 800   // Price for BLS12-381 elliptic curve G2 point addition
+	Bls12381G2MulGas          uint64 = 45000 // Price for BLS12-381 elliptic curve G2 point scalar multiplication
+	Bls12381PairingBaseGas    uint64 = 65000 // Base gas price for BLS12-381 elliptic curve pairing check
+	Bls12381PairingPerPairGas uint64 = 43000 // Per-point pair gas price for BLS12-381 elliptic curve pairing check
+	Bls12381MapG1Gas          uint64 = 5500  // Gas price for BLS12-381 mapping field element to G1 operation
+	Bls12381MapG2Gas          uint64 = 75000 // Gas price for BLS12-381 mapping field element to G2 operation
 
 	P256VerifyGas uint64 = 3450 // secp256r1 elliptic curve signature verifier gas price
 
@@ -193,8 +193,8 @@ var (
 	MinimumDifficulty      = big.NewInt(131072) // The minimum that the difficulty may ever be.
 	DurationLimit          = big.NewInt(13)     // The decision boundary on the blocktime duration used to determine whether difficulty should go up or not.
 
-	// BeaconRootsStorageAddress is the address where historical beacon roots are stored as per EIP-4788
-	BeaconRootsStorageAddress = common.HexToAddress("0x000F3df6D732807Ef1319fB7B8bB8522d0Beac02")
+	// BeaconRootsAddress is the address where historical beacon roots are stored as per EIP-4788
+	BeaconRootsAddress = common.HexToAddress("0x000F3df6D732807Ef1319fB7B8bB8522d0Beac02")
 	// SystemAddress is where the system-transaction is sent from as per EIP-4788
-	SystemAddress common.Address = common.HexToAddress("0xfffffffffffffffffffffffffffffffffffffffe")
+	SystemAddress = common.HexToAddress("0xfffffffffffffffffffffffffffffffffffffffe")
 )
