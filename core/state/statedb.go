@@ -1450,6 +1450,12 @@ func (s *StateDB) SlotInAccessList(addr common.Address, slot common.Hash) (addre
 	return s.accessList.Contains(addr, slot)
 }
 
+// OpenStorageTrie opens the storage trie for the storage root of the provided address.
+func (s *StateDB) OpenStorageTrie(addr common.Address) (Trie, error) {
+	storageRoot := s.GetStorageRoot(addr)
+	return s.db.OpenStorageTrie(s.originalRoot, addr, storageRoot, s.trie)
+}
+
 // markDelete is invoked when an account is deleted but the deletion is
 // not yet committed. The pending mutation is cached and will be applied
 // all together
