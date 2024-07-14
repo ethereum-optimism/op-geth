@@ -207,7 +207,7 @@ func New(file string, cache int, handles int, namespace string, readonly bool, e
 
 		// The default compaction concurrency(1 thread),
 		// Here use all available CPUs for faster compaction.
-		MaxConcurrentCompactions: func() int { return runtime.NumCPU() },
+		MaxConcurrentCompactions: runtime.NumCPU,
 
 		// Per-level options. Options for at least one level must be specified. The
 		// options for the last level are used for all subsequent levels.
@@ -416,10 +416,8 @@ func upperBound(prefix []byte) (limit []byte) {
 }
 
 // Stat returns the internal metrics of Pebble in a text format. It's a developer
-// method to read everything there is to read independent of Pebble version.
-//
-// The property is unused in Pebble as there's only one thing to retrieve.
-func (d *Database) Stat(property string) (string, error) {
+// method to read everything there is to read, independent of Pebble version.
+func (d *Database) Stat() (string, error) {
 	return d.db.Metrics().String(), nil
 }
 
@@ -575,7 +573,7 @@ func (b *batch) Put(key, value []byte) error {
 	return nil
 }
 
-// Delete inserts the a key removal into the batch for later committing.
+// Delete inserts the key removal into the batch for later committing.
 func (b *batch) Delete(key []byte) error {
 	b.b.Delete(key, nil)
 	b.size += len(key)
