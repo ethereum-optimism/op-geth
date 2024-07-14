@@ -50,7 +50,7 @@ func (c Config) MarshalTOML() (interface{}, error) {
 		BlobPool                                blobpool.Config
 		GPO                                     gasprice.Config
 		EnablePreimageRecording                 bool
-		EnableWitnessCollection bool `toml:"-"`
+		EnableWitnessCollection                 bool `toml:"-"`
 		VMTrace                                 string
 		VMTraceJsonConfig                       string
 		DocRoot                                 string `toml:"-"`
@@ -164,7 +164,7 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 		BlobPool                                *blobpool.Config
 		GPO                                     *gasprice.Config
 		EnablePreimageRecording                 *bool
-		EnableWitnessCollection *bool `toml:"-"`
+		EnableWitnessCollection                 *bool `toml:"-"`
 		VMTrace                                 *string
 		VMTraceJsonConfig                       *string
 		DocRoot                                 *string `toml:"-"`
