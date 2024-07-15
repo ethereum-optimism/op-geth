@@ -57,8 +57,6 @@ func (o *OpLegacy) VerifyUncles(chain consensus.ChainReader, block *types.Block)
 }
 
 func (o *OpLegacy) Prepare(chain consensus.ChainHeaderReader, header *types.Header) error {
-	// TODO: Understand if there are any implications except for in worker.go
-	// Maybe we can also move OP specific stuff here.
 	return nil
 }
 
