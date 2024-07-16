@@ -93,6 +93,8 @@ func newPrestateTracer(ctx *tracers.Context, cfg json.RawMessage) (*tracers.Trac
 			OnTxStart: t.OnTxStart,
 			OnTxEnd:   t.OnTxEnd,
 			OnOpcode:  t.OnOpcode,
+			// Celo
+			TraceDebitCredit: true,
 		},
 		GetResult: t.GetResult,
 		Stop:      t.Stop,

@@ -41,6 +41,15 @@ func TryDebitFees(tx *types.Transaction, from common.Address, backend *CeloBacke
 
 // Debits transaction fees from the transaction sender and stores them in the temporary address
 func DebitFees(evm *vm.EVM, feeCurrency *common.Address, address common.Address, amount *big.Int) (uint64, error) {
+	// Hide this function from traces
+	if evm.Config.Tracer != nil && !evm.Config.Tracer.TraceDebitCredit {
+		origTracer := evm.Config.Tracer
+		defer func() {
+			evm.Config.Tracer = origTracer
+		}()
+		evm.Config.Tracer = nil
+	}
+
 	if amount.Cmp(big.NewInt(0)) == 0 {
 		return 0, nil
 	}
@@ -78,6 +87,15 @@ func CreditFees(
 	refund, feeTip, baseFee, l1DataFee *big.Int,
 	gasUsedDebit uint64,
 ) error {
+	// Hide this function from traces
+	if evm.Config.Tracer != nil && !evm.Config.Tracer.TraceDebitCredit {
+		origTracer := evm.Config.Tracer
+		defer func() {
+			evm.Config.Tracer = origTracer
+		}()
+		evm.Config.Tracer = nil
+	}
+
 	// Our old `creditGasFees` function does not accept an l1DataFee and
 	// the fee currencies do not implement the new interface yet. Since tip
 	// and data fee both go to the sequencer, we can work around that for

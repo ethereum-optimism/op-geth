@@ -193,6 +193,9 @@ type Hooks struct {
 	OnCodeChange    CodeChangeHook
 	OnStorageChange StorageChangeHook
 	OnLog           LogHook
+
+	// Celo specific: should the tracer be run when fee currencies are debited/credited for gas?
+	TraceDebitCredit bool
 }
 
 // BalanceChangeReason is used to indicate the reason for a balance change, useful
