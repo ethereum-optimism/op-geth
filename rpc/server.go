@@ -19,6 +19,7 @@ package rpc
 import (
 	"context"
 	"io"
+	"net/http"
 	"sync"
 	"sync/atomic"
 
@@ -218,6 +219,10 @@ type PeerInfo struct {
 		UserAgent string
 		Origin    string
 		Host      string
+		// Headers associated with the request
+		Header http.Header
+		// The body attached to request
+		Body []byte
 	}
 }
 

@@ -18,6 +18,7 @@ package rpc
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -180,6 +181,7 @@ func TestHTTPPeerInfo(t *testing.T) {
 	}
 	c.SetHeader("user-agent", "ua-testing")
 	c.SetHeader("origin", "origin.example.com")
+	c.SetHeader("foobar", "baz")
 
 	// Request peer information.
 	var info PeerInfo
@@ -201,6 +203,12 @@ func TestHTTPPeerInfo(t *testing.T) {
 	}
 	if info.HTTP.Origin != "origin.example.com" {
 		t.Errorf("wrong HTTP.Origin %q", info.HTTP.UserAgent)
+	}
+	if info.HTTP.Header.Get("foobar") != "baz" {
+		t.Errorf("wrong custom Http.Header")
+	}
+	if rpc, _ := parseMessage(json.RawMessage(info.HTTP.Body)); len(rpc) != 1 && rpc[0].Method != "test_peerInfo" {
+		t.Errorf("unexpected json rpc message body")
 	}
 }
 

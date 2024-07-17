@@ -324,6 +324,19 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	connInfo.HTTP.Host = r.Host
 	connInfo.HTTP.Origin = r.Header.Get("Origin")
 	connInfo.HTTP.UserAgent = r.Header.Get("User-Agent")
+	connInfo.HTTP.Header = r.Header
+
+	// Read the body and make it available in the request scope. The request's
+	// Body ReaderCloser is replaced to read over this same slice.
+	body, err := io.ReadAll(io.LimitReader(r.Body, int64(s.httpBodyLimit)))
+	if err != nil {
+		// `httpBodyLimit` is already checked when validated
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	connInfo.HTTP.Body = body
+	r.Body = io.NopCloser(bytes.NewReader(body))
+
 	ctx := r.Context()
 	ctx = context.WithValue(ctx, peerInfoContextKey{}, connInfo)
 
