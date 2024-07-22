@@ -221,7 +221,7 @@ type PeerInfo struct {
 		Host      string
 		// Headers associated with the request
 		Header http.Header
-		// The body attached to request
+		// The body attached to the request
 		Body []byte
 	}
 }
