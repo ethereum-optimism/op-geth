@@ -282,8 +282,9 @@ func SetupGenesisBlockWithOverride(db ethdb.Database, triedb *triedb.Database, g
 			if overrides != nil && overrides.OverrideOptimismCanyon != nil {
 				config.CanyonTime = overrides.OverrideOptimismCanyon
 				config.ShanghaiTime = overrides.OverrideOptimismCanyon
-				if config.Optimism != nil && config.Optimism.EIP1559DenominatorCanyon == 0 {
-					config.Optimism.EIP1559DenominatorCanyon = 250
+				if config.Optimism != nil && (config.Optimism.EIP1559DenominatorCanyon == nil || *config.Optimism.EIP1559DenominatorCanyon == 0) {
+					eip1559DenominatorCanyon := uint64(250)
+					config.Optimism.EIP1559DenominatorCanyon = &eip1559DenominatorCanyon
 				}
 			}
 			if overrides != nil && overrides.OverrideOptimismEcotone != nil {
@@ -376,7 +377,11 @@ func SetupGenesisBlockWithOverride(db ethdb.Database, triedb *triedb.Database, g
 	if head == nil {
 		return newcfg, stored, errors.New("missing head header")
 	}
-	compatErr := storedcfg.CheckCompatible(newcfg, head.Number.Uint64(), head.Time)
+	var genesisTimestamp *uint64
+	if genesis != nil {
+		genesisTimestamp = &genesis.Timestamp
+	}
+	compatErr := storedcfg.CheckCompatible(newcfg, head.Number.Uint64(), head.Time, genesisTimestamp)
 	if compatErr != nil && ((head.Number.Uint64() != 0 && compatErr.RewindToBlock != 0) || (head.Time != 0 && compatErr.RewindToTime != 0)) {
 		return newcfg, stored, compatErr
 	}
