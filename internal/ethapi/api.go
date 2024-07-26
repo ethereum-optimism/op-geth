@@ -1985,9 +1985,16 @@ func marshalReceipt(receipt *types.Receipt, blockHash common.Hash, blockNumber u
 	}
 
 	if chainConfig.Optimism != nil && !tx.IsDepositTx() {
-		fields["l1GasPrice"] = (*hexutil.Big)(receipt.L1GasPrice)
-		fields["l1GasUsed"] = (*hexutil.Big)(receipt.L1GasUsed)
-		fields["l1Fee"] = (*hexutil.Big)(receipt.L1Fee)
+		// These three fields are not present receipts migrated from l1 Celo
+		if receipt.L1GasPrice != nil {
+			fields["l1GasPrice"] = (*hexutil.Big)(receipt.L1GasPrice)
+		}
+		if receipt.L1GasUsed != nil {
+			fields["l1GasUsed"] = (*hexutil.Big)(receipt.L1GasUsed)
+		}
+		if receipt.L1Fee != nil {
+			fields["l1Fee"] = (*hexutil.Big)(receipt.L1Fee)
+		}
 		// Fields removed with Ecotone
 		if receipt.FeeScalar != nil {
 			fields["l1FeeScalar"] = receipt.FeeScalar.String()
