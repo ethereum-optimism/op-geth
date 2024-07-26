@@ -22,21 +22,15 @@ var (
 		},
 	}
 
-	celoLegacyUnprotectedTxFuncs = &txFuncs{
-		hash: func(tx *Transaction, chainID *big.Int) common.Hash {
-			return rlpHash(baseCeloLegacyTxSigningFields(tx))
-		},
-		signatureValues: func(tx *Transaction, sig []byte, signerChainID *big.Int) (r *big.Int, s *big.Int, v *big.Int, err error) {
-			r, s, v = decodeSignature(sig)
-			return r, s, v, nil
-		},
-		sender: func(tx *Transaction, hashFunc func(tx *Transaction, chainID *big.Int) common.Hash, signerChainID *big.Int) (common.Address, error) {
-			v, r, s := tx.RawSignatureValues()
-			return recoverPlain(hashFunc(tx, signerChainID), r, s, v, true)
-		},
-	}
-
-	celoLegacyProtectedTxFuncs = &txFuncs{
+	// Although celo allowed unprotected transactions it never supported signing
+	// them with signers retrieved by MakeSigner or LatestSigner (if you wanted
+	// to make an unprotected transaction you needed to use the HomesteadSigner
+	// directly), so both hash and signatureValues functions here provide
+	// protected values, but sender can accept unprotected transactions. See
+	// https://github.com/celo-org/celo-blockchain/pull/1748/files and
+	// https://github.com/celo-org/celo-blockchain/issues/1734 and
+	// https://github.com/celo-org/celo-proposals/blob/master/CIPs/cip-0050.md
+	celoLegacyTxFuncs = &txFuncs{
 		hash: func(tx *Transaction, chainID *big.Int) common.Hash {
 			return rlpHash(append(baseCeloLegacyTxSigningFields(tx), chainID, uint(0), uint(0)))
 		},
@@ -50,14 +44,19 @@ var (
 			return r, s, v, nil
 		},
 		sender: func(tx *Transaction, hashFunc func(tx *Transaction, chainID *big.Int) common.Hash, signerChainID *big.Int) (common.Address, error) {
-			if tx.ChainId().Cmp(signerChainID) != 0 {
-				return common.Address{}, fmt.Errorf("%w: have %d want %d", ErrInvalidChainId, tx.ChainId(), signerChainID)
+			if tx.Protected() {
+				if tx.ChainId().Cmp(signerChainID) != 0 {
+					return common.Address{}, fmt.Errorf("%w: have %d want %d", ErrInvalidChainId, tx.ChainId(), signerChainID)
+				}
+				v, r, s := tx.RawSignatureValues()
+				signerChainMul := new(big.Int).Mul(signerChainID, big.NewInt(2))
+				v = new(big.Int).Sub(v, signerChainMul)
+				v.Sub(v, big8)
+				return recoverPlain(hashFunc(tx, signerChainID), r, s, v, true)
+			} else {
+				v, r, s := tx.RawSignatureValues()
+				return recoverPlain(rlpHash(baseCeloLegacyTxSigningFields(tx)), r, s, v, true)
 			}
-			v, r, s := tx.RawSignatureValues()
-			signerChainMul := new(big.Int).Mul(signerChainID, big.NewInt(2))
-			v = new(big.Int).Sub(v, signerChainMul)
-			v.Sub(v, big8)
-			return recoverPlain(hashFunc(tx, signerChainID), r, s, v, true)
 		},
 	}
 

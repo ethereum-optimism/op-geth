@@ -84,6 +84,12 @@ func (tx *LegacyTx) copy() TxData {
 		V:        new(big.Int),
 		R:        new(big.Int),
 		S:        new(big.Int),
+
+		// Celo specific fields
+		FeeCurrency:         copyAddressPtr(tx.FeeCurrency),
+		GatewayFeeRecipient: copyAddressPtr(tx.GatewayFeeRecipient),
+		GatewayFee:          copyBigInt(tx.GatewayFee),
+		CeloLegacy:          tx.CeloLegacy,
 	}
 	if tx.Value != nil {
 		cpy.Value.Set(tx.Value)

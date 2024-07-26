@@ -118,3 +118,10 @@ func CompareWithRates(a, b *Transaction, ratesAndFees *exchange.RatesAndFees) in
 	c, _ = exchange.CompareValue(rates, tipCapA, a.FeeCurrency(), tipCapB, b.FeeCurrency())
 	return c
 }
+
+func copyBigInt(b *big.Int) *big.Int {
+	if b == nil {
+		return nil
+	}
+	return new(big.Int).Set(b)
+}

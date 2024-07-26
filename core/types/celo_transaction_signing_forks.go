@@ -93,10 +93,7 @@ func (c *celoLegacy) txFuncs(tx *Transaction) *txFuncs {
 	t := tx.Type()
 	switch {
 	case t == uint8(LegacyTxType) && tx.IsCeloLegacy():
-		if tx.Protected() {
-			return celoLegacyProtectedTxFuncs
-		}
-		return celoLegacyUnprotectedTxFuncs
+		return celoLegacyTxFuncs
 	case t == DynamicFeeTxType:
 		// We handle the dynamic fee tx type here because we need to handle
 		// migrated dynamic fee txs. These were enabeled in celo in the Espresso
