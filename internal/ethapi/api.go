@@ -1508,6 +1508,9 @@ type RPCTransaction struct {
 	// Celo
 	FeeCurrency         *common.Address `json:"feeCurrency,omitempty"`
 	MaxFeeInFeeCurrency *hexutil.Big    `json:"maxFeeInFeeCurrency,omitempty"`
+	EthCompatible       *bool           `json:"ethCompatible,omitempty"`
+	GatewayFee          *hexutil.Big    `json:"gatewayFee,omitempty"`
+	GatewayFeeRecipient *common.Address `json:"gatewayFeeRecipient,omitempty"`
 }
 
 // newRPCTransaction returns a transaction that will serialize to the RPC
@@ -1532,6 +1535,14 @@ func newRPCTransaction(tx *types.Transaction, blockHash common.Hash, blockNumber
 		// Celo
 		FeeCurrency:         tx.FeeCurrency(),
 		MaxFeeInFeeCurrency: (*hexutil.Big)(tx.MaxFeeInFeeCurrency()),
+		// Unfortunately we need to set the gateway fee since this
+		// (0x3f33789ee7c52eacfe8b1a2afab8455aaf65f860dfa36f1afa466eb69bfa312e)
+		// tx on alfajores actually set it.
+		GatewayFee: (*hexutil.Big)(tx.GatewayFee()),
+		// Unfortunately we need to set the gateway fee recipient since this
+		// (0x7a2624134a8c634b38520dbb61f8fe2013e0817d446224f3d866ce3de92f4e98)
+		// tx on alfajores actually set it.
+		GatewayFeeRecipient: tx.GatewayFeeRecipient(),
 	}
 	if blockHash != (common.Hash{}) {
 		result.BlockHash = &blockHash
@@ -1564,6 +1575,11 @@ func newRPCTransaction(tx *types.Transaction, blockHash common.Hash, blockNumber
 		// if a legacy transaction has an EIP-155 chain id, include it explicitly
 		if id := tx.ChainId(); id.Sign() != 0 {
 			result.ChainID = (*hexutil.Big)(id)
+		}
+
+		if tx.IsCeloLegacy() {
+			// If this is a celo legacy transaction then set eth compatible to false
+			result.EthCompatible = new(bool)
 		}
 
 	case types.AccessListTxType:

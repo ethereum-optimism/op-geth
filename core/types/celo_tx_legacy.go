@@ -103,7 +103,7 @@ func setTxFromEthCompatibleRlpList(tx *LegacyTx, rlplist ethCompatibleTxRlpList)
 	// Celo specific fields
 	tx.FeeCurrency = nil
 	tx.GatewayFeeRecipient = nil
-	tx.GatewayFee = big.NewInt(0)
+	tx.GatewayFee = nil
 	tx.CeloLegacy = false
 }
 
