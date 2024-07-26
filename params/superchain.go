@@ -113,6 +113,30 @@ func LoadOPStackChainConfig(chainID uint64) (*ChainConfig, error) {
 	case chaosnetChainID:
 		out.RegolithTime = &chaosnetRegolithTime
 		out.Optimism.EIP1559Elasticity = 10
+	case BobaMainnetChainID:
+		out.BerlinBlock = big.NewInt(1149019)
+		out.LondonBlock = big.NewInt(1149019)
+		out.ArrowGlacierBlock = big.NewInt(1149019)
+		out.GrayGlacierBlock = big.NewInt(1149019)
+		out.MergeNetsplitBlock = big.NewInt(1149019)
+		out.BedrockBlock = big.NewInt(1149019)
+		out.RegolithTime = &BobaMainnetRegolithTime
+	case BobaSepoliaChainID:
+		out.BerlinBlock = big.NewInt(511)
+		out.LondonBlock = big.NewInt(511)
+		out.ArrowGlacierBlock = big.NewInt(511)
+		out.GrayGlacierBlock = big.NewInt(511)
+		out.MergeNetsplitBlock = big.NewInt(511)
+		out.BedrockBlock = big.NewInt(511)
+		out.RegolithTime = &BobaSepoliaRegolithTime
+	case BobaBnbTestnetChainID:
+		out.BerlinBlock = big.NewInt(675077)
+		out.LondonBlock = big.NewInt(675077)
+		out.ArrowGlacierBlock = big.NewInt(675077)
+		out.GrayGlacierBlock = big.NewInt(675077)
+		out.MergeNetsplitBlock = big.NewInt(675077)
+		out.BedrockBlock = big.NewInt(675077)
+		out.RegolithTime = &BobaBnbTestnetRegoTime
 	}
 
 	return out, nil
