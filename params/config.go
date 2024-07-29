@@ -42,6 +42,9 @@ const (
 	pgnSepoliaChainID       = 58008
 	devnetChainID           = 997
 	chaosnetChainID         = 888
+	BobaMainnetChainID      = 288
+	BobaSepoliaChainID      = 28882
+	BobaBnbTestnetChainID   = 9728
 )
 
 // OP Stack chain config
@@ -56,6 +59,12 @@ var (
 	devnetRegolithTime = uint64(1677984480)
 	// August 16, 2023 @ 3:34:22 am UTC
 	chaosnetRegolithTime = uint64(1692156862)
+	// Apr Apr 16 2024 21:27:59 UTC 2024
+	BobaMainnetRegolithTime = uint64(1713302879)
+	// January 18, 2024 @ 5:59:48 pm UTC
+	BobaSepoliaRegolithTime = uint64(1705600788)
+	// Thu Jun 20 2024 21:49:27 pm UTC
+	BobaBnbTestnetRegoTime = uint64(1718920167)
 )
 
 func newUint64(val uint64) *uint64 { return &val }
