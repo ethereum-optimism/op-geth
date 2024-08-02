@@ -1589,7 +1589,7 @@ func newRPCTransaction(tx *types.Transaction, blockHash common.Hash, blockNumber
 		result.ChainID = (*hexutil.Big)(tx.ChainId())
 		result.YParity = &yparity
 
-	case types.DynamicFeeTxType, types.CeloDynamicFeeTxV2Type, types.CeloDenominatedTxType:
+	case types.DynamicFeeTxType, types.CeloDynamicFeeTxType, types.CeloDynamicFeeTxV2Type, types.CeloDenominatedTxType:
 		al := tx.AccessList()
 		yparity := hexutil.Uint64(v.Sign())
 		result.Accesses = &al
@@ -1597,13 +1597,34 @@ func newRPCTransaction(tx *types.Transaction, blockHash common.Hash, blockNumber
 		result.YParity = &yparity
 		result.GasFeeCap = (*hexutil.Big)(tx.GasFeeCap())
 		result.GasTipCap = (*hexutil.Big)(tx.GasTipCap())
-		// if the transaction has been mined, compute the effective gas price
-		if receipt != nil {
+
+		// Note that celo denominated txs always have the gas price denominated in celo (the native currency)
+		isNativeFeeCurrency := tx.FeeCurrency() == nil || tx.Type() == types.CeloDenominatedTxType
+		isGingerbread := config.IsGingerbread(new(big.Int).SetUint64(blockNumber))
+		isCel2 := config.IsCel2(blockTime)
+
+		if blockHash == (common.Hash{}) {
+			// This is a pending transaction, for pending transactions we set the gas price to gas fee cap.
+			result.GasPrice = (*hexutil.Big)(tx.GasFeeCap())
+		} else if isGingerbread && isNativeFeeCurrency {
+			// Post gingerbread mined transaction with a native fee currency, we can compute the effective gas price.
+			result.GasPrice = (*hexutil.Big)(effectiveGasPrice(tx, baseFee))
+		} else if isCel2 && tx.Type() == types.CeloDynamicFeeTxV2Type {
+			// Mined post Cel2 celoDynamicFeeTxV2 transaction, we can get the gas price from the receipt
+			// Assert that we should have a receipt
+			if receipt == nil {
+				panic(fmt.Sprintf("no corresponding receipt provided for celoDynamicFeeTxV2 transaction %s", tx.Hash().Hex()))
+			}
 			result.GasPrice = (*hexutil.Big)(receipt.EffectiveGasPrice)
 		} else {
-			result.GasPrice = (*hexutil.Big)(tx.GasFeeCap())
+			// Otherwise this is either a:
+			// -  pre-gingerbread transaction
+			// -  post-gingerbread native fee currency transaction but no base fee was provided
+			// -  post-gingerbread pre-cel2 transaction with a non-native fee currency
+			//
+			// In these cases we can't calculate the gas price.
+			result.GasPrice = nil
 		}
-
 	case types.BlobTxType:
 		al := tx.AccessList()
 		yparity := hexutil.Uint64(v.Sign())
@@ -1658,12 +1679,12 @@ func newRPCTransactionFromBlockIndex(ctx context.Context, b *types.Block, index 
 		return nil
 	}
 	tx := txs[index]
-	rcpt := depositTxReceipt(ctx, b.Hash(), index, backend, tx)
+	rcpt := txReceipt(ctx, b.Hash(), index, backend, tx)
 	return newRPCTransaction(tx, b.Hash(), b.NumberU64(), b.Time(), index, b.BaseFee(), config, rcpt)
 }
 
-func depositTxReceipt(ctx context.Context, blockHash common.Hash, index uint64, backend Backend, tx *types.Transaction) *types.Receipt {
-	if tx.Type() != types.DepositTxType {
+func txReceipt(ctx context.Context, blockHash common.Hash, index uint64, backend Backend, tx *types.Transaction) *types.Receipt {
+	if tx.Type() != types.DepositTxType && tx.Type() != types.CeloDynamicFeeTxV2Type {
 		return nil
 	}
 	receipts, err := backend.GetReceipts(ctx, blockHash)
@@ -1917,7 +1938,7 @@ func (api *TransactionAPI) GetTransactionByHash(ctx context.Context, hash common
 	if err != nil {
 		return nil, err
 	}
-	rcpt := depositTxReceipt(ctx, blockHash, index, api.b, tx)
+	rcpt := txReceipt(ctx, blockHash, index, api.b, tx)
 	return newRPCTransaction(tx, blockHash, blockNumber, header.Time, index, header.BaseFee, api.b.ChainConfig(), rcpt), nil
 }
 
