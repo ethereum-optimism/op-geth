@@ -395,6 +395,7 @@ type ChainConfig struct {
 	// Delta: the Delta upgrade does not affect the execution-layer, and is thus not configurable in the chain config.
 	EcotoneTime *uint64 `json:"ecotoneTime,omitempty"` // Ecotone switch time (nil = no fork, 0 = already on optimism ecotone)
 	FjordTime   *uint64 `json:"fjordTime,omitempty"`   // Fjord switch time (nil = no fork, 0 = already on Optimism Fjord)
+	GraniteTime *uint64 `json:"graniteTime,omitempty"` // Granite switch time (nil = no fork, 0 = already on Optimism Granite)
 
 	InteropTime *uint64 `json:"interopTime,omitempty"` // Interop switch time (nil = no fork, 0 = already on optimism interop)
 
@@ -549,6 +550,9 @@ func (c *ChainConfig) Description() string {
 	if c.FjordTime != nil {
 		banner += fmt.Sprintf(" - Fjord:                       @%-10v\n", *c.FjordTime)
 	}
+	if c.GraniteTime != nil {
+		banner += fmt.Sprintf(" - Granite:                     @%-10v\n", *c.GraniteTime)
+	}
 	if c.InteropTime != nil {
 		banner += fmt.Sprintf(" - Interop:                     @%-10v\n", *c.InteropTime)
 	}
@@ -676,6 +680,10 @@ func (c *ChainConfig) IsFjord(time uint64) bool {
 	return isTimestampForked(c.FjordTime, time)
 }
 
+func (c *ChainConfig) IsGranite(time uint64) bool {
+	return isTimestampForked(c.GraniteTime, time)
+}
+
 func (c *ChainConfig) IsInterop(time uint64) bool {
 	return isTimestampForked(c.InteropTime, time)
 }
@@ -704,6 +712,10 @@ func (c *ChainConfig) IsOptimismEcotone(time uint64) bool {
 
 func (c *ChainConfig) IsOptimismFjord(time uint64) bool {
 	return c.IsOptimism() && c.IsFjord(time)
+}
+
+func (c *ChainConfig) IsOptimismGranite(time uint64) bool {
+	return c.IsOptimism() && c.IsGranite(time)
 }
 
 // IsOptimismPreBedrock returns true iff this is an optimism node & bedrock is not yet active
@@ -886,6 +898,9 @@ func (c *ChainConfig) checkCompatible(newcfg *ChainConfig, headNumber *big.Int, 
 	}
 	if isForkTimestampIncompatible(c.FjordTime, newcfg.FjordTime, headTimestamp, genesisTimestamp) {
 		return newTimestampCompatError("Fjord fork timestamp", c.FjordTime, newcfg.FjordTime)
+	}
+	if isForkTimestampIncompatible(c.GraniteTime, newcfg.GraniteTime, headTimestamp, genesisTimestamp) {
+		return newTimestampCompatError("Granite fork timestamp", c.GraniteTime, newcfg.GraniteTime)
 	}
 	if isForkTimestampIncompatible(c.InteropTime, newcfg.InteropTime, headTimestamp, genesisTimestamp) {
 		return newTimestampCompatError("Interop fork timestamp", c.InteropTime, newcfg.InteropTime)
@@ -1075,6 +1090,7 @@ type Rules struct {
 	IsVerkle                                                bool
 	IsOptimismBedrock, IsOptimismRegolith                   bool
 	IsOptimismCanyon, IsOptimismFjord                       bool
+	IsOptimismGranite                                       bool
 }
 
 // Rules ensures c's ChainID is not nil.
@@ -1107,5 +1123,6 @@ func (c *ChainConfig) Rules(num *big.Int, isMerge bool, timestamp uint64) Rules 
 		IsOptimismRegolith: isMerge && c.IsOptimismRegolith(timestamp),
 		IsOptimismCanyon:   isMerge && c.IsOptimismCanyon(timestamp),
 		IsOptimismFjord:    isMerge && c.IsOptimismFjord(timestamp),
+		IsOptimismGranite:  isMerge && c.IsOptimismGranite(timestamp),
 	}
 }
