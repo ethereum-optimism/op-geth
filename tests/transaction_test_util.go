@@ -59,7 +59,7 @@ func (tt *TransactionTest) Run(config *params.ChainConfig) error {
 			return nil, nil, err
 		}
 		// Intrinsic gas
-		requiredGas, err := core.IntrinsicGas(tx.Data(), tx.AccessList(), tx.To() == nil, isHomestead, isIstanbul, false, nil)
+		requiredGas, err := core.IntrinsicGas(tx.Data(), tx.AccessList(), tx.To() == nil, isHomestead, isIstanbul, false, nil, common.IntrinsicGasCosts{})
 		if err != nil {
 			return nil, nil, err
 		}

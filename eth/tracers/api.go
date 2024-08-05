@@ -271,7 +271,7 @@ func (api *API) traceChain(start, end *types.Block, config *TraceConfig, closed 
 				)
 				// Trace all the transactions contained within
 				for i, tx := range task.block.Transactions() {
-					msg, _ := core.TransactionToMessage(tx, signer, task.block.BaseFee(), blockCtx.ExchangeRates)
+					msg, _ := core.TransactionToMessage(tx, signer, task.block.BaseFee(), blockCtx.FeeCurrencyContext.ExchangeRates)
 					txctx := &Context{
 						BlockHash:   task.block.Hash(),
 						BlockNumber: task.block.Number(),
@@ -569,7 +569,7 @@ func (api *API) IntermediateRoots(ctx context.Context, hash common.Hash, config 
 			return nil, err
 		}
 		var (
-			msg, _    = core.TransactionToMessage(tx, signer, block.BaseFee(), vmctx.ExchangeRates)
+			msg, _    = core.TransactionToMessage(tx, signer, block.BaseFee(), vmctx.FeeCurrencyContext.ExchangeRates)
 			txContext = core.NewEVMTxContext(msg)
 			vmenv     = vm.NewEVM(vmctx, txContext, statedb, chainConfig, vm.Config{})
 		)
@@ -645,7 +645,7 @@ func (api *API) traceBlock(ctx context.Context, block *types.Block, config *Trac
 	}
 	for i, tx := range txs {
 		// Generate the next state snapshot fast without tracing
-		msg, _ := core.TransactionToMessage(tx, signer, block.BaseFee(), blockCtx.ExchangeRates)
+		msg, _ := core.TransactionToMessage(tx, signer, block.BaseFee(), blockCtx.FeeCurrencyContext.ExchangeRates)
 		txctx := &Context{
 			BlockHash:   blockHash,
 			BlockNumber: block.Number(),
@@ -722,7 +722,7 @@ txloop:
 		}
 
 		// Generate the next state snapshot fast without tracing
-		msg, _ := core.TransactionToMessage(tx, signer, block.BaseFee(), blockCtx.ExchangeRates)
+		msg, _ := core.TransactionToMessage(tx, signer, block.BaseFee(), blockCtx.FeeCurrencyContext.ExchangeRates)
 		statedb.SetTxContext(tx.Hash(), i)
 		vmenv := vm.NewEVM(blockCtx, core.NewEVMTxContext(msg), statedb, api.backend.ChainConfig(), vm.Config{})
 		if _, err := core.ApplyMessage(vmenv, msg, new(core.GasPool).AddGas(msg.GasLimit)); err != nil {
@@ -805,7 +805,7 @@ func (api *API) standardTraceBlockToFile(ctx context.Context, block *types.Block
 	for i, tx := range block.Transactions() {
 		// Prepare the transaction for un-traced execution
 		var (
-			msg, _    = core.TransactionToMessage(tx, signer, block.BaseFee(), vmctx.ExchangeRates)
+			msg, _    = core.TransactionToMessage(tx, signer, block.BaseFee(), vmctx.FeeCurrencyContext.ExchangeRates)
 			txContext = core.NewEVMTxContext(msg)
 			vmConf    vm.Config
 			dump      *os.File
@@ -994,7 +994,7 @@ func (api *API) TraceCall(ctx context.Context, args ethapi.TransactionArgs, bloc
 		return nil, err
 	}
 	var (
-		msg         = args.ToMessage(vmctx.BaseFee, vmctx.ExchangeRates)
+		msg         = args.ToMessage(vmctx.BaseFee, vmctx.FeeCurrencyContext.ExchangeRates)
 		tx          = args.ToTransaction()
 		traceConfig *TraceConfig
 	)

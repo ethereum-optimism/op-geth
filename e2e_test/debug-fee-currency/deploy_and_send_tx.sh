@@ -3,7 +3,7 @@
 set -xeo pipefail
 
 export FEE_CURRENCY=$(\
-	forge create --root . --contracts . --private-key $ACC_PRIVKEY DebugFeeCurrency.sol:DebugFeeCurrency --constructor-args '100000000000000000000000000' $1 $2 --json\
+	forge create --root . --contracts . --private-key $ACC_PRIVKEY DebugFeeCurrency.sol:DebugFeeCurrency --constructor-args '100000000000000000000000000' $1 $2 $3 --json\
 	| jq .deployedTo -r)
 
 cast send --private-key $ACC_PRIVKEY $ORACLE3 'setExchangeRate(address, uint256, uint256)' $FEE_CURRENCY 2ether 1ether

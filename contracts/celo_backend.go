@@ -61,13 +61,18 @@ func (b *CeloBackend) CallContract(ctx context.Context, call ethereum.CallMsg, b
 
 // Get a vm.EVM object of you can't use the abi wrapper via the ContractCaller interface
 // This is usually the case when executing functions that modify state.
-func (b *CeloBackend) NewEVM() *vm.EVM {
-	blockCtx := vm.BlockContext{BlockNumber: new(big.Int), Time: 0,
+func (b *CeloBackend) NewEVM(feeCurrencyContext *common.FeeCurrencyContext) *vm.EVM {
+	blockCtx := vm.BlockContext{
+		BlockNumber: new(big.Int),
+		Time:        0,
 		Transfer: func(state vm.StateDB, from common.Address, to common.Address, value *uint256.Int) {
 			if value.Cmp(common.U2560) != 0 {
 				panic("Non-zero transfers not implemented, yet.")
 			}
 		},
+	}
+	if feeCurrencyContext != nil {
+		blockCtx.FeeCurrencyContext = *feeCurrencyContext
 	}
 	txCtx := vm.TxContext{}
 	vmConfig := vm.Config{}

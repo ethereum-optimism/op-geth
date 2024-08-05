@@ -702,11 +702,14 @@ contract FeeCurrency is ERC20, IFeeCurrency {
 contract DebugFeeCurrency is ERC20, IFeeCurrency {
     bool failOnDebit;
     bool failOnCredit;
+    bool highGasOnCredit;
+    mapping(uint256 => uint256) private _dummyMap;
 
-    constructor(uint256 initialSupply, bool _failOnDebit, bool _failOnCredit) ERC20("DebugFeeCurrency", "DFC") {
+    constructor(uint256 initialSupply, bool _failOnDebit, bool _failOnCredit, bool _highGasOnCredit) ERC20("DebugFeeCurrency", "DFC") {
         _mint(msg.sender, initialSupply);
         failOnDebit = _failOnDebit;
         failOnCredit = _failOnCredit;
+        highGasOnCredit = _highGasOnCredit;
     }
 
     modifier onlyVm() {
@@ -727,6 +730,18 @@ contract DebugFeeCurrency is ERC20, IFeeCurrency {
         for (uint256 i = 0; i < recipients.length; i++) {
             _mint(recipients[i], amounts[i]);
         }
+
+        if (highGasOnCredit){
+            induceHighGasCost();
+        }
+    }
+
+    function induceHighGasCost() internal view  {
+        // SLOAD for non existing touched_storage_slots
+        // 2100 * 3000 gas = 630.0000
+        for (uint256 i = 0; i < 3000; i++) {
+            _dummyMap[i];
+        }
     }
 
     // Old function signature for backwards compatibility
@@ -746,6 +761,10 @@ contract DebugFeeCurrency is ERC20, IFeeCurrency {
         _mint(from, refund);
         _mint(feeRecipient, tipTxFee);
         _mint(communityFund, baseTxFee);
+
+        if (highGasOnCredit){
+            induceHighGasCost();
+        }
     }
 }
 

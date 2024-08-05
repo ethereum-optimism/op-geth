@@ -263,10 +263,7 @@ describe("viem send tx", () => {
 			assert.fail("Failed to filter nonwhitelisted feeCurrency");
 		} catch (err) {
 			// TODO: find a better way to check the error type
-			if (
-				err.cause.details ==
-				"Fee currency given is not whitelisted at current block"
-			) {
+			if (err.cause.details == "non-whitelisted fee currency address") {
 				// Test success
 			} else {
 				throw err;

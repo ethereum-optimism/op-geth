@@ -1,26 +1,20 @@
 package contracts
 
 import (
+	"errors"
 	"fmt"
+	"math"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/exchange"
 	"github.com/ethereum/go-ethereum/contracts/addresses"
 	"github.com/ethereum/go-ethereum/contracts/celo/abigen"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/log"
-)
-
-const (
-	Thousand = 1000
-
-	// Default intrinsic gas cost of transactions paying for gas in alternative currencies.
-	// Calculated to estimate 1 balance read, 1 debit, and 4 credit transactions.
-	IntrinsicGasForAlternativeFeeCurrency uint64 = 50 * Thousand
-	maxAllowedGasForDebitAndCredit        uint64 = 3 * IntrinsicGasForAlternativeFeeCurrency
 )
 
 var feeCurrencyABI *abi.ABI
@@ -34,31 +28,42 @@ func init() {
 }
 
 // Returns nil if debit is possible, used in tx pool validation
-func TryDebitFees(tx *types.Transaction, from common.Address, backend *CeloBackend) error {
+func TryDebitFees(tx *types.Transaction, from common.Address, backend *CeloBackend, feeContext common.FeeCurrencyContext) error {
 	amount := new(big.Int).SetUint64(tx.Gas())
 	amount.Mul(amount, tx.GasFeeCap())
 
 	snapshot := backend.State.Snapshot()
-	err := DebitFees(backend.NewEVM(), tx.FeeCurrency(), from, amount)
+	evm := backend.NewEVM(&feeContext)
+	_, err := DebitFees(evm, tx.FeeCurrency(), from, amount)
 	backend.State.RevertToSnapshot(snapshot)
 	return err
 }
 
 // Debits transaction fees from the transaction sender and stores them in the temporary address
-func DebitFees(evm *vm.EVM, feeCurrency *common.Address, address common.Address, amount *big.Int) error {
+func DebitFees(evm *vm.EVM, feeCurrency *common.Address, address common.Address, amount *big.Int) (uint64, error) {
 	if amount.Cmp(big.NewInt(0)) == 0 {
-		return nil
+		return 0, nil
+	}
+
+	maxIntrinsicGasCost, ok := common.MaxAllowedIntrinsicGasCost(evm.Context.FeeCurrencyContext.IntrinsicGasCosts, feeCurrency)
+	if !ok {
+		return 0, exchange.ErrNonWhitelistedFeeCurrency
 	}
 
 	leftoverGas, err := evm.CallWithABI(
-		feeCurrencyABI, "debitGasFees", *feeCurrency, maxAllowedGasForDebitAndCredit,
+		feeCurrencyABI, "debitGasFees", *feeCurrency, maxIntrinsicGasCost,
 		// debitGasFees(address from, uint256 value) parameters
 		address, amount,
 	)
-	gasUsed := maxAllowedGasForDebitAndCredit - leftoverGas
-	evm.Context.GasUsedForDebit = gasUsed
+	if errors.Is(err, vm.ErrOutOfGas) {
+		// This basically is a configuration / contract error, since
+		// the contract itself used way more gas than was expected (including grace limit)
+		return 0, fmt.Errorf("surpassed maximum allowed intrinsic gas for fee currency: %w", err)
+	}
+
+	gasUsed := maxIntrinsicGasCost - leftoverGas
 	log.Trace("DebitFees called", "feeCurrency", *feeCurrency, "gasUsed", gasUsed)
-	return err
+	return gasUsed, err
 }
 
 // Credits fees to the respective parties
@@ -71,6 +76,7 @@ func CreditFees(
 	feeCurrency *common.Address,
 	txSender, tipReceiver, baseFeeReceiver, l1DataFeeReceiver common.Address,
 	refund, feeTip, baseFee, l1DataFee *big.Int,
+	gasUsedDebit uint64,
 ) error {
 	// Our old `creditGasFees` function does not accept an l1DataFee and
 	// the fee currencies do not implement the new interface yet. Since tip
@@ -85,8 +91,12 @@ func CreditFees(
 	if tipReceiver.Cmp(common.ZeroAddress) == 0 {
 		tipReceiver = baseFeeReceiver
 	}
+	maxAllowedGasForDebitAndCredit, ok := common.MaxAllowedIntrinsicGasCost(evm.Context.FeeCurrencyContext.IntrinsicGasCosts, feeCurrency)
+	if !ok {
+		return exchange.ErrNonWhitelistedFeeCurrency
+	}
 
-	maxAllowedGasForCredit := maxAllowedGasForDebitAndCredit - evm.Context.GasUsedForDebit
+	maxAllowedGasForCredit := maxAllowedGasForDebitAndCredit - gasUsedDebit
 	leftoverGas, err := evm.CallWithABI(
 		feeCurrencyABI, "creditGasFees", *feeCurrency, maxAllowedGasForCredit,
 		// function creditGasFees(
@@ -101,43 +111,73 @@ func CreditFees(
 		// )
 		txSender, tipReceiver, common.ZeroAddress, baseFeeReceiver, refund, feeTip, common.Big0, baseFee,
 	)
+	if errors.Is(err, vm.ErrOutOfGas) {
+		// This is a configuration / contract error, since
+		// the contract itself used way more gas than was expected (including grace limit)
+		return fmt.Errorf("surpassed maximum allowed intrinsic gas for fee currency: %w", err)
+	}
 
 	gasUsed := maxAllowedGasForCredit - leftoverGas
 	log.Trace("CreditFees called", "feeCurrency", *feeCurrency, "gasUsed", gasUsed)
 
-	gasUsedForDebitAndCredit := evm.Context.GasUsedForDebit + gasUsed
-	if gasUsedForDebitAndCredit > IntrinsicGasForAlternativeFeeCurrency {
-		log.Info("Gas usage for debit+credit exceeds intrinsic gas!", "gasUsed", gasUsedForDebitAndCredit, "intrinsicGas", IntrinsicGasForAlternativeFeeCurrency, "feeCurrency", feeCurrency)
+	intrinsicGas, ok := common.CurrencyIntrinsicGasCost(evm.Context.FeeCurrencyContext.IntrinsicGasCosts, feeCurrency)
+	if !ok {
+		// this will never happen
+		return exchange.ErrNonWhitelistedFeeCurrency
+	}
+	gasUsedForDebitAndCredit := gasUsedDebit + gasUsed
+	if gasUsedForDebitAndCredit > intrinsicGas {
+		log.Info("Gas usage for debit+credit exceeds intrinsic gas!", "gasUsed", gasUsedForDebitAndCredit, "intrinsicGas", intrinsicGas, "feeCurrency", feeCurrency)
 	}
 	return err
 }
 
-// GetExchangeRates returns the exchange rates for all gas currencies from CELO
+func GetRegisteredCurrencies(caller *abigen.FeeCurrencyDirectoryCaller) ([]common.Address, error) {
+	currencies, err := caller.GetCurrencies(&bind.CallOpts{})
+	if err != nil {
+		return currencies, fmt.Errorf("Failed to get registered tokens: %w", err)
+	}
+	return currencies, nil
+}
+
+// GetExchangeRates returns the exchange rates for the provided gas currencies
 func GetExchangeRates(caller bind.ContractCaller) (common.ExchangeRates, error) {
 	exchangeRates := map[common.Address]*big.Rat{}
 	directory, err := abigen.NewFeeCurrencyDirectoryCaller(addresses.FeeCurrencyDirectoryAddress, caller)
 	if err != nil {
 		return exchangeRates, fmt.Errorf("Failed to access FeeCurrencyDirectory: %w", err)
 	}
-
-	registeredTokens, err := directory.GetCurrencies(&bind.CallOpts{})
+	currencies, err := GetRegisteredCurrencies(directory)
 	if err != nil {
-		return exchangeRates, fmt.Errorf("Failed to get whitelisted tokens: %w", err)
+		return common.ExchangeRates{}, err
 	}
-	for _, tokenAddress := range registeredTokens {
-		rate, err := directory.GetExchangeRate(&bind.CallOpts{}, tokenAddress)
-		if err != nil {
-			log.Error("Failed to get medianRate for gas currency!", "err", err, "tokenAddress", tokenAddress.Hex())
-			continue
-		}
-		if rate.Numerator.Sign() <= 0 || rate.Denominator.Sign() <= 0 {
-			log.Error("Bad exchange rate for fee currency", "tokenAddress", tokenAddress.Hex(), "numerator", rate.Numerator, "denominator", rate.Denominator)
-			continue
-		}
-		exchangeRates[tokenAddress] = new(big.Rat).SetFrac(rate.Numerator, rate.Denominator)
+	return getExchangeRatesForTokens(directory, currencies)
+}
+
+// GetFeeCurrencyContext returns the fee currency block context for all registered gas currencies from CELO
+func GetFeeCurrencyContext(caller bind.ContractCaller) (common.FeeCurrencyContext, error) {
+	var feeContext common.FeeCurrencyContext
+	directory, err := abigen.NewFeeCurrencyDirectoryCaller(addresses.FeeCurrencyDirectoryAddress, caller)
+	if err != nil {
+		return feeContext, fmt.Errorf("Failed to access FeeCurrencyDirectory: %w", err)
 	}
 
-	return exchangeRates, nil
+	currencies, err := GetRegisteredCurrencies(directory)
+	if err != nil {
+		return feeContext, err
+	}
+	rates, err := getExchangeRatesForTokens(directory, currencies)
+	if err != nil {
+		return feeContext, err
+	}
+	intrinsicGas, err := getIntrinsicGasForTokens(directory, currencies)
+	if err != nil {
+		return feeContext, err
+	}
+	return common.FeeCurrencyContext{
+		ExchangeRates:     rates,
+		IntrinsicGasCosts: intrinsicGas,
+	}, nil
 }
 
 // GetBalanceERC20 returns an account's balance on a given ERC20 currency
@@ -166,4 +206,42 @@ func GetFeeBalance(backend *CeloBackend, account common.Address, feeCurrency *co
 		log.Error("Error while trying to get ERC20 balance:", "cause", err, "contract", feeCurrency.Hex(), "account", account.Hex())
 	}
 	return balance
+}
+
+// getIntrinsicGasForTokens returns the intrinsic gas costs for the provided gas currencies from CELO
+func getIntrinsicGasForTokens(caller *abigen.FeeCurrencyDirectoryCaller, tokens []common.Address) (common.IntrinsicGasCosts, error) {
+	gasCosts := common.IntrinsicGasCosts{}
+	for _, tokenAddress := range tokens {
+		config, err := caller.GetCurrencyConfig(&bind.CallOpts{}, tokenAddress)
+		if err != nil {
+			log.Error("Failed to get intrinsic gas cost for gas currency!", "err", err, "tokenAddress", tokenAddress.Hex())
+			continue
+		}
+		if !config.IntrinsicGas.IsUint64() {
+			log.Error("Intrinsic gas cost exceeds MaxUint64 limit, capping at MaxUint64", "err", err, "tokenAddress", tokenAddress.Hex())
+			gasCosts[tokenAddress] = math.MaxUint64
+		} else {
+			gasCosts[tokenAddress] = config.IntrinsicGas.Uint64()
+		}
+	}
+	return gasCosts, nil
+}
+
+// getExchangeRatesForTokens returns the exchange rates for the provided gas currencies from CELO
+func getExchangeRatesForTokens(caller *abigen.FeeCurrencyDirectoryCaller, tokens []common.Address) (common.ExchangeRates, error) {
+	exchangeRates := common.ExchangeRates{}
+	for _, tokenAddress := range tokens {
+		rate, err := caller.GetExchangeRate(&bind.CallOpts{}, tokenAddress)
+		if err != nil {
+			log.Error("Failed to get medianRate for gas currency!", "err", err, "tokenAddress", tokenAddress.Hex())
+			continue
+		}
+		if rate.Numerator.Sign() <= 0 || rate.Denominator.Sign() <= 0 {
+			log.Error("Bad exchange rate for fee currency", "tokenAddress", tokenAddress.Hex(), "numerator", rate.Numerator, "denominator", rate.Denominator)
+			continue
+		}
+		exchangeRates[tokenAddress] = new(big.Rat).SetFrac(rate.Numerator, rate.Denominator)
+	}
+
+	return exchangeRates, nil
 }

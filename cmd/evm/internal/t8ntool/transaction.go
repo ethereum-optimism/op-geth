@@ -133,8 +133,14 @@ func Transaction(ctx *cli.Context) error {
 			r.Address = sender
 		}
 		// Check intrinsic gas
+		// NOTE: we can't provide specific intrinsic gas costs
+		// for fee-currencies here, since those are written to the
+		// FeeCurrencyDirectory contract and are chain-specific.
+		// When a Celo transaction with specified fee-currency is validated with this tool,
+		// this will thus result in a ErrNonWhitelistedFeeCurrency error for now.
+		var feeIntrinsic common.IntrinsicGasCosts
 		if gas, err := core.IntrinsicGas(tx.Data(), tx.AccessList(), tx.To() == nil,
-			chainConfig.IsHomestead(new(big.Int)), chainConfig.IsIstanbul(new(big.Int)), chainConfig.IsShanghai(new(big.Int), 0), tx.FeeCurrency()); err != nil {
+			chainConfig.IsHomestead(new(big.Int)), chainConfig.IsIstanbul(new(big.Int)), chainConfig.IsShanghai(new(big.Int), 0), tx.FeeCurrency(), feeIntrinsic); err != nil {
 			r.Error = err
 			results = append(results, r)
 			continue

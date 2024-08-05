@@ -82,7 +82,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 	}
 	// Iterate over and process the individual transactions
 	for i, tx := range block.Transactions() {
-		msg, err := TransactionToMessage(tx, signer, header.BaseFee, context.ExchangeRates)
+		msg, err := TransactionToMessage(tx, signer, header.BaseFee, context.FeeCurrencyContext.ExchangeRates)
 		if err != nil {
 			return nil, nil, 0, fmt.Errorf("could not apply tx %d [%v]: %w", i, tx.Hash().Hex(), err)
 		}
@@ -167,7 +167,7 @@ func ApplyTransactionWithEVM(msg *Message, config *params.ChainConfig, gp *GasPo
 	if tx.Type() == types.CeloDynamicFeeTxV2Type {
 		alternativeBaseFee := evm.Context.BaseFee
 		if msg.FeeCurrency != nil {
-			alternativeBaseFee, err = exchange.ConvertCeloToCurrency(evm.Context.ExchangeRates, msg.FeeCurrency, evm.Context.BaseFee)
+			alternativeBaseFee, err = exchange.ConvertCeloToCurrency(evm.Context.FeeCurrencyContext.ExchangeRates, msg.FeeCurrency, evm.Context.BaseFee)
 			if err != nil {
 				return nil, err
 			}
@@ -200,7 +200,7 @@ func ApplyTransactionWithEVM(msg *Message, config *params.ChainConfig, gp *GasPo
 func ApplyTransaction(config *params.ChainConfig, bc ChainContext, author *common.Address, gp *GasPool, statedb *state.StateDB, header *types.Header, tx *types.Transaction, usedGas *uint64, cfg vm.Config) (*types.Receipt, error) {
 	// Create a new context to be used in the EVM environment
 	blockContext := NewEVMBlockContext(header, bc, author, config, statedb)
-	msg, err := TransactionToMessage(tx, types.MakeSigner(config, header.Number, header.Time), header.BaseFee, blockContext.ExchangeRates)
+	msg, err := TransactionToMessage(tx, types.MakeSigner(config, header.Number, header.Time), header.BaseFee, blockContext.FeeCurrencyContext.ExchangeRates)
 	if err != nil {
 		return nil, err
 	}

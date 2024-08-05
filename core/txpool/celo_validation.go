@@ -1,15 +1,13 @@
 package txpool
 
 import (
-	"errors"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/exchange"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/params"
 )
-
-var NonWhitelistedFeeCurrencyError = errors.New("Fee currency given is not whitelisted at current block")
 
 // AcceptSet is a set of accepted transaction types for a transaction subpool.
 type AcceptSet = map[uint8]struct{}
@@ -50,12 +48,12 @@ func (cvo *CeloValidationOptions) Accepts(txType uint8) bool {
 // This check is public to allow different transaction pools to check the basic
 // rules without duplicating code and running the risk of missed updates.
 func CeloValidateTransaction(tx *types.Transaction, head *types.Header,
-	signer types.Signer, opts *CeloValidationOptions, rates common.ExchangeRates) error {
-	if err := ValidateTransaction(tx, head, signer, opts); err != nil {
+	signer types.Signer, opts *CeloValidationOptions, currencyCtx common.FeeCurrencyContext) error {
+	if err := ValidateTransaction(tx, head, signer, opts, currencyCtx); err != nil {
 		return err
 	}
-	if !common.IsCurrencyWhitelisted(rates, tx.FeeCurrency()) {
-		return NonWhitelistedFeeCurrencyError
+	if !common.IsCurrencyWhitelisted(currencyCtx.ExchangeRates, tx.FeeCurrency()) {
+		return exchange.ErrNonWhitelistedFeeCurrency
 	}
 
 	return nil
