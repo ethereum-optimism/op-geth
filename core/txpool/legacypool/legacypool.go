@@ -103,6 +103,16 @@ var (
 	slotsGauge   = metrics.NewRegisteredGauge("txpool/slots", nil)
 
 	reheapTimer = metrics.NewRegisteredTimer("txpool/reheap", nil)
+
+	// Celo specific metrics
+	validTxMeterByTxType = map[byte]metrics.Meter{
+		types.LegacyTxType:           metrics.NewRegisteredMeter("txpool/txtype/legacy", nil),
+		types.AccessListTxType:       metrics.NewRegisteredMeter("txpool/txtype/accesslist", nil),
+		types.DynamicFeeTxType:       metrics.NewRegisteredMeter("txpool/txtype/dynamicfee", nil),
+		types.BlobTxType:             metrics.NewRegisteredMeter("txpool/txtype/blob", nil),
+		types.CeloDynamicFeeTxV2Type: metrics.NewRegisteredMeter("txpool/txtype/cip64", nil),
+	}
+	validTxMeterByFeeCurrency = map[common.Address]metrics.Meter{}
 )
 
 // BlockChain defines the minimal set of methods needed to back a tx pool with
@@ -1098,6 +1108,19 @@ func (pool *LegacyPool) addTxsLocked(txs []*types.Transaction, local bool) ([]er
 		errs[i] = err
 		if err == nil && !replaced {
 			dirty.addTx(tx)
+			if tx.FeeCurrency() != nil {
+				feeCurrencyMeter, ok := validTxMeterByFeeCurrency[*tx.FeeCurrency()]
+				if !ok {
+					feeCurrencyMeter = metrics.NewRegisteredMeter(
+						"txpool/feecurrency/"+tx.FeeCurrency().Hex(),
+						nil)
+					validTxMeterByFeeCurrency[*tx.FeeCurrency()] = feeCurrencyMeter
+				}
+				feeCurrencyMeter.Mark(1)
+			}
+			if txTypeMeter, ok := validTxMeterByTxType[tx.Type()]; ok {
+				txTypeMeter.Mark(1)
+			}
 		}
 	}
 	validTxMeter.Mark(int64(len(dirty.accounts)))
