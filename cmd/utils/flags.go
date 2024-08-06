@@ -1725,6 +1725,9 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 	setRequiredBlocks(ctx, cfg)
 	setLes(ctx, cfg)
 
+	setPebbleExtraOptions(ctx, cfg)
+	log.Debug("Set pebble extra options", "pebble_extra_options", cfg.PebbleExtraOptions)
+
 	// Cap the cache allowance and tune the garbage collector
 	mem, err := gopsutil.VirtualMemory()
 	if err == nil {
@@ -1952,7 +1955,7 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 			if rawdb.ReadCanonicalHash(chaindb, 0) != (common.Hash{}) {
 				cfg.Genesis = nil // fallback to db content
 
-				//validate genesis has PoS enabled in block 0
+				// validate genesis has PoS enabled in block 0
 				genesis, err := core.ReadGenesis(chaindb)
 				if err != nil {
 					Fatalf("Could not read genesis from database: %v", err)

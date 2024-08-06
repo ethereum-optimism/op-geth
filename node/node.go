@@ -33,6 +33,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/ethdb"
+	"github.com/ethereum/go-ethereum/ethdb/pebble"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p"
@@ -714,6 +715,10 @@ func (n *Node) EventMux() *event.TypeMux {
 // previous can be found) from within the node's instance directory. If the node is
 // ephemeral, a memory database is returned.
 func (n *Node) OpenDatabase(name string, cache, handles int, namespace string, readonly bool) (ethdb.Database, error) {
+	return n.OpenDatabaseWithExtraOptions(name, cache, handles, namespace, readonly, nil)
+}
+
+func (n *Node) OpenDatabaseWithExtraOptions(name string, cache, handles int, namespace string, readonly bool, pebbleExtraOptions *pebble.ExtraOptions) (ethdb.Database, error) {
 	n.lock.Lock()
 	defer n.lock.Unlock()
 	if n.state == closedState {
@@ -726,12 +731,13 @@ func (n *Node) OpenDatabase(name string, cache, handles int, namespace string, r
 		db = rawdb.NewMemoryDatabase()
 	} else {
 		db, err = rawdb.Open(rawdb.OpenOptions{
-			Type:      n.config.DBEngine,
-			Directory: n.ResolvePath(name),
-			Namespace: namespace,
-			Cache:     cache,
-			Handles:   handles,
-			ReadOnly:  readonly,
+			Type:               n.config.DBEngine,
+			Directory:          n.ResolvePath(name),
+			Namespace:          namespace,
+			Cache:              cache,
+			Handles:            handles,
+			ReadOnly:           readonly,
+			PebbleExtraOptions: pebbleExtraOptions,
 		})
 	}
 
@@ -747,6 +753,10 @@ func (n *Node) OpenDatabase(name string, cache, handles int, namespace string, r
 // database to immutable append-only files. If the node is an ephemeral one, a
 // memory database is returned.
 func (n *Node) OpenDatabaseWithFreezer(name string, cache, handles int, ancient string, namespace string, readonly bool) (ethdb.Database, error) {
+	return n.OpenDatabaseWithFreezerWithExtraOptions(name, cache, handles, ancient, namespace, readonly, nil)
+}
+
+func (n *Node) OpenDatabaseWithFreezerWithExtraOptions(name string, cache, handles int, ancient string, namespace string, readonly bool, pebbleExtraOptions *pebble.ExtraOptions) (ethdb.Database, error) {
 	n.lock.Lock()
 	defer n.lock.Unlock()
 	if n.state == closedState {
@@ -758,13 +768,14 @@ func (n *Node) OpenDatabaseWithFreezer(name string, cache, handles int, ancient 
 		db = rawdb.NewMemoryDatabase()
 	} else {
 		db, err = rawdb.Open(rawdb.OpenOptions{
-			Type:              n.config.DBEngine,
-			Directory:         n.ResolvePath(name),
-			AncientsDirectory: n.ResolveAncient(name, ancient),
-			Namespace:         namespace,
-			Cache:             cache,
-			Handles:           handles,
-			ReadOnly:          readonly,
+			Type:               n.config.DBEngine,
+			Directory:          n.ResolvePath(name),
+			AncientsDirectory:  n.ResolveAncient(name, ancient),
+			Namespace:          namespace,
+			Cache:              cache,
+			Handles:            handles,
+			ReadOnly:           readonly,
+			PebbleExtraOptions: pebbleExtraOptions,
 		})
 	}
 

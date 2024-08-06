@@ -68,6 +68,25 @@ type Database struct {
 	seekCompGauge       metrics.Gauge // Gauge for tracking the number of table compaction caused by read opt
 	manualMemAllocGauge metrics.Gauge // Gauge for tracking amount of non-managed memory currently allocated
 
+	compDebtGauge       metrics.Gauge
+	compInProgressGauge metrics.Gauge
+
+	commitCountMeter               metrics.Meter
+	commitTotalDurationMeter       metrics.Meter
+	commitSemaphoreWaitMeter       metrics.Meter
+	commitMemTableWriteStallMeter  metrics.Meter
+	commitL0ReadAmpWriteStallMeter metrics.Meter
+	commitWALRotationMeter         metrics.Meter
+	commitWaitMeter                metrics.Meter
+
+	commitCount               atomic.Int64
+	commitTotalDuration       atomic.Int64
+	commitSemaphoreWait       atomic.Int64
+	commitMemTableWriteStall  atomic.Int64
+	commitL0ReadAmpWriteStall atomic.Int64
+	commitWALRotation         atomic.Int64
+	commitWait                atomic.Int64
+
 	levelsGauge []metrics.Gauge // Gauge for tracking the number of tables in levels
 
 	quitLock sync.RWMutex    // Mutex protecting the quit channel and the closed flag
@@ -135,7 +154,38 @@ func (l panicLogger) Fatalf(format string, args ...interface{}) {
 
 // New returns a wrapped pebble DB object. The namespace is the prefix that the
 // metrics reporting should use for surfacing internal stats.
-func New(file string, cache int, handles int, namespace string, readonly bool, ephemeral bool) (*Database, error) {
+func New(file string, cache int, handles int, namespace string, readonly bool, ephemeral bool, extraOptions *ExtraOptions) (*Database, error) {
+	if extraOptions == nil {
+		extraOptions = &ExtraOptions{}
+	}
+	if extraOptions.MemTableStopWritesThreshold <= 0 {
+		extraOptions.MemTableStopWritesThreshold = 2
+	}
+	if extraOptions.MaxConcurrentCompactions == nil {
+		extraOptions.MaxConcurrentCompactions = func() int { return runtime.NumCPU() }
+	}
+	var levels []pebble.LevelOptions
+	if len(extraOptions.Levels) == 0 {
+		levels = []pebble.LevelOptions{
+			{TargetFileSize: 2 * 1024 * 1024, FilterPolicy: bloom.FilterPolicy(10)},
+			{TargetFileSize: 2 * 1024 * 1024, FilterPolicy: bloom.FilterPolicy(10)},
+			{TargetFileSize: 2 * 1024 * 1024, FilterPolicy: bloom.FilterPolicy(10)},
+			{TargetFileSize: 2 * 1024 * 1024, FilterPolicy: bloom.FilterPolicy(10)},
+			{TargetFileSize: 2 * 1024 * 1024, FilterPolicy: bloom.FilterPolicy(10)},
+			{TargetFileSize: 2 * 1024 * 1024, FilterPolicy: bloom.FilterPolicy(10)},
+			{TargetFileSize: 2 * 1024 * 1024, FilterPolicy: bloom.FilterPolicy(10)},
+		}
+	} else {
+		for _, level := range extraOptions.Levels {
+			levels = append(levels, pebble.LevelOptions{
+				BlockSize:      level.BlockSize,
+				IndexBlockSize: level.IndexBlockSize,
+				TargetFileSize: level.TargetFileSize,
+				FilterPolicy:   bloom.FilterPolicy(10),
+			})
+		}
+	}
+
 	// Ensure we have some minimal caching and file guarantees
 	if cache < minCache {
 		cache = minCache
@@ -160,7 +210,7 @@ func New(file string, cache int, handles int, namespace string, readonly bool, e
 
 	// Two memory tables is configured which is identical to leveldb,
 	// including a frozen memory table and another live one.
-	memTableLimit := 2
+	memTableLimit := extraOptions.MemTableStopWritesThreshold
 	memTableSize := cache * 1024 * 1024 / 2 / memTableLimit
 
 	// The memory table size is currently capped at maxMemTableSize-1 due to a
@@ -198,19 +248,11 @@ func New(file string, cache int, handles int, namespace string, readonly bool, e
 
 		// The default compaction concurrency(1 thread),
 		// Here use all available CPUs for faster compaction.
-		MaxConcurrentCompactions: func() int { return runtime.NumCPU() },
+		MaxConcurrentCompactions: extraOptions.MaxConcurrentCompactions,
 
-		// Per-level options. Options for at least one level must be specified. The
-		// options for the last level are used for all subsequent levels.
-		Levels: []pebble.LevelOptions{
-			{TargetFileSize: 2 * 1024 * 1024, FilterPolicy: bloom.FilterPolicy(10)},
-			{TargetFileSize: 2 * 1024 * 1024, FilterPolicy: bloom.FilterPolicy(10)},
-			{TargetFileSize: 2 * 1024 * 1024, FilterPolicy: bloom.FilterPolicy(10)},
-			{TargetFileSize: 2 * 1024 * 1024, FilterPolicy: bloom.FilterPolicy(10)},
-			{TargetFileSize: 2 * 1024 * 1024, FilterPolicy: bloom.FilterPolicy(10)},
-			{TargetFileSize: 2 * 1024 * 1024, FilterPolicy: bloom.FilterPolicy(10)},
-			{TargetFileSize: 2 * 1024 * 1024, FilterPolicy: bloom.FilterPolicy(10)},
-		},
+		// Per-level extraOptions. Options for at least one level must be specified. The
+		// extraOptions for the last level are used for all subsequent levels.
+		Levels:   levels,
 		ReadOnly: readonly,
 		EventListener: &pebble.EventListener{
 			CompactionBegin: db.onCompactionBegin,
@@ -219,10 +261,30 @@ func New(file string, cache int, handles int, namespace string, readonly bool, e
 			WriteStallEnd:   db.onWriteStallEnd,
 		},
 		Logger: panicLogger{}, // TODO(karalabe): Delete when this is upstreamed in Pebble
+
+		BytesPerSync:                extraOptions.BytesPerSync,
+		L0CompactionFileThreshold:   extraOptions.L0CompactionFileThreshold,
+		L0CompactionThreshold:       extraOptions.L0CompactionThreshold,
+		L0StopWritesThreshold:       extraOptions.L0StopWritesThreshold,
+		LBaseMaxBytes:               extraOptions.LBaseMaxBytes,
+		DisableAutomaticCompactions: extraOptions.DisableAutomaticCompactions,
+		WALBytesPerSync:             extraOptions.WALBytesPerSync,
+		WALDir:                      extraOptions.WALDir,
+		WALMinSyncInterval:          extraOptions.WALMinSyncInterval,
+		TargetByteDeletionRate:      extraOptions.TargetByteDeletionRate,
 	}
 	// Disable seek compaction explicitly. Check https://github.com/ethereum/go-ethereum/pull/20130
 	// for more details.
 	opt.Experimental.ReadSamplingMultiplier = -1
+
+	if opt.Experimental.ReadSamplingMultiplier != 0 {
+		opt.Experimental.ReadSamplingMultiplier = extraOptions.Experimental.ReadSamplingMultiplier
+	}
+	opt.Experimental.L0CompactionConcurrency = extraOptions.Experimental.L0CompactionConcurrency
+	opt.Experimental.CompactionDebtConcurrency = extraOptions.Experimental.CompactionDebtConcurrency
+	opt.Experimental.ReadCompactionRate = extraOptions.Experimental.ReadCompactionRate
+	opt.Experimental.MaxWriterConcurrency = extraOptions.Experimental.MaxWriterConcurrency
+	opt.Experimental.ForceWriterParallelism = extraOptions.Experimental.ForceWriterParallelism
 
 	// Open the db and recover any potential corruptions
 	innerDB, err := pebble.Open(file, opt)
@@ -244,6 +306,17 @@ func New(file string, cache int, handles int, namespace string, readonly bool, e
 	db.nonlevel0CompGauge = metrics.NewRegisteredGauge(namespace+"compact/nonlevel0", nil)
 	db.seekCompGauge = metrics.NewRegisteredGauge(namespace+"compact/seek", nil)
 	db.manualMemAllocGauge = metrics.NewRegisteredGauge(namespace+"memory/manualalloc", nil)
+
+	db.compDebtGauge = metrics.GetOrRegisterGauge(namespace+"compact/debt", nil)
+	db.compInProgressGauge = metrics.GetOrRegisterGauge(namespace+"compact/inprogress", nil)
+
+	db.commitCountMeter = metrics.GetOrRegisterMeter(namespace+"commit/counter", nil)
+	db.commitTotalDurationMeter = metrics.GetOrRegisterMeter(namespace+"commit/duration/total", nil)
+	db.commitSemaphoreWaitMeter = metrics.GetOrRegisterMeter(namespace+"commit/duration/semaphorewait", nil)
+	db.commitMemTableWriteStallMeter = metrics.GetOrRegisterMeter(namespace+"commit/duration/memtablewritestall", nil)
+	db.commitL0ReadAmpWriteStallMeter = metrics.GetOrRegisterMeter(namespace+"commit/duration/l0readampwritestall", nil)
+	db.commitWALRotationMeter = metrics.GetOrRegisterMeter(namespace+"commit/duration/walrotation", nil)
+	db.commitWaitMeter = metrics.GetOrRegisterMeter(namespace+"commit/duration/commitwait", nil)
 
 	// Start up the metrics gathering and return
 	go db.meter(metricsGatheringInterval, namespace)
@@ -457,6 +530,14 @@ func (d *Database) meter(refresh time.Duration, namespace string) {
 		compReads        [2]int64
 
 		nWrites [2]int64
+
+		commitCounts               [2]int64
+		commitTotalDurations       [2]int64
+		commitSemaphoreWaits       [2]int64
+		commitMemTableWriteStalls  [2]int64
+		commitL0ReadAmpWriteStalls [2]int64
+		commitWALRotations         [2]int64
+		commitWaits                [2]int64
 	)
 
 	// Iterate ad infinitum and collect the stats
@@ -472,6 +553,14 @@ func (d *Database) meter(refresh time.Duration, namespace string) {
 			writeDelayTime     = d.writeDelayTime.Load()
 			nonLevel0CompCount = int64(d.nonLevel0Comp.Load())
 			level0CompCount    = int64(d.level0Comp.Load())
+
+			commitCount               = d.commitCount.Load()
+			commitTotalDuration       = d.commitTotalDuration.Load()
+			commitSemaphoreWait       = d.commitSemaphoreWait.Load()
+			commitMemTableWriteStall  = d.commitMemTableWriteStall.Load()
+			commitL0ReadAmpWriteStall = d.commitL0ReadAmpWriteStall.Load()
+			commitWALRotation         = d.commitWALRotation.Load()
+			commitWait                = d.commitWait.Load()
 		)
 		writeDelayTimes[i%2] = writeDelayTime
 		writeDelayCounts[i%2] = writeDelayCount
@@ -521,6 +610,25 @@ func (d *Database) meter(refresh time.Duration, namespace string) {
 		d.nonlevel0CompGauge.Update(nonLevel0CompCount)
 		d.level0CompGauge.Update(level0CompCount)
 		d.seekCompGauge.Update(stats.Compact.ReadCount)
+
+		commitCounts[i%2] = commitCount
+		commitTotalDurations[i%2] = commitTotalDuration
+		commitSemaphoreWaits[i%2] = commitSemaphoreWait
+		commitMemTableWriteStalls[i%2] = commitMemTableWriteStall
+		commitL0ReadAmpWriteStalls[i%2] = commitL0ReadAmpWriteStall
+		commitWALRotations[i%2] = commitWALRotation
+		commitWaits[i%2] = commitWait
+
+		d.commitCountMeter.Mark(commitCounts[i%2] - commitCounts[(i-1)%2])
+		d.commitTotalDurationMeter.Mark(commitTotalDurations[i%2] - commitTotalDurations[(i-1)%2])
+		d.commitSemaphoreWaitMeter.Mark(commitSemaphoreWaits[i%2] - commitSemaphoreWaits[(i-1)%2])
+		d.commitMemTableWriteStallMeter.Mark(commitMemTableWriteStalls[i%2] - commitMemTableWriteStalls[(i-1)%2])
+		d.commitL0ReadAmpWriteStallMeter.Mark(commitL0ReadAmpWriteStalls[i%2] - commitL0ReadAmpWriteStalls[(i-1)%2])
+		d.commitWALRotationMeter.Mark(commitWALRotations[i%2] - commitWALRotations[(i-1)%2])
+		d.commitWaitMeter.Mark(commitWaits[i%2] - commitWaits[(i-1)%2])
+
+		d.compDebtGauge.Update(int64(stats.Compact.EstimatedDebt))
+		d.compInProgressGauge.Update(stats.Compact.NumInProgress)
 
 		for i, level := range stats.Levels {
 			// Append metrics for additional layers
@@ -576,7 +684,20 @@ func (b *batch) Write() error {
 	if b.db.closed {
 		return pebble.ErrClosed
 	}
-	return b.b.Commit(b.db.writeOptions)
+	err := b.b.Commit(b.db.writeOptions)
+	if err != nil {
+		return err
+	}
+	stats := b.b.CommitStats()
+	b.db.commitCount.Add(1)
+	b.db.commitTotalDuration.Add(int64(stats.TotalDuration))
+	b.db.commitSemaphoreWait.Add(int64(stats.SemaphoreWaitDuration))
+	b.db.commitMemTableWriteStall.Add(int64(stats.MemTableWriteStallDuration))
+	b.db.commitL0ReadAmpWriteStall.Add(int64(stats.L0ReadAmpWriteStallDuration))
+	b.db.commitWALRotation.Add(int64(stats.WALRotationDuration))
+	b.db.commitWait.Add(int64(stats.CommitWaitDuration))
+	// TODO add metric for stats.WALQueueWaitDuration when it will be used by pebble (currently it is always 0)
+	return nil
 }
 
 // Reset resets the batch for reuse.
