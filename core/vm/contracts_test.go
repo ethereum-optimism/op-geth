@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/params"
 )
 
 // precompiledTest defines the input/output pairs for precompiled contract tests.
@@ -54,7 +55,7 @@ var allPrecompiles = map[common.Address]PrecompiledContract{
 	common.BytesToAddress([]byte{0xf5}): &bigModExp{eip2565: true},
 	common.BytesToAddress([]byte{6}):    &bn256AddIstanbul{},
 	common.BytesToAddress([]byte{7}):    &bn256ScalarMulIstanbul{},
-	common.BytesToAddress([]byte{8}):    &bn256PairingIstanbul{},
+	common.BytesToAddress([]byte{8}):    &bn256PairingGranite{},
 	common.BytesToAddress([]byte{9}):    &blake2F{},
 	common.BytesToAddress([]byte{0x0a}): &kzgPointEvaluation{},
 
@@ -272,6 +273,15 @@ func TestPrecompileBlake2FMalformedInput(t *testing.T) {
 	for _, test := range blake2FMalformedInputTests {
 		testPrecompiledFailure("09", test, t)
 	}
+}
+
+func TestPrecompileBn256PairingTooLargeInput(t *testing.T) {
+	big := make([]byte, params.Bn256PairingMaxInputSizeGranite+1)
+	testPrecompiledFailure("08", precompiledFailureTest{
+		Input:         common.Bytes2Hex(big),
+		ExpectedError: "bad elliptic curve pairing input size",
+		Name:          "bn256Pairing_input_too_big",
+	}, t)
 }
 
 func TestPrecompiledEcrecover(t *testing.T) { testJson("ecRecover", "01", t) }
