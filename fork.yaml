@@ -113,6 +113,13 @@ def:
           globs:
             - "core/txpool/**/*"
             - "core/txpool/legacypool/*"
+        - title: "RIP-7212"
+          description: ""
+          globs:
+            - "core/vm/contracts.go"
+            - "core/vm/interpreter.go"
+            - "crypto/secp256r1/publickey.go"
+            - "crypto/secp256r1/verifier.go"
     - title: "Chain Configuration"
       sub:
         - title: "Chain config"
