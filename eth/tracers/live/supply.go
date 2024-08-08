@@ -188,6 +188,9 @@ func (s *supply) OnBalanceChange(a common.Address, prevBalance, newBalance *big.
 		// BalanceDecreaseSelfdestructBurn is non-reversible as it happens
 		// at the end of the transaction.
 		s.delta.Burn.Misc.Sub(s.delta.Burn.Misc, diff)
+	// Technically an OP-Stack deposit mint is a "withdrawal" from L1, taking funds into L2.
+	case tracing.BalanceMint:
+		s.delta.Issuance.Withdrawals.Add(s.delta.Issuance.Withdrawals, diff)
 	default:
 		return
 	}
