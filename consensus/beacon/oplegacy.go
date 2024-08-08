@@ -57,7 +57,7 @@ func (o *OpLegacy) VerifyUncles(chain consensus.ChainReader, block *types.Block)
 }
 
 func (o *OpLegacy) Prepare(chain consensus.ChainHeaderReader, header *types.Header) error {
-	return nil
+	return fmt.Errorf("cannot prepare for legacy block header: %s (num %d)", header.Hash(), header.Number)
 }
 
 func (o *OpLegacy) Finalize(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, body *types.Body) {
