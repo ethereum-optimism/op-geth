@@ -23,6 +23,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/event"
@@ -57,7 +58,7 @@ func (b *opTestBackend) GetReceipts(ctx context.Context, hash common.Hash) (type
 	return b.receipts, nil
 }
 
-func (b *opTestBackend) PendingBlockAndReceipts() (*types.Block, types.Receipts) {
+func (b *opTestBackend) Pending() (*types.Block, types.Receipts, *state.StateDB) {
 	panic("not implemented")
 }
 
@@ -68,6 +69,8 @@ func (b *opTestBackend) ChainConfig() *params.ChainConfig {
 func (b *opTestBackend) SubscribeChainHeadEvent(ch chan<- core.ChainHeadEvent) event.Subscription {
 	return nil
 }
+
+var _ OracleBackend = (*opTestBackend)(nil)
 
 func newOpTestBackend(t *testing.T, txs []testTxData) *opTestBackend {
 	var (
@@ -100,7 +103,7 @@ func newOpTestBackend(t *testing.T, txs []testTxData) *opTestBackend {
 		nonce++
 	}
 	hasher := trie.NewStackTrie(nil)
-	b := types.NewBlock(&header, ts, nil, nil, hasher)
+	b := types.NewBlock(&header, &types.Body{Transactions: ts}, nil, hasher)
 	return &opTestBackend{block: b, receipts: rs}
 }
 
@@ -112,22 +115,22 @@ func TestSuggestOptimismPriorityFee(t *testing.T) {
 	}{
 		{
 			// block well under capacity, expect min priority fee suggestion
-			txdata: []testTxData{testTxData{params.GWei, 21000}},
+			txdata: []testTxData{{params.GWei, 21000}},
 			want:   minSuggestion,
 		},
 		{
 			// 2 txs, still under capacity, expect min priority fee suggestion
-			txdata: []testTxData{testTxData{params.GWei, 21000}, testTxData{params.GWei, 21000}},
+			txdata: []testTxData{{params.GWei, 21000}, {params.GWei, 21000}},
 			want:   minSuggestion,
 		},
 		{
 			// 2 txs w same priority fee (1 gwei), but second tx puts it right over capacity
-			txdata: []testTxData{testTxData{params.GWei, 21000}, testTxData{params.GWei, 21001}},
+			txdata: []testTxData{{params.GWei, 21000}, {params.GWei, 21001}},
 			want:   big.NewInt(1100000000), // 10 percent over 1 gwei, the median
 		},
 		{
 			// 3 txs, full block. return 10% over the median tx (10 gwei * 10% == 11 gwei)
-			txdata: []testTxData{testTxData{10 * params.GWei, 21000}, testTxData{1 * params.GWei, 21000}, testTxData{100 * params.GWei, 21000}},
+			txdata: []testTxData{{10 * params.GWei, 21000}, {1 * params.GWei, 21000}, {100 * params.GWei, 21000}},
 			want:   big.NewInt(11 * params.GWei),
 		},
 	}

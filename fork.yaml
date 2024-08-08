@@ -5,7 +5,7 @@ footer: |
 base:
   name: go-ethereum
   url: https://github.com/ethereum/go-ethereum
-  hash: c5ba367eb6232e3eddd7d6226bfd374449c63164 # v1.13.15
+  hash: aa55f5ea200dfd07618fdf658d9d2741c3b376a8 # v1.14.7
 fork:
   name: op-geth
   url: https://github.com/ethereum-optimism/op-geth
@@ -259,6 +259,13 @@ def:
           globs:
             - "accounts/abi/bind/backends/simulated.go"
             - "ethclient/simulated/backend.go"
+        - title: Live tracer update
+          description: |
+            Track L1-deposited native currency that is coming into the L2 supply.
+            The balance delta is considered to be a "withdrawal" from L1,
+            similar to a withdrawal of the Beacon-chain into the Ethereum L1 execution chain.
+          globs:
+            - "eth/tracers/live/supply.go"
     - title: "Hardware wallet support"
       description: Extend Ledger wallet support for newer devices on Macos
       sub:
