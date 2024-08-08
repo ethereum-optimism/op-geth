@@ -39,6 +39,12 @@ import (
 	"github.com/holiman/uint256"
 )
 
+const (
+	// minRecommitInterruptInterval is the minimum time interval used to interrupt filling a
+	// sealing block with pending transactions from the mempool
+	minRecommitInterruptInterval = 2 * time.Second
+)
+
 var (
 	errBlockInterruptedByNewHead  = errors.New("new head arrived while building block")
 	errBlockInterruptedByRecommit = errors.New("recommit interrupt while building block")
@@ -128,7 +134,7 @@ func (miner *Miner) generateWork(params *generateParams) *newPayloadResult {
 		if interrupt == nil {
 			interrupt = new(atomic.Int32)
 		}
-		timer := time.AfterFunc(miner.config.Recommit, func() {
+		timer := time.AfterFunc(max(minRecommitInterruptInterval, miner.config.Recommit), func() {
 			interrupt.Store(commitInterruptTimeout)
 		})
 
@@ -260,8 +266,10 @@ func (miner *Miner) makeEnv(parent *types.Header, header *types.Header, coinbase
 		if historicalBackend, ok := miner.backend.(BackendWithHistoricalState); ok {
 			var release tracers.StateReleaseFunc
 			parentBlock := miner.backend.BlockChain().GetBlockByHash(parent.Hash())
-			state, release, _ = historicalBackend.StateAtBlock(context.Background(), parentBlock, ^uint64(0), nil, false, false)
-			// TODO: handle error returned by StateAtBlock
+			state, release, err = historicalBackend.StateAtBlock(context.Background(), parentBlock, ^uint64(0), nil, false, false)
+			if err != nil {
+				return nil, err
+			}
 			state = state.Copy()
 			release()
 		}
