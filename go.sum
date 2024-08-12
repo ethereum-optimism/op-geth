@@ -169,8 +169,8 @@ github.com/envoyproxy/go-control-plane v0.9.0/go.mod h1:YTl/9mNaCwkRvm6d1a2C3ymF
 github.com/envoyproxy/go-control-plane v0.9.1-0.20191026205805-5f8ba28d4473/go.mod h1:YTl/9mNaCwkRvm6d1a2C3ymFceY/DCBVvsKhRF0iEA4=
 github.com/envoyproxy/go-control-plane v0.9.4/go.mod h1:6rpuAdCZL397s3pYoYcLgu1mIlRU8Am5FuJP05cCM98=
 github.com/envoyproxy/protoc-gen-validate v0.1.0/go.mod h1:iSmxcyjqTsJpI2R4NaDN7+kN2VEUnK/pcBlmesArF7c=
-github.com/ethereum-optimism/superchain-registry/superchain v0.0.0-20240803025447-c92ef420eec2 h1:ySJykDUyb8RbcfLL3pz0Cs5Ji6NMVT7kmAY634DOCoE=
-github.com/ethereum-optimism/superchain-registry/superchain v0.0.0-20240803025447-c92ef420eec2/go.mod h1:zy9f3TNPS7pwW4msMitF83fp0Wf452tZ6+Fg6d4JyXM=
+github.com/ethereum-optimism/superchain-registry/superchain v0.0.0-20240812010938-34a43d577f74 h1:HQZQalpPUXs9qnJgDmEDzpPO70Z1p8Le2l0bZ9eJjCk=
+github.com/ethereum-optimism/superchain-registry/superchain v0.0.0-20240812010938-34a43d577f74/go.mod h1:zy9f3TNPS7pwW4msMitF83fp0Wf452tZ6+Fg6d4JyXM=
 github.com/ethereum/c-kzg-4844 v1.0.0 h1:0X1LBXxaEtYD9xsyj9B9ctQEZIpnvVDeoBx8aHEwTNA=
 github.com/ethereum/c-kzg-4844 v1.0.0/go.mod h1:VewdlzQmpT5QSrVhbBuGoCdFJkpaJlO1aQputP83wc0=
 github.com/ethereum/go-verkle v0.1.1-0.20240306133620-7d920df305f0 h1:KrE8I4reeVvf7C1tm8elRjj4BdscTYzz/WAbYyf/JI4=
