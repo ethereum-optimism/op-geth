@@ -29,7 +29,8 @@ import (
 )
 
 // PrecompileOverrides is a function that can be used to override the default precompiled contracts
-type PrecompileOverrides func(params.Rules, PrecompiledContract, common.Address) (PrecompiledContract, bool)
+// Nil is returned when there is no precompile. The original is returned if the existing precompile should run.
+type PrecompileOverrides func(rules params.Rules, original PrecompiledContract, addr common.Address) PrecompiledContract
 
 // Config are the configuration options for the Interpreter
 type Config struct {
@@ -39,7 +40,7 @@ type Config struct {
 	ExtraEips               []int // Additional EIPS that are to be enabled
 	EnableWitnessCollection bool  // true if witness collection is enabled
 
-	OptimismPrecompileOverrides PrecompileOverrides // Precompile overrides for Optimism
+	PrecompileOverrides PrecompileOverrides // Precompiles can be swapped / changed / wrapped as needed
 }
 
 // ScopeContext contains the things that are per-call, such as stack and memory,
