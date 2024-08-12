@@ -258,12 +258,13 @@ type ChainOverrides struct {
 	OverrideCancun *uint64
 	OverrideVerkle *uint64
 	// optimism
-	OverrideOptimismCanyon  *uint64
-	OverrideOptimismEcotone *uint64
-	OverrideOptimismFjord   *uint64
-	OverrideOptimismGranite *uint64
-	ApplySuperchainUpgrades bool
-	OverrideOptimismInterop *uint64
+	OverrideOptimismCanyon   *uint64
+	OverrideOptimismEcotone  *uint64
+	OverrideOptimismFjord    *uint64
+	OverrideOptimismGranite  *uint64
+	OverrideOptimismHolocene *uint64
+	OverrideOptimismInterop  *uint64
+	ApplySuperchainUpgrades  bool
 }
 
 // SetupGenesisBlock writes or updates the genesis block in db.
@@ -333,6 +334,9 @@ func SetupGenesisBlockWithOverride(db ethdb.Database, triedb *triedb.Database, g
 			}
 			if overrides != nil && overrides.OverrideOptimismGranite != nil {
 				config.GraniteTime = overrides.OverrideOptimismGranite
+			}
+			if overrides != nil && overrides.OverrideOptimismHolocene != nil {
+				config.HoloceneTime = overrides.OverrideOptimismHolocene
 			}
 			if overrides != nil && overrides.OverrideOptimismInterop != nil {
 				config.InteropTime = overrides.OverrideOptimismInterop

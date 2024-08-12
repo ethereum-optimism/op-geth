@@ -70,6 +70,7 @@ func LoadOPStackChainConfig(chainID uint64) (*ChainConfig, error) {
 		EcotoneTime:                   chConfig.EcotoneTime,
 		FjordTime:                     chConfig.FjordTime,
 		GraniteTime:                   chConfig.GraniteTime,
+		HoloceneTime:                  chConfig.HoloceneTime,
 		TerminalTotalDifficulty:       common.Big0,
 		TerminalTotalDifficultyPassed: true,
 		Ethash:                        nil,
