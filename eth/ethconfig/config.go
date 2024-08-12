@@ -169,6 +169,8 @@ type Config struct {
 
 	OverrideOptimismGranite *uint64 `toml:",omitempty"`
 
+	OverrideOptimismHolocene *uint64 `toml:",omitempty"`
+
 	OverrideOptimismInterop *uint64 `toml:",omitempty"`
 
 	// ApplySuperchainUpgrades requests the node to load chain-configuration from the superchain-registry.
