@@ -63,12 +63,9 @@ func (evm *EVM) precompile(addr common.Address) (PrecompiledContract, bool) {
 		precompiles = PrecompiledContractsHomestead
 	}
 	p, ok := precompiles[addr]
-	// Restrict overrides to known precompiles
-	if ok && evm.chainConfig.IsOptimism() && evm.Config.OptimismPrecompileOverrides != nil {
-		override, ok := evm.Config.OptimismPrecompileOverrides(evm.chainRules, p, addr)
-		if ok {
-			return override, ok
-		}
+	if evm.Config.PrecompileOverrides != nil {
+		override := evm.Config.PrecompileOverrides(evm.chainRules, p, addr)
+		return override, override != nil
 	}
 	return p, ok
 }
