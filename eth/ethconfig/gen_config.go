@@ -50,6 +50,9 @@ func (c Config) MarshalTOML() (interface{}, error) {
 		BlobPool                                blobpool.Config
 		GPO                                     gasprice.Config
 		EnablePreimageRecording                 bool
+		EnableWitnessCollection                 bool `toml:"-"`
+		VMTrace                                 string
+		VMTraceJsonConfig                       string
 		DocRoot                                 string `toml:"-"`
 		RPCGasCap                               uint64
 		RPCEVMTimeout                           time.Duration
@@ -60,6 +63,7 @@ func (c Config) MarshalTOML() (interface{}, error) {
 		OverrideOptimismEcotone                 *uint64 `toml:",omitempty"`
 		OverrideOptimismFjord                   *uint64 `toml:",omitempty"`
 		OverrideOptimismGranite                 *uint64 `toml:",omitempty"`
+		OverrideOptimismHolocene                *uint64 `toml:",omitempty"`
 		OverrideOptimismInterop                 *uint64 `toml:",omitempty"`
 		ApplySuperchainUpgrades                 bool    `toml:",omitempty"`
 		RollupSequencerHTTP                     string
@@ -103,6 +107,9 @@ func (c Config) MarshalTOML() (interface{}, error) {
 	enc.BlobPool = c.BlobPool
 	enc.GPO = c.GPO
 	enc.EnablePreimageRecording = c.EnablePreimageRecording
+	enc.EnableWitnessCollection = c.EnableWitnessCollection
+	enc.VMTrace = c.VMTrace
+	enc.VMTraceJsonConfig = c.VMTraceJsonConfig
 	enc.DocRoot = c.DocRoot
 	enc.RPCGasCap = c.RPCGasCap
 	enc.RPCEVMTimeout = c.RPCEVMTimeout
@@ -113,6 +120,7 @@ func (c Config) MarshalTOML() (interface{}, error) {
 	enc.OverrideOptimismEcotone = c.OverrideOptimismEcotone
 	enc.OverrideOptimismFjord = c.OverrideOptimismFjord
 	enc.OverrideOptimismGranite = c.OverrideOptimismGranite
+	enc.OverrideOptimismHolocene = c.OverrideOptimismHolocene
 	enc.OverrideOptimismInterop = c.OverrideOptimismInterop
 	enc.ApplySuperchainUpgrades = c.ApplySuperchainUpgrades
 	enc.RollupSequencerHTTP = c.RollupSequencerHTTP
@@ -160,6 +168,9 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 		BlobPool                                *blobpool.Config
 		GPO                                     *gasprice.Config
 		EnablePreimageRecording                 *bool
+		EnableWitnessCollection                 *bool `toml:"-"`
+		VMTrace                                 *string
+		VMTraceJsonConfig                       *string
 		DocRoot                                 *string `toml:"-"`
 		RPCGasCap                               *uint64
 		RPCEVMTimeout                           *time.Duration
@@ -170,6 +181,7 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 		OverrideOptimismEcotone                 *uint64 `toml:",omitempty"`
 		OverrideOptimismFjord                   *uint64 `toml:",omitempty"`
 		OverrideOptimismGranite                 *uint64 `toml:",omitempty"`
+		OverrideOptimismHolocene                *uint64 `toml:",omitempty"`
 		OverrideOptimismInterop                 *uint64 `toml:",omitempty"`
 		ApplySuperchainUpgrades                 *bool   `toml:",omitempty"`
 		RollupSequencerHTTP                     *string
@@ -282,6 +294,15 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 	if dec.EnablePreimageRecording != nil {
 		c.EnablePreimageRecording = *dec.EnablePreimageRecording
 	}
+	if dec.EnableWitnessCollection != nil {
+		c.EnableWitnessCollection = *dec.EnableWitnessCollection
+	}
+	if dec.VMTrace != nil {
+		c.VMTrace = *dec.VMTrace
+	}
+	if dec.VMTraceJsonConfig != nil {
+		c.VMTraceJsonConfig = *dec.VMTraceJsonConfig
+	}
 	if dec.DocRoot != nil {
 		c.DocRoot = *dec.DocRoot
 	}
@@ -311,6 +332,9 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 	}
 	if dec.OverrideOptimismGranite != nil {
 		c.OverrideOptimismGranite = dec.OverrideOptimismGranite
+	}
+	if dec.OverrideOptimismHolocene != nil {
+		c.OverrideOptimismHolocene = dec.OverrideOptimismHolocene
 	}
 	if dec.OverrideOptimismInterop != nil {
 		c.OverrideOptimismInterop = dec.OverrideOptimismInterop

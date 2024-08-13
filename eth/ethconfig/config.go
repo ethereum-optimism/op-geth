@@ -84,7 +84,7 @@ type Config struct {
 	SyncMode  downloader.SyncMode
 
 	// This can be set to list of enrtree:// URLs which will be queried for
-	// for nodes to connect to.
+	// nodes to connect to.
 	EthDiscoveryURLs  []string
 	SnapDiscoveryURLs []string
 
@@ -142,6 +142,13 @@ type Config struct {
 	// Enables tracking of SHA3 preimages in the VM
 	EnablePreimageRecording bool
 
+	// Enables prefetching trie nodes for read operations too
+	EnableWitnessCollection bool `toml:"-"`
+
+	// Enables VM tracing
+	VMTrace           string
+	VMTraceJsonConfig string
+
 	// Miscellaneous options
 	DocRoot string `toml:"-"`
 
@@ -169,6 +176,8 @@ type Config struct {
 
 	OverrideOptimismGranite *uint64 `toml:",omitempty"`
 
+	OverrideOptimismHolocene *uint64 `toml:",omitempty"`
+
 	OverrideOptimismInterop *uint64 `toml:",omitempty"`
 
 	// ApplySuperchainUpgrades requests the node to load chain-configuration from the superchain-registry.
@@ -189,15 +198,14 @@ func CreateConsensusEngine(config *params.ChainConfig, db ethdb.Database) (conse
 	if config.Optimism != nil {
 		return beacon.New(&beacon.OpLegacy{}), nil
 	}
-	// If proof-of-authority is requested, set it up
+	// Geth v1.14.0 dropped support for non-merged networks in any consensus
+	// mode. If such a network is requested, reject startup.
+	if !config.TerminalTotalDifficultyPassed {
+		return nil, errors.New("only PoS networks are supported, please transition old ones with Geth v1.13.x")
+	}
+	// Wrap previously supported consensus engines into their post-merge counterpart
 	if config.Clique != nil {
 		return beacon.New(clique.New(config.Clique, db)), nil
-	}
-	// If defaulting to proof-of-work, enforce an already merged network since
-	// we cannot run PoW algorithms anymore, so we cannot even follow a chain
-	// not coordinated by a beacon node.
-	if !config.TerminalTotalDifficultyPassed {
-		return nil, errors.New("ethash is only supported as a historical component of already merged networks")
 	}
 	return beacon.New(ethash.NewFaker()), nil
 }
