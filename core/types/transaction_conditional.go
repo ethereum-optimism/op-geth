@@ -117,9 +117,9 @@ func (cond *TransactionConditional) Validate() error {
 }
 
 // Cost computes the aggregate cost of the preconditions; total number of storage lookups required
-func (opts *TransactionConditional) Cost() int {
+func (cond *TransactionConditional) Cost() int {
 	cost := 0
-	for _, account := range opts.KnownAccounts {
+	for _, account := range cond.KnownAccounts {
 		if _, isRoot := account.Root(); isRoot {
 			cost += 1
 		}
@@ -127,10 +127,10 @@ func (opts *TransactionConditional) Cost() int {
 			cost += len(slots)
 		}
 	}
-	if opts.BlockNumberMin != nil || opts.BlockNumberMax != nil {
+	if cond.BlockNumberMin != nil || cond.BlockNumberMax != nil {
 		cost += 1
 	}
-	if opts.TimestampMin != nil || opts.TimestampMax != nil {
+	if cond.TimestampMin != nil || cond.TimestampMax != nil {
 		cost += 1
 	}
 	return cost
