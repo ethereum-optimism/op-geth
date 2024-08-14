@@ -345,7 +345,7 @@ func TestTransactionCoding(t *testing.T) {
 	}
 }
 
-func TestLegacyTransaction_ConsistenV_LargeChainIds(t *testing.T) {
+func TestLegacyTransaction_ConsistentV_LargeChainIds(t *testing.T) {
 	chainId := new(big.Int).SetUint64(13317435930671861669)
 
 	txdata := &LegacyTx{
