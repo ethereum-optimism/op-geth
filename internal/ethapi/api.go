@@ -2002,7 +2002,11 @@ func marshalReceipt(receipt *types.Receipt, blockHash common.Hash, blockNumber u
 		"logs":              receipt.Logs,
 		"logsBloom":         receipt.Bloom,
 		"type":              hexutil.Uint(tx.Type()),
-		"effectiveGasPrice": (*hexutil.Big)(receipt.EffectiveGasPrice),
+	}
+
+	// omit the effectiveGasPrice when it is nil, for Celo L1 backwards compatibility.
+	if receipt.EffectiveGasPrice != nil || chainConfig.IsGingerbread(new(big.Int).SetUint64(blockNumber)) {
+		fields["effectiveGasPrice"] = (*hexutil.Big)(receipt.EffectiveGasPrice)
 	}
 
 	if chainConfig.Optimism != nil && !tx.IsDepositTx() {
