@@ -162,6 +162,16 @@ func (payload *Payload) update(r *newPayloadResult, elapsed time.Duration) {
 	}
 }
 
+func (payload *Payload) Cancel() {
+	select {
+	case <-payload.stop:
+	default:
+		close(payload.stop)
+	}
+
+	payload.cond.Broadcast()
+}
+
 // Resolve returns the latest built payload and also terminates the background
 // thread for updating payload. It's safe to be called multiple times.
 func (payload *Payload) Resolve() *engine.ExecutionPayloadEnvelope {

@@ -32,6 +32,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/scwallet"
 	"github.com/ethereum/go-ethereum/accounts/usbwallet"
 	"github.com/ethereum/go-ethereum/beacon/blsync"
+	"github.com/ethereum/go-ethereum/builder"
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -96,6 +97,7 @@ type gethConfig struct {
 	Node     node.Config
 	Ethstats ethstatsConfig
 	Metrics  metrics.Config
+	Builder  builder.Config
 }
 
 func loadConfig(file string, cfg *gethConfig) error {
@@ -164,6 +166,7 @@ func makeConfigNode(ctx *cli.Context) (*node.Node, gethConfig) {
 	}
 	applyMetricConfig(ctx, &cfg)
 
+	utils.SetBuilderConfig(ctx, &cfg.Builder)
 	return stack, cfg
 }
 
@@ -210,7 +213,7 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 		cfg.Eth.OverrideVerkle = &v
 	}
 
-	backend, eth := utils.RegisterEthService(stack, &cfg.Eth)
+	backend, eth := utils.RegisterEthService(stack, &cfg.Eth,  &cfg.Builder)
 
 	// Create gauge with geth system and build information
 	if eth != nil { // The 'eth' backend may be nil in light mode

@@ -38,6 +38,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	bparams "github.com/ethereum/go-ethereum/beacon/params"
+	"github.com/ethereum/go-ethereum/builder"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/fdlimit"
 	"github.com/ethereum/go-ethereum/core"
@@ -667,6 +668,62 @@ var (
 		Usage:     `Hash of the block to full sync to (dev testing feature)`,
 		TakesFile: true,
 		Category:  flags.MiscCategory,
+	}
+
+	// Builder API settings
+	BuilderEnabled = &cli.BoolFlag{
+		Name:     "builder",
+		Usage:    "Enable the builder",
+		EnvVars: []string{"BUILDER_ENABLED"},
+		Category: flags.BuilderCategory,
+	}
+	BuilderIgnoreLatePayloadAttributes = &cli.BoolFlag{
+		Name:     "builder.ignore_late_payload_attributes",
+		Usage:    "Builder will ignore all but the first payload attributes. Use if your CL sends non-canonical head updates.",
+		EnvVars: []string{"BUILDER_IGNORE_LATE_PAYLOAD_ATTRIBUTES"},
+		Category: flags.BuilderCategory,
+	}
+	BuilderSecretKey = &cli.StringFlag{
+		Name:     "builder.secret_key",
+		Usage:    "Builder key used for signing blocks",
+		EnvVars:  []string{"BUILDER_SECRET_KEY"},
+		Value:    "0x2fc12ae741f29701f8e30f5de6350766c020cb80768a0ff01e6838ffd2431e11",
+		Category: flags.BuilderCategory,
+	}
+	BuilderListenAddr = &cli.StringFlag{
+		Name:     "builder.listen_addr",
+		Usage:    "Listening address for builder endpoint",
+		EnvVars:  []string{"BUILDER_LISTEN_ADDR"},
+		Value:    ":28545",
+		Category: flags.BuilderCategory,
+	}
+	BuilderGenesisForkVersion = &cli.StringFlag{
+		Name:     "builder.genesis_fork_version",
+		Usage:    "Gensis fork version.",
+		EnvVars:  []string{"BUILDER_GENESIS_FORK_VERSION"},
+		Value:    "0x00000000",
+		Category: flags.BuilderCategory,
+	}
+	BuilderBeaconEndpoints = &cli.StringFlag{
+		Name:     "builder.beacon_endpoints",
+		Usage:    "Comma separated list of beacon endpoints to connect to for beacon chain data",
+		EnvVars:  []string{"BUILDER_BEACON_ENDPOINTS"},
+		Value:    "http://127.0.0.1:5052",
+		Category: flags.BuilderCategory,
+	}
+	BuilderBlockTime = &cli.DurationFlag{
+		Name:     "builder.block_time",
+		Usage:    "Determines the block time of the network.",
+		EnvVars:  []string{"BUILDER_BLOCK_TIME"},
+		Value:    builder.BlockTimeDefault,
+		Category: flags.BuilderCategory,
+	}
+	BuilderBlockRetryInterval = &cli.StringFlag{
+		Name:     "builder.block_retry_interval",
+		Usage:    "Determines the interval at which builder will retry building a block",
+		EnvVars:  []string{"BUILDER_RATE_LIMIT_RETRY_INTERVAL"},
+		Value:    builder.RetryIntervalDefault.String(),
+		Category: flags.BuilderCategory,
 	}
 
 	// RPC settings
@@ -1515,6 +1572,20 @@ func SetP2PConfig(ctx *cli.Context, cfg *p2p.Config) {
 	}
 }
 
+func SetBuilderConfig(ctx *cli.Context, cfg *builder.Config) {
+	if ctx.IsSet(BuilderEnabled.Name) {
+		cfg.Enabled = ctx.Bool(BuilderEnabled.Name)
+	}
+	cfg.IgnoreLatePayloadAttributes = ctx.IsSet(BuilderIgnoreLatePayloadAttributes.Name)
+	cfg.BuilderSecretKey = ctx.String(BuilderSecretKey.Name)
+	cfg.ListenAddr = ctx.String(BuilderListenAddr.Name)
+	cfg.GenesisForkVersion = ctx.String(BuilderGenesisForkVersion.Name)
+	cfg.BeaconEndpoints = strings.Split(ctx.String(BuilderBeaconEndpoints.Name), ",")
+
+	cfg.RetryInterval = ctx.String(BuilderBlockRetryInterval.Name)
+	cfg.BlockTime = ctx.Duration(BuilderBlockTime.Name)
+}
+
 // SetNodeConfig applies node-related command line flags to the config.
 func SetNodeConfig(ctx *cli.Context, cfg *node.Config) {
 	SetP2PConfig(ctx, &cfg.P2P)
@@ -2106,11 +2177,19 @@ func SetDNSDiscoveryDefaults(cfg *ethconfig.Config, genesis common.Hash) {
 
 // RegisterEthService adds an Ethereum client to the stack.
 // The second return value is the full node instance.
-func RegisterEthService(stack *node.Node, cfg *ethconfig.Config) (ethapi.Backend, *eth.Ethereum) {
+func RegisterEthService(stack *node.Node, cfg *ethconfig.Config, bpCfg *builder.Config) (ethapi.Backend, *eth.Ethereum) {
 	backend, err := eth.New(stack, cfg)
 	if err != nil {
 		Fatalf("Failed to register the Ethereum service: %v", err)
 	}
+
+	if bpCfg.Enabled {
+		log.Info("Registering the builder service")
+		if err := builder.Register(stack, backend, bpCfg); err != nil {
+			Fatalf("Failed to register the builder service: %v", err)
+		}
+	}
+
 	stack.RegisterAPIs(tracers.APIs(backend.APIBackend))
 	return backend.APIBackend, backend
 }

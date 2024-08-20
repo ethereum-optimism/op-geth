@@ -128,6 +128,7 @@ func (miner *Miner) generateWork(params *generateParams) *newPayloadResult {
 		}
 		work.tcount++
 	}
+	log.Info("Filling transactions", "params", params)
 	if !params.noTxs {
 		// use shared interrupt if present
 		interrupt := params.interrupt
@@ -441,12 +442,12 @@ func (miner *Miner) commitTransactions(env *environment, plainTxs, blobTxs *tran
 // be customized with the plugin in the future.
 func (miner *Miner) fillTransactions(interrupt *atomic.Int32, env *environment) error {
 	miner.confMu.RLock()
-	tip := miner.config.GasPrice
+	// tip := miner.config.GasPrice
 	miner.confMu.RUnlock()
 
 	// Retrieve the pending transactions pre-filtered by the 1559/4844 dynamic fees
 	filter := txpool.PendingFilter{
-		MinTip: uint256.MustFromBig(tip),
+		// MinTip: uint256.MustFromBig(tip),
 	}
 	if env.header.BaseFee != nil {
 		filter.BaseFee = uint256.MustFromBig(env.header.BaseFee)
@@ -474,6 +475,7 @@ func (miner *Miner) fillTransactions(interrupt *atomic.Int32, env *environment) 
 			localBlobTxs[account] = txs
 		}
 	}
+	log.Info("Pending transactions", "plain", len(pendingPlainTxs))
 	// Fill the block with all available pending transactions.
 	if len(localPlainTxs) > 0 || len(localBlobTxs) > 0 {
 		plainTxs := newTransactionsByPriceAndNonce(env.signer, localPlainTxs, env.header.BaseFee)

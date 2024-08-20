@@ -292,6 +292,7 @@ func (b *EthAPIBackend) SendTx(ctx context.Context, signedTx *types.Transaction)
 	if b.ChainConfig().IsOptimism() && signedTx.Type() == types.BlobTxType {
 		return types.ErrTxTypeNotSupported
 	}
+	log.Info("Sending transaction", "hash", signedTx.Hash().Hex(), "disableTxPool", b.disableTxPool)
 	if b.eth.seqRPCService != nil {
 		data, err := signedTx.MarshalBinary()
 		if err != nil {

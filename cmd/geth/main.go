@@ -175,6 +175,17 @@ var (
 		utils.CollectWitnessFlag,
 	}, utils.NetworkFlags, utils.DatabaseFlags)
 
+	builderApiFlags = []cli.Flag{
+		utils.BuilderEnabled,
+		utils.BuilderIgnoreLatePayloadAttributes,
+		utils.BuilderSecretKey,
+		utils.BuilderListenAddr,
+		utils.BuilderGenesisForkVersion,
+		utils.BuilderBeaconEndpoints,
+		utils.BuilderBlockRetryInterval,
+		utils.BuilderBlockTime,
+	}
+
 	rpcFlags = []cli.Flag{
 		utils.HTTPEnabledFlag,
 		utils.HTTPListenAddrFlag,
@@ -274,6 +285,7 @@ func init() {
 		consoleFlags,
 		debug.Flags,
 		metricsFlags,
+		builderApiFlags,
 	)
 	flags.AutoEnvVars(app.Flags, "GETH")
 
