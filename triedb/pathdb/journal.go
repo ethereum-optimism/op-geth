@@ -48,6 +48,7 @@ var (
 // - Version 0: initial version
 // - Version 1: storage.Incomplete field is removed
 const journalVersion uint64 = 1
+const journalVersionV0 uint64 = 0
 
 // journalNode represents a trie node persisted in the journal.
 type journalNode struct {
@@ -75,6 +76,14 @@ type journalStorage struct {
 	Slots   [][]byte
 }
 
+// journalStorageV0 represents a journal version 0 storage update.
+type journalStorageV0 struct {
+	Incomplete bool // In V0, to handle self-destructs, the stateDB would abort a storage-diff if it got too large.
+	Account    common.Address
+	Hashes     []common.Hash
+	Slots      [][]byte
+}
+
 // loadJournal tries to parse the layer journal from the disk.
 func (db *Database) loadJournal(diskRoot common.Hash) (layer, error) {
 	journal := rawdb.ReadTrieJournal(db.diskdb)
@@ -88,7 +97,7 @@ func (db *Database) loadJournal(diskRoot common.Hash) (layer, error) {
 	if err != nil {
 		return nil, errMissVersion
 	}
-	if version != journalVersion {
+	if version != journalVersionV0 && version != journalVersion {
 		return nil, fmt.Errorf("%w want %d got %d", errUnexpectedVersion, journalVersion, version)
 	}
 	// Secondly, resolve the disk layer root, ensure it's continuous
@@ -109,7 +118,7 @@ func (db *Database) loadJournal(diskRoot common.Hash) (layer, error) {
 		return nil, err
 	}
 	// Load all the diff layers from the journal
-	head, err := db.loadDiffLayer(base, r)
+	head, err := db.loadDiffLayer(base, r, version)
 	if err != nil {
 		return nil, err
 	}
@@ -182,7 +191,7 @@ func (db *Database) loadDiskLayer(r *rlp.Stream) (layer, error) {
 
 // loadDiffLayer reads the next sections of a layer journal, reconstructing a new
 // diff and verifying that it can be linked to the requested parent.
-func (db *Database) loadDiffLayer(parent layer, r *rlp.Stream) (layer, error) {
+func (db *Database) loadDiffLayer(parent layer, r *rlp.Stream, layerJournalVersion uint64) (layer, error) {
 	// Read the next diff journal entry
 	var root common.Hash
 	if err := r.Decode(&root); err != nil {
@@ -226,8 +235,27 @@ func (db *Database) loadDiffLayer(parent layer, r *rlp.Stream) (layer, error) {
 	for i, addr := range jaccounts.Addresses {
 		accounts[addr] = jaccounts.Accounts[i]
 	}
-	if err := r.Decode(&jstorages); err != nil {
-		return nil, fmt.Errorf("load diff storages: %v", err)
+	if layerJournalVersion == journalVersionV0 {
+		var jstoragesV0 []journalStorageV0
+		if err := r.Decode(&jstoragesV0); err != nil {
+			return nil, fmt.Errorf("load diff storages: %v", err)
+		}
+		jstorages = make([]journalStorage, 0, len(jstoragesV0))
+		for _, st := range jstoragesV0 {
+			if st.Incomplete { // Storage diff entries that are complete are compatible with the journal v1 type.
+				log.Warn("legacy v0 diff layer shows incomplete storage-diff write, cannot recover this, have to drop journal")
+				return nil, fmt.Errorf("legacy v0 diff layer with incomplete storage-diff: %w", errUnexpectedVersion)
+			}
+			jstorages = append(jstorages, journalStorage{
+				Account: st.Account,
+				Hashes:  st.Hashes,
+				Slots:   st.Slots,
+			})
+		}
+	} else {
+		if err := r.Decode(&jstorages); err != nil {
+			return nil, fmt.Errorf("load diff storages: %v", err)
+		}
 	}
 	for _, entry := range jstorages {
 		set := make(map[common.Hash][]byte)
@@ -240,7 +268,7 @@ func (db *Database) loadDiffLayer(parent layer, r *rlp.Stream) (layer, error) {
 		}
 		storages[entry.Account] = set
 	}
-	return db.loadDiffLayer(newDiffLayer(parent, root, parent.stateID()+1, block, nodes, triestate.New(accounts, storages)), r)
+	return db.loadDiffLayer(newDiffLayer(parent, root, parent.stateID()+1, block, nodes, triestate.New(accounts, storages)), r, layerJournalVersion)
 }
 
 // journal implements the layer interface, marshaling the un-flushed trie nodes
