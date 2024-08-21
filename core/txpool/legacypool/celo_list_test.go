@@ -60,7 +60,7 @@ func TestListFeeCost(t *testing.T) {
 	assert.Equal(t, uint64(20000), list.TotalCostFor(&curr1).Uint64())
 }
 
-func TestFilterWhitelisted(t *testing.T) {
+func TestFilterAllowlisted(t *testing.T) {
 	curr1 := common.HexToAddress("0002")
 	curr2 := common.HexToAddress("0004")
 	curr3 := common.HexToAddress("0006")
@@ -77,14 +77,14 @@ func TestFilterWhitelisted(t *testing.T) {
 	list.Add(txC(9, 1, 1, 10000, &curr1), DefaultConfig.PriceBump, nil, rates)
 	assert.Equal(t, uint64(30000), list.TotalCostFor(&curr2).Uint64())
 
-	removed, invalids := list.FilterWhitelisted(common.ExchangeRates{curr1: nil, curr3: nil})
+	removed, invalids := list.FilterAllowlisted(common.ExchangeRates{curr1: nil, curr3: nil})
 	assert.Len(t, removed, 1)
 	assert.Len(t, invalids, 0)
 	assert.Equal(t, removed[0], toBeRemoved)
 	assert.Equal(t, uint64(0), list.TotalCostFor(&curr2).Uint64())
 }
 
-func TestFilterWhitelistedStrict(t *testing.T) {
+func TestFilterAllowlistedStrict(t *testing.T) {
 	curr1 := common.HexToAddress("0002")
 	curr2 := common.HexToAddress("0004")
 	curr3 := common.HexToAddress("0006")
@@ -101,7 +101,7 @@ func TestFilterWhitelistedStrict(t *testing.T) {
 	toBeInvalid := txC(9, 1, 1, 10000, &curr3)
 	list.Add(toBeInvalid, DefaultConfig.PriceBump, nil, rates)
 
-	removed, invalids := list.FilterWhitelisted(common.ExchangeRates{curr1: nil, curr3: nil})
+	removed, invalids := list.FilterAllowlisted(common.ExchangeRates{curr1: nil, curr3: nil})
 	assert.Len(t, removed, 1)
 	assert.Len(t, invalids, 1)
 	assert.Equal(t, removed[0], toBeRemoved)

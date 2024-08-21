@@ -132,7 +132,7 @@ func IntrinsicGas(data []byte, accessList types.AccessList, isContractCreation, 
 	if feeCurrency != nil {
 		intrinsicGasForFeeCurrency, ok := common.CurrencyIntrinsicGasCost(feeIntrinsicGas, feeCurrency)
 		if !ok {
-			return 0, exchange.ErrNonWhitelistedFeeCurrency
+			return 0, exchange.ErrUnregisteredFeeCurrency
 		}
 		if (math.MaxUint64 - gas) < intrinsicGasForFeeCurrency {
 			return 0, ErrGasUintOverflow
@@ -436,15 +436,14 @@ func (st *StateTransition) preCheck() error {
 		}
 	}
 
-	// Verify that fee currency is whitelisted
+	// Verify that fee currency is registered
 	if msg.FeeCurrency != nil {
 		if !st.evm.ChainConfig().IsCel2(st.evm.Context.Time) {
 			return ErrCel2NotEnabled
 		} else {
-			isWhiteListed := common.IsCurrencyWhitelisted(st.evm.Context.FeeCurrencyContext.ExchangeRates, msg.FeeCurrency)
-			if !isWhiteListed {
-				log.Trace("fee currency not whitelisted", "fee currency address", msg.FeeCurrency)
-				return exchange.ErrNonWhitelistedFeeCurrency
+			if !common.IsCurrencyAllowed(st.evm.Context.FeeCurrencyContext.ExchangeRates, msg.FeeCurrency) {
+				log.Trace("fee currency not allowed", "fee currency address", msg.FeeCurrency)
+				return exchange.ErrUnregisteredFeeCurrency
 			}
 		}
 	}

@@ -9,9 +9,9 @@ import (
 	"github.com/holiman/uint256"
 )
 
-func (l *list) FilterWhitelisted(rates common.ExchangeRates) (types.Transactions, types.Transactions) {
+func (l *list) FilterAllowlisted(rates common.ExchangeRates) (types.Transactions, types.Transactions) {
 	removed := l.txs.Filter(func(tx *types.Transaction) bool {
-		return !common.IsCurrencyWhitelisted(rates, tx.FeeCurrency())
+		return !common.IsCurrencyAllowed(rates, tx.FeeCurrency())
 	})
 
 	if len(removed) == 0 {

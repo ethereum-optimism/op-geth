@@ -137,7 +137,7 @@ func Transaction(ctx *cli.Context) error {
 		// for fee-currencies here, since those are written to the
 		// FeeCurrencyDirectory contract and are chain-specific.
 		// When a Celo transaction with specified fee-currency is validated with this tool,
-		// this will thus result in a ErrNonWhitelistedFeeCurrency error for now.
+		// this will thus result in a ErrUnregisteredFeeCurrency error for now.
 		var feeIntrinsic common.IntrinsicGasCosts
 		if gas, err := core.IntrinsicGas(tx.Data(), tx.AccessList(), tx.To() == nil,
 			chainConfig.IsHomestead(new(big.Int)), chainConfig.IsIstanbul(new(big.Int)), chainConfig.IsShanghai(new(big.Int), 0), tx.FeeCurrency(), feeIntrinsic); err != nil {

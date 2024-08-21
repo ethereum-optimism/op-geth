@@ -41,7 +41,7 @@ func CurrencyIntrinsicGasCost(i IntrinsicGasCosts, feeCurrency *Address) (uint64
 	return gasCost, true
 }
 
-func CurrencyWhitelist(exchangeRates ExchangeRates) []Address {
+func CurrencyAllowlist(exchangeRates ExchangeRates) []Address {
 	addrs := make([]Address, len(exchangeRates))
 	i := 0
 	for k := range exchangeRates {
@@ -51,7 +51,7 @@ func CurrencyWhitelist(exchangeRates ExchangeRates) []Address {
 	return addrs
 }
 
-func IsCurrencyWhitelisted(exchangeRates ExchangeRates, feeCurrency *Address) bool {
+func IsCurrencyAllowed(exchangeRates ExchangeRates, feeCurrency *Address) bool {
 	if feeCurrency == nil {
 		return true
 	}

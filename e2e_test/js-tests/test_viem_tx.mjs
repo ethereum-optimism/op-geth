@@ -245,7 +245,7 @@ describe("viem send tx", () => {
 		);
 	}).timeout(10_000);
 
-	it("send tx with non-whitelisted fee currency", async () => {
+	it("send tx with unregistered fee currency", async () => {
 		const request = await walletClient.prepareTransactionRequest({
 			account,
 			to: "0x00000000000000000000000000000000DeaDBeef",
@@ -260,10 +260,10 @@ describe("viem send tx", () => {
 			await walletClient.sendRawTransaction({
 				serializedTransaction: signature,
 			});
-			assert.fail("Failed to filter nonwhitelisted feeCurrency");
+			assert.fail("Failed to filter unregistered feeCurrency");
 		} catch (err) {
 			// TODO: find a better way to check the error type
-			if (err.cause.details == "non-whitelisted fee currency address") {
+			if (err.cause.details == "unregistered fee-currency address") {
 				// Test success
 			} else {
 				throw err;

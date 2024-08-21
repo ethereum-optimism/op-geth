@@ -214,7 +214,7 @@ func (pre *Prestate) Apply(vmConfig vm.Config, chainConfig *params.ChainConfig,
 		// for fee-currencies here, since those are dynamically changing
 		// based on the oracle's exchange rates.
 		// When a Celo transaction with specified fee-currency is validated with this tool,
-		// this will thus result in a ErrNonWhitelistedFeeCurrency error for now.
+		// this will thus result in a ErrUnregisteredFeeCurrency error for now.
 		msg, err := core.TransactionToMessage(tx, signer, pre.Env.BaseFee, vmContext.FeeCurrencyContext.ExchangeRates)
 		if err != nil {
 			log.Warn("rejected tx", "index", i, "hash", tx.Hash(), "error", err)

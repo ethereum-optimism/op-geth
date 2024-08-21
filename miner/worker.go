@@ -60,7 +60,7 @@ type environment struct {
 	tcount               int                // tx count in cycle
 	gasPool              *core.GasPool      // available gas used to pack transactions
 	multiGasPool         *core.MultiGasPool // available per-fee-currency gas used to pack transactions
-	feeCurrencyWhitelist []common.Address
+	feeCurrencyAllowlist []common.Address
 	coinbase             common.Address
 
 	header   *types.Header
@@ -121,7 +121,7 @@ func (miner *Miner) generateWork(params *generateParams) *newPayloadResult {
 	if work.multiGasPool == nil {
 		work.multiGasPool = core.NewMultiGasPool(
 			work.header.GasLimit,
-			work.feeCurrencyWhitelist,
+			work.feeCurrencyAllowlist,
 			miner.config.FeeCurrencyDefault,
 			miner.config.FeeCurrencyLimits,
 		)
@@ -261,7 +261,7 @@ func (miner *Miner) prepareWork(genParams *generateParams) (*environment, error)
 		return nil, err
 	}
 	context := core.NewEVMBlockContext(header, miner.chain, nil, miner.chainConfig, env.state)
-	env.feeCurrencyWhitelist = common.CurrencyWhitelist(context.FeeCurrencyContext.ExchangeRates)
+	env.feeCurrencyAllowlist = common.CurrencyAllowlist(context.FeeCurrencyContext.ExchangeRates)
 	if header.ParentBeaconRoot != nil {
 		vmenv := vm.NewEVM(context, vm.TxContext{}, env.state, miner.chainConfig, vm.Config{})
 		core.ProcessBeaconBlockRoot(*header.ParentBeaconRoot, vmenv, env.state)
@@ -359,7 +359,7 @@ func (miner *Miner) commitTransactions(env *environment, plainTxs, blobTxs *tran
 	if env.multiGasPool == nil {
 		env.multiGasPool = core.NewMultiGasPool(
 			env.header.GasLimit,
-			env.feeCurrencyWhitelist,
+			env.feeCurrencyAllowlist,
 			miner.config.FeeCurrencyDefault,
 			miner.config.FeeCurrencyLimits,
 		)
