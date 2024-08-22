@@ -238,7 +238,7 @@ func (db *Database) loadDiffLayer(parent layer, r *rlp.Stream, layerJournalVersi
 	if layerJournalVersion == journalVersionV0 {
 		var jstoragesV0 []journalStorageV0
 		if err := r.Decode(&jstoragesV0); err != nil {
-			return nil, fmt.Errorf("load diff storages: %v", err)
+			return nil, fmt.Errorf("load diff storages: %w", err)
 		}
 		jstorages = make([]journalStorage, 0, len(jstoragesV0))
 		for _, st := range jstoragesV0 {
