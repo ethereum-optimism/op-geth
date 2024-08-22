@@ -255,10 +255,8 @@ func (db *Database) loadDiffLayer(parent layer, r *rlp.Stream, layerJournalVersi
 				Slots:   st.Slots,
 			})
 		}
-	} else {
-		if err := r.Decode(&jstorages); err != nil {
-			return nil, fmt.Errorf("load diff storages: %v", err)
-		}
+	} else if err := r.Decode(&jstorages); err != nil {
+		return nil, fmt.Errorf("load diff storages: %v", err)
 	}
 	for _, entry := range jstorages {
 		set := make(map[common.Hash][]byte)
