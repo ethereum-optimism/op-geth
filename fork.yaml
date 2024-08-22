@@ -49,12 +49,21 @@ def:
                 - "core/types/tx_dynamic_fee.go"
                 - "core/types/tx_legacy.go"
                 - "core/types/tx_blob.go"
+            - title: "EVM enhancements"
+              description: |
+                Apply L1 cost computation, and add EVM configuration for tooling and more:
+                - Disable bytecode size-limits (for large test/script contracts).
+                - Prank (solidity test terminology) the EVM-call message-sender.
+                - Override precompiles, to insert tooling precompiles and optimize precompile proving.
+              globs:
+                - "core/vm/evm.go"
+                - "core/vm/interpreter.go"
+                - "core/vm/gas_table.go"
             - title: "L1 cost computation"
               description: |
                 Transactions must pay an additional L1 cost based on the amount of rollup-data-gas they consume,
                 estimated based on gas-price-oracle information and encoded tx size."
               globs:
-                - "core/vm/evm.go"
                 - "core/evm.go"
                 - "core/types/rollup_cost.go"
                 - "core/state_processor.go"
@@ -117,7 +126,6 @@ def:
           description: ""
           globs:
             - "core/vm/contracts.go"
-            - "core/vm/interpreter.go"
             - "crypto/secp256r1/publickey.go"
             - "crypto/secp256r1/verifier.go"
     - title: "Chain Configuration"
