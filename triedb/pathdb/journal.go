@@ -47,8 +47,10 @@ var (
 //
 // - Version 0: initial version
 // - Version 1: storage.Incomplete field is removed
-const journalVersion uint64 = 1
-const journalVersionV0 uint64 = 0
+const (
+	journalVersion   uint64 = 1
+	journalVersionV0 uint64 = 0
+)
 
 // journalNode represents a trie node persisted in the journal.
 type journalNode struct {
@@ -129,7 +131,7 @@ func (db *Database) loadJournal(diskRoot common.Hash) (layer, error) {
 // loadLayers loads a pre-existing state layer backed by a key-value store.
 func (db *Database) loadLayers() layer {
 	// Retrieve the root node of persistent state.
-	var root = types.EmptyRootHash
+	root := types.EmptyRootHash
 	if blob := rawdb.ReadAccountTrieNode(db.diskdb, nil); len(blob) > 0 {
 		root = crypto.Keccak256Hash(blob)
 	}
@@ -236,6 +238,7 @@ func (db *Database) loadDiffLayer(parent layer, r *rlp.Stream, layerJournalVersi
 		accounts[addr] = jaccounts.Accounts[i]
 	}
 	if layerJournalVersion == journalVersionV0 {
+		log.Warn("loading legacy v0 journal")
 		var jstoragesV0 []journalStorageV0
 		if err := r.Decode(&jstoragesV0); err != nil {
 			return nil, fmt.Errorf("load diff storages: %w", err)
