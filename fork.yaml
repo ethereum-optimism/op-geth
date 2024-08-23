@@ -210,6 +210,14 @@ def:
         - title: Generated TOML config update
           globs:
             - "eth/ethconfig/gen_config.go"
+    - title: "TrieDB PathDB-journal migration"
+      description: |
+        From version 1.13.15 to 1.14.0 upstream go-ethereum changed the PathDB journal version, without migration path.
+        For a better experience when updating op-geth, to not roll back any journaled stage changes,
+        op-geth implements backward-compatibility with the old journal version.
+        See upstream Geth PR 28940, and op-geth PR 368 for details.
+      globs:
+        - "triedb/pathdb/journal.go"
     - title: "User API enhancements"
       description: "Encode the Deposit Tx properties, the L1 costs, and daisy-chain RPC-calls for pre-Bedrock historical data"
       sub:
