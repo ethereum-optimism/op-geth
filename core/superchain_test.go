@@ -77,6 +77,9 @@ func TestRegistryChainConfigOverride(t *testing.T) {
 			rawdb.WriteCanonicalHash(db, bl.Hash(), 0)
 			rawdb.WriteBlock(db, bl)
 
+			if genesis.Config.Optimism == nil {
+				t.Fatal("expected non nil Optimism config")
+			}
 			genesis.Config.Optimism.EIP1559DenominatorCanyon = tt.setDenominator
 			// create chain config, even with incomplete genesis input: the chain config should be corrected
 			chainConfig, _, err := SetupGenesisBlockWithOverride(db, tdb, genesis, tt.overrides)
