@@ -143,7 +143,7 @@ func createMiner(t *testing.T) *Miner {
 	// Create Ethash config
 	config := Config{
 		PendingFeeRecipient:                   common.HexToAddress("123456789"),
-		RollupTransactionConditionalBurstRate: types.TransactionConditionalMaxCost,
+		RollupTransactionConditionalBurstRate: params.TransactionConditionalMaxCost,
 	}
 	// Create chainConfig
 	chainDB := rawdb.NewMemoryDatabase()

@@ -431,8 +431,8 @@ func (s *StateDB) HasSelfDestructed(addr common.Address) bool {
 // ensure no state changes occur while this check is executed.
 func (s *StateDB) CheckTransactionConditional(cond *types.TransactionConditional) error {
 	cost := cond.Cost()
-	if cost > types.TransactionConditionalMaxCost {
-		return fmt.Errorf("conditional cost, %d, exceeded max: %d", cost, types.TransactionConditionalMaxCost)
+	if cost > params.TransactionConditionalMaxCost {
+		return fmt.Errorf("conditional cost, %d, exceeded max: %d", cost, params.TransactionConditionalMaxCost)
 	}
 
 	for addr, acct := range cond.KnownAccounts {

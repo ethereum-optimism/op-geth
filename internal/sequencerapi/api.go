@@ -11,6 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/metrics"
+	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
@@ -36,48 +37,42 @@ func (s *sendRawTxCond) SendRawTransactionConditional(ctx context.Context, txByt
 
 	cost := cond.Cost()
 	sendRawTxConditionalCostMeter.Mark(int64(cost))
-	if cost > types.TransactionConditionalMaxCost {
-		return common.Hash{}, &jsonRpcError{
-			message: fmt.Sprintf("conditional cost, %d, exceeded max: %d", cost, types.TransactionConditionalMaxCost),
-			code:    types.TransactionConditionalCostExceededMaxErrCode,
+	if cost > params.TransactionConditionalMaxCost {
+		return common.Hash{}, &rpc.JsonError{
+			Message: fmt.Sprintf("conditional cost, %d, exceeded max: %d", cost, params.TransactionConditionalMaxCost),
+			Code:    params.TransactionConditionalCostExceededMaxErrCode,
 		}
 	}
 
 	// Perform sanity validation prior to state lookups
 	if err := cond.Validate(); err != nil {
-		return common.Hash{}, &jsonRpcError{
-			message: fmt.Sprintf("failed conditional validation: %s", err),
-			code:    types.TransactionConditionalRejectedErrCode,
+		return common.Hash{}, &rpc.JsonError{
+			Message: fmt.Sprintf("failed conditional validation: %s", err),
+			Code:    params.TransactionConditionalRejectedErrCode,
 		}
 	}
 
-	state, header, err := s.b.StateAndHeaderByNumber(context.Background(), rpc.LatestBlockNumber)
+	header, err := s.b.HeaderByNumber(context.Background(), rpc.LatestBlockNumber)
 	if err != nil {
 		return common.Hash{}, err
 	}
 	if err := header.CheckTransactionConditional(&cond); err != nil {
-		return common.Hash{}, &jsonRpcError{
-			message: fmt.Sprintf("failed header check: %s", err),
-			code:    types.TransactionConditionalRejectedErrCode,
-		}
-	}
-	if err := state.CheckTransactionConditional(&cond); err != nil {
-		return common.Hash{}, &jsonRpcError{
-			message: fmt.Sprintf("failed state check: %s", err),
-			code:    types.TransactionConditionalRejectedErrCode,
+		return common.Hash{}, &rpc.JsonError{
+			Message: fmt.Sprintf("failed header check: %s", err),
+			Code:    params.TransactionConditionalRejectedErrCode,
 		}
 	}
 
-	// We also check against the parent block to eliminate the MEV incentive in comparison with sendRawTransaction
+	// State is checked against an older block to remove the MEV incentive for this endpoint compared with sendRawTransaction
 	parentBlock := rpc.BlockNumberOrHash{BlockHash: &header.ParentHash}
 	parentState, _, err := s.b.StateAndHeaderByNumberOrHash(context.Background(), parentBlock)
 	if err != nil {
 		return common.Hash{}, err
 	}
 	if err := parentState.CheckTransactionConditional(&cond); err != nil {
-		return common.Hash{}, &jsonRpcError{
-			message: fmt.Sprintf("failed parent block %s state check: %s", header.ParentHash, err),
-			code:    types.TransactionConditionalRejectedErrCode,
+		return common.Hash{}, &rpc.JsonError{
+			Message: fmt.Sprintf("failed parent block %s state check: %s", header.ParentHash, err),
+			Code:    params.TransactionConditionalRejectedErrCode,
 		}
 	}
 

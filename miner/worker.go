@@ -308,11 +308,9 @@ func (miner *Miner) commitTransaction(env *environment, tx *types.Transaction) e
 
 		// check the conditional
 		if err := env.header.CheckTransactionConditional(conditional); err != nil {
-			conditional.Rejected.Store(true)
 			return fmt.Errorf("failed header check: %s: %w", err, errTxConditionalInvalid)
 		}
 		if err := env.state.CheckTransactionConditional(conditional); err != nil {
-			conditional.Rejected.Store(true)
 			return fmt.Errorf("failed state check: %s: %w", err, errTxConditionalInvalid)
 		}
 	}
@@ -453,8 +451,11 @@ func (miner *Miner) commitTransactions(env *environment, plainTxs, blobTxs *tran
 			txs.Shift()
 
 		case errors.Is(err, errTxConditionalInvalid):
-			// err contains contextual info on the failed conditional
+			// err contains contextual info on the failed conditional.
 			txConditionalRejectedCounter.Inc(1)
+
+			// we know this tx has a conditional and mark it as rejected so that it can be ejected from the mempool
+			tx.Conditional().Rejected.Store(true)
 			log.Debug("Skipping account, transaction with failed conditional", "sender", from, "hash", ltx.Hash, "err", err)
 			txs.Pop()
 

@@ -1724,7 +1724,6 @@ func (pool *LegacyPool) demoteUnexecutables() {
 		}
 		balance := pool.currentState.GetBalance(addr)
 		balance = pool.reduceBalanceByL1Cost(list, balance)
-
 		// Drop all transactions that are too costly (low balance or out of gas), and queue any invalids back for later
 		drops, invalids := list.Filter(balance, gasLimit)
 		for _, tx := range drops {

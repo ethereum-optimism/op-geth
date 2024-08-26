@@ -11,13 +11,6 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
-const (
-	TransactionConditionalMaxCost = 1000
-
-	TransactionConditionalRejectedErrCode        = -32003
-	TransactionConditionalCostExceededMaxErrCode = -32005
-)
-
 // KnownAccounts represents a set of KnownAccounts
 type KnownAccounts map[common.Address]KnownAccount
 
