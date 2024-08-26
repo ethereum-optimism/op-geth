@@ -79,14 +79,6 @@ func LoadOPStackChainConfig(chainID uint64) (*ChainConfig, error) {
 
 	// special overrides for OP-Stack chains with pre-Regolith upgrade history
 	switch chainID {
-	case OPGoerliChainID:
-		out.LondonBlock = big.NewInt(4061224)
-		out.ArrowGlacierBlock = big.NewInt(4061224)
-		out.GrayGlacierBlock = big.NewInt(4061224)
-		out.MergeNetsplitBlock = big.NewInt(4061224)
-		out.BedrockBlock = big.NewInt(4061224)
-		out.RegolithTime = &OptimismGoerliRegolithTime
-		out.Optimism.EIP1559Elasticity = 10
 	case OPMainnetChainID:
 		out.BerlinBlock = big.NewInt(3950000)
 		out.LondonBlock = big.NewInt(105235063)
@@ -94,21 +86,10 @@ func LoadOPStackChainConfig(chainID uint64) (*ChainConfig, error) {
 		out.GrayGlacierBlock = big.NewInt(105235063)
 		out.MergeNetsplitBlock = big.NewInt(105235063)
 		out.BedrockBlock = big.NewInt(105235063)
-	case BaseGoerliChainID:
-		out.RegolithTime = &BaseGoerliRegolithTime
-		out.Optimism.EIP1559Elasticity = 10
 	case baseSepoliaChainID:
 		out.Optimism.EIP1559Elasticity = 10
-	case baseGoerliDevnetChainID:
-		out.RegolithTime = &baseGoerliDevnetRegolithTime
-	case pgnSepoliaChainID:
-		out.Optimism.EIP1559Elasticity = 2
-		out.Optimism.EIP1559Denominator = 8
 	case devnetChainID:
 		out.RegolithTime = &devnetRegolithTime
-		out.Optimism.EIP1559Elasticity = 10
-	case chaosnetChainID:
-		out.RegolithTime = &chaosnetRegolithTime
 		out.Optimism.EIP1559Elasticity = 10
 	}
 
