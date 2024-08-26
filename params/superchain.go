@@ -75,11 +75,6 @@ func LoadOPStackChainConfig(chainID uint64) (*ChainConfig, error) {
 		TerminalTotalDifficultyPassed: true,
 		Ethash:                        nil,
 		Clique:                        nil,
-		Optimism: &OptimismConfig{
-			EIP1559Elasticity:        6,
-			EIP1559Denominator:       50,
-			EIP1559DenominatorCanyon: newUint64(250),
-		},
 	}
 
 	// special overrides for OP-Stack chains with pre-Regolith upgrade history
