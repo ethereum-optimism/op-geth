@@ -2,6 +2,7 @@ package state
 
 import (
 	"errors"
+	"runtime"
 
 	"golang.org/x/sync/errgroup"
 )
@@ -12,8 +13,8 @@ type workerGroup interface {
 	Wait() error
 }
 
-func newWorkerGroup(singlethreaded bool) workerGroup {
-	if singlethreaded {
+func newWorkerGroup() workerGroup {
+	if runtime.NumCPU() == 1 {
 		return &inlineWorkerGroup{}
 	} else {
 		var grp errgroup.Group
