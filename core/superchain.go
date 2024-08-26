@@ -88,8 +88,6 @@ func LoadOPStackGenesis(chainID uint64) (*Genesis, error) {
 		switch chainID {
 		case params.OPMainnetChainID:
 			expectedHash = common.HexToHash("0x7ca38a1916c42007829c55e69d3e9a73265554b586a499015373241b8a3fa48b")
-		case params.OPGoerliChainID:
-			expectedHash = common.HexToHash("0xc1fc15cd51159b1f1e5cbc4b82e85c1447ddfa33c52cf1d98d14fba0d6354be1")
 		default:
 			return nil, fmt.Errorf("unknown stateless genesis definition for chain %d", chainID)
 		}

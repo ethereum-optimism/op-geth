@@ -36,6 +36,11 @@ func OPStackChainNames() (out []string) {
 	return
 }
 
+// uint64ptr is a weird helper to allow 1-line constant pointer creation.
+func uint64ptr(n uint64) *uint64 {
+	return &n
+}
+
 func LoadOPStackChainConfig(chainID uint64) (*ChainConfig, error) {
 	chConfig, ok := superchain.OPChains[chainID]
 	if !ok {
@@ -75,23 +80,20 @@ func LoadOPStackChainConfig(chainID uint64) (*ChainConfig, error) {
 		TerminalTotalDifficultyPassed: true,
 		Ethash:                        nil,
 		Clique:                        nil,
-		Optimism: &OptimismConfig{
-			EIP1559Elasticity:        6,
-			EIP1559Denominator:       50,
-			EIP1559DenominatorCanyon: newUint64(250),
-		},
+	}
+
+	if chConfig.Optimism != nil {
+		out.Optimism = &OptimismConfig{
+			EIP1559Elasticity:  chConfig.Optimism.EIP1559Elasticity,
+			EIP1559Denominator: chConfig.Optimism.EIP1559Denominator,
+		}
+		if chConfig.Optimism.EIP1559DenominatorCanyon != nil {
+			out.Optimism.EIP1559DenominatorCanyon = uint64ptr(*chConfig.Optimism.EIP1559DenominatorCanyon)
+		}
 	}
 
 	// special overrides for OP-Stack chains with pre-Regolith upgrade history
 	switch chainID {
-	case OPGoerliChainID:
-		out.LondonBlock = big.NewInt(4061224)
-		out.ArrowGlacierBlock = big.NewInt(4061224)
-		out.GrayGlacierBlock = big.NewInt(4061224)
-		out.MergeNetsplitBlock = big.NewInt(4061224)
-		out.BedrockBlock = big.NewInt(4061224)
-		out.RegolithTime = &OptimismGoerliRegolithTime
-		out.Optimism.EIP1559Elasticity = 10
 	case OPMainnetChainID:
 		out.BerlinBlock = big.NewInt(3950000)
 		out.LondonBlock = big.NewInt(105235063)
@@ -99,22 +101,6 @@ func LoadOPStackChainConfig(chainID uint64) (*ChainConfig, error) {
 		out.GrayGlacierBlock = big.NewInt(105235063)
 		out.MergeNetsplitBlock = big.NewInt(105235063)
 		out.BedrockBlock = big.NewInt(105235063)
-	case BaseGoerliChainID:
-		out.RegolithTime = &BaseGoerliRegolithTime
-		out.Optimism.EIP1559Elasticity = 10
-	case baseSepoliaChainID:
-		out.Optimism.EIP1559Elasticity = 10
-	case baseGoerliDevnetChainID:
-		out.RegolithTime = &baseGoerliDevnetRegolithTime
-	case pgnSepoliaChainID:
-		out.Optimism.EIP1559Elasticity = 2
-		out.Optimism.EIP1559Denominator = 8
-	case devnetChainID:
-		out.RegolithTime = &devnetRegolithTime
-		out.Optimism.EIP1559Elasticity = 10
-	case chaosnetChainID:
-		out.RegolithTime = &chaosnetRegolithTime
-		out.Optimism.EIP1559Elasticity = 10
 	}
 
 	return out, nil
