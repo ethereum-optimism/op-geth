@@ -75,7 +75,7 @@ func LoadOPStackChainConfig(chainID uint64) (*ChainConfig, error) {
 		TerminalTotalDifficultyPassed: true,
 		Ethash:                        nil,
 		Clique:                        nil,
-		Optimism:                      (*OptimismConfig)(chConfig.Genesis.Config.Optimism),
+		Optimism:                      (*OptimismConfig)(chConfig.Optimism),
 	}
 
 	// special overrides for OP-Stack chains with pre-Regolith upgrade history
