@@ -263,7 +263,7 @@ describe("viem send tx", () => {
 			assert.fail("Failed to filter unregistered feeCurrency");
 		} catch (err) {
 			// TODO: find a better way to check the error type
-			if (err.cause.details == "unregistered fee-currency address") {
+			if (err.cause.details.indexOf("unregistered fee-currency address") >= 0) {
 				// Test success
 			} else {
 				throw err;

@@ -47,7 +47,7 @@ func DebitFees(evm *vm.EVM, feeCurrency *common.Address, address common.Address,
 
 	maxIntrinsicGasCost, ok := common.MaxAllowedIntrinsicGasCost(evm.Context.FeeCurrencyContext.IntrinsicGasCosts, feeCurrency)
 	if !ok {
-		return 0, exchange.ErrUnregisteredFeeCurrency
+		return 0, fmt.Errorf("%w: %x", exchange.ErrUnregisteredFeeCurrency, feeCurrency)
 	}
 
 	leftoverGas, err := evm.CallWithABI(
@@ -93,7 +93,7 @@ func CreditFees(
 	}
 	maxAllowedGasForDebitAndCredit, ok := common.MaxAllowedIntrinsicGasCost(evm.Context.FeeCurrencyContext.IntrinsicGasCosts, feeCurrency)
 	if !ok {
-		return exchange.ErrUnregisteredFeeCurrency
+		return fmt.Errorf("%w: %x", exchange.ErrUnregisteredFeeCurrency, feeCurrency)
 	}
 
 	maxAllowedGasForCredit := maxAllowedGasForDebitAndCredit - gasUsedDebit
@@ -123,7 +123,7 @@ func CreditFees(
 	intrinsicGas, ok := common.CurrencyIntrinsicGasCost(evm.Context.FeeCurrencyContext.IntrinsicGasCosts, feeCurrency)
 	if !ok {
 		// this will never happen
-		return exchange.ErrUnregisteredFeeCurrency
+		return fmt.Errorf("%w: %x", exchange.ErrUnregisteredFeeCurrency, feeCurrency)
 	}
 	gasUsedForDebitAndCredit := gasUsedDebit + gasUsed
 	if gasUsedForDebitAndCredit > intrinsicGas {

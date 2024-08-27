@@ -132,7 +132,7 @@ func IntrinsicGas(data []byte, accessList types.AccessList, isContractCreation, 
 	if feeCurrency != nil {
 		intrinsicGasForFeeCurrency, ok := common.CurrencyIntrinsicGasCost(feeIntrinsicGas, feeCurrency)
 		if !ok {
-			return 0, exchange.ErrUnregisteredFeeCurrency
+			return 0, fmt.Errorf("%w: %x", exchange.ErrUnregisteredFeeCurrency, feeCurrency)
 		}
 		if (math.MaxUint64 - gas) < intrinsicGasForFeeCurrency {
 			return 0, ErrGasUintOverflow
@@ -443,7 +443,7 @@ func (st *StateTransition) preCheck() error {
 		} else {
 			if !common.IsCurrencyAllowed(st.evm.Context.FeeCurrencyContext.ExchangeRates, msg.FeeCurrency) {
 				log.Trace("fee currency not allowed", "fee currency address", msg.FeeCurrency)
-				return exchange.ErrUnregisteredFeeCurrency
+				return fmt.Errorf("%w: %x", exchange.ErrUnregisteredFeeCurrency, msg.FeeCurrency)
 			}
 		}
 	}

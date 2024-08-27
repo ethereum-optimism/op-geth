@@ -33,6 +33,9 @@ func ConvertCurrencyToCelo(exchangeRates common.ExchangeRates, currencyAmount *b
 	if feeCurrency == nil {
 		return currencyAmount, nil
 	}
+	if currencyAmount == nil {
+		return nil, fmt.Errorf("Can't convert nil amount to CELO.")
+	}
 	exchangeRate, ok := exchangeRates[*feeCurrency]
 	if !ok {
 		return nil, fmt.Errorf("could not convert from fee currency to native (fee-currency=%s): %w ", feeCurrency, ErrUnregisteredFeeCurrency)
@@ -43,6 +46,9 @@ func ConvertCurrencyToCelo(exchangeRates common.ExchangeRates, currencyAmount *b
 func ConvertCeloToCurrency(exchangeRates common.ExchangeRates, feeCurrency *common.Address, celoAmount *big.Int) (*big.Int, error) {
 	if feeCurrency == nil {
 		return celoAmount, nil
+	}
+	if celoAmount == nil {
+		return nil, fmt.Errorf("Can't convert nil amount to fee currency.")
 	}
 	exchangeRate, ok := exchangeRates[*feeCurrency]
 	if !ok {
