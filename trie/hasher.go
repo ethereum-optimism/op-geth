@@ -17,6 +17,7 @@
 package trie
 
 import (
+	"runtime"
 	"sync"
 
 	"github.com/ethereum/go-ethereum/crypto"
@@ -45,7 +46,7 @@ var hasherPool = sync.Pool{
 
 func newHasher(parallel bool) *hasher {
 	h := hasherPool.Get().(*hasher)
-	h.parallel = parallel
+	h.parallel = parallel && runtime.NumCPU() > 1
 	return h
 }
 
