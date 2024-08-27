@@ -99,8 +99,6 @@ func LoadOPStackChainConfig(chainID uint64) (*ChainConfig, error) {
 			EIP1559Denominator:       50,
 			EIP1559DenominatorCanyon: newUint64(250),
 		}
-	case devnetChainID:
-		out.RegolithTime = &devnetRegolithTime
 	}
 
 	return out, nil

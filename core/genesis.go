@@ -302,15 +302,6 @@ func SetupGenesisBlockWithOverride(db ethdb.Database, triedb *triedb.Database, g
 					}
 				}
 			}
-
-			if config.IsOptimism() && config.ChainID != nil && config.ChainID.Cmp(big.NewInt(params.OPGoerliChainID)) == 0 {
-				// Apply Optimism Goerli regolith time
-				config.RegolithTime = &params.OptimismGoerliRegolithTime
-			}
-			if config.IsOptimism() && config.ChainID != nil && config.ChainID.Cmp(big.NewInt(params.BaseGoerliChainID)) == 0 {
-				// Apply Base Goerli regolith time
-				config.RegolithTime = &params.BaseGoerliRegolithTime
-			}
 			if overrides != nil && overrides.OverrideCancun != nil {
 				config.CancunTime = overrides.OverrideCancun
 			}
