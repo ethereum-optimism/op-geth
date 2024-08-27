@@ -36,6 +36,11 @@ func OPStackChainNames() (out []string) {
 	return
 }
 
+// uint64ptr is a weird helper to allow 1-line constant pointer creation.
+func uint64ptr(n uint64) *uint64 {
+	return &n
+}
+
 func LoadOPStackChainConfig(chainID uint64) (*ChainConfig, error) {
 	chConfig, ok := superchain.OPChains[chainID]
 	if !ok {
@@ -75,7 +80,16 @@ func LoadOPStackChainConfig(chainID uint64) (*ChainConfig, error) {
 		TerminalTotalDifficultyPassed: true,
 		Ethash:                        nil,
 		Clique:                        nil,
-		Optimism:                      (*OptimismConfig)(chConfig.Optimism),
+	}
+
+	if chConfig.Optimism != nil {
+		out.Optimism = &OptimismConfig{
+			EIP1559Elasticity:  chConfig.Optimism.EIP1559Elasticity,
+			EIP1559Denominator: chConfig.Optimism.EIP1559Denominator,
+		}
+		if chConfig.Optimism.EIP1559DenominatorCanyon != nil {
+			out.Optimism.EIP1559DenominatorCanyon = uint64ptr(*chConfig.Optimism.EIP1559DenominatorCanyon)
+		}
 	}
 
 	// special overrides for OP-Stack chains with pre-Regolith upgrade history
