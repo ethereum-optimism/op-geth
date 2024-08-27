@@ -31,6 +31,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/txpool"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/core/types/interoptypes"
 	"github.com/ethereum/go-ethereum/eth/tracers"
 	"github.com/ethereum/go-ethereum/params"
 )
@@ -44,6 +45,10 @@ type Backend interface {
 
 type BackendWithHistoricalState interface {
 	StateAtBlock(ctx context.Context, block *types.Block, reexec uint64, base *state.StateDB, readOnly bool, preferDisk bool) (*state.StateDB, tracers.StateReleaseFunc, error)
+}
+
+type BackendWithInterop interface {
+	CheckMessages(ctx context.Context, messages []interoptypes.Message, minSafety interoptypes.SafetyLevel) error
 }
 
 // Config is the configuration parameters of mining.
