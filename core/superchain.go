@@ -44,10 +44,6 @@ func LoadOPStackGenesis(chainID uint64) (*Genesis, error) {
 		BlobGasUsed:   gen.BlobGasUsed,
 	}
 
-	// Most genesis.Config properties are loaded via OPStackChainConfig
-	// But the optimism parameters are loaded from the genesis
-	genesis.Config.Optimism = (*params.OptimismConfig)(gen.Config.Optimism)
-
 	for addr, acc := range gen.Alloc {
 		var code []byte
 		if acc.CodeHash != ([32]byte{}) {

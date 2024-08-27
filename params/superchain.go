@@ -75,7 +75,15 @@ func LoadOPStackChainConfig(chainID uint64) (*ChainConfig, error) {
 		TerminalTotalDifficultyPassed: true,
 		Ethash:                        nil,
 		Clique:                        nil,
+		Optimism:                      nil, // Set below
 	}
+
+	// Optimism parameters are loaded from the genesis
+	gen, err := superchain.LoadGenesis(chainID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load genesis definition for chain %d: %w", chainID, err)
+	}
+	out.Optimism = (*OptimismConfig)(gen.Config.Optimism)
 
 	// special overrides for OP-Stack chains with pre-Regolith upgrade history
 	switch chainID {
@@ -86,6 +94,11 @@ func LoadOPStackChainConfig(chainID uint64) (*ChainConfig, error) {
 		out.GrayGlacierBlock = big.NewInt(105235063)
 		out.MergeNetsplitBlock = big.NewInt(105235063)
 		out.BedrockBlock = big.NewInt(105235063)
+		out.Optimism = &OptimismConfig{
+			EIP1559Elasticity:        6,
+			EIP1559Denominator:       50,
+			EIP1559DenominatorCanyon: newUint64(250),
+		}
 	case devnetChainID:
 		out.RegolithTime = &devnetRegolithTime
 	}
