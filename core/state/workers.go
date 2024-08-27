@@ -14,7 +14,7 @@ type workerGroup interface {
 }
 
 func newWorkerGroup() workerGroup {
-	if runtime.NumCPU() == 1 {
+	if runtime.NumCPU() <= 1 {
 		return &inlineWorkerGroup{}
 	} else {
 		var grp errgroup.Group
