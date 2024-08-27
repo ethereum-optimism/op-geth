@@ -11,10 +11,9 @@ import (
 
 func TestOPStackGenesis(t *testing.T) {
 	for id := range superchain.OPChains {
-		t.Log(id)
 		_, err := LoadOPStackGenesis(id)
 		if err != nil {
-			t.Error(id, err)
+			t.Error(err)
 		}
 	}
 }
