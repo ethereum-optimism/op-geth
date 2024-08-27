@@ -166,6 +166,9 @@ type StateDB struct {
 	StorageUpdated atomic.Int64
 	AccountDeleted int
 	StorageDeleted atomic.Int64
+
+	// singlethreaded avoids creation of additional threads when set to true for compatibility with cannon.
+	singlethreaded bool
 }
 
 // New creates a new state from a given trie.
@@ -193,6 +196,10 @@ func New(root common.Hash, db Database, snaps *snapshot.Tree) (*StateDB, error) 
 		sdb.snap = sdb.snaps.Snapshot(root)
 	}
 	return sdb, nil
+}
+
+func (s *StateDB) MakeSinglethreaded() {
+	s.singlethreaded = true
 }
 
 // SetLogger sets the logger for account update hooks.
@@ -852,7 +859,7 @@ func (s *StateDB) IntermediateRoot(deleteEmptyObjects bool) common.Hash {
 	var (
 		start = time.Now()
 	)
-	workers := newWorkerGroup()
+	workers := newWorkerGroup(s.singlethreaded)
 	if s.db.TrieDB().IsVerkle() {
 		// Whilst MPT storage tries are independent, Verkle has one single trie
 		// for all the accounts and all the storage slots merged together. The
@@ -1227,7 +1234,7 @@ func (s *StateDB) commit(deleteEmptyObjects bool) (*stateUpdate, error) {
 		start = time.Now()
 		root  common.Hash
 	)
-	workers := newWorkerGroup()
+	workers := newWorkerGroup(s.singlethreaded)
 	// Schedule the account trie first since that will be the biggest, so give
 	// it the most time to crunch.
 	//
