@@ -190,6 +190,9 @@ type Config struct {
 	RollupDisableTxPoolGossip               bool
 	RollupDisableTxPoolAdmission            bool
 	RollupHaltOnIncompatibleProtocolVersion string
+
+	InteropMessageRPC        string
+	InteropMessageRPCTimeout time.Duration
 }
 
 // CreateConsensusEngine creates a consensus engine for the given chain config.
