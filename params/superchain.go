@@ -86,11 +86,8 @@ func LoadOPStackChainConfig(chainID uint64) (*ChainConfig, error) {
 		out.GrayGlacierBlock = big.NewInt(105235063)
 		out.MergeNetsplitBlock = big.NewInt(105235063)
 		out.BedrockBlock = big.NewInt(105235063)
-	case baseSepoliaChainID:
-		out.Optimism.EIP1559Elasticity = 10
 	case devnetChainID:
 		out.RegolithTime = &devnetRegolithTime
-		out.Optimism.EIP1559Elasticity = 10
 	}
 
 	return out, nil
