@@ -218,6 +218,13 @@ def:
         See upstream Geth PR 28940, and op-geth PR 368 for details.
       globs:
         - "triedb/pathdb/journal.go"
+    - title: "Single threaded execution"
+      description: |
+        The cannon fault proofs virtual machine does not support the creation of threads. To ensure compatibility, 
+        thread creation is avoided when only a single CPU is available.
+      globs:
+        - "core/state/workers.go"
+        - "trie/hasher.go"
     - title: "User API enhancements"
       description: "Encode the Deposit Tx properties, the L1 costs, and daisy-chain RPC-calls for pre-Bedrock historical data"
       sub:
