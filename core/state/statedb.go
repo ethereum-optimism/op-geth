@@ -42,7 +42,6 @@ import (
 	"github.com/ethereum/go-ethereum/trie/triestate"
 	"github.com/ethereum/go-ethereum/trie/utils"
 	"github.com/holiman/uint256"
-	"golang.org/x/sync/errgroup"
 )
 
 // TriesInMemory represents the number of layers that are kept in RAM.
@@ -167,6 +166,9 @@ type StateDB struct {
 	StorageUpdated atomic.Int64
 	AccountDeleted int
 	StorageDeleted atomic.Int64
+
+	// singlethreaded avoids creation of additional threads when set to true for compatibility with cannon.
+	singlethreaded bool
 }
 
 // New creates a new state from a given trie.
@@ -194,6 +196,10 @@ func New(root common.Hash, db Database, snaps *snapshot.Tree) (*StateDB, error) 
 		sdb.snap = sdb.snaps.Snapshot(root)
 	}
 	return sdb, nil
+}
+
+func (s *StateDB) MakeSinglethreaded() {
+	s.singlethreaded = true
 }
 
 // SetLogger sets the logger for account update hooks.
@@ -851,9 +857,9 @@ func (s *StateDB) IntermediateRoot(deleteEmptyObjects bool) common.Hash {
 	// method will internally call a blocking trie fetch from the prefetcher,
 	// so there's no need to explicitly wait for the prefetchers to finish.
 	var (
-		start   = time.Now()
-		workers errgroup.Group
+		start = time.Now()
 	)
+	workers := newWorkerGroup(s.singlethreaded)
 	if s.db.TrieDB().IsVerkle() {
 		// Whilst MPT storage tries are independent, Verkle has one single trie
 		// for all the accounts and all the storage slots merged together. The
@@ -1225,10 +1231,10 @@ func (s *StateDB) commit(deleteEmptyObjects bool) (*stateUpdate, error) {
 	// off some milliseconds from the commit operation. Also accumulate the code
 	// writes to run in parallel with the computations.
 	var (
-		start   = time.Now()
-		root    common.Hash
-		workers errgroup.Group
+		start = time.Now()
+		root  common.Hash
 	)
+	workers := newWorkerGroup(s.singlethreaded)
 	// Schedule the account trie first since that will be the biggest, so give
 	// it the most time to crunch.
 	//
