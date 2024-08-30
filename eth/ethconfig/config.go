@@ -184,12 +184,12 @@ type Config struct {
 	ApplySuperchainUpgrades bool `toml:",omitempty"`
 
 	RollupSequencerHTTP                     string
+	RollupSequencerEnableTxConditional      bool
 	RollupHistoricalRPC                     string
 	RollupHistoricalRPCTimeout              time.Duration
 	RollupDisableTxPoolGossip               bool
 	RollupDisableTxPoolAdmission            bool
 	RollupHaltOnIncompatibleProtocolVersion string
-	RollupSequencerEnableTxConditional      bool
 }
 
 // CreateConsensusEngine creates a consensus engine for the given chain config.

@@ -377,7 +377,12 @@ func (s *Ethereum) APIs() []rpc.API {
 
 	// Append any Sequencer APIs as enabled
 	if s.config.RollupSequencerEnableTxConditional {
-		apis = append(apis, sequencerapi.GetSendRawTxConditionalAPI(s.APIBackend))
+		// an effort to detect if running in a non-sequencer mode
+		if len(s.config.RollupSequencerHTTP) > 0 {
+			log.Warn("SendRawTransactionConditional enabled when RollupSequencerHTTP is defined. Skipping...")
+		} else {
+			apis = append(apis, sequencerapi.GetSendRawTxConditionalAPI(s.APIBackend))
+		}
 	}
 
 	// Append all the local APIs and return

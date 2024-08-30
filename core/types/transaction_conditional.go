@@ -79,7 +79,7 @@ type TransactionConditional struct {
 	// KnownAccounts represents account prestate conditions
 	KnownAccounts KnownAccounts `json:"knownAccounts"`
 
-	// Header state conditionals
+	// Header state conditionals (inclusive ranges)
 	BlockNumberMin *big.Int `json:"blockNumberMin,omitempty"`
 	BlockNumberMax *big.Int `json:"blockNumberMax,omitempty"`
 	TimestampMin   *uint64  `json:"timestampMin,omitempty"`
