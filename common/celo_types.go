@@ -1,6 +1,8 @@
 package common
 
 import (
+	"encoding/json"
+	"fmt"
 	"math/big"
 )
 
@@ -14,6 +16,39 @@ type IntrinsicGasCosts = map[Address]uint64
 type FeeCurrencyContext struct {
 	ExchangeRates     ExchangeRates
 	IntrinsicGasCosts IntrinsicGasCosts
+}
+
+// Only used in tracer tests
+func (fc *FeeCurrencyContext) UnmarshalJSON(data []byte) error {
+	var raw struct {
+		ExchangeRates     map[Address][]json.Number `json:"exchangeRates"`
+		IntrinsicGasCosts map[Address]uint64        `json:"intrinsicGasCosts"`
+	}
+
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+
+	fc.ExchangeRates = make(ExchangeRates)
+	for addr, rateArr := range raw.ExchangeRates {
+		if len(rateArr) != 2 {
+			return fmt.Errorf("invalid exchange rate array for address %s: expected 2 elements, got %d", addr, len(rateArr))
+		}
+		numerator, ok := new(big.Int).SetString(string(rateArr[0]), 10)
+		if !ok {
+			return fmt.Errorf("invalid numerator for address %s: %s", addr, rateArr[0])
+		}
+		denominator, ok := new(big.Int).SetString(string(rateArr[1]), 10)
+		if !ok {
+			return fmt.Errorf("invalid denominator for address %s: %s", addr, rateArr[1])
+		}
+
+		rate := new(big.Rat).SetFrac(numerator, denominator)
+		fc.ExchangeRates[addr] = rate
+	}
+	fc.IntrinsicGasCosts = raw.IntrinsicGasCosts
+
+	return nil
 }
 
 func MaxAllowedIntrinsicGasCost(i IntrinsicGasCosts, feeCurrency *Address) (uint64, bool) {
