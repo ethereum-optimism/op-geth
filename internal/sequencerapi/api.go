@@ -82,7 +82,7 @@ func (s *sendRawTxCond) SendRawTransactionConditional(ctx context.Context, txByt
 	}
 
 	// Set internal fields
-	cond.SubmissionTime = time.Now()
+	tx.SetTime(time.Now())
 	cond.Rejected = &atomic.Bool{}
 
 	tx.SetConditional(&cond)

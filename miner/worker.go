@@ -304,7 +304,7 @@ func (miner *Miner) commitTransaction(env *environment, tx *types.Transaction) e
 
 		// ditch the reservation as we've checked that we're allowed `cost` units by the limiter
 		miner.conditionalLimiter.ReserveN(now, cost)
-		txConditionalMinedTimer.UpdateSince(conditional.SubmissionTime)
+		txConditionalMinedTimer.UpdateSince(tx.Time())
 
 		// check the conditional
 		if err := env.header.CheckTransactionConditional(conditional); err != nil {

@@ -220,12 +220,6 @@ func TestTransactionConditionalSerDeser(t *testing.T) {
 			},
 		},
 		{
-			name:     "SubmissionTime",
-			input:    `{"submissionTime": 1234}`,
-			mustFail: true,
-			expected: TransactionConditional{KnownAccounts: nil},
-		},
-		{
 			name:     "Rejected",
 			input:    `{"rejected": false}`,
 			mustFail: true,
