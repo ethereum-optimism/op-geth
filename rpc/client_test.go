@@ -161,7 +161,7 @@ func TestClientBatchRequest(t *testing.T) {
 			Method: "no_such_method",
 			Args:   []interface{}{1, 2, 3},
 			Result: new(int),
-			Error:  &JsonError{Code: -32601, Message: "the method no_such_method does not exist/is not available"},
+			Error:  &jsonError{Code: -32601, Message: "the method no_such_method does not exist/is not available"},
 		},
 	}
 	if !reflect.DeepEqual(batch, wantResult) {
