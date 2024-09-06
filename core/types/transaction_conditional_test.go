@@ -35,12 +35,20 @@ func TestTransactionConditionalCost(t *testing.T) {
 			cost: 1,
 		},
 		{
+			name: "default cost per account",
+			cond: TransactionConditional{KnownAccounts: map[common.Address]KnownAccount{
+				common.Address{19: 1}: KnownAccount{},
+				common.Address{19: 2}: KnownAccount{},
+			}},
+			cost: 2,
+		},
+		{
 			name: "storage root lookup",
 			cond: TransactionConditional{KnownAccounts: map[common.Address]KnownAccount{
 				common.Address{19: 1}: KnownAccount{
 					StorageRoot: &EmptyRootHash,
 				}}},
-			cost: 1,
+			cost: 2,
 		},
 		{
 			name: "cost per storage slot lookup",
@@ -51,7 +59,7 @@ func TestTransactionConditionalCost(t *testing.T) {
 						common.Hash{31: 1}: common.Hash{31: 1},
 					},
 				}}},
-			cost: 2,
+			cost: 3,
 		},
 		{
 			name: "cost summed together",
@@ -66,7 +74,7 @@ func TestTransactionConditionalCost(t *testing.T) {
 							common.Hash{31: 1}: common.Hash{31: 1},
 						},
 					}}},
-			cost: 5,
+			cost: 7,
 		},
 	}
 
@@ -218,12 +226,6 @@ func TestTransactionConditionalSerDeser(t *testing.T) {
 			expected: TransactionConditional{
 				TimestampMax: uint64Ptr(uint64(0xffffff)),
 			},
-		},
-		{
-			name:     "Rejected",
-			input:    `{"rejected": false}`,
-			mustFail: true,
-			expected: TransactionConditional{KnownAccounts: nil},
 		},
 		{
 			name:     "UnknownField",

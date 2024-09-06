@@ -20,7 +20,6 @@ package miner
 import (
 	"math/big"
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -187,10 +186,7 @@ func TestRejectedConditionalTx(t *testing.T) {
 		Gas:      params.TxGas,
 		GasPrice: big.NewInt(params.InitialBaseFee),
 	})
-	tx.SetConditional(&types.TransactionConditional{
-		TimestampMax: uint64Ptr(timestamp - 1),
-		Rejected:     &atomic.Bool{},
-	})
+	tx.SetConditional(&types.TransactionConditional{TimestampMax: uint64Ptr(timestamp - 1)})
 
 	// 1 pending tx
 	miner.txpool.Add(types.Transactions{tx}, true, false)
@@ -211,8 +207,8 @@ func TestRejectedConditionalTx(t *testing.T) {
 		t.Fatalf("block should be empty")
 	}
 
-	// conditional is rejected
-	if !tx.Conditional().Rejected.Load() {
+	// tx is rejected
+	if !tx.Rejected() {
 		t.Fatalf("conditional tx is not marked as rejected")
 	}
 

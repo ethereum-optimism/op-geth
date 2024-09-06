@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
-	"sync/atomic"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -83,9 +82,6 @@ type TransactionConditional struct {
 	BlockNumberMax *big.Int `json:"blockNumberMax,omitempty"`
 	TimestampMin   *uint64  `json:"timestampMin,omitempty"`
 	TimestampMax   *uint64  `json:"timestampMax,omitempty"`
-
-	// Internal fields used for metrics and inclusion tracking
-	Rejected *atomic.Bool `json:"-"`
 }
 
 // field type overrides for gencodec

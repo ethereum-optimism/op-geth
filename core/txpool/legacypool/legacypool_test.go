@@ -692,7 +692,7 @@ func TestDropping(t *testing.T) {
 
 // Tests that transactions marked as reject (by the miner in practice)
 // are removed from the pool
-func TestRejectedConditionalDropping(t *testing.T) {
+func TestRejectedDropping(t *testing.T) {
 	t.Parallel()
 
 	pool, key := setupPool()
@@ -703,10 +703,6 @@ func TestRejectedConditionalDropping(t *testing.T) {
 
 	// create some txs. tx0 has a conditional
 	tx0, tx1 := transaction(0, 100, key), transaction(1, 200, key)
-	tx0.SetConditional(&types.TransactionConditional{
-		BlockNumberMin: big.NewInt(1),
-		Rejected:       &atomic.Bool{},
-	})
 
 	pool.all.Add(tx0, false)
 	pool.all.Add(tx1, false)
@@ -720,7 +716,7 @@ func TestRejectedConditionalDropping(t *testing.T) {
 	}
 
 	// tx0 conditional is marked as rejected and should be removed
-	tx0.Conditional().Rejected.Store(true)
+	tx0.SetRejected()
 	<-pool.requestReset(nil, nil)
 	if pool.all.Count() != 1 {
 		t.Errorf("total transaction mismatch: have %d, want %d", pool.all.Count(), 1)

@@ -454,14 +454,16 @@ func (miner *Miner) commitTransactions(env *environment, plainTxs, blobTxs *tran
 			// err contains contextual info on the failed conditional.
 			txConditionalRejectedCounter.Inc(1)
 
-			// we know this tx has a conditional and mark it as rejected so that it can be ejected from the mempool
-			tx.Conditional().Rejected.Store(true)
+			// mark as rejected so that it can be ejected from the mempool
+			tx.SetRejected()
 			log.Debug("Skipping account, transaction with failed conditional", "sender", from, "hash", ltx.Hash, "err", err)
 			txs.Pop()
 
 		case errors.Is(err, errTxConditionalRateLimited):
 			// err contains contextual info of the cost and limiter tokens available
 			txConditionalRejectedCounter.Inc(1)
+
+			// note: we do not mark the tx as rejected as it is still eligible for inclusion at a later time
 			log.Debug("Skipping account, transaction with conditional rate limited", "sender", from, "hash", ltx.Hash, "err", err)
 			txs.Pop()
 

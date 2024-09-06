@@ -3,7 +3,6 @@ package sequencerapi
 import (
 	"context"
 	"fmt"
-	"sync/atomic"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -83,8 +82,6 @@ func (s *sendRawTxCond) SendRawTransactionConditional(ctx context.Context, txByt
 
 	// Set internal fields
 	tx.SetTime(time.Now())
-	cond.Rejected = &atomic.Bool{}
-
 	tx.SetConditional(&cond)
 	sendRawTxConditionalAcceptedCounter.Inc(1)
 

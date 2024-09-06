@@ -66,7 +66,10 @@ type Transaction struct {
 	rollupCostData atomic.Value
 
 	// optional preconditions for inclusion
-	conditional atomic.Value
+	conditional atomic.Pointer[TransactionConditional]
+
+	// an indicator if this transaction is rejected during block building
+	rejected atomic.Bool
 }
 
 // NewTx creates a new transaction.
@@ -392,16 +395,22 @@ func (tx *Transaction) RollupCostData() RollupCostData {
 
 // Conditional returns the conditional attached to the transaction
 func (tx *Transaction) Conditional() *TransactionConditional {
-	v := tx.conditional.Load()
-	if v == nil {
-		return nil
-	}
-	return v.(*TransactionConditional)
+	return tx.conditional.Load()
 }
 
 // SetConditional attaches a conditional to the transaction
 func (tx *Transaction) SetConditional(cond *TransactionConditional) {
 	tx.conditional.Store(cond)
+}
+
+// Rejected will mark this transaction as rejected.
+func (tx *Transaction) SetRejected() {
+	tx.rejected.Store(true)
+}
+
+// Rejected returns the rejected status of this tx
+func (tx *Transaction) Rejected() bool {
+	return tx.rejected.Load()
 }
 
 // RawSignatureValues returns the V, R, S signature values of the transaction.
