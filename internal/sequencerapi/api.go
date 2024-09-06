@@ -21,13 +21,14 @@ var (
 )
 
 type sendRawTxCond struct {
-	b ethapi.Backend
+	b      ethapi.Backend
+	seqRPC *rpc.Client
 }
 
-func GetSendRawTxConditionalAPI(b ethapi.Backend) rpc.API {
+func GetSendRawTxConditionalAPI(b ethapi.Backend, seqRPC *rpc.Client) rpc.API {
 	return rpc.API{
 		Namespace: "eth",
-		Service:   &sendRawTxCond{b},
+		Service:   &sendRawTxCond{b, seqRPC},
 	}
 }
 
@@ -75,15 +76,21 @@ func (s *sendRawTxCond) SendRawTransactionConditional(ctx context.Context, txByt
 		}
 	}
 
-	tx := new(types.Transaction)
-	if err := tx.UnmarshalBinary(txBytes); err != nil {
-		return common.Hash{}, err
+	// forward if seqRPC is set, otherwise submit the tx
+	if s.seqRPC != nil {
+		var hash common.Hash
+		err := s.seqRPC.CallContext(ctx, &hash, "eth_sendRawTransactionConditional", txBytes, cond)
+		return hash, err
+	} else {
+		tx := new(types.Transaction)
+		if err := tx.UnmarshalBinary(txBytes); err != nil {
+			return common.Hash{}, err
+		}
+
+		// Set out-of-consensus internal tx fields
+		tx.SetTime(time.Now())
+		tx.SetConditional(&cond)
+		sendRawTxConditionalAcceptedCounter.Inc(1)
+		return ethapi.SubmitTransaction(ctx, s.b, tx)
 	}
-
-	// Set internal fields
-	tx.SetTime(time.Now())
-	tx.SetConditional(&cond)
-	sendRawTxConditionalAcceptedCounter.Inc(1)
-
-	return ethapi.SubmitTransaction(ctx, s.b, tx)
 }
