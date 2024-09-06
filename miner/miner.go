@@ -95,13 +95,14 @@ type Miner struct {
 // New creates a new miner with provided config.
 func New(eth Backend, config Config, engine consensus.Engine) *Miner {
 	return &Miner{
-		backend:            eth,
-		config:             &config,
-		chainConfig:        eth.BlockChain().Config(),
-		engine:             engine,
-		txpool:             eth.TxPool(),
-		chain:              eth.BlockChain(),
-		pending:            &pending{},
+		backend:     eth,
+		config:      &config,
+		chainConfig: eth.BlockChain().Config(),
+		engine:      engine,
+		txpool:      eth.TxPool(),
+		chain:       eth.BlockChain(),
+		pending:     &pending{},
+		// setup the rate limit imposed on conditional transactions when block building
 		conditionalLimiter: rate.NewLimiter(params.TransactionConditionalMaxCost, config.RollupTransactionConditionalBurstRate),
 	}
 }

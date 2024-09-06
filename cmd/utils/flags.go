@@ -982,7 +982,7 @@ var (
 		Category: flags.RollupCategory,
 		Value:    false,
 	}
-	RollupSequencerTxConditionalRateLimitFlag = &cli.Uint64Flag{
+	RollupSequencerTxConditionalRateLimitFlag = &cli.IntFlag{
 		Name:     "rollup.sequencertxconditionalratelimit",
 		Usage:    "Maximum cost -- storage lookups -- allowed for conditional transactions in a given second",
 		Category: flags.RollupCategory,
@@ -1730,7 +1730,7 @@ func setMiner(ctx *cli.Context, cfg *miner.Config) {
 		cfg.RollupComputePendingBlock = ctx.Bool(RollupComputePendingBlock.Name)
 	}
 	if ctx.IsSet(RollupSequencerTxConditionalRateLimitFlag.Name) {
-		cfg.RollupTransactionConditionalBurstRate = int(ctx.Uint64(RollupSequencerTxConditionalRateLimitFlag.Name))
+		cfg.RollupTransactionConditionalBurstRate = ctx.Int(RollupSequencerTxConditionalRateLimitFlag.Name)
 	}
 }
 

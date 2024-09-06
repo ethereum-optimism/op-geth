@@ -111,6 +111,8 @@ func (cond *TransactionConditional) Validate() error {
 func (cond *TransactionConditional) Cost() int {
 	cost := 0
 	for _, account := range cond.KnownAccounts {
+		// default cost to handle empty accounts
+		cost += 1
 		if _, isRoot := account.Root(); isRoot {
 			cost += 1
 		}
