@@ -91,6 +91,9 @@ func (s *sendRawTxCond) SendRawTransactionConditional(ctx context.Context, txByt
 		tx.SetTime(time.Now())
 		tx.SetConditional(&cond)
 
+		// `SubmitTransaction` which forwards to `b.SendTx` also checks if its internal `seqRPC` client is
+		// set. Since both of these client are constructed if `RollupSequencerHTTP` is set, the above block
+		// ensures that we're only adding to the txpool in this block.
 		sendRawTxConditionalAcceptedCounter.Inc(1)
 		return ethapi.SubmitTransaction(ctx, s.b, tx)
 	}

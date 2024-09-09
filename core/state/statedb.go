@@ -432,7 +432,7 @@ func (s *StateDB) HasSelfDestructed(addr common.Address) bool {
 func (s *StateDB) CheckTransactionConditional(cond *types.TransactionConditional) error {
 	cost := cond.Cost()
 
-	// The max cost as an inclusive limit.
+	// The max cost is an inclusive limit.
 	if cost > params.TransactionConditionalMaxCost {
 		return fmt.Errorf("conditional cost, %d, exceeded max: %d", cost, params.TransactionConditionalMaxCost)
 	}
