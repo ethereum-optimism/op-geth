@@ -1333,26 +1333,33 @@ var (
 	gasbackMaxBasefee = big.NewInt(1000000000)
 )
 
+var (
+	errGasbackOverflow = errors.New("error gasback overflow")
+)
+
 func (c *gasback) RequiredGas(input []byte, evm *EVM) uint64 {
 	if evm.Context.BaseFee.Cmp(gasbackMaxBasefee) == 1 {
 		return 0
 	}
-	return new(big.Int).SetBytes(input[:32]).Uint64()
+	gas := new(big.Int).SetBytes(input[:32])
+	if gas.BitLen() > 64 {
+		return math.MaxUint64
+	}
+	return gas.Uint64()
 }
 
 func (c *gasback) Run(input []byte, evm *EVM) ([]byte, error) {
 	gasToBurn := c.RequiredGas(input, evm)
-	etherToGive := new(big.Int).Mul(new(big.Int).SetUint64(gasToBurn), evm.Context.BaseFee)
 
+	etherToGive := new(big.Int).Mul(new(big.Int).SetUint64(gasToBurn), evm.Context.BaseFee)
 	etherToGive.Mul(etherToGive, gasbackRatioNumerator)
 	etherToGive.Div(etherToGive, gasbackRatioDenominator)
 
-	finalEtherToGive, err := uint256.FromBig(etherToGive)
-	// If this overflows, err will not be nil.
-	if err {
+	// 160 bits is more than enough for all Ether in existence.
+	if etherToGive.BitLen() > 160 {
 		return nil, nil
 	}
-
+	finalEtherToGive, _ := uint256.FromBig(etherToGive)
 	caller := evm.precompileCaller.Address()
 	evm.StateDB.AddBalance(caller, finalEtherToGive, tracing.BalanceChangeUnspecified)
 
