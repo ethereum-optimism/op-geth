@@ -90,6 +90,7 @@ func (s *sendRawTxCond) SendRawTransactionConditional(ctx context.Context, txByt
 		// Set out-of-consensus internal tx fields
 		tx.SetTime(time.Now())
 		tx.SetConditional(&cond)
+
 		sendRawTxConditionalAcceptedCounter.Inc(1)
 		return ethapi.SubmitTransaction(ctx, s.b, tx)
 	}
