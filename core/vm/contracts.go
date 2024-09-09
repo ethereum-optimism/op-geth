@@ -1333,6 +1333,7 @@ var (
 	gasbackFlatOverheadCost = big.NewInt(10000)
 	gasbackTaperBasefeeMin  = big.NewInt(1000000000)
 	gasbackTaperBasefeeMax  = big.NewInt(10000000000)
+	gasbackTaperBasefeeDiff = new(big.Int).Sub(gasbackTaperBasefeeMax, gasbackTaperBasefeeMin)
 )
 
 func (c *gasback) RequiredGas(input []byte, evm *EVM, _ ContractRef) uint64 {
@@ -1345,7 +1346,7 @@ func (c *gasback) RequiredGas(input []byte, evm *EVM, _ ContractRef) uint64 {
 		// Linearly interpolate to zero as the basefee increases to `gasbackTaperBasefeeMax`
 		// Gradually changing the gas required helps prevent gas underestimation
 		gas.Mul(gas, new(big.Int).Sub(gasbackTaperBasefeeMax, evm.Context.BaseFee))
-		gas.Div(gas, new(big.Int).Sub(gasbackTaperBasefeeMax, gasbackTaperBasefeeMin))
+		gas.Div(gas, gasbackTaperBasefeeDiff)
 	}
 	gas.Add(gas, gasbackFlatOverheadCost)
 	if gas.BitLen() > 64 {
@@ -1366,7 +1367,7 @@ func (c *gasback) Run(input []byte, evm *EVM, caller ContractRef) ([]byte, error
 	etherToGive.Mul(etherToGive, gasbackRatioNumerator)
 	etherToGive.Div(etherToGive, gasbackRatioDenominator)
 
-	// 160 bits is more than enough for all Ether in existence.
+	// 160 bits is more than enough for all Ether in existence
 	if etherToGive.BitLen() > 160 {
 		return nil, nil
 	}
