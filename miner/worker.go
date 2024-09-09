@@ -298,10 +298,25 @@ func (miner *Miner) commitTransaction(env *environment, tx *types.Transaction) e
 	// If a conditional is set, check prior to applying
 	if conditional := tx.Conditional(); conditional != nil {
 		now, cost := time.Now(), conditional.Cost()
-		reservation := miner.conditionalLimiter.ReserveN(now, cost)
-		if !reservation.OK() {
-			reservation.Cancel()
-			return fmt.Errorf("exceeded rate limit: cost %d, tokens %f: %w", cost, miner.conditionalLimiter.Tokens(), errTxConditionalRateLimited)
+		res := miner.conditionalLimiter.ReserveN(now, cost)
+		if !res.OK() {
+			return fmt.Errorf(
+				"cost %v exceeds rate limiter burst %v: %w",
+				cost,
+				miner.conditionalLimiter.Burst(),
+				// I changed this to invalid, because they've actually exceeded
+				// params.TransactionConditionalMaxCost.
+				errTxConditionalInvalid,
+			)
+		}
+		if res.Delay() > 0 {
+			res.Cancel()
+			return fmt.Errorf(
+				"exceeded rate limit: cost %d, available tokens %f: %w",
+				cost,
+				miner.conditionalLimiter.Tokens(),
+				errTxConditionalRateLimited,
+			)
 		}
 
 		txConditionalMinedTimer.UpdateSince(tx.Time())

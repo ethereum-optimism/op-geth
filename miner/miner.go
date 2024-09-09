@@ -102,8 +102,11 @@ func New(eth Backend, config Config, engine consensus.Engine) *Miner {
 		txpool:      eth.TxPool(),
 		chain:       eth.BlockChain(),
 		pending:     &pending{},
-		// setup the rate limit imposed on conditional transactions when block building
-		conditionalLimiter: rate.NewLimiter(params.TransactionConditionalMaxCost, config.RollupTransactionConditionalBurstRate),
+		// Set up the rate limit imposed on conditional transactions when block building.
+		conditionalLimiter: rate.NewLimiter(
+			rate.Limit(config.RollupTransactionConditionalBurstRate),
+			params.TransactionConditionalMaxCost,
+		),
 	}
 }
 
