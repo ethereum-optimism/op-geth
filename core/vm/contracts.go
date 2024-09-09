@@ -1330,6 +1330,7 @@ type gasback struct{}
 var (
     gasbackRatioNumerator = big.NewInt(9)
     gasbackRatioDenominator = big.NewInt(10)
+    gasbackFlatOverheadCost = big.NewInt(10000)
     gasbackTaperBasefeeMin = big.NewInt(1000000000)
     gasbackTaperBasefeeMax = big.NewInt(10000000000)
 )
@@ -1339,14 +1340,14 @@ func (c *gasback) RequiredGas(input []byte, evm *EVM) uint64 {
 
     if evm.Context.BaseFee.Cmp(gasbackTaperBasefeeMin) == 1 {
         if evm.Context.BaseFee.Cmp(gasbackTaperBasefeeMax) == 1 {
-            return 0
+            return gasbackFlatOverheadCost.Uint64()
         }
         // Linearly interpolate to zero as the basefee increases to `gasbackTaperBasefeeMax`
         // Gradually changing the gas required helps in gas estimation
         gas.Mul(gas, new(big.Int).Sub(gasbackTaperBasefeeMax, evm.Context.BaseFee))
         gas.Div(gas, new(big.Int).Sub(gasbackTaperBasefeeMax, gasbackTaperBasefeeMin))
     }
-    
+    gas.Add(gas, gasbackFlatOverheadCost)
     if gas.BitLen() > 64 {
         return math.MaxUint64
     }
@@ -1354,9 +1355,14 @@ func (c *gasback) RequiredGas(input []byte, evm *EVM) uint64 {
 }
 
 func (c *gasback) Run(input []byte, evm *EVM) ([]byte, error) {
-    gasToBurn := c.RequiredGas(input, evm)
+    gas := new(big.Int).SetUint64(c.RequiredGas(input, evm))
 
-    etherToGive := new(big.Int).Mul(new(big.Int).SetUint64(gasToBurn), evm.Context.BaseFee)
+    if gas.Cmp(gasbackFlatOverheadCost) == 1 {
+        gas.Sub(gas, gasbackFlatOverheadCost)
+    } else {
+        gas = big.NewInt(0)
+    }
+    etherToGive := new(big.Int).Mul(gas, evm.Context.BaseFee)
     etherToGive.Mul(etherToGive, gasbackRatioNumerator)
     etherToGive.Div(etherToGive, gasbackRatioDenominator)
 
