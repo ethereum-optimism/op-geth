@@ -1330,21 +1330,21 @@ type gasback struct{}
 var (
     gasbackRatioNumerator = big.NewInt(9)
     gasbackRatioDenominator = big.NewInt(10)
-    gasbackBasefeeTaperMin = big.NewInt(1000000000)
-    gasbackBasefeeTaperMax = big.NewInt(10000000000)
+    gasbackTaperBasefeeMin = big.NewInt(1000000000)
+    gasbackTaperBasefeeMax = big.NewInt(10000000000)
 )
 
 func (c *gasback) RequiredGas(input []byte, evm *EVM) uint64 {
     gas := new(big.Int).SetBytes(input[:32])
 
-    if evm.Context.BaseFee.Cmp(gasbackBasefeeTaperMin) == 1 {
-        if evm.Context.BaseFee.Cmp(gasbackBasefeeTaperMax) == 1 {
+    if evm.Context.BaseFee.Cmp(gasbackTaperBasefeeMin) == 1 {
+        if evm.Context.BaseFee.Cmp(gasbackTaperBasefeeMax) == 1 {
             return 0
         }
-        // Linearly interpolate to zero as the basefee increases to `gasbackBasefeeTaperMax`
+        // Linearly interpolate to zero as the basefee increases to `gasbackTaperBasefeeMax`
         // Gradually changing the gas required helps in gas estimation
-        gas.Mul(gas, new(big.Int).Sub(gasbackBasefeeTaperMax, evm.Context.BaseFee))
-        gas.Div(gas, new(big.Int).Sub(gasbackBasefeeTaperMax, gasbackBasefeeTaperMin))
+        gas.Mul(gas, new(big.Int).Sub(gasbackTaperBasefeeMax, evm.Context.BaseFee))
+        gas.Div(gas, new(big.Int).Sub(gasbackTaperBasefeeMax, gasbackTaperBasefeeMin))
     }
     
     if gas.BitLen() > 64 {
