@@ -1343,8 +1343,7 @@ func (c *gasback) RequiredGas(input []byte, evm *EVM, _ ContractRef) uint64 {
 			return gasbackFlatOverheadCost.Uint64()
 		}
 		// Linearly interpolate to zero as the basefee increases to `gasbackTaperBasefeeMax`
-		// Gradually changing the gas required helps gas estimation
-		// Sudden fluctuations in gas required makes underestimate more likely
+		// Gradually changing the gas required helps prevent gas underestimation
 		gas.Mul(gas, new(big.Int).Sub(gasbackTaperBasefeeMax, evm.Context.BaseFee))
 		gas.Div(gas, new(big.Int).Sub(gasbackTaperBasefeeMax, gasbackTaperBasefeeMin))
 	}
