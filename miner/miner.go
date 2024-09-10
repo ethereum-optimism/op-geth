@@ -57,7 +57,7 @@ type Config struct {
 	Recommit            time.Duration  // The time interval for miner to re-create mining work.
 
 	RollupComputePendingBlock             bool // Compute the pending block from tx-pool, instead of copying the latest-block
-	RollupTransactionConditionalBurstRate int  // Total number of conditional cost units allowed in a second
+	RollupTransactionConditionalRateLimit int  // Total number of conditional cost units allowed in a second
 
 	EffectiveGasCeil uint64 // if non-zero, a gas ceiling to apply independent of the header's gaslimit value
 }
@@ -103,7 +103,7 @@ func New(eth Backend, config Config, engine consensus.Engine) *Miner {
 		chain:       eth.BlockChain(),
 		pending:     &pending{},
 		// setup the rate limit imposed on conditional transactions when block building
-		conditionalLimiter: rate.NewLimiter(params.TransactionConditionalMaxCost, config.RollupTransactionConditionalBurstRate),
+		conditionalLimiter: rate.NewLimiter(rate.Limit(config.RollupTransactionConditionalRateLimit), params.TransactionConditionalMaxCost),
 	}
 }
 

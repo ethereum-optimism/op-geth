@@ -1731,7 +1731,7 @@ func setMiner(ctx *cli.Context, cfg *miner.Config) {
 	}
 
 	// This flag has a default rate limit so always set
-	cfg.RollupTransactionConditionalBurstRate = ctx.Int(RollupSequencerTxConditionalRateLimitFlag.Name)
+	cfg.RollupTransactionConditionalRateLimit = ctx.Int(RollupSequencerTxConditionalRateLimitFlag.Name)
 }
 
 func setRequiredBlocks(ctx *cli.Context, cfg *ethconfig.Config) {
