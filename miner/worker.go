@@ -300,7 +300,6 @@ func (miner *Miner) commitTransaction(env *environment, tx *types.Transaction) e
 		now, cost := time.Now(), conditional.Cost()
 		res := miner.conditionalLimiter.ReserveN(now, cost)
 		if !res.OK() {
-			res.Cancel()
 			return fmt.Errorf("exceeded rate limiter burst: cost %d, burst %d: %w", cost, miner.conditionalLimiter.Burst(), errTxConditionalInvalid)
 		}
 		if res.Delay() > 0 {

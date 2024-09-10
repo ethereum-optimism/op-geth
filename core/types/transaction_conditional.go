@@ -20,7 +20,7 @@ type KnownAccounts map[common.Address]KnownAccount
 // then the user prefers their transaction to only be included if the
 // particular storage slot values from state match.
 type KnownAccount struct {
-	StorageRoot  *common.Hash `rlp:"nil"`
+	StorageRoot  *common.Hash
 	StorageSlots map[common.Hash]common.Hash
 }
 

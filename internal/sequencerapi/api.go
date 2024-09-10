@@ -52,13 +52,19 @@ func (s *sendRawTxCond) SendRawTransactionConditional(ctx context.Context, txByt
 		}
 	}
 
-	header, err := s.b.HeaderByNumber(context.Background(), rpc.LatestBlockNumber)
+	state, header, err := s.b.StateAndHeaderByNumber(context.Background(), rpc.LatestBlockNumber)
 	if err != nil {
 		return common.Hash{}, err
 	}
 	if err := header.CheckTransactionConditional(&cond); err != nil {
 		return common.Hash{}, &rpc.JsonError{
 			Message: fmt.Sprintf("failed header check: %s", err),
+			Code:    params.TransactionConditionalRejectedErrCode,
+		}
+	}
+	if err := state.CheckTransactionConditional(&cond); err != nil {
+		return common.Hash{}, &rpc.JsonError{
+			Message: fmt.Sprintf("failed state check: %s", err),
 			Code:    params.TransactionConditionalRejectedErrCode,
 		}
 	}
@@ -92,8 +98,8 @@ func (s *sendRawTxCond) SendRawTransactionConditional(ctx context.Context, txByt
 		tx.SetConditional(&cond)
 
 		// `SubmitTransaction` which forwards to `b.SendTx` also checks if its internal `seqRPC` client is
-		// set. Since both of these client are constructed if `RollupSequencerHTTP` is set, the above block
-		// ensures that we're only adding to the txpool in this block.
+		// set. Since both of these client are constructed when `RollupSequencerHTTP` is supplied, the above
+		// block ensures that we're only adding to the txpool for this node.
 		sendRawTxConditionalAcceptedCounter.Inc(1)
 		return ethapi.SubmitTransaction(ctx, s.b, tx)
 	}
