@@ -1739,8 +1739,8 @@ func (pool *LegacyPool) demoteUnexecutables() {
 		})
 		for _, tx := range rejectedDrops {
 			hash := tx.Hash()
-			log.Trace("Removed rejected transaction by the miner", "hash", hash)
 			pool.all.Remove(hash)
+			log.Trace("Removed rejected transaction", "hash", hash)
 		}
 
 		for _, tx := range invalids {

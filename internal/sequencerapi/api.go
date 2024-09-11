@@ -2,6 +2,7 @@ package sequencerapi
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -52,7 +53,7 @@ func (s *sendRawTxCond) SendRawTransactionConditional(ctx context.Context, txByt
 		}
 	}
 
-	state, header, err := s.b.StateAndHeaderByNumber(context.Background(), rpc.LatestBlockNumber)
+	state, header, err := s.b.StateAndHeaderByNumber(ctx, rpc.LatestBlockNumber)
 	if err != nil {
 		return common.Hash{}, err
 	}
@@ -71,7 +72,7 @@ func (s *sendRawTxCond) SendRawTransactionConditional(ctx context.Context, txByt
 
 	// State is checked against an older block to remove the MEV incentive for this endpoint compared with sendRawTransaction
 	parentBlock := rpc.BlockNumberOrHash{BlockHash: &header.ParentHash}
-	parentState, _, err := s.b.StateAndHeaderByNumberOrHash(context.Background(), parentBlock)
+	parentState, _, err := s.b.StateAndHeaderByNumberOrHash(ctx, parentBlock)
 	if err != nil {
 		return common.Hash{}, err
 	}
@@ -82,17 +83,26 @@ func (s *sendRawTxCond) SendRawTransactionConditional(ctx context.Context, txByt
 		}
 	}
 
+	tx := new(types.Transaction)
+	if err := tx.UnmarshalBinary(txBytes); err != nil {
+		return common.Hash{}, err
+	}
+
 	// forward if seqRPC is set, otherwise submit the tx
 	if s.seqRPC != nil {
+		// Some precondition checks done by `ethapi.SubmitTransaction` that are good to also check here
+		if err := ethapi.CheckTxFee(tx.GasPrice(), tx.Gas(), s.b.RPCTxFeeCap()); err != nil {
+			return common.Hash{}, err
+		}
+		if !s.b.UnprotectedAllowed() && !tx.Protected() {
+			// Ensure only eip155 signed transactions are submitted if EIP155Required is set.
+			return common.Hash{}, errors.New("only replay-protected (EIP-155) transactions allowed over RPC")
+		}
+
 		var hash common.Hash
 		err := s.seqRPC.CallContext(ctx, &hash, "eth_sendRawTransactionConditional", txBytes, cond)
 		return hash, err
 	} else {
-		tx := new(types.Transaction)
-		if err := tx.UnmarshalBinary(txBytes); err != nil {
-			return common.Hash{}, err
-		}
-
 		// Set out-of-consensus internal tx fields
 		tx.SetTime(time.Now())
 		tx.SetConditional(&cond)
