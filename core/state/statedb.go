@@ -1484,16 +1484,3 @@ func (s *StateDB) PointCache() *utils.PointCache {
 func (s *StateDB) Witness() *stateless.Witness {
 	return s.witness
 }
-
-func (s *StateDB) MoveAccount(from, to common.Address) error {
-	fromObj := s.getStateObject(from)
-	if fromObj == nil {
-		return fmt.Errorf("account %s not found", from.Hex())
-	}
-
-	fromObj.address = to
-	fromObj.addrHash = crypto.Keccak256Hash(to[:])
-
-	s.setStateObject(fromObj)
-	return nil
-}
