@@ -377,6 +377,7 @@ func (s *Ethereum) APIs() []rpc.API {
 
 	// Append any Sequencer APIs as enabled
 	if s.config.RollupSequencerEnableTxConditional {
+		log.Info("Enabling eth_sendRawTransactionConditional endpoint support")
 		apis = append(apis, sequencerapi.GetSendRawTxConditionalAPI(s.APIBackend, s.seqRPCService))
 	}
 
