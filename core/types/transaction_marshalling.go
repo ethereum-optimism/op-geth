@@ -65,7 +65,11 @@ type txJSON struct {
 	Hash common.Hash `json:"hash"`
 
 	// Celo specific fields
-	FeeCurrency *common.Address `json:"feeCurrency,omitempty"` // nil means native currency
+	FeeCurrency         *common.Address `json:"feeCurrency,omitempty"` // nil means native currency
+	MaxFeeInFeeCurrency *hexutil.Big    `json:"maxFeeInFeeCurrency,omitempty"`
+	EthCompatible       *bool           `json:"ethCompatible,omitempty"`
+	GatewayFee          *hexutil.Big    `json:"gatewayFee,omitempty"`
+	GatewayFeeRecipient *common.Address `json:"gatewayFeeRecipient,omitempty"`
 }
 
 // yParityValue returns the YParity value from JSON. For backwards-compatibility reasons,
