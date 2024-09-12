@@ -103,6 +103,10 @@ func (c *celoLegacy) txFuncs(tx *Transaction) *txFuncs {
 		// changes that were not part of Espresso. So instead we ned to handle
 		// DynamicFeeTxTypes here.
 		return dynamicFeeTxFuncs
+	case t == AccessListTxType:
+		// Similar to the dynamic fee tx type, we need to handle the access list tx type that was also enabled by the
+		// espresso hardfork.
+		return accessListTxFuncs
 	case t == CeloDynamicFeeTxV2Type:
 		return celoDynamicFeeTxV2Funcs
 	case t == CeloDynamicFeeTxType:
