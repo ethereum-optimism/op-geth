@@ -33,7 +33,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth/tracers"
 	"github.com/ethereum/go-ethereum/params"
-	"golang.org/x/time/rate"
 )
 
 // Backend wraps all methods required for mining. Only full node is capable
@@ -87,9 +86,6 @@ type Miner struct {
 	pendingMu   sync.Mutex // Lock protects the pending block
 
 	backend Backend
-
-	// TransactionConditional safegaurds
-	conditionalLimiter *rate.Limiter
 }
 
 // New creates a new miner with provided config.
@@ -102,8 +98,6 @@ func New(eth Backend, config Config, engine consensus.Engine) *Miner {
 		txpool:      eth.TxPool(),
 		chain:       eth.BlockChain(),
 		pending:     &pending{},
-		// setup the rate limit imposed on conditional transactions when block building
-		conditionalLimiter: rate.NewLimiter(rate.Limit(config.RollupTransactionConditionalRateLimit), params.TransactionConditionalMaxCost),
 	}
 }
 

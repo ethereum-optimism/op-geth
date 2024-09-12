@@ -183,13 +183,14 @@ type Config struct {
 	// ApplySuperchainUpgrades requests the node to load chain-configuration from the superchain-registry.
 	ApplySuperchainUpgrades bool `toml:",omitempty"`
 
-	RollupSequencerHTTP                     string
-	RollupSequencerEnableTxConditional      bool
-	RollupHistoricalRPC                     string
-	RollupHistoricalRPCTimeout              time.Duration
-	RollupDisableTxPoolGossip               bool
-	RollupDisableTxPoolAdmission            bool
-	RollupHaltOnIncompatibleProtocolVersion string
+	RollupSequencerHTTP                       string
+	RollupSequencerTxConditionalEnabled       bool
+	RollupSequencerTxConditionalCostRateLimit int
+	RollupHistoricalRPC                       string
+	RollupHistoricalRPCTimeout                time.Duration
+	RollupDisableTxPoolGossip                 bool
+	RollupDisableTxPoolAdmission              bool
+	RollupHaltOnIncompatibleProtocolVersion   string
 }
 
 // CreateConsensusEngine creates a consensus engine for the given chain config.
