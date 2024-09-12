@@ -47,7 +47,10 @@ func (p *Peer) broadcastTransactions() {
 				size        common.StorageSize
 			)
 			for i := 0; i < len(queue) && size < maxTxPacketSize; i++ {
-				if tx := p.txpool.Get(queue[i]); tx != nil {
+				// Transaction conditionals are tied to the block builder it was
+				// submitted to. Thus we do not broadcast transactions to peers that
+				// have a conditional attached to them.
+				if tx := p.txpool.Get(queue[i]); tx != nil && tx.Conditional() == nil {
 					txs = append(txs, tx)
 					size += common.StorageSize(tx.Size())
 				}
