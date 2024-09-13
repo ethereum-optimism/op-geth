@@ -63,22 +63,24 @@ func (evm *EVM) precompile(addr common.Address) (CeloPrecompiledContract, bool) 
 		precompiles = PrecompiledContractsHomestead
 	}
 	p, ok := precompiles[addr]
+	if evm.Config.PrecompileOverrides != nil {
+		override := evm.Config.PrecompileOverrides(evm.chainRules, p, addr)
+		p = override
+		ok = override != nil
+	}
+
 	var cp CeloPrecompiledContract
-	if !ok {
+	if ok {
+		cp = &wrap{p}
+	} else {
 		var celoPrecompiles map[common.Address]CeloPrecompiledContract
 		switch {
 		case evm.chainRules.IsCel2:
 			celoPrecompiles = PrecompiledCeloContractsCel2
 		}
 		cp, ok = celoPrecompiles[addr]
-	} else {
-		if evm.Config.PrecompileOverrides != nil {
-			override := evm.Config.PrecompileOverrides(evm.chainRules, p, addr)
-			return &wrap{override}, override != nil
-		} else {
-			cp = &wrap{p}
-		}
 	}
+
 	return cp, ok
 }
 
