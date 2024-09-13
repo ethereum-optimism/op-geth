@@ -1349,16 +1349,15 @@ func (c *gasback) RequiredGas(input []byte, evm *EVM, _ ContractRef) uint64 {
 	if evm == nil {
 		return math.MaxUint64
 	}
-	// The input calldata argument represents the desired amount of gas to burn.
-	// The precompile is has the freedom to require a different amount of gas.
+
 	if len(input) != 32 {
 		return math.MaxUint64
 	}
 	gas := new(big.Int).SetBytes(input)
 
 	// To prevent this precompile from causing base fee to grow too high,
-	// via EIP-1559, we will taper off the amount of gas required
-	// as the base fee increases.
+	// via EIP-1559, we will taper off the amount of gas required as the
+	// base fee increases.
 	// Linearly interpolate the gas from its initial amount to zero as the
 	// basefee goes from GasbackTaperBaseFeeMin to GasbackTaperBaseFeeMax.
 	// Gradually changing the gas required helps prevent gas underestimation.
@@ -1367,9 +1366,8 @@ func (c *gasback) RequiredGas(input []byte, evm *EVM, _ ContractRef) uint64 {
 	// If `BaseFee > GasbackTaperBaseFeeMin`
 	if baseFee.Cmp(new(big.Int).SetUint64(params.GasbackTaperBaseFeeMin)) == 1 {
 		tween := new(big.Int).SetUint64(params.GasbackTaperBaseFeeMax)
-		tween.Sub(tween, baseFee)
 		// If `GasbackTaperBaseFeeMax >= BaseFee`
-		if tween.Sign() >= 0 {
+		if tween.Sub(tween, baseFee).Sign() >= 0 {
 			gas.Mul(gas, tween)
 			// Since `GasbackTaperBaseFeeMax >= BaseFee > GasbackTaperBaseFeeMin`,
 			// `diff >= 1`.
@@ -1389,7 +1387,6 @@ func (c *gasback) RequiredGas(input []byte, evm *EVM, _ ContractRef) uint64 {
 	if gas.BitLen() > 64 {
 		return math.MaxUint64
 	}
-
 	return gas.Uint64()
 }
 
@@ -1427,14 +1424,13 @@ func (c *gasback) Run(input []byte, evm *EVM, caller ContractRef) ([]byte, error
 		return nil, errGasbackArithmeticOverflow
 	}
 
+	// As all of the base fee gas consumed by this precompile will be
+	// credited to the base fee recipient, we will need to deduct the
+	// amount of Ether minted from the balance of the base fee recipient.
+	// In practice, the base fee recipient will have a minimum amount of
+	// Ether it must hold before a withdraw can be triggered, so most of
+	// the time, it will have enough Ether for the temporary deduction.
 	baseFeeRecipient := params.OptimismBaseFeeRecipient
-
-	// As all of the base fee gas consumed by this precompile
-	// will be credited to the base fee recipient, we will need to deduct the amount
-	// of Ether minted from the balance of the base fee recipient.
-	// In practice, the base fee recipient will have a minimum amount of Ether it must
-	// hold before a withdraw can be triggered, so most of the time, it will have
-	// enough Ether for the temporary deduction.
 	if !evm.Context.CanTransfer(evm.StateDB, baseFeeRecipient, finalEtherToGive) {
 		return make([]byte, 32), nil
 	}
