@@ -244,10 +244,14 @@ func RunPrecompiledContract(p PrecompiledContract, input []byte, suppliedGas uin
 	if suppliedGas < gasCost {
 		return nil, 0, ErrOutOfGas
 	}
-	logger := evm.Config.Tracer
-	if logger != nil && logger.OnGasChange != nil {
-		logger.OnGasChange(suppliedGas, suppliedGas-gasCost, tracing.GasChangeCallPrecompiledContract)
+
+	if evm != nil {
+		logger := evm.Config.Tracer
+		if logger != nil && logger.OnGasChange != nil {
+			logger.OnGasChange(suppliedGas, suppliedGas-gasCost, tracing.GasChangeCallPrecompiledContract)
+		}
 	}
+
 	suppliedGas -= gasCost
 	output, err := p.Run(input, evm, caller)
 	return output, suppliedGas, err
