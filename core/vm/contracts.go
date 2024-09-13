@@ -1356,10 +1356,11 @@ func (c *gasback) RequiredGas(input []byte, evm *EVM, _ ContractRef) uint64 {
 	}
 	gas := new(big.Int).SetBytes(input)
 
-	// To prevent this precompile from causing base fee to grow too high, we will
-	// taper off the amount of gas required as the base fee increases.
-	// Linearly interpolate `gas` from its initial amount to zero as the basefee
-	// goes from `GasbackTaperBaseFeeMin` to `GasbackTaperBaseFeeMax`.
+	// To prevent this precompile from causing base fee to grow too high,
+	// via EIP-1559, we will taper off the amount of gas required
+	// as the base fee increases.
+	// Linearly interpolate the gas from its initial amount to zero as the
+	// basefee goes from GasbackTaperBaseFeeMin to GasbackTaperBaseFeeMax.
 	// Gradually changing the gas required helps prevent gas underestimation.
 
 	baseFee := evm.Context.BaseFee
@@ -1370,7 +1371,7 @@ func (c *gasback) RequiredGas(input []byte, evm *EVM, _ ContractRef) uint64 {
 		// If `GasbackTaperBaseFeeMax >= BaseFee`
 		if tween.Sign() >= 0 {
 			gas.Mul(gas, tween)
-			// As `GasbackTaperBaseFeeMax >= BaseFee > GasbackTaperBaseFeeMin`,
+			// Since `GasbackTaperBaseFeeMax >= BaseFee > GasbackTaperBaseFeeMin`,
 			// `diff >= 1`.
 			diff := params.GasbackTaperBaseFeeMax - params.GasbackTaperBaseFeeMin
 			gas.Div(gas, new(big.Int).SetUint64(diff))
