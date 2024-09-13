@@ -1343,19 +1343,21 @@ func (c *gasback) RequiredGas(input []byte, evm *EVM, _ ContractRef) uint64 {
 	// Linearly interpolate `gas` from its initial amount to zero as the basefee
 	// goes from `GasbackTaperBaseFeeMin` to `GasbackTaperBaseFeeMax`.
 	// Gradually changing the gas required helps prevent gas underestimation.
-	if params.GasbackTaperBaseFeeMax > params.GasbackTaperBaseFeeMin {
-		lerpStart := new(big.Int).SetUint64(params.GasbackTaperBaseFeeMin)
-		lerpEnd := new(big.Int).SetUint64(params.GasbackTaperBaseFeeMax)
 
-		if evm.Context.BaseFee.Cmp(lerpStart) == 1 {
-			lerpTween := new(big.Int).Sub(lerpEnd, evm.Context.BaseFee)
-			if lerpTween.Sign() < 0 {
-				gas.SetUint64(0)
-			} else {
-				gas.Mul(gas, lerpTween)
-				diff := params.GasbackTaperBaseFeeMax - params.GasbackTaperBaseFeeMin
-				gas.Div(gas, new(big.Int).SetUint64(diff))
-			}
+	baseFee := evm.Context.BaseFee
+	// If `BaseFee > GasbackTaperBaseFeeMin`
+	if baseFee.Cmp(new(big.Int).SetUint64(params.GasbackTaperBaseFeeMin)) == 1 {
+		tween := new(big.Int).SetUint64(params.GasbackTaperBaseFeeMax)
+		tween.Sub(tween, baseFee)
+		// If `GasbackTaperBaseFeeMax >= BaseFee`
+		if tween.Sign() >= 0 {
+			gas.Mul(gas, tween)
+			// As `GasbackTaperBaseFeeMax >= BaseFee > GasbackTaperBaseFeeMin`,
+			// `diff >= 1`.
+			diff := params.GasbackTaperBaseFeeMax - params.GasbackTaperBaseFeeMin
+			gas.Div(gas, new(big.Int).SetUint64(diff))
+		} else {
+			gas.SetUint64(0)
 		}
 	}
 
