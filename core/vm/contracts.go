@@ -1331,6 +1331,9 @@ type gasback struct{}
 
 // RequiredGas estimates the gas required for running the gasback precompile.
 func (c *gasback) RequiredGas(input []byte, evm *EVM, _ ContractRef) uint64 {
+	if evm == nil {
+		return 0
+	}
 	// The input calldata argument represents the desired amount of gas to burn.
 	// The precompile is has the freedom to require a different amount of gas.
 	gas := new(big.Int).SetUint64(0)
@@ -1376,6 +1379,9 @@ func (c *gasback) RequiredGas(input []byte, evm *EVM, _ ContractRef) uint64 {
 
 // Run executes the gasback precompile.
 func (c *gasback) Run(input []byte, evm *EVM, caller ContractRef) ([]byte, error) {
+	if evm == nil || caller == nil {
+		return make([]byte, 32), nil
+	}
 	// Implements the gasback precompile.
 	// The retruned data is big endian, left-padded uint256 denoting the amount of
 	// Ether minted to the caller.
