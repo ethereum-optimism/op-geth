@@ -1329,6 +1329,17 @@ func (c *p256Verify) Run(input []byte, _ *EVM, _ ContractRef) ([]byte, error) {
 // and return a fraction of the gas burned back to the caller as Ether.
 type gasback struct{}
 
+var (
+	// errGasbackOverflow is returned if the gasback ratio denominator is zero.
+	errGasbackRatioDenominatorIsZero = errors.New("gasback ratio denominator is zero")
+
+	// errGasbackArithmeticOverflow is returned if the gasback calculations encounter an arithmetic overflow.
+	errGasbackArithmeticOverflow = errors.New("gasback arithmetic overflow")
+
+	// errBadGasbackInputSize is returned if the the gasbad input size is invalid.
+	errBadGasbackInputSize = errors.New("bad gasback input size")
+)
+
 // RequiredGas estimates the gas required for running the gasback precompile.
 func (c *gasback) RequiredGas(input []byte, evm *EVM, _ ContractRef) uint64 {
 	if evm == nil {
@@ -1336,10 +1347,10 @@ func (c *gasback) RequiredGas(input []byte, evm *EVM, _ ContractRef) uint64 {
 	}
 	// The input calldata argument represents the desired amount of gas to burn.
 	// The precompile is has the freedom to require a different amount of gas.
-	gas := new(big.Int).SetUint64(0)
-	if len(input) == 32 {
-		gas.SetBytes(input)
+	if len(input) != 32 {
+		return 0
 	}
+	gas := new(big.Int).SetBytes(input)
 
 	// To prevent this precompile from causing base fee to grow too high, we will
 	// taper off the amount of gas required as the base fee increases.
@@ -1379,13 +1390,17 @@ func (c *gasback) RequiredGas(input []byte, evm *EVM, _ ContractRef) uint64 {
 
 // Run executes the gasback precompile.
 func (c *gasback) Run(input []byte, evm *EVM, caller ContractRef) ([]byte, error) {
-	if evm == nil || caller == nil {
-		return make([]byte, 32), nil
-	}
 	// Implements the gasback precompile.
 	// The retruned data is big endian, left-padded uint256 denoting the amount of
 	// Ether minted to the caller.
 
+	if evm == nil || caller == nil {
+		return make([]byte, 32), nil
+	}
+
+	if len(input) != 32 {
+		return nil, errBadGasbackInputSize
+	}
 	gas := c.RequiredGas(input, evm, caller)
 
 	if gas > params.GasbackFlatOverheadGas {
@@ -1394,9 +1409,9 @@ func (c *gasback) Run(input []byte, evm *EVM, caller ContractRef) ([]byte, error
 		gas = 0
 	}
 
-	// In case the `GasbackRatioDenominator` is misconfigured, early return.
+	// In case the `GasbackRatioDenominator` is misconfigured, revert.
 	if params.GasbackRatioDenominator == 0 {
-		return make([]byte, 32), nil
+		return nil, errGasbackRatioDenominatorIsZero
 	}
 	// If no gas needs to be converted to Ether, early return.
 	if gas == 0 {
@@ -1407,10 +1422,10 @@ func (c *gasback) Run(input []byte, evm *EVM, caller ContractRef) ([]byte, error
 	etherToGive.Mul(etherToGive, new(big.Int).SetUint64(params.GasbackRatioNumerator))
 	etherToGive.Div(etherToGive, new(big.Int).SetUint64(params.GasbackRatioDenominator))
 
-	// If the amount of Ether to give is unrealistically big, early return.
+	// If the amount of Ether to give is unrealistically big, revert.
 	// 160 bits is more than enough for all Ether in existence.
 	if etherToGive.BitLen() > 160 {
-		return make([]byte, 32), nil
+		return nil, errGasbackArithmeticOverflow
 	}
 	finalEtherToGive, _ := uint256.FromBig(etherToGive)
 
