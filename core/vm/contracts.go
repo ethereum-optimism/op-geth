@@ -1334,8 +1334,8 @@ func (c *gasback) RequiredGas(input []byte, evm *EVM, _ ContractRef) uint64 {
 	// The input calldata argument represents the desired amount of gas to burn.
 	// The precompile is has the freedom to require a different amount of gas.
 	gas := new(big.Int).SetUint64(0)
-	if len(input) >= 32 {
-		gas.SetBytes(input[:32])
+	if len(input) == 32 {
+		gas.SetBytes(input)
 	}
 
 	// To prevent this precompile from causing base fee to grow too high, we will
@@ -1388,12 +1388,16 @@ func (c *gasback) Run(input []byte, evm *EVM, caller ContractRef) ([]byte, error
 		gas = 0
 	}
 
-	// In case the `GasbackRatioDenominator` is misconfigured, realy return.
+	// In case the `GasbackRatioDenominator` is misconfigured, early return.
 	if params.GasbackRatioDenominator == 0 {
 		return make([]byte, 32), nil
 	}
-
-	etherToGive := new(big.Int).Mul(new(big.Int).SetUint64(gas), evm.Context.BaseFee)
+	// If no gas needs to be converted to Ether, early return.
+	if gas == 0 {
+		return make([]byte, 32), nil
+	}
+	etherToGive := new(big.Int).SetUint64(gas)
+	etherToGive.Mul(etherToGive, evm.Context.BaseFee)
 	etherToGive.Mul(etherToGive, new(big.Int).SetUint64(params.GasbackRatioNumerator))
 	etherToGive.Div(etherToGive, new(big.Int).SetUint64(params.GasbackRatioDenominator))
 
