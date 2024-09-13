@@ -1398,6 +1398,7 @@ func (c *gasback) Run(input []byte, evm *EVM, caller ContractRef) ([]byte, error
 	// The retruned data is big endian, left-padded uint256 denoting the amount of
 	// Ether minted to the caller.
 
+	// Skip execution if this function is called without evm and caller.
 	if evm == nil || caller == nil {
 		return make([]byte, 32), nil
 	}
@@ -1406,32 +1407,24 @@ func (c *gasback) Run(input []byte, evm *EVM, caller ContractRef) ([]byte, error
 		return nil, errBadGasbackInputSize
 	}
 	gas := c.RequiredGas(input, evm, caller)
-
 	if gas > params.GasbackFlatOverheadGas {
 		gas -= params.GasbackFlatOverheadGas
 	} else {
 		gas = 0
 	}
 
-	// In case the `GasbackRatioDenominator` is misconfigured, revert.
 	if params.GasbackRatioDenominator == 0 {
 		return nil, errGasbackRatioDenominatorIsZero
-	}
-	// If no gas needs to be converted to Ether, early return.
-	if gas == 0 {
-		return make([]byte, 32), nil
 	}
 	etherToGive := new(big.Int).SetUint64(gas)
 	etherToGive.Mul(etherToGive, evm.Context.BaseFee)
 	etherToGive.Mul(etherToGive, new(big.Int).SetUint64(params.GasbackRatioNumerator))
 	etherToGive.Div(etherToGive, new(big.Int).SetUint64(params.GasbackRatioDenominator))
 
-	// If the amount of Ether to give is unrealistically big, revert.
-	// 160 bits is more than enough for all Ether in existence.
-	if etherToGive.BitLen() > 160 {
+	finalEtherToGive, overflow := uint256.FromBig(etherToGive)
+	if overflow {
 		return nil, errGasbackArithmeticOverflow
 	}
-	finalEtherToGive, _ := uint256.FromBig(etherToGive)
 
 	baseFeeRecipient := params.OptimismBaseFeeRecipient
 
