@@ -1347,12 +1347,12 @@ var (
 // RequiredGas estimates the gas required for running the gasback precompile.
 func (c *gasback) RequiredGas(input []byte, evm *EVM, _ ContractRef) uint64 {
 	if evm == nil {
-		return 0
+		return math.MaxUint64
 	}
 	// The input calldata argument represents the desired amount of gas to burn.
 	// The precompile is has the freedom to require a different amount of gas.
 	if len(input) != 32 {
-		return 0
+		return math.MaxUint64
 	}
 	gas := new(big.Int).SetBytes(input)
 
