@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   deploy:
-    permisisons:
+    permissions:
       contents: write
     concurrency: ci-${{ github.ref }}
     runs-on: ubuntu-latest
