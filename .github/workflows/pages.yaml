@@ -1,6 +1,4 @@
 name: Build and publish forkdiff github-pages
-permissions:
-  contents: write
 on:
   push:
     branches:
