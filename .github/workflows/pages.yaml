@@ -6,6 +6,9 @@ on:
     branches:
       - celo[0-9]+
 
+permissions:
+  contents: read
+
 jobs:
   deploy:
     concurrency: ci-${{ github.ref }}

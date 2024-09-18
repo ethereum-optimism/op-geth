@@ -3,6 +3,9 @@ on:
   push:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   build-scan-container:
     uses: celo-org/reusable-workflows/.github/workflows/container-cicd.yaml@main

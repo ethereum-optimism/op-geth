@@ -13,6 +13,9 @@ on:
 
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   Test:
     runs-on: ["8-cpu","self-hosted","org"]
