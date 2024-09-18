@@ -9,6 +9,7 @@ permissions:
 jobs:
   build-scan-container:
     permissions:
+      contents: read
       security-events: write
       id-token: write
     uses: celo-org/reusable-workflows/.github/workflows/container-cicd.yaml@main
