@@ -17,6 +17,7 @@
 package miner
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/binary"
 	"errors"
@@ -98,16 +99,23 @@ type Payload struct {
 	err       error
 	stopOnce  sync.Once
 	interrupt *atomic.Int32 // interrupt signal shared with worker
+
+	rpcCtx    context.Context
+	rpcCancel context.CancelFunc
 }
 
 // newPayload initializes the payload object.
 func newPayload(empty *types.Block, id engine.PayloadID) *Payload {
+	rpcCtx, rpcCancel := context.WithCancel(context.Background())
 	payload := &Payload{
 		id:    id,
 		empty: empty,
 		stop:  make(chan struct{}),
 
 		interrupt: new(atomic.Int32),
+
+		rpcCtx:    rpcCtx,
+		rpcCancel: rpcCancel,
 	}
 	log.Info("Starting work on payload", "id", payload.id)
 	payload.cond = sync.NewCond(&payload.lock)
@@ -229,6 +237,7 @@ func (payload *Payload) resolve(onlyFull bool) *engine.ExecutionPayloadEnvelope 
 // the update anyways.
 // interruptBuilding is safe to be called concurrently.
 func (payload *Payload) interruptBuilding() {
+	payload.rpcCancel()
 	// Set the interrupt if not interrupted already.
 	// It's ok if it has either already been interrupted by payload resolution earlier,
 	// or by the timeout timer set to commitInterruptTimeout.
@@ -245,6 +254,7 @@ func (payload *Payload) interruptBuilding() {
 // transactions with interruptBuilding.
 // stopBuilding is safe to be called concurrently.
 func (payload *Payload) stopBuilding() {
+	payload.rpcCancel()
 	// Concurrent Resolve calls should only stop once.
 	payload.stopOnce.Do(func() {
 		log.Debug("Stop payload building.", "id", payload.id)
@@ -270,6 +280,7 @@ func (miner *Miner) buildPayload(args *BuildPayloadArgs) (*Payload, error) {
 			noTxs:       true,
 			txs:         args.Transactions,
 			gasLimit:    args.GasLimit,
+			rpcCtx:      nil, // No RPC requests allowed.
 		}
 		empty := miner.generateWork(emptyParams)
 		if empty.err != nil {
@@ -306,6 +317,7 @@ func (miner *Miner) buildPayload(args *BuildPayloadArgs) (*Payload, error) {
 	payload := newPayload(nil, args.Id())
 	// set shared interrupt
 	fullParams.interrupt = payload.interrupt
+	fullParams.rpcCtx = payload.rpcCtx
 
 	// Spin up a routine for updating the payload in background. This strategy
 	// can maximum the revenue for including transactions with highest fee.
