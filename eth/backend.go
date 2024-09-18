@@ -342,13 +342,7 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 	}
 
 	if config.InteropMessageRPC != "" {
-		ctx, cancel := context.WithTimeout(context.Background(), config.InteropMessageRPCTimeout)
-		client, err := interop.DialClient(ctx, config.InteropMessageRPC)
-		cancel()
-		if err != nil {
-			return nil, fmt.Errorf("failed to dial Interop RPC %q: %w", config.InteropMessageRPC, err)
-		}
-		eth.interopRPC = client
+		eth.interopRPC = interop.NewInteropClient(config.InteropMessageRPC)
 	}
 
 	// Start the RPC service

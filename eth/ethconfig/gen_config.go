@@ -67,13 +67,13 @@ func (c Config) MarshalTOML() (interface{}, error) {
 		OverrideOptimismInterop                 *uint64 `toml:",omitempty"`
 		ApplySuperchainUpgrades                 bool    `toml:",omitempty"`
 		RollupSequencerHTTP                     string
+		RollupSequencerEnableTxConditional      bool
 		RollupHistoricalRPC                     string
 		RollupHistoricalRPCTimeout              time.Duration
 		RollupDisableTxPoolGossip               bool
 		RollupDisableTxPoolAdmission            bool
 		RollupHaltOnIncompatibleProtocolVersion string
 		InteropMessageRPC                       string
-		InteropMessageRPCTimeout                time.Duration
 	}
 	var enc Config
 	enc.Genesis = c.Genesis
@@ -126,13 +126,13 @@ func (c Config) MarshalTOML() (interface{}, error) {
 	enc.OverrideOptimismInterop = c.OverrideOptimismInterop
 	enc.ApplySuperchainUpgrades = c.ApplySuperchainUpgrades
 	enc.RollupSequencerHTTP = c.RollupSequencerHTTP
+	enc.RollupSequencerEnableTxConditional = c.RollupSequencerEnableTxConditional
 	enc.RollupHistoricalRPC = c.RollupHistoricalRPC
 	enc.RollupHistoricalRPCTimeout = c.RollupHistoricalRPCTimeout
 	enc.RollupDisableTxPoolGossip = c.RollupDisableTxPoolGossip
 	enc.RollupDisableTxPoolAdmission = c.RollupDisableTxPoolAdmission
 	enc.RollupHaltOnIncompatibleProtocolVersion = c.RollupHaltOnIncompatibleProtocolVersion
 	enc.InteropMessageRPC = c.InteropMessageRPC
-	enc.InteropMessageRPCTimeout = c.InteropMessageRPCTimeout
 	return &enc, nil
 }
 
@@ -189,13 +189,13 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 		OverrideOptimismInterop                 *uint64 `toml:",omitempty"`
 		ApplySuperchainUpgrades                 *bool   `toml:",omitempty"`
 		RollupSequencerHTTP                     *string
+		RollupSequencerEnableTxConditional      *bool
 		RollupHistoricalRPC                     *string
 		RollupHistoricalRPCTimeout              *time.Duration
 		RollupDisableTxPoolGossip               *bool
 		RollupDisableTxPoolAdmission            *bool
 		RollupHaltOnIncompatibleProtocolVersion *string
 		InteropMessageRPC                       *string
-		InteropMessageRPCTimeout                *time.Duration
 	}
 	var dec Config
 	if err := unmarshal(&dec); err != nil {
@@ -351,6 +351,9 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 	if dec.RollupSequencerHTTP != nil {
 		c.RollupSequencerHTTP = *dec.RollupSequencerHTTP
 	}
+	if dec.RollupSequencerEnableTxConditional != nil {
+		c.RollupSequencerEnableTxConditional = *dec.RollupSequencerEnableTxConditional
+	}
 	if dec.RollupHistoricalRPC != nil {
 		c.RollupHistoricalRPC = *dec.RollupHistoricalRPC
 	}
@@ -368,9 +371,6 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 	}
 	if dec.InteropMessageRPC != nil {
 		c.InteropMessageRPC = *dec.InteropMessageRPC
-	}
-	if dec.InteropMessageRPCTimeout != nil {
-		c.InteropMessageRPCTimeout = *dec.InteropMessageRPCTimeout
 	}
 	return nil
 }

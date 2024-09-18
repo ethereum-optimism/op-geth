@@ -2,23 +2,42 @@ package interop
 
 import (
 	"context"
+	"sync"
 
 	"github.com/ethereum/go-ethereum/core/types/interoptypes"
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
 type InteropClient struct {
-	rpcClient *rpc.Client
+	mu       sync.Mutex
+	client   *rpc.Client
+	endpoint string
 }
 
-func DialClient(ctx context.Context, rpcEndpoint string) (*InteropClient, error) {
-	cl, err := rpc.DialContext(ctx, rpcEndpoint)
-	if err != nil {
-		return nil, err
+// maybeDial dials the endpoint if it was not already.
+func (cl *InteropClient) maybeDial(ctx context.Context) error {
+	cl.mu.Lock()
+	defer cl.mu.Unlock()
+	if cl.client != nil {
+		return nil
 	}
-	return &InteropClient{rpcClient: cl}, nil
+	rpcClient, err := rpc.DialContext(ctx, cl.endpoint)
+	if err != nil {
+		return err
+	}
+	cl.client = rpcClient
+	return nil
 }
 
+func NewInteropClient(rpcEndpoint string) *InteropClient {
+	return &InteropClient{endpoint: rpcEndpoint}
+}
+
+// CheckMessages checks if the given messages meet the given minimum safety level.
 func (cl *InteropClient) CheckMessages(ctx context.Context, messages []interoptypes.Message, minSafety interoptypes.SafetyLevel) error {
-	return cl.rpcClient.CallContext(ctx, nil, "supervisor_checkMessages", messages, minSafety)
+	// we lazy-dial the endpoint, so we can start geth, and build blocks, without supervisor endpoint availability.
+	if err := cl.maybeDial(ctx); err != nil { // a single dial attempt is made, the next call may retry.
+		return err
+	}
+	return cl.client.CallContext(ctx, nil, "supervisor_checkMessages", messages, minSafety)
 }

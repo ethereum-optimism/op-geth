@@ -955,13 +955,6 @@ var (
 		Category: flags.RollupCategory,
 	}
 
-	RollupInteropRPCTimeoutFlag = &cli.StringFlag{
-		Name:     "rollup.interoprpctimeout",
-		Usage:    "Timeout for interop RPC dial (experimental).",
-		Value:    "5s",
-		Category: flags.RollupCategory,
-	}
-
 	RollupDisableTxPoolGossipFlag = &cli.BoolFlag{
 		Name:     "rollup.disabletxpoolgossip",
 		Usage:    "Disable transaction pool gossip.",
@@ -1982,7 +1975,6 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 	if ctx.IsSet(RollupInteropRPCFlag.Name) {
 		cfg.InteropMessageRPC = ctx.String(RollupInteropRPCFlag.Name)
 	}
-	cfg.InteropMessageRPCTimeout = ctx.Duration(RollupInteropRPCTimeoutFlag.Name)
 	cfg.RollupDisableTxPoolGossip = ctx.Bool(RollupDisableTxPoolGossipFlag.Name)
 	cfg.RollupDisableTxPoolAdmission = cfg.RollupSequencerHTTP != "" && !ctx.Bool(RollupEnableTxPoolAdmissionFlag.Name)
 	cfg.RollupHaltOnIncompatibleProtocolVersion = ctx.String(RollupHaltOnIncompatibleProtocolVersionFlag.Name)
