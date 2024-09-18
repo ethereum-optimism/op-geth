@@ -12,6 +12,7 @@ jobs:
       service-account: 'op-geth-dev@blockchaintestsglobaltestnet.iam.gserviceaccount.com'
       artifact-registry: us-west1-docker.pkg.dev/blockchaintestsglobaltestnet/dev-images/op-geth
       tags: ${{ github.sha }}
+      platforms: linux/amd64,linux/arm64
       context: .
       file: Dockerfile
       trivy: true
