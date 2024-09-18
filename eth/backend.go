@@ -484,6 +484,9 @@ func (s *Ethereum) Stop() error {
 	if s.historicalRPCService != nil {
 		s.historicalRPCService.Close()
 	}
+	if s.interopRPC != nil {
+		s.interopRPC.Close()
+	}
 
 	// Clean shutdown marker as the last thing before closing db
 	s.shutdownTracker.Stop()

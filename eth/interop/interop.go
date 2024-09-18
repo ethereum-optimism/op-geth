@@ -12,13 +12,14 @@ type InteropClient struct {
 	mu       sync.Mutex
 	client   *rpc.Client
 	endpoint string
+	closed   bool // don't allow lazy-dials after Close
 }
 
 // maybeDial dials the endpoint if it was not already.
 func (cl *InteropClient) maybeDial(ctx context.Context) error {
 	cl.mu.Lock()
 	defer cl.mu.Unlock()
-	if cl.client != nil {
+	if cl.client != nil || cl.closed {
 		return nil
 	}
 	rpcClient, err := rpc.DialContext(ctx, cl.endpoint)
@@ -27,6 +28,15 @@ func (cl *InteropClient) maybeDial(ctx context.Context) error {
 	}
 	cl.client = rpcClient
 	return nil
+}
+
+func (cl *InteropClient) Close() {
+	cl.mu.Lock()
+	defer cl.mu.Unlock()
+	if cl.client != nil {
+		cl.Close()
+	}
+	cl.closed = true
 }
 
 func NewInteropClient(rpcEndpoint string) *InteropClient {
