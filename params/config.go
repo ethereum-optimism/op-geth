@@ -751,6 +751,10 @@ func (c *ChainConfig) IsCel2(time uint64) bool {
 	return isTimestampForked(c.Cel2Time, time)
 }
 
+func (c *ChainConfig) IsPreCel2(time uint64) bool {
+	return !c.IsCel2(time)
+}
+
 // IsGingerbread returns whether num represents a block number after the Gingerbread fork
 func (c *ChainConfig) IsGingerbread(num *big.Int) bool {
 	return isBlockForked(c.GingerbreadBlock, num)

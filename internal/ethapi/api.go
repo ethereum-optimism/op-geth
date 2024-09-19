@@ -671,7 +671,7 @@ func (api *BlockChainAPI) GetBalance(ctx context.Context, address common.Address
 		return nil, err
 	}
 
-	if api.b.ChainConfig().IsOptimismPreBedrock(header.Number) {
+	if api.b.ChainConfig().IsPreCel2(header.Time) {
 		if api.b.HistoricalRPCService() != nil {
 			var res hexutil.Big
 			err := api.b.HistoricalRPCService().CallContext(ctx, &res, "eth_getBalance", address, blockNrOrHash)
@@ -728,7 +728,7 @@ func (api *BlockChainAPI) GetProof(ctx context.Context, address common.Address, 
 	if err != nil {
 		return nil, err
 	}
-	if api.b.ChainConfig().IsOptimismPreBedrock(header.Number) {
+	if api.b.ChainConfig().IsPreCel2(header.Time) {
 		if api.b.HistoricalRPCService() != nil {
 			var res AccountResult
 			err := api.b.HistoricalRPCService().CallContext(ctx, &res, "eth_getProof", address, storageKeys, blockNrOrHash)
@@ -950,7 +950,7 @@ func (api *BlockChainAPI) GetCode(ctx context.Context, address common.Address, b
 		return nil, err
 	}
 
-	if api.b.ChainConfig().IsOptimismPreBedrock(header.Number) {
+	if api.b.ChainConfig().IsPreCel2(header.Time) {
 		if api.b.HistoricalRPCService() != nil {
 			var res hexutil.Bytes
 			err := api.b.HistoricalRPCService().CallContext(ctx, &res, "eth_getCode", address, blockNrOrHash)
@@ -981,7 +981,7 @@ func (api *BlockChainAPI) GetStorageAt(ctx context.Context, address common.Addre
 		return nil, err
 	}
 
-	if api.b.ChainConfig().IsOptimismPreBedrock(header.Number) {
+	if api.b.ChainConfig().IsPreCel2(header.Time) {
 		if api.b.HistoricalRPCService() != nil {
 			var res hexutil.Bytes
 			err := api.b.HistoricalRPCService().CallContext(ctx, &res, "eth_getStorageAt", address, hexKey, blockNrOrHash)
@@ -1262,7 +1262,7 @@ func (api *BlockChainAPI) Call(ctx context.Context, args TransactionArgs, blockN
 		return nil, err
 	}
 
-	if api.b.ChainConfig().IsOptimismPreBedrock(header.Number) {
+	if api.b.ChainConfig().IsPreCel2(header.Time) {
 		if api.b.HistoricalRPCService() != nil {
 			var res hexutil.Bytes
 			err := api.b.HistoricalRPCService().CallContext(ctx, &res, "eth_call", args, blockNrOrHash, overrides)
@@ -1363,7 +1363,7 @@ func (api *BlockChainAPI) EstimateGas(ctx context.Context, args TransactionArgs,
 		return 0, err
 	}
 
-	if api.b.ChainConfig().IsOptimismPreBedrock(header.Number) {
+	if api.b.ChainConfig().IsPreCel2(header.Time) {
 		if api.b.HistoricalRPCService() != nil {
 			var res hexutil.Uint64
 			err := api.b.HistoricalRPCService().CallContext(ctx, &res, "eth_estimateGas", args, blockNrOrHash)
@@ -1725,7 +1725,7 @@ func (api *BlockChainAPI) CreateAccessList(ctx context.Context, args Transaction
 	}
 
 	header, err := headerByNumberOrHash(ctx, api.b, bNrOrHash)
-	if err == nil && header != nil && api.b.ChainConfig().IsOptimismPreBedrock(header.Number) {
+	if err == nil && header != nil && api.b.ChainConfig().IsPreCel2(header.Time) {
 		if api.b.HistoricalRPCService() != nil {
 			var res accessListResult
 			err := api.b.HistoricalRPCService().CallContext(ctx, &res, "eth_createAccessList", args, blockNrOrHash)
@@ -1898,7 +1898,7 @@ func (api *TransactionAPI) GetTransactionCount(ctx context.Context, address comm
 		return nil, err
 	}
 
-	if api.b.ChainConfig().IsOptimismPreBedrock(header.Number) {
+	if api.b.ChainConfig().IsPreCel2(header.Time) {
 		if api.b.HistoricalRPCService() != nil {
 			var res hexutil.Uint64
 			err := api.b.HistoricalRPCService().CallContext(ctx, &res, "eth_getTransactionCount", address, blockNrOrHash)

@@ -22,7 +22,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math/big"
 	"os"
 	"runtime"
 	"sync"
@@ -443,7 +442,7 @@ func (api *API) TraceBlockByNumber(ctx context.Context, number rpc.BlockNumber, 
 		return nil, err
 	}
 
-	if api.backend.ChainConfig().IsOptimismPreBedrock(block.Number()) {
+	if api.backend.ChainConfig().IsPreCel2(block.Time()) {
 		if api.backend.HistoricalRPCService() != nil {
 			var histResult []*txTraceResult
 			err = api.backend.HistoricalRPCService().CallContext(ctx, &histResult, "debug_traceBlockByNumber", number, config)
@@ -467,7 +466,7 @@ func (api *API) TraceBlockByHash(ctx context.Context, hash common.Hash, config *
 		return nil, err
 	}
 
-	if api.backend.ChainConfig().IsOptimismPreBedrock(block.Number()) {
+	if api.backend.ChainConfig().IsPreCel2(block.Time()) {
 		if api.backend.HistoricalRPCService() != nil {
 			var histResult []*txTraceResult
 			err = api.backend.HistoricalRPCService().CallContext(ctx, &histResult, "debug_traceBlockByHash", hash, config)
@@ -883,7 +882,12 @@ func (api *API) TraceTransaction(ctx context.Context, hash common.Hash, config *
 		return nil, ethapi.NewTxIndexingError()
 	}
 
-	if api.backend.ChainConfig().IsOptimismPreBedrock(new(big.Int).SetUint64(blockNumber)) {
+	block, err := api.blockByNumberAndHash(ctx, rpc.BlockNumber(blockNumber), blockHash)
+	if err != nil {
+		return nil, err
+	}
+
+	if api.backend.ChainConfig().IsPreCel2(block.Time()) {
 		if api.backend.HistoricalRPCService() != nil {
 			var histResult json.RawMessage
 			err := api.backend.HistoricalRPCService().CallContext(ctx, &histResult, "debug_traceTransaction", hash, config)
@@ -902,10 +906,6 @@ func (api *API) TraceTransaction(ctx context.Context, hash common.Hash, config *
 	reexec := defaultTraceReexec
 	if config != nil && config.Reexec != nil {
 		reexec = *config.Reexec
-	}
-	block, err := api.blockByNumberAndHash(ctx, rpc.BlockNumber(blockNumber), blockHash)
-	if err != nil {
-		return nil, err
 	}
 	tx, vmctx, statedb, release, err := api.backend.StateAtTransaction(ctx, block, int(index), reexec)
 	if err != nil {
@@ -961,7 +961,7 @@ func (api *API) TraceCall(ctx context.Context, args ethapi.TransactionArgs, bloc
 		return nil, err
 	}
 
-	if api.backend.ChainConfig().IsOptimismPreBedrock(block.Number()) {
+	if api.backend.ChainConfig().IsPreCel2(block.Time()) {
 		return nil, errors.New("l2geth does not have a debug_traceCall method")
 	}
 
