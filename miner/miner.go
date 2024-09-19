@@ -90,6 +90,8 @@ type Miner struct {
 	pendingMu   sync.Mutex // Lock protects the pending block
 
 	backend Backend
+
+	feeCurrencyBlocklist *AddressBlocklist
 }
 
 // New creates a new miner with provided config.
@@ -102,6 +104,8 @@ func New(eth Backend, config Config, engine consensus.Engine) *Miner {
 		txpool:      eth.TxPool(),
 		chain:       eth.BlockChain(),
 		pending:     &pending{},
+
+		feeCurrencyBlocklist: NewAddressBlocklist(),
 	}
 }
 

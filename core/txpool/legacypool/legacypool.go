@@ -19,6 +19,7 @@ package legacypool
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"math/big"
 	"sort"
@@ -725,9 +726,22 @@ func (pool *LegacyPool) validateTx(tx *types.Transaction, local bool) error {
 			return err
 		}
 		//NOTE: we only test the `debitFees` call here.
-		// If the `creditFees` reverts (or runs out of gas), the transaction will
-		// not be invalidated here and will be included in the block.
-		return contracts.TryDebitFees(tx, from, pool.celoBackend, pool.feeCurrencyContext)
+		// If the `creditFees` reverts (or runs out of gas),
+		// the transaction reverts within the STF. This results in the user's
+		// transaction being computed free of charge. In order to mitigate this,
+		// the txpool worker keeps track of  fee-currencies where this happens and
+		// limits the impact this can have on resources by adding them to a blocklist
+		// for a limited time.
+		// Note however that the fee-currency blocklist is kept downstream,
+		// so the TryDebitFees call below will be executed even for blocklisted fee-currencies.
+		err = contracts.TryDebitFees(tx, from, pool.celoBackend, pool.feeCurrencyContext)
+		if errors.Is(err, contracts.ErrFeeCurrencyEVMCall) {
+			log.Error("executing debit fees in legacypool validation failed", "err", err)
+			// make the error message less specific / verbose,
+			// this will get returned by the `eth_sendRawTransaction` call
+			err = fmt.Errorf("fee-currency internal error")
+		}
+		return err
 	}
 	return nil
 }

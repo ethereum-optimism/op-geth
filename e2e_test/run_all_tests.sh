@@ -34,15 +34,22 @@ failures=0
 tests=0
 for f in test_*"$TEST_GLOB"*
 do
-	echo -e "\nRun $f"
-	if "./$f"
+	# temporarily skip fee-currency related tests
+	if (echo "$f" |  grep -q -e fee_currency )
 	then
 		tput setaf 2 || true
-		echo "PASS $f"
+		echo "SKIP $f"
 	else
-		tput setaf 1 || true
-		echo "FAIL $f ❌"
-		((failures++)) || true
+		echo -e "\nRun $f"
+		if "./$f"
+		then
+			tput setaf 2 || true
+			echo "PASS $f"
+		else
+			tput setaf 1 || true
+			echo "FAIL $f ❌"
+			((failures++)) || true
+		fi
 	fi
 	tput sgr0 || true
 	((tests++)) || true

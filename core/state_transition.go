@@ -687,8 +687,7 @@ func (st *StateTransition) innerTransitionDb() (*ExecutionResult, error) {
 		}, nil
 	}
 
-	err = st.distributeTxFees()
-	if err != nil {
+	if err := st.distributeTxFees(); err != nil {
 		return nil, err
 	}
 
@@ -818,7 +817,6 @@ func (st *StateTransition) distributeTxFees() error {
 			l1Cost,
 			st.feeCurrencyGasUsed,
 		); err != nil {
-			err = fmt.Errorf("error crediting fee-currency: %w", err)
 			log.Error("Error crediting", "from", from, "coinbase", st.evm.Context.Coinbase, "feeHandler", feeHandlerAddress, "err", err)
 			return err
 		}

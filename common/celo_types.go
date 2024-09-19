@@ -10,6 +10,8 @@ var (
 	ZeroAddress = BytesToAddress([]byte{})
 )
 
+type AddressSet map[Address]struct{}
+
 type ExchangeRates = map[Address]*big.Rat
 type IntrinsicGasCosts = map[Address]uint64
 
@@ -51,6 +53,14 @@ func (fc *FeeCurrencyContext) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+func NewAddressSet(addresses ...Address) AddressSet {
+	as := AddressSet{}
+	for _, address := range addresses {
+		as[address] = struct{}{}
+	}
+	return as
+}
+
 func MaxAllowedIntrinsicGasCost(i IntrinsicGasCosts, feeCurrency *Address) (uint64, bool) {
 	intrinsicGas, ok := CurrencyIntrinsicGasCost(i, feeCurrency)
 	if !ok {
@@ -76,12 +86,10 @@ func CurrencyIntrinsicGasCost(i IntrinsicGasCosts, feeCurrency *Address) (uint64
 	return gasCost, true
 }
 
-func CurrencyAllowlist(exchangeRates ExchangeRates) []Address {
-	addrs := make([]Address, len(exchangeRates))
-	i := 0
+func CurrencyAllowlist(exchangeRates ExchangeRates) AddressSet {
+	addrs := AddressSet{}
 	for k := range exchangeRates {
-		addrs[i] = k
-		i++
+		addrs[k] = struct{}{}
 	}
 	return addrs
 }

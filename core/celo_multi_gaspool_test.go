@@ -16,7 +16,7 @@ func TestMultiCurrencyGasPool(t *testing.T) {
 	testCases := []struct {
 		name                string
 		feeCurrency         *FeeCurrency
-		allowlist           []FeeCurrency
+		allowlist           common.AddressSet
 		defaultLimit        float64
 		limits              FeeCurrencyLimitMapping
 		defaultPoolExpected bool
@@ -25,18 +25,16 @@ func TestMultiCurrencyGasPool(t *testing.T) {
 		{
 			name:                "Empty allowlist, empty mapping, CELO uses default pool",
 			feeCurrency:         nil,
-			allowlist:           []FeeCurrency{},
+			allowlist:           common.NewAddressSet(),
 			defaultLimit:        0.9,
 			limits:              map[FeeCurrency]float64{},
 			defaultPoolExpected: true,
 			expectedValue:       900, // blockGasLimit - subGasAmount
 		},
 		{
-			name:        "Non-empty allowlist, non-empty mapping, CELO uses default pool",
-			feeCurrency: nil,
-			allowlist: []FeeCurrency{
-				cUSDToken,
-			},
+			name:         "Non-empty allowlist, non-empty mapping, CELO uses default pool",
+			feeCurrency:  nil,
+			allowlist:    common.NewAddressSet(cUSDToken),
 			defaultLimit: 0.9,
 			limits: map[FeeCurrency]float64{
 				cUSDToken: 0.5,
@@ -47,18 +45,16 @@ func TestMultiCurrencyGasPool(t *testing.T) {
 		{
 			name:                "Empty allowlist, empty mapping, non-registered currency fallbacks to the default pool",
 			feeCurrency:         &cUSDToken,
-			allowlist:           []FeeCurrency{},
+			allowlist:           common.NewAddressSet(),
 			defaultLimit:        0.9,
 			limits:              map[FeeCurrency]float64{},
 			defaultPoolExpected: true,
 			expectedValue:       900, // blockGasLimit - subGasAmount
 		},
 		{
-			name:        "Non-empty allowlist, non-empty mapping, non-registered currency uses default pool",
-			feeCurrency: &cEURToken,
-			allowlist: []FeeCurrency{
-				cUSDToken,
-			},
+			name:         "Non-empty allowlist, non-empty mapping, non-registered currency uses default pool",
+			feeCurrency:  &cEURToken,
+			allowlist:    common.NewAddressSet(cUSDToken),
 			defaultLimit: 0.9,
 			limits: map[FeeCurrency]float64{
 				cUSDToken: 0.5,
@@ -67,22 +63,18 @@ func TestMultiCurrencyGasPool(t *testing.T) {
 			expectedValue:       900, // blockGasLimit - subGasAmount
 		},
 		{
-			name:        "Non-empty allowlist, empty mapping, registered currency uses default limit",
-			feeCurrency: &cUSDToken,
-			allowlist: []FeeCurrency{
-				cUSDToken,
-			},
+			name:                "Non-empty allowlist, empty mapping, registered currency uses default limit",
+			feeCurrency:         &cUSDToken,
+			allowlist:           common.NewAddressSet(cUSDToken),
 			defaultLimit:        0.9,
 			limits:              map[FeeCurrency]float64{},
 			defaultPoolExpected: false,
 			expectedValue:       800, // blockGasLimit * defaultLimit - subGasAmount
 		},
 		{
-			name:        "Non-empty allowlist, non-empty mapping, configured registered currency uses configured limits",
-			feeCurrency: &cUSDToken,
-			allowlist: []FeeCurrency{
-				cUSDToken,
-			},
+			name:         "Non-empty allowlist, non-empty mapping, configured registered currency uses configured limits",
+			feeCurrency:  &cUSDToken,
+			allowlist:    common.NewAddressSet(cUSDToken),
 			defaultLimit: 0.9,
 			limits: map[FeeCurrency]float64{
 				cUSDToken: 0.5,
@@ -91,12 +83,9 @@ func TestMultiCurrencyGasPool(t *testing.T) {
 			expectedValue:       400, // blockGasLimit * 0.5 - subGasAmount
 		},
 		{
-			name:        "Non-empty allowlist, non-empty mapping, unconfigured registered currency uses default limit",
-			feeCurrency: &cEURToken,
-			allowlist: []FeeCurrency{
-				cUSDToken,
-				cEURToken,
-			},
+			name:         "Non-empty allowlist, non-empty mapping, unconfigured registered currency uses default limit",
+			feeCurrency:  &cEURToken,
+			allowlist:    common.NewAddressSet(cUSDToken, cEURToken),
 			defaultLimit: 0.9,
 			limits: map[FeeCurrency]float64{
 				cUSDToken: 0.5,

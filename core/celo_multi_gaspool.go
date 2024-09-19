@@ -20,14 +20,13 @@ type FeeCurrencyLimitMapping = map[FeeCurrency]float64
 // pool for CELO
 func NewMultiGasPool(
 	blockGasLimit uint64,
-	allowlist []FeeCurrency,
+	allowlist common.AddressSet,
 	defaultLimit float64,
 	limitsMapping FeeCurrencyLimitMapping,
 ) *MultiGasPool {
 	pools := make(map[FeeCurrency]*GasPool, len(allowlist))
 
-	for i := range allowlist {
-		currency := allowlist[i]
+	for currency := range allowlist {
 		fraction, ok := limitsMapping[currency]
 		if !ok {
 			fraction = defaultLimit
