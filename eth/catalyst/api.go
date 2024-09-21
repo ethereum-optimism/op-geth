@@ -881,6 +881,7 @@ func (api *ConsensusAPI) newPayload(params engine.ExecutableData, versionedHashe
 			"len(params.Transactions)", len(params.Transactions),
 			"len(params.Withdrawals)", len(params.Withdrawals),
 			"len(params.Deposits)", len(params.Deposits),
+			"params.WithdrawalsRoot", params.WithdrawalsRoot,
 			"beaconRoot", beaconRoot,
 			"error", err)
 		return api.invalid(err, nil), nil
@@ -996,6 +997,7 @@ func (api *ConsensusAPI) executeStatelessPayload(params engine.ExecutableData, v
 			"len(params.Transactions)", len(params.Transactions),
 			"len(params.Withdrawals)", len(params.Withdrawals),
 			"len(params.Deposits)", len(params.Deposits),
+			"params.WithdrawalsRoot", params.WithdrawalsRoot,
 			"beaconRoot", beaconRoot,
 			"error", err)
 		errorMsg := err.Error()
