@@ -95,7 +95,7 @@ type ExecutableData struct {
 	Deposits         types.Deposits          `json:"depositRequests"`
 	ExecutionWitness *types.ExecutionWitness `json:"executionWitness,omitempty"`
 
-	// OP-Stack Holocene specific field:
+	// OP-Stack Isthmus specific field:
 	// instead of computing the root from a withdrawals list, set it directly.
 	// The "withdrawals" list attribute must be non-nil but empty.
 	WithdrawalsRoot *common.Hash `json:"withdrawalsRoot,omitempty"`
