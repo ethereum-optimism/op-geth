@@ -27,6 +27,8 @@ var (
 	OptimismBaseFeeRecipient = common.HexToAddress("0x4200000000000000000000000000000000000019")
 	// The L1 portion of the transaction fee accumulates at this predeploy
 	OptimismL1FeeRecipient = common.HexToAddress("0x420000000000000000000000000000000000001A")
+	// The L2 withdrawals contract predeploy address
+	OptimismL2ToL1MessagePasser = common.HexToAddress("0x4200000000000000000000000000000000000016")
 )
 
 const (
