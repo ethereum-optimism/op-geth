@@ -36,10 +36,20 @@ const (
 	BaseFeeScalarSlotOffset     = 12 // bytes [16:20) of the slot
 	BlobBaseFeeScalarSlotOffset = 8  // bytes [20:24) of the slot
 
-	// scalarSectionStart is the beginning of the scalar values segment in the slot
+	// The Holocene fee scalar values are also packed into the same storage slot as the Ecotone
+	// fee scalars.
+	OperatorFeeScalarSlotOffset   = 16 // bytes [12:16) of the slot
+	OperatorFeeConstantSlotOffset = 24 // bytes [4:12) of the slot
+
+	// ecotoneScalarSectionStart is the beginning of the scalar values segment in the slot
 	// array. baseFeeScalar is in the first four bytes of the segment, blobBaseFeeScalar the next
-	// four.
-	scalarSectionStart = 32 - BaseFeeScalarSlotOffset - 4
+	// four, operatorFeeScalar the next four, and operatorFeeConstant the next eight.
+	ecotoneScalarSectionStart = 32 - BaseFeeScalarSlotOffset - 4
+
+	// operatorScalarSectionStart is the beginning of the scalar values segment in the slot
+	// array. operatorFeeScalar is in the first four bytes of the segment, and operatorFeeConstant
+	// the next eight.
+	operatorScalarSectionStart = 32 - OperatorFeeConstantSlotOffset - 4
 )
 
 func init() {
@@ -68,6 +78,8 @@ var (
 	// L1FeeScalarsSlot as of the Ecotone upgrade stores the 32-bit basefeeScalar and
 	// blobBaseFeeScalar L1 gas attributes at offsets `BaseFeeScalarSlotOffset` and
 	// `BlobBaseFeeScalarSlotOffset` respectively.
+	// As of the Holocene upgrade, L1FeeScalarsSlot additionally stores the 32-bit
+	// operatorFeeScalar and 64-bit operatorFeeConstant L1 gas attributes.
 	L1FeeScalarsSlot = common.BigToHash(big.NewInt(3))
 
 	oneMillion     = big.NewInt(1_000_000)
@@ -98,6 +110,11 @@ type StateGetter interface {
 // L1CostFunc is used in the state transition to determine the data availability fee charged to the
 // sender of non-Deposit transactions.  It returns nil if no data availability fee is charged.
 type L1CostFunc func(rcd RollupCostData, blockTime uint64) *big.Int
+
+// OperatorCostFunc is used in the state transition to determine the operator fee charged to the
+// sender of non-Deposit transactions. It returns nil if no data availability fee is charged.
+// The `includeConstant` parameter is used to calculate refunds.
+type OperatorCostFunc func(gasUsed *big.Int, includeConstant bool, blockTime uint64) *big.Int
 
 // l1CostFunc is an internal version of L1CostFunc that also returns the gasUsed for use in
 // receipts.
@@ -141,7 +158,7 @@ func NewL1CostFunc(config *params.ChainConfig, statedb StateGetter) L1CostFunc {
 		// in the buffer and l1BaseFeeScalar comes first. We need to check this prior to
 		// other forks, as the first block of Fjord and Ecotone could be the same block.
 		firstEcotoneBlock := l1BlobBaseFee.BitLen() == 0 &&
-			bytes.Equal(emptyScalars, l1FeeScalars[scalarSectionStart:scalarSectionStart+8])
+			bytes.Equal(emptyScalars, l1FeeScalars[ecotoneScalarSectionStart:ecotoneScalarSectionStart+8])
 		if firstEcotoneBlock {
 			log.Info("using bedrock l1 cost func for first Ecotone block", "time", blockTime)
 			return newL1CostFuncBedrock(config, statedb, blockTime)
@@ -176,6 +193,28 @@ func NewL1CostFunc(config *params.ChainConfig, statedb StateGetter) L1CostFunc {
 		}
 		fee, _ := cachedFunc(rollupCostData)
 		return fee
+	}
+}
+
+// NewOperatorCostFunc returns a function used for calculating operator fees, or nil if this is
+// not an op-stack chain.
+func NewOperatorCostFunc(config *params.ChainConfig, statedb StateGetter) OperatorCostFunc {
+	if config.Optimism == nil {
+		return nil
+	}
+	return func(gasUsed *big.Int, includeConstant bool, blockTime uint64) *big.Int {
+		if !config.IsOptimismHolocene(blockTime) {
+			return big.NewInt(0)
+		}
+		l1FeeScalars := statedb.GetState(L1BlockAddr, L1FeeScalarsSlot).Bytes()
+
+		operatorFeeScalar, operatorFeeConstant := extractOperatorFeeParams(l1FeeScalars)
+		product := operatorFeeScalar.Mul(gasUsed, operatorFeeScalar)
+		if !includeConstant {
+			return product
+		} else {
+			return product.Add(gasUsed, operatorFeeConstant)
+		}
 	}
 }
 
@@ -437,9 +476,16 @@ func NewL1CostFuncFjord(l1BaseFee, l1BlobBaseFee, baseFeeScalar, blobFeeScalar *
 }
 
 func extractEcotoneFeeParams(l1FeeParams []byte) (l1BaseFeeScalar, l1BlobBaseFeeScalar *big.Int) {
-	offset := scalarSectionStart
+	offset := ecotoneScalarSectionStart
 	l1BaseFeeScalar = new(big.Int).SetBytes(l1FeeParams[offset : offset+4])
 	l1BlobBaseFeeScalar = new(big.Int).SetBytes(l1FeeParams[offset+4 : offset+8])
+	return
+}
+
+func extractOperatorFeeParams(l1FeeParams []byte) (operatorFeeScalar, operatorFeeConstant *big.Int) {
+	offset := operatorScalarSectionStart
+	operatorFeeConstant = new(big.Int).SetBytes(l1FeeParams[offset : offset+8])
+	operatorFeeScalar = new(big.Int).SetBytes(l1FeeParams[offset+8 : offset+12])
 	return
 }
 

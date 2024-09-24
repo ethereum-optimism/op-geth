@@ -340,7 +340,7 @@ func (sg *testStateGetter) GetState(addr common.Address, slot common.Hash) commo
 		sg.blobBaseFee.FillBytes(buf[:])
 	case L1FeeScalarsSlot:
 		// fetch Ecotone fee sclars
-		offset := scalarSectionStart
+		offset := ecotoneScalarSectionStart
 		binary.BigEndian.PutUint32(buf[offset:offset+4], sg.baseFeeScalar)
 		binary.BigEndian.PutUint32(buf[offset+4:offset+8], sg.blobBaseFeeScalar)
 	default:

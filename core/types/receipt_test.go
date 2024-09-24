@@ -820,7 +820,6 @@ func getOptimismHoloceneTxReceipts(l1AttributesPayload []byte, l1GasPrice, l1Blo
 			BlockNumber:       blockNumber,
 			TransactionIndex:  0,
 			DepositNonce:      &depNonce1,
-			// Don't need a loto fo other stuff because this is a deposit transaction
 		},
 		&Receipt{
 			Type:              LegacyTxType,

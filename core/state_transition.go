@@ -253,6 +253,14 @@ func (st *StateTransition) buyGas() error {
 			mgval = mgval.Add(mgval, l1Cost)
 		}
 	}
+	var operatorCost *big.Int
+	if st.evm.Context.OperatorCostFunc != nil && !st.msg.SkipAccountChecks {
+		operatorCost = st.evm.Context.OperatorCostFunc(new(big.Int).SetUint64(st.msg.GasLimit), true, st.evm.Context.Time)
+		if operatorCost != nil {
+			mgval = mgval.Add(mgval, operatorCost)
+		}
+	}
+
 	balanceCheck := new(big.Int).Set(mgval)
 	if st.msg.GasFeeCap != nil {
 		balanceCheck.SetUint64(st.msg.GasLimit)
@@ -261,6 +269,9 @@ func (st *StateTransition) buyGas() error {
 	balanceCheck.Add(balanceCheck, st.msg.Value)
 	if l1Cost != nil {
 		balanceCheck.Add(balanceCheck, l1Cost)
+	}
+	if operatorCost != nil {
+		balanceCheck.Add(balanceCheck, operatorCost)
 	}
 
 	if st.evm.ChainConfig().IsCancun(st.evm.Context.BlockNumber, st.evm.Context.Time) {
@@ -595,6 +606,15 @@ func (st *StateTransition) innerTransitionDb() (*ExecutionResult, error) {
 			}
 			st.state.AddBalance(params.OptimismL1FeeRecipient, amtU256, tracing.BalanceIncreaseRewardTransactionFee)
 		}
+
+		// Additionally pay the coinbase according for the configurable fee.
+		if operatorCost := st.evm.Context.OperatorCostFunc(new(big.Int).SetUint64(st.gasUsed()), true, st.evm.Context.Time); operatorCost != nil {
+			amtU256, overflow = uint256.FromBig(operatorCost)
+			if overflow {
+				return nil, fmt.Errorf("optimism operator cost overflows U256: %d", operatorCost)
+			}
+			st.state.AddBalance(st.evm.Context.Coinbase, amtU256, tracing.BalanceIncreaseRewardTransactionFee)
+		}
 	}
 
 	return &ExecutionResult{
@@ -622,6 +642,16 @@ func (st *StateTransition) refundGas(refundQuotient uint64) uint64 {
 	remaining := uint256.NewInt(st.gasRemaining)
 	remaining.Mul(remaining, uint256.MustFromBig(st.msg.GasPrice))
 	st.state.AddBalance(st.msg.From, remaining, tracing.BalanceIncreaseGasReturn)
+
+	if optimismConfig := st.evm.ChainConfig().Optimism; optimismConfig != nil && !st.msg.IsDepositTx {
+		// Return ETH for operator cost overcharge.
+		if operatorCost := st.evm.Context.OperatorCostFunc(new(big.Int).SetUint64(st.gasRemaining), false, st.evm.Context.Time); operatorCost != nil {
+			amtU256, overflow := uint256.FromBig(operatorCost)
+			if !overflow {
+				st.state.AddBalance(st.evm.Context.Coinbase, amtU256, tracing.BalanceIncreaseRewardTransactionFee)
+			}
+		}
+	}
 
 	if st.evm.Config.Tracer != nil && st.evm.Config.Tracer.OnGasChange != nil && st.gasRemaining > 0 {
 		st.evm.Config.Tracer.OnGasChange(st.gasRemaining, 0, tracing.GasChangeTxLeftOverReturned)
