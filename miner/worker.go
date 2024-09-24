@@ -131,9 +131,11 @@ func (miner *Miner) generateWork(params *generateParams) *newPayloadResult {
 		work.state.SetTxContext(tx.Hash(), work.tcount)
 		err = miner.commitTransaction(work, tx)
 		if err != nil {
-			return &newPayloadResult{err: fmt.Errorf("failed to force-include tx: %s type: %d sender: %s nonce: %d, err: %w", tx.Hash(), tx.Type(), from, tx.Nonce(), err)}
+			// Skip included txns that fail
+			log.Warn("Failed to force-include tx", "hash", tx.Hash(), "type", tx.Type(), "sender", from, "nonce", tx.Nonce(), "err", err)
+		} else {
+			work.tcount++
 		}
-		work.tcount++
 	}
 	if !params.noTxs {
 		// use shared interrupt if present
