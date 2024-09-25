@@ -113,7 +113,7 @@ type L1CostFunc func(rcd RollupCostData, blockTime uint64) *big.Int
 
 // OperatorCostFunc is used in the state transition to determine the operator fee charged to the
 // sender of non-Deposit transactions. It returns nil if no data availability fee is charged.
-// The `includeConstant` parameter is used to calculate refunds.
+// The `includeConstant` parameter is usually true, unless calculating a refund.
 type OperatorCostFunc func(gasUsed *big.Int, includeConstant bool, blockTime uint64) *big.Int
 
 // l1CostFunc is an internal version of L1CostFunc that also returns the gasUsed for use in

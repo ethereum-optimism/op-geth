@@ -607,7 +607,7 @@ func (st *StateTransition) innerTransitionDb() (*ExecutionResult, error) {
 			st.state.AddBalance(params.OptimismL1FeeRecipient, amtU256, tracing.BalanceIncreaseRewardTransactionFee)
 		}
 
-		// Additionally pay the coinbase according for the configurable fee.
+		// Additionally pay the coinbase according for the operator fee.
 		if operatorCost := st.evm.Context.OperatorCostFunc(new(big.Int).SetUint64(st.gasUsed()), true, st.evm.Context.Time); operatorCost != nil {
 			amtU256, overflow = uint256.FromBig(operatorCost)
 			if overflow {
@@ -644,11 +644,11 @@ func (st *StateTransition) refundGas(refundQuotient uint64) uint64 {
 	st.state.AddBalance(st.msg.From, remaining, tracing.BalanceIncreaseGasReturn)
 
 	if optimismConfig := st.evm.ChainConfig().Optimism; optimismConfig != nil && !st.msg.IsDepositTx {
-		// Return ETH for operator cost overcharge.
+		// Return ETH to transaction sender for operator cost overcharge.
 		if operatorCost := st.evm.Context.OperatorCostFunc(new(big.Int).SetUint64(st.gasRemaining), false, st.evm.Context.Time); operatorCost != nil {
 			amtU256, overflow := uint256.FromBig(operatorCost)
 			if !overflow {
-				st.state.AddBalance(st.evm.Context.Coinbase, amtU256, tracing.BalanceIncreaseRewardTransactionFee)
+				st.state.AddBalance(st.msg.From, amtU256, tracing.BalanceIncreaseRewardTransactionFee)
 			}
 		}
 	}
