@@ -13,6 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
+	"golang.org/x/time/rate"
 )
 
 var (
@@ -22,14 +23,18 @@ var (
 )
 
 type sendRawTxCond struct {
-	b      ethapi.Backend
-	seqRPC *rpc.Client
+	b           ethapi.Backend
+	seqRPC      *rpc.Client
+	costLimiter *rate.Limiter
 }
 
-func GetSendRawTxConditionalAPI(b ethapi.Backend, seqRPC *rpc.Client) rpc.API {
+func GetSendRawTxConditionalAPI(b ethapi.Backend, seqRPC *rpc.Client, costRateLimit rate.Limit) rpc.API {
+	// Applying a manual bump to the burst to allow conditional txs to queue. Metrics will
+	// will inform of adjustments that may need to be made here.
+	costLimiter := rate.NewLimiter(costRateLimit, 3*params.TransactionConditionalMaxCost)
 	return rpc.API{
 		Namespace: "eth",
-		Service:   &sendRawTxCond{b, seqRPC},
+		Service:   &sendRawTxCond{b, seqRPC, costLimiter},
 	}
 }
 
@@ -80,6 +85,14 @@ func (s *sendRawTxCond) SendRawTransactionConditional(ctx context.Context, txByt
 		return common.Hash{}, &rpc.JsonError{
 			Message: fmt.Sprintf("failed parent block %s state check: %s", header.ParentHash, err),
 			Code:    params.TransactionConditionalRejectedErrCode,
+		}
+	}
+
+	// enforce rate limit on the cost to be observed
+	if err := s.costLimiter.WaitN(ctx, cost); err != nil {
+		return common.Hash{}, &rpc.JsonError{
+			Message: fmt.Sprintf("cost %d rate limited", cost),
+			Code:    params.TransactionConditionalCostExceededMaxErrCode,
 		}
 	}
 

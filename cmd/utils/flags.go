@@ -976,14 +976,14 @@ var (
 		Category: flags.RollupCategory,
 		Value:    true,
 	}
-	RollupSequencerEnableTxConditionalFlag = &cli.BoolFlag{
-		Name:     "rollup.sequencerenabletxconditional",
+	RollupSequencerTxConditionalEnabledFlag = &cli.BoolFlag{
+		Name:     "rollup.sequencertxconditionalenabled",
 		Usage:    "Serve the eth_sendRawTransactionConditional endpoint and apply the conditional constraints on mempool inclusion & block building",
 		Category: flags.RollupCategory,
 		Value:    false,
 	}
-	RollupSequencerTxConditionalRateLimitFlag = &cli.IntFlag{
-		Name:     "rollup.sequencertxconditionalratelimit",
+	RollupSequencerTxConditionalCostRateLimitFlag = &cli.IntFlag{
+		Name:     "rollup.sequencertxconditionalcostratelimit",
 		Usage:    "Maximum cost -- storage lookups -- allowed for conditional transactions in a given second",
 		Category: flags.RollupCategory,
 		Value:    5000,
@@ -1729,9 +1729,6 @@ func setMiner(ctx *cli.Context, cfg *miner.Config) {
 	if ctx.IsSet(RollupComputePendingBlock.Name) {
 		cfg.RollupComputePendingBlock = ctx.Bool(RollupComputePendingBlock.Name)
 	}
-
-	// This flag has a default rate limit so always set
-	cfg.RollupTransactionConditionalRateLimit = ctx.Int(RollupSequencerTxConditionalRateLimitFlag.Name)
 }
 
 func setRequiredBlocks(ctx *cli.Context, cfg *ethconfig.Config) {
@@ -1970,7 +1967,8 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 	cfg.RollupDisableTxPoolAdmission = cfg.RollupSequencerHTTP != "" && !ctx.Bool(RollupEnableTxPoolAdmissionFlag.Name)
 	cfg.RollupHaltOnIncompatibleProtocolVersion = ctx.String(RollupHaltOnIncompatibleProtocolVersionFlag.Name)
 	cfg.ApplySuperchainUpgrades = ctx.Bool(RollupSuperchainUpgradesFlag.Name)
-	cfg.RollupSequencerEnableTxConditional = ctx.Bool(RollupSequencerEnableTxConditionalFlag.Name)
+	cfg.RollupSequencerTxConditionalEnabled = ctx.Bool(RollupSequencerTxConditionalEnabledFlag.Name)
+	cfg.RollupSequencerTxConditionalCostRateLimit = ctx.Int(RollupSequencerTxConditionalCostRateLimitFlag.Name)
 
 	// Override any default configs for hard coded networks.
 	switch {

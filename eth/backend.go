@@ -59,6 +59,7 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
+	"golang.org/x/time/rate"
 )
 
 // Config contains the configuration options of the ETH protocol.
@@ -376,9 +377,10 @@ func (s *Ethereum) APIs() []rpc.API {
 	apis = append(apis, s.engine.APIs(s.BlockChain())...)
 
 	// Append any Sequencer APIs as enabled
-	if s.config.RollupSequencerEnableTxConditional {
+	if s.config.RollupSequencerTxConditionalEnabled {
 		log.Info("Enabling eth_sendRawTransactionConditional endpoint support")
-		apis = append(apis, sequencerapi.GetSendRawTxConditionalAPI(s.APIBackend, s.seqRPCService))
+		costRateLimit := rate.Limit(s.config.RollupSequencerTxConditionalCostRateLimit)
+		apis = append(apis, sequencerapi.GetSendRawTxConditionalAPI(s.APIBackend, s.seqRPCService, costRateLimit))
 	}
 
 	// Append all the local APIs and return
