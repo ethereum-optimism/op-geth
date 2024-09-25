@@ -210,10 +210,11 @@ func NewOperatorCostFunc(config *params.ChainConfig, statedb StateGetter) Operat
 
 		operatorFeeScalar, operatorFeeConstant := extractOperatorFeeParams(l1FeeScalars)
 		product := operatorFeeScalar.Mul(gasUsed, operatorFeeScalar)
+		product = product.Div(product, oneMillion)
 		if !includeConstant {
 			return product
 		} else {
-			return product.Add(gasUsed, operatorFeeConstant)
+			return product.Add(product, operatorFeeConstant)
 		}
 	}
 }
