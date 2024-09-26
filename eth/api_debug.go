@@ -119,10 +119,7 @@ func (api *DebugAPI) GetBadBlocks(ctx context.Context) ([]*BadBlockArgs, error) 
 		} else {
 			blockRlp = fmt.Sprintf("%#x", rlpBytes)
 		}
-		var err error
-		if blockJSON, err = ethapi.RPCMarshalBlock(ctx, block, true, true, api.eth.APIBackend.ChainConfig(), api.eth.APIBackend); err != nil {
-			blockJSON = map[string]interface{}{"error": err.Error()}
-		}
+		blockJSON = ethapi.RPCMarshalBlock(ctx, block, true, true, api.eth.APIBackend.ChainConfig(), api.eth.APIBackend)
 		results = append(results, &BadBlockArgs{
 			Hash:  block.Hash(),
 			RLP:   blockRlp,

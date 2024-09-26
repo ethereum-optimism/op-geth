@@ -124,10 +124,7 @@ func block(ctx *cli.Context) error {
 	}
 	// Convert block to JSON and print.
 	// TODO: without a proper Eth API Backend, this tool isn't expected to function correctly
-	val, err := ethapi.RPCMarshalBlock(ctx.Context, block, ctx.Bool(txsFlag.Name), ctx.Bool(txsFlag.Name), params.MainnetChainConfig, &eth.EthAPIBackend{})
-	if err != nil {
-		return fmt.Errorf("error marshaling block: %w", err)
-	}
+	val := ethapi.RPCMarshalBlock(ctx.Context, block, ctx.Bool(txsFlag.Name), ctx.Bool(txsFlag.Name), params.MainnetChainConfig, &eth.EthAPIBackend{})
 	b, err := json.MarshalIndent(val, "", "  ")
 	if err != nil {
 		return fmt.Errorf("error marshaling json: %w", err)
