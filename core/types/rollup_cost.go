@@ -313,12 +313,14 @@ func extractL1GasParamsPreEcotone(config *params.ChainConfig, time uint64, data 
 // extractL1GasParamsPostEcotone extracts the gas parameters necessary to compute gas from L1 attribute
 // info calldata after the Ecotone upgrade, other than the very first Ecotone block.
 func extractL1GasParamsPostEcotone(isHolocene bool, data []byte) (gasParams, error) {
-	if isHolocene && len(data) >= 4 && bytes.Equal(data[0:4], HoloceneL1AttributesSelector) {
-		if len(data) != 180 {
-			return gasParams{}, fmt.Errorf("expected 180 L1 info bytes, got %d", len(data))
-		}
-	} else if len(data) != 164 {
-		return gasParams{}, fmt.Errorf("expected 164 L1 info bytes, got %d", len(data))
+	expectedLen := 164
+	if isHolocene && (len(data) < 4 || bytes.Equal(data[0:4], HoloceneL1AttributesSelector)) {
+		// We check that the Holocene selector is present to exclude the very first block after the
+		// Holocene upgrade, which should still have Ecotone style (len=164) attributes.
+		expectedLen = 180
+	}
+	if len(data) != expectedLen {
+		return gasParams{}, fmt.Errorf("expected %d L1 info bytes, got %d", expectedLen, len(data))
 	}
 	// data layout assumed for Ecotone:
 	// 0     <selector>
