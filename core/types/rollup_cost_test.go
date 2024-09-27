@@ -304,7 +304,7 @@ func getHoloceneL1Attributes(baseFee, blobBaseFee, baseFeeScalar, blobBaseFeeSca
 	uint256Slice := make([]byte, 32)
 	uint64Slice := make([]byte, 8)
 	uint32Slice := make([]byte, 4)
-	data = append(data, EcotoneL1AttributesSelector...)
+	data = append(data, HoloceneL1AttributesSelector...)
 	data = append(data, baseFeeScalar.FillBytes(uint32Slice)...)
 	data = append(data, blobBaseFeeScalar.FillBytes(uint32Slice)...)
 	data = append(data, ignored.FillBytes(uint64Slice)...)
