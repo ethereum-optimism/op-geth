@@ -318,7 +318,6 @@ func getHoloceneL1Attributes(baseFee, blobBaseFee, baseFeeScalar, blobBaseFeeSca
 	data = append(data, ignored.FillBytes(uint64Slice)...)
 	data = append(data, operatorFeeScalar.FillBytes(uint32Slice)...)
 	data = append(data, operatorFeeConstant.FillBytes(uint64Slice)...)
-	data = append(data, ignored.FillBytes(uint32Slice)...)
 	return data
 }
 
