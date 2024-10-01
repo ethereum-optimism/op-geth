@@ -174,7 +174,69 @@ func TestExtractEcotoneGasParams(t *testing.T) {
 
 	// make sure wrong amont of data results in error
 	data = append(data, 0x00) // tack on garbage byte
-	_, err = extractL1GasParamsPostEcotone(data)
+	_, err = extractL1GasParamsPostEcotone(false, data)
+	require.Error(t, err)
+
+	// make sure holocene attributes result in error prior to Holocene activation
+	data = getHoloceneL1Attributes(
+		baseFee,
+		blobBaseFee,
+		baseFeeScalar,
+		blobBaseFeeScalar,
+	)
+	gasparams, err = extractL1GasParams(config, zeroTime, data)
+	require.Error(t, err)
+}
+
+func TestExtractHoloceneGasParams(t *testing.T) {
+	zeroTime := uint64(0)
+	// create a config where holocene upgrade is active
+	config := &params.ChainConfig{
+		Optimism:     params.OptimismTestConfig.Optimism,
+		RegolithTime: &zeroTime,
+		EcotoneTime:  &zeroTime,
+		HoloceneTime: &zeroTime,
+	}
+	require.True(t, config.IsOptimismEcotone(zeroTime))
+	require.True(t, config.IsOptimismHolocene(zeroTime))
+
+	// make sure empty attributes returns error
+	data := []byte{}
+	_, err := extractL1GasParamsPostEcotone(true, data)
+	require.Error(t, err)
+
+	// Check that we still allow Ecotone-style L1 attributes post-Holocene, since the very first Holocene block will
+	// have Ecotone attributes.
+	data = getEcotoneL1Attributes(
+		baseFee,
+		blobBaseFee,
+		baseFeeScalar,
+		blobBaseFeeScalar,
+	)
+	gasparams, err := extractL1GasParams(config, zeroTime, data)
+	require.NoError(t, err)
+	costFunc := gasparams.costFunc
+	c, g := costFunc(emptyTx.RollupCostData())
+	require.Equal(t, ecotoneGas, g)
+	require.Equal(t, ecotoneFee, c)
+
+	// Now confirm Holocene-style L1 attributes work.
+	data = getHoloceneL1Attributes(
+		baseFee,
+		blobBaseFee,
+		baseFeeScalar,
+		blobBaseFeeScalar,
+	)
+	gasparams, err = extractL1GasParams(config, zeroTime, data)
+	require.NoError(t, err)
+	costFunc = gasparams.costFunc
+	c, g = costFunc(emptyTx.RollupCostData())
+	require.Equal(t, ecotoneGas, g)
+	require.Equal(t, ecotoneFee, c)
+
+	// make sure wrong amont of data results in error
+	data = append(data, 0x00) // tack on garbage byte
+	_, err = extractL1GasParamsPostEcotone(true, data)
 	require.Error(t, err)
 }
 
@@ -260,6 +322,13 @@ func getEcotoneL1Attributes(baseFee, blobBaseFee, baseFeeScalar, blobBaseFeeScal
 	data = append(data, blobBaseFee.FillBytes(uint256Slice)...)
 	data = append(data, ignored.FillBytes(uint256Slice)...)
 	data = append(data, ignored.FillBytes(uint256Slice)...)
+	return data
+}
+
+func getHoloceneL1Attributes(baseFee, blobBaseFee, baseFeeScalar, blobBaseFeeScalar *big.Int) []byte {
+	data := getEcotoneL1Attributes(baseFee, blobBaseFee, baseFeeScalar, blobBaseFeeScalar)
+	copy(data, HoloceneL1AttributesSelector)
+	data = append(data, make([]byte, 16)...) // add 0 values for the two new attributes
 	return data
 }
 
