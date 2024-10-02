@@ -310,7 +310,7 @@ func newTestBackend(t *testing.T, enableHistoricalState bool) (*node.Node, []*ty
 		t.Fatalf("can't create new node: %v", err)
 	}
 	// Create Ethereum Service
-	config := &ethconfig.Config{Genesis: actualGenesis}
+	config := &ethconfig.Config{Genesis: actualGenesis, RPCGasCap: 1000000}
 	if enableHistoricalState {
 		config.RollupHistoricalRPC = histAddr
 		config.RollupHistoricalRPCTimeout = time.Second * 5

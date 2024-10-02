@@ -38,7 +38,8 @@ type Config struct {
 	NoBaseFee               bool  // Forces the EIP-1559 baseFee to 0 (needed for 0 price calls)
 	EnablePreimageRecording bool  // Enables recording of SHA3/keccak preimages
 	ExtraEips               []int // Additional EIPS that are to be enabled
-	EnableWitnessCollection bool  // true if witness collection is enabled
+
+	StatelessSelfValidation bool // Generate execution witnesses and self-check against them (testing purpose)
 
 	PrecompileOverrides PrecompileOverrides             // Precompiles can be swapped / changed / wrapped as needed
 	NoMaxCodeSize       bool                            // Ignore Max code size and max init code size limits
@@ -90,6 +91,11 @@ func (ctx *ScopeContext) CallValue() *uint256.Int {
 // the contents of the returned data.
 func (ctx *ScopeContext) CallInput() []byte {
 	return ctx.Contract.Input
+}
+
+// ContractCode returns the code of the contract being executed.
+func (ctx *ScopeContext) ContractCode() []byte {
+	return ctx.Contract.Code
 }
 
 // EVMInterpreter represents an EVM interpreter
@@ -207,6 +213,7 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 	// they are returned to the pools
 	defer func() {
 		returnStack(stack)
+		mem.Free()
 	}()
 	contract.Input = input
 
