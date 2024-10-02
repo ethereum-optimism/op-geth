@@ -31,12 +31,12 @@ func FuzzPrecompiledContracts(f *testing.F) {
 	f.Fuzz(func(t *testing.T, addr uint8, input []byte) {
 		a := addrs[int(addr)%len(addrs)]
 		p := allPrecompiles[a]
-		gas := p.RequiredGas(input)
+		gas := p.RequiredGas(input, nil, nil)
 		if gas > 10_000_000 {
 			return
 		}
 		inWant := string(input)
-		RunPrecompiledContract(p, input, gas, nil)
+		RunPrecompiledContract(p, input, gas, nil, nil)
 		if inHave := string(input); inWant != inHave {
 			t.Errorf("Precompiled %v modified input data", a)
 		}
