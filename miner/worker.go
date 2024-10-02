@@ -120,7 +120,7 @@ func (miner *Miner) generateWork(params *generateParams) *newPayloadResult {
 
 		// If we're building blocks with mempool transactions, we need to ensure that the
 		// gas limit is not higher than the effective gas limit. We must still accept any
-		// force-included transactions with gas usage up to the block header's limit.
+		// explicitly selected transactions with gas usage up to the block header's limit.
 		if !params.noTxs {
 			effectiveGasLimit := miner.config.EffectiveGasCeil
 			if effectiveGasLimit != 0 && effectiveGasLimit < gasLimit {
