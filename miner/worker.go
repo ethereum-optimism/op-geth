@@ -116,9 +116,16 @@ func (miner *Miner) generateWork(params *generateParams) *newPayloadResult {
 		return &newPayloadResult{err: err}
 	}
 	if work.gasPool == nil {
-		gasLimit := miner.config.EffectiveGasCeil
-		if gasLimit == 0 || gasLimit > work.header.GasLimit {
-			gasLimit = work.header.GasLimit
+		gasLimit := work.header.GasLimit
+
+		// If we're building blocks with mempool transactions, we need to ensure that the
+		// gas limit is not higher than the effective gas limit. We must still accept any
+		// explicitly selected transactions with gas usage up to the block header's limit.
+		if !params.noTxs {
+			effectiveGasLimit := miner.config.EffectiveGasCeil
+			if effectiveGasLimit != 0 && effectiveGasLimit < gasLimit {
+				gasLimit = effectiveGasLimit
+			}
 		}
 		work.gasPool = new(core.GasPool).AddGas(gasLimit)
 	}
