@@ -18,9 +18,11 @@ var (
 	overhead = big.NewInt(50)
 	scalar   = big.NewInt(7 * 1e6)
 
-	blobBaseFee       = big.NewInt(10 * 1e6)
-	baseFeeScalar     = big.NewInt(2)
-	blobBaseFeeScalar = big.NewInt(3)
+	blobBaseFee         = big.NewInt(10 * 1e6)
+	baseFeeScalar       = big.NewInt(2)
+	blobBaseFeeScalar   = big.NewInt(3)
+	operatorFeeScalar   = big.NewInt(7)
+	operatorFeeConstant = big.NewInt(9)
 
 	// below are the expected cost func outcomes for the above parameter settings on the emptyTx
 	// which is defined in transaction_test.go
@@ -174,69 +176,7 @@ func TestExtractEcotoneGasParams(t *testing.T) {
 
 	// make sure wrong amont of data results in error
 	data = append(data, 0x00) // tack on garbage byte
-	_, err = extractL1GasParamsPostEcotone(false, data)
-	require.Error(t, err)
-
-	// make sure holocene attributes result in error prior to Holocene activation
-	data = getHoloceneL1Attributes(
-		baseFee,
-		blobBaseFee,
-		baseFeeScalar,
-		blobBaseFeeScalar,
-	)
-	gasparams, err = extractL1GasParams(config, zeroTime, data)
-	require.Error(t, err)
-}
-
-func TestExtractHoloceneGasParams(t *testing.T) {
-	zeroTime := uint64(0)
-	// create a config where holocene upgrade is active
-	config := &params.ChainConfig{
-		Optimism:     params.OptimismTestConfig.Optimism,
-		RegolithTime: &zeroTime,
-		EcotoneTime:  &zeroTime,
-		HoloceneTime: &zeroTime,
-	}
-	require.True(t, config.IsOptimismEcotone(zeroTime))
-	require.True(t, config.IsOptimismHolocene(zeroTime))
-
-	// make sure empty attributes returns error
-	data := []byte{}
-	_, err := extractL1GasParamsPostEcotone(true, data)
-	require.Error(t, err)
-
-	// Check that we still allow Ecotone-style L1 attributes post-Holocene, since the very first Holocene block will
-	// have Ecotone attributes.
-	data = getEcotoneL1Attributes(
-		baseFee,
-		blobBaseFee,
-		baseFeeScalar,
-		blobBaseFeeScalar,
-	)
-	gasparams, err := extractL1GasParams(config, zeroTime, data)
-	require.NoError(t, err)
-	costFunc := gasparams.costFunc
-	c, g := costFunc(emptyTx.RollupCostData())
-	require.Equal(t, ecotoneGas, g)
-	require.Equal(t, ecotoneFee, c)
-
-	// Now confirm Holocene-style L1 attributes work.
-	data = getHoloceneL1Attributes(
-		baseFee,
-		blobBaseFee,
-		baseFeeScalar,
-		blobBaseFeeScalar,
-	)
-	gasparams, err = extractL1GasParams(config, zeroTime, data)
-	require.NoError(t, err)
-	costFunc = gasparams.costFunc
-	c, g = costFunc(emptyTx.RollupCostData())
-	require.Equal(t, ecotoneGas, g)
-	require.Equal(t, ecotoneFee, c)
-
-	// make sure wrong amont of data results in error
-	data = append(data, 0x00) // tack on garbage byte
-	_, err = extractL1GasParamsPostEcotone(true, data)
+	_, err = extractL1GasParamsPostEcotone(data)
 	require.Error(t, err)
 }
 
@@ -266,6 +206,39 @@ func TestExtractFjordGasParams(t *testing.T) {
 
 	require.Equal(t, minimumFjordGas, g)
 	require.Equal(t, fjordFee, c)
+}
+
+func TestExtractHoloceneGasParams(t *testing.T) {
+	zeroTime := uint64(0)
+	// create a config where holocene is active
+	config := &params.ChainConfig{
+		Optimism:     params.OptimismTestConfig.Optimism,
+		RegolithTime: &zeroTime,
+		EcotoneTime:  &zeroTime,
+		FjordTime:    &zeroTime,
+		HoloceneTime: &zeroTime,
+	}
+	require.True(t, config.IsOptimismHolocene(zeroTime))
+
+	data := getHoloceneL1Attributes(
+		baseFee,
+		blobBaseFee,
+		baseFeeScalar,
+		blobBaseFeeScalar,
+		operatorFeeScalar,
+		operatorFeeConstant,
+	)
+
+	gasparams, err := extractL1GasParams(config, zeroTime, data)
+	require.NoError(t, err)
+	costFunc := gasparams.costFunc
+
+	c, g := costFunc(emptyTx.RollupCostData())
+
+	require.Equal(t, minimumFjordGas, g)
+	require.Equal(t, fjordFee, c)
+	require.Equal(t, operatorFeeScalar.Uint64(), uint64(*gasparams.operatorFeeScalar))
+	require.Equal(t, operatorFeeConstant.Uint64(), *gasparams.operatorFeeConstant)
 }
 
 // make sure the first block of the ecotone upgrade is properly detected, and invokes the bedrock
@@ -325,10 +298,26 @@ func getEcotoneL1Attributes(baseFee, blobBaseFee, baseFeeScalar, blobBaseFeeScal
 	return data
 }
 
-func getHoloceneL1Attributes(baseFee, blobBaseFee, baseFeeScalar, blobBaseFeeScalar *big.Int) []byte {
-	data := getEcotoneL1Attributes(baseFee, blobBaseFee, baseFeeScalar, blobBaseFeeScalar)
-	copy(data, HoloceneL1AttributesSelector)
-	data = append(data, make([]byte, 16)...) // add 0 values for the two new attributes
+func getHoloceneL1Attributes(baseFee, blobBaseFee, baseFeeScalar, blobBaseFeeScalar, operatorFeeScalar, operatorFeeConstant *big.Int) []byte {
+	ignored := big.NewInt(1234)
+	data := []byte{}
+	uint256Slice := make([]byte, 32)
+	uint64Slice := make([]byte, 8)
+	uint32Slice := make([]byte, 4)
+	data = append(data, HoloceneL1AttributesSelector...)
+	data = append(data, baseFeeScalar.FillBytes(uint32Slice)...)
+	data = append(data, blobBaseFeeScalar.FillBytes(uint32Slice)...)
+	data = append(data, ignored.FillBytes(uint64Slice)...)
+	data = append(data, ignored.FillBytes(uint64Slice)...)
+	data = append(data, ignored.FillBytes(uint64Slice)...)
+	data = append(data, baseFee.FillBytes(uint256Slice)...)
+	data = append(data, blobBaseFee.FillBytes(uint256Slice)...)
+	data = append(data, ignored.FillBytes(uint256Slice)...)
+	data = append(data, ignored.FillBytes(uint256Slice)...)
+	data = append(data, ignored.FillBytes(uint64Slice)...)
+	data = append(data, ignored.FillBytes(uint64Slice)...)
+	data = append(data, operatorFeeScalar.FillBytes(uint32Slice)...)
+	data = append(data, operatorFeeConstant.FillBytes(uint64Slice)...)
 	return data
 }
 
@@ -350,7 +339,7 @@ func (sg *testStateGetter) GetState(addr common.Address, slot common.Hash) commo
 		sg.blobBaseFee.FillBytes(buf[:])
 	case L1FeeScalarsSlot:
 		// fetch Ecotone fee sclars
-		offset := scalarSectionStart
+		offset := ecotoneScalarSectionStart
 		binary.BigEndian.PutUint32(buf[offset:offset+4], sg.baseFeeScalar)
 		binary.BigEndian.PutUint32(buf[offset+4:offset+8], sg.blobBaseFeeScalar)
 	default:
