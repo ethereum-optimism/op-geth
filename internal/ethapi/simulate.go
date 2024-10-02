@@ -125,8 +125,6 @@ func (sim *simulator) execute(ctx context.Context, blocks []simBlock) ([]map[str
 	var (
 		results = make([]map[string]interface{}, len(blocks))
 		parent  = sim.base
-		// Assume same total difficulty for all simulated blocks.
-		td = sim.b.GetTd(ctx, sim.base.Hash())
 	)
 	for bi, block := range blocks {
 		result, callResults, err := sim.processBlock(ctx, &block, headers[bi], parent, headers[:bi], timeout)
@@ -137,7 +135,6 @@ func (sim *simulator) execute(ctx context.Context, blocks []simBlock) ([]map[str
 		if err != nil {
 			return nil, err
 		}
-		enc["totalDifficulty"] = (*hexutil.Big)(td)
 		enc["calls"] = callResults
 		results[bi] = enc
 
