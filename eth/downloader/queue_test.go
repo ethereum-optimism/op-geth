@@ -97,7 +97,7 @@ func TestBasics(t *testing.T) {
 	numOfBlocks := len(emptyChain.blocks)
 	numOfReceipts := len(emptyChain.blocks) / 2
 
-	q := newQueue(10, 10)
+	q := newQueue(nil, 10, 10)
 	if !q.Idle() {
 		t.Errorf("new queue should be idle")
 	}
@@ -196,7 +196,7 @@ func TestBasics(t *testing.T) {
 func TestEmptyBlocks(t *testing.T) {
 	numOfBlocks := len(emptyChain.blocks)
 
-	q := newQueue(10, 10)
+	q := newQueue(nil, 10, 10)
 
 	q.Prepare(1, SnapSync)
 
@@ -275,7 +275,7 @@ func XTestDelivery(t *testing.T) {
 	if false {
 		log.SetDefault(log.NewLogger(slog.NewTextHandler(os.Stdout, nil)))
 	}
-	q := newQueue(10, 10)
+	q := newQueue(nil, 10, 10)
 	var wg sync.WaitGroup
 	q.Prepare(1, SnapSync)
 	wg.Add(1)

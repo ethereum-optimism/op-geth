@@ -580,6 +580,7 @@ func (api *ConsensusAPI) newPayload(params engine.ExecutableData, versionedHashe
 			"params.ExcessBlobGas", ebg,
 			"len(params.Transactions)", len(params.Transactions),
 			"len(params.Withdrawals)", len(params.Withdrawals),
+			"params.WithdrawalsRoot", params.WithdrawalsRoot,
 			"beaconRoot", beaconRoot,
 			"error", err)
 		return api.invalid(err, nil), nil

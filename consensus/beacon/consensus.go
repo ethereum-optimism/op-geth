@@ -403,6 +403,15 @@ func (beacon *Beacon) FinalizeAndAssemble(chain consensus.ChainHeaderReader, hea
 	// Assign the final state root to header.
 	header.Root = state.IntermediateRoot(true)
 
+	if chain.Config().IsOptimismHolocene(header.Time) {
+		if body.Withdrawals == nil || len(body.Withdrawals) > 0 { // We verify nil/empty withdrawals in the CL pre-holocene
+			return nil, fmt.Errorf("expected non-nil empty withdrawals operation list in Holocene, but got: %v", body.Withdrawals)
+		}
+		// State-root has just been computed, we can get an accurate storage-root now.
+		h := state.GetStorageRoot(params.OptimismL2ToL1MessagePasser)
+		header.WithdrawalsHash = &h
+	}
+
 	// Assemble and return the final block.
 	return types.NewBlock(header, body, receipts, trie.NewStackTrie(nil)), nil
 }

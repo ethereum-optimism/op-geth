@@ -87,6 +87,11 @@ type ExecutableData struct {
 	Withdrawals   []*types.Withdrawal `json:"withdrawals"`
 	BlobGasUsed   *uint64             `json:"blobGasUsed"`
 	ExcessBlobGas *uint64             `json:"excessBlobGas"`
+
+	// OP-Stack Holocene specific field:
+	// instead of computing the root from a withdrawals list, set it directly.
+	// The "withdrawals" list attribute must be non-nil but empty.
+	WithdrawalsRoot *common.Hash `json:"withdrawalsRoot,omitempty"`
 }
 
 // JSON type overrides for executableData.
@@ -240,7 +245,13 @@ func ExecutableDataToBlock(data ExecutableData, versionedHashes []common.Hash, b
 	// ExecutableData before withdrawals are enabled by marshaling
 	// Withdrawals as the json null value.
 	var withdrawalsRoot *common.Hash
-	if data.Withdrawals != nil {
+	if data.WithdrawalsRoot != nil {
+		if data.Withdrawals == nil || len(data.Withdrawals) != 0 {
+			return nil, fmt.Errorf("attribute WithdrawalsRoot was set. Expecting non-nil empty withdrawals list, but got %v", data.Withdrawals)
+		}
+		h := *data.WithdrawalsRoot // copy, avoid any sharing of memory
+		withdrawalsRoot = &h
+	} else if data.Withdrawals != nil {
 		h := types.DeriveSha(types.Withdrawals(data.Withdrawals), trie.NewStackTrie(nil))
 		withdrawalsRoot = &h
 	}
@@ -293,6 +304,8 @@ func BlockToExecutableData(block *types.Block, fees *big.Int, sidecars []*types.
 		Withdrawals:   block.Withdrawals(),
 		BlobGasUsed:   block.BlobGasUsed(),
 		ExcessBlobGas: block.ExcessBlobGas(),
+		// OP-Stack addition: withdrawals list alone does not express the withdrawals storage-root.
+		WithdrawalsRoot: block.WithdrawalsRoot(),
 	}
 	bundle := BlobsBundleV1{
 		Commitments: make([]hexutil.Bytes, 0),
