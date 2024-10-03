@@ -36,20 +36,10 @@ const (
 	BaseFeeScalarSlotOffset     = 12 // bytes [16:20) of the slot
 	BlobBaseFeeScalarSlotOffset = 8  // bytes [20:24) of the slot
 
-	// The Holocene fee scalar values are also packed into the same storage slot as the Ecotone
-	// fee scalars.
-	OperatorFeeScalarSlotOffset   = 16 // bytes [12:16) of the slot
-	OperatorFeeConstantSlotOffset = 24 // bytes [4:12) of the slot
-
 	// ecotoneScalarSectionStart is the beginning of the scalar values segment in the slot
 	// array. baseFeeScalar is in the first four bytes of the segment, blobBaseFeeScalar the next
 	// four, operatorFeeScalar the next four, and operatorFeeConstant the next eight.
-	ecotoneScalarSectionStart = 32 - BaseFeeScalarSlotOffset - 4
-
-	// operatorScalarSectionStart is the beginning of the scalar values segment in the slot
-	// array. operatorFeeScalar is in the first four bytes of the segment, and operatorFeeConstant
-	// the next eight.
-	operatorScalarSectionStart = 32 - OperatorFeeConstantSlotOffset - 4
+	scalarSectionStart = 32 - BaseFeeScalarSlotOffset - 4
 )
 
 func init() {
@@ -80,9 +70,11 @@ var (
 	// L1FeeScalarsSlot as of the Ecotone upgrade stores the 32-bit basefeeScalar and
 	// blobBaseFeeScalar L1 gas attributes at offsets `BaseFeeScalarSlotOffset` and
 	// `BlobBaseFeeScalarSlotOffset` respectively.
-	// As of the Holocene upgrade, L1FeeScalarsSlot additionally stores the 32-bit
-	// operatorFeeScalar and 64-bit operatorFeeConstant L1 gas attributes.
 	L1FeeScalarsSlot = common.BigToHash(big.NewInt(3))
+
+	// OperatorFeeParamsSlot stores the operatorFeeScalar and operatorFeeConstant L1 gas
+	// attributes
+	OperatorFeeParamsSlot = common.BigToHash(big.NewInt(8))
 
 	oneMillion     = big.NewInt(1_000_000)
 	ecotoneDivisor = big.NewInt(1_000_000 * 16)
@@ -160,7 +152,7 @@ func NewL1CostFunc(config *params.ChainConfig, statedb StateGetter) L1CostFunc {
 		// in the buffer and l1BaseFeeScalar comes first. We need to check this prior to
 		// other forks, as the first block of Fjord and Ecotone could be the same block.
 		firstEcotoneBlock := l1BlobBaseFee.BitLen() == 0 &&
-			bytes.Equal(emptyScalars, l1FeeScalars[ecotoneScalarSectionStart:ecotoneScalarSectionStart+8])
+			bytes.Equal(emptyScalars, l1FeeScalars[scalarSectionStart:scalarSectionStart+8])
 		if firstEcotoneBlock {
 			log.Info("using bedrock l1 cost func for first Ecotone block", "time", blockTime)
 			return newL1CostFuncBedrock(config, statedb, blockTime)
@@ -208,9 +200,9 @@ func NewOperatorCostFunc(config *params.ChainConfig, statedb StateGetter) Operat
 		if !config.IsOptimismHolocene(blockTime) {
 			return big.NewInt(0)
 		}
-		l1FeeScalars := statedb.GetState(L1BlockAddr, L1FeeScalarsSlot).Bytes()
+		operatorFeeParams := statedb.GetState(L1BlockAddr, OperatorFeeParamsSlot).Bytes()
 
-		operatorFeeScalar, operatorFeeConstant := extractOperatorFeeParams(l1FeeScalars)
+		operatorFeeScalar, operatorFeeConstant := extractOperatorFeeParams(operatorFeeParams)
 		product := operatorFeeScalar.Mul(gasUsed, operatorFeeScalar)
 		product = product.Div(product, oneMillion)
 		if !includeConstant {
@@ -397,8 +389,8 @@ func extractL1GasParamsPostEcotone(data []byte) (gasParams, error) {
 // extractL1GasParamsPostHolocene extracts the gas parameters necessary to compute gas from L1 attribute
 // info calldata after the Holocene upgrade, but not for the very first Holocene block.
 func extractL1GasParamsPostHolocene(data []byte) (gasParams, error) {
-	if len(data) != 192 {
-		return gasParams{}, fmt.Errorf("expected 192 L1 info bytes, got %d", len(data))
+	if len(data) != 176 {
+		return gasParams{}, fmt.Errorf("expected 176 L1 info bytes, got %d", len(data))
 	}
 	// data layout assumed for Holocene:
 	// offset type varname
@@ -412,16 +404,14 @@ func extractL1GasParamsPostHolocene(data []byte) (gasParams, error) {
 	// 68    uint256 _blobBaseFee,
 	// 100   bytes32 _hash,
 	// 132   bytes32 _batcherHash,
-	// 164   uint64  _eip1559Denominator
-	// 172   uint64  _eip1559Elasticity
-	// 180   uint32  _operatorFeeScalar
-	// 184   uint64  _operatorFeeConstant
+	// 164   uint32  _operatorFeeScalar
+	// 168   uint64  _operatorFeeConstant
 	l1BaseFee := new(big.Int).SetBytes(data[36:68])
 	l1BlobBaseFee := new(big.Int).SetBytes(data[68:100])
 	l1BaseFeeScalar := binary.BigEndian.Uint32(data[4:8])
 	l1BlobBaseFeeScalar := binary.BigEndian.Uint32(data[8:12])
-	operatorFeeScalar := binary.BigEndian.Uint32(data[180:184])
-	operatorFeeConstant := binary.BigEndian.Uint64(data[184:192])
+	operatorFeeScalar := binary.BigEndian.Uint32(data[164:168])
+	operatorFeeConstant := binary.BigEndian.Uint64(data[168:176])
 
 	return gasParams{
 		l1BaseFee:           l1BaseFee,
@@ -478,16 +468,15 @@ func NewL1CostFuncFjord(l1BaseFee, l1BlobBaseFee, baseFeeScalar, blobFeeScalar *
 }
 
 func extractEcotoneFeeParams(l1FeeParams []byte) (l1BaseFeeScalar, l1BlobBaseFeeScalar *big.Int) {
-	offset := ecotoneScalarSectionStart
+	offset := scalarSectionStart
 	l1BaseFeeScalar = new(big.Int).SetBytes(l1FeeParams[offset : offset+4])
 	l1BlobBaseFeeScalar = new(big.Int).SetBytes(l1FeeParams[offset+4 : offset+8])
 	return
 }
 
-func extractOperatorFeeParams(l1FeeParams []byte) (operatorFeeScalar, operatorFeeConstant *big.Int) {
-	offset := operatorScalarSectionStart
-	operatorFeeConstant = new(big.Int).SetBytes(l1FeeParams[offset : offset+8])
-	operatorFeeScalar = new(big.Int).SetBytes(l1FeeParams[offset+8 : offset+12])
+func extractOperatorFeeParams(operatorFeeParams []byte) (operatorFeeScalar, operatorFeeConstant *big.Int) {
+	operatorFeeScalar = new(big.Int).SetBytes(operatorFeeParams[0:4])
+	operatorFeeConstant = new(big.Int).SetBytes(operatorFeeParams[4:12])
 	return
 }
 

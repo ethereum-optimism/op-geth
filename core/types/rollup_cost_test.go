@@ -314,8 +314,6 @@ func getHoloceneL1Attributes(baseFee, blobBaseFee, baseFeeScalar, blobBaseFeeSca
 	data = append(data, blobBaseFee.FillBytes(uint256Slice)...)
 	data = append(data, ignored.FillBytes(uint256Slice)...)
 	data = append(data, ignored.FillBytes(uint256Slice)...)
-	data = append(data, ignored.FillBytes(uint64Slice)...)
-	data = append(data, ignored.FillBytes(uint64Slice)...)
 	data = append(data, operatorFeeScalar.FillBytes(uint32Slice)...)
 	data = append(data, operatorFeeConstant.FillBytes(uint64Slice)...)
 	return data
@@ -324,6 +322,8 @@ func getHoloceneL1Attributes(baseFee, blobBaseFee, baseFeeScalar, blobBaseFeeSca
 type testStateGetter struct {
 	baseFee, blobBaseFee, overhead, scalar *big.Int
 	baseFeeScalar, blobBaseFeeScalar       uint32
+	operatorFeeScalar                      uint32
+	operatorFeeConstant                    uint64
 }
 
 func (sg *testStateGetter) GetState(addr common.Address, slot common.Hash) common.Hash {
@@ -338,10 +338,14 @@ func (sg *testStateGetter) GetState(addr common.Address, slot common.Hash) commo
 	case L1BlobBaseFeeSlot:
 		sg.blobBaseFee.FillBytes(buf[:])
 	case L1FeeScalarsSlot:
-		// fetch Ecotone fee sclars
-		offset := ecotoneScalarSectionStart
+		// fetch Ecotone fee scalars
+		offset := scalarSectionStart
 		binary.BigEndian.PutUint32(buf[offset:offset+4], sg.baseFeeScalar)
 		binary.BigEndian.PutUint32(buf[offset+4:offset+8], sg.blobBaseFeeScalar)
+	case OperatorFeeParamsSlot:
+		// fetch operator fee scalars
+		binary.BigEndian.PutUint32(buf[0:4], sg.operatorFeeScalar)
+		binary.BigEndian.PutUint64(buf[4:12], sg.operatorFeeConstant)
 	default:
 		panic("unknown slot")
 	}
