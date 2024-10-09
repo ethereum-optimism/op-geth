@@ -122,7 +122,7 @@ func (f *fetchResult) Done(kind uint) bool {
 }
 
 type OPStackChainConfig interface {
-	IsOptimismHolocene(time uint64) bool
+	IsOptimismIsthmus(time uint64) bool
 }
 
 // queue represents hashes that are either need fetching or are being fetched
@@ -814,8 +814,8 @@ func (q *queue) DeliverBodies(id string, txLists [][]*types.Transaction, txListH
 			if withdrawalLists[index] == nil {
 				return errInvalidBody
 			}
-			if q.opConfig != nil && q.opConfig.IsOptimismHolocene(header.Time) {
-				// If Holocene, we expect an empty list of withdrawal operations,
+			if q.opConfig != nil && q.opConfig.IsOptimismIsthmus(header.Time) {
+				// If Isthmus, we expect an empty list of withdrawal operations,
 				// but the WithdrawalsHash in the header is used for the withdrawals state storage-root.
 				if withdrawalListHashes[index] != types.EmptyWithdrawalsHash {
 					return errInvalidBody

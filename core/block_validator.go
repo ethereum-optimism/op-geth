@@ -75,7 +75,7 @@ func (v *BlockValidator) ValidateBody(block *types.Block) error {
 		if block.Withdrawals() == nil {
 			return errors.New("missing withdrawals in block body")
 		}
-		if v.config.IsOptimismHolocene(header.Time) {
+		if v.config.IsOptimismIsthmus(header.Time) {
 			if len(block.Withdrawals()) > 0 {
 				return errors.New("no withdrawal block-operations allowed, withdrawalsRoot is set to storage root")
 			}
@@ -152,9 +152,9 @@ func (v *BlockValidator) ValidateState(block *types.Block, statedb *state.StateD
 	if root := statedb.IntermediateRoot(v.config.IsEIP158(header.Number)); header.Root != root {
 		return fmt.Errorf("invalid merkle root (remote: %x local: %x) dberr: %w", header.Root, root, statedb.Error())
 	}
-	if v.config.IsOptimismHolocene(block.Time()) {
+	if v.config.IsOptimismIsthmus(block.Time()) {
 		if header.WithdrawalsHash == nil {
-			return errors.New("expected withdrawals root in OP-Stack post-Holocene block header")
+			return errors.New("expected withdrawals root in OP-Stack post-Isthmus block header")
 		}
 		// Validate the withdrawals root against the L2 withdrawals storage, similar to how the StateRoot is verified.
 		if root := statedb.GetStorageRoot(params.OptimismL2ToL1MessagePasser); *header.WithdrawalsHash != root {
