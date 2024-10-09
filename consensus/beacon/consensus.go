@@ -403,7 +403,7 @@ func (beacon *Beacon) FinalizeAndAssemble(chain consensus.ChainHeaderReader, hea
 	// Assign the final state root to header.
 	header.Root = state.IntermediateRoot(true)
 
-	if chain.Config().IsOptimismHolocene(header.Time) {
+	if chain.Config().IsOptimismIsthmus(header.Time) {
 		if body.Withdrawals == nil || len(body.Withdrawals) > 0 { // We verify nil/empty withdrawals in the CL pre-Isthmus
 			return nil, fmt.Errorf("expected non-nil empty withdrawals operation list in Isthmus, but got: %v", body.Withdrawals)
 		}
