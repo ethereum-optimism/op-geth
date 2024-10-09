@@ -24,6 +24,7 @@ func (p PayloadAttributes) MarshalJSON() ([]byte, error) {
 		Transactions          []hexutil.Bytes     `json:"transactions,omitempty"  gencodec:"optional"`
 		NoTxPool              bool                `json:"noTxPool,omitempty" gencodec:"optional"`
 		GasLimit              *hexutil.Uint64     `json:"gasLimit,omitempty" gencodec:"optional"`
+		EIP1559Params         hexutil.Bytes       `json:"eip1559Params,omitempty" gencodec:"optional"`
 	}
 	var enc PayloadAttributes
 	enc.Timestamp = hexutil.Uint64(p.Timestamp)
@@ -39,6 +40,7 @@ func (p PayloadAttributes) MarshalJSON() ([]byte, error) {
 	}
 	enc.NoTxPool = p.NoTxPool
 	enc.GasLimit = (*hexutil.Uint64)(p.GasLimit)
+	enc.EIP1559Params = p.EIP1559Params
 	return json.Marshal(&enc)
 }
 
@@ -53,6 +55,7 @@ func (p *PayloadAttributes) UnmarshalJSON(input []byte) error {
 		Transactions          []hexutil.Bytes     `json:"transactions,omitempty"  gencodec:"optional"`
 		NoTxPool              *bool               `json:"noTxPool,omitempty" gencodec:"optional"`
 		GasLimit              *hexutil.Uint64     `json:"gasLimit,omitempty" gencodec:"optional"`
+		EIP1559Params         *hexutil.Bytes      `json:"eip1559Params,omitempty" gencodec:"optional"`
 	}
 	var dec PayloadAttributes
 	if err := json.Unmarshal(input, &dec); err != nil {
@@ -87,6 +90,9 @@ func (p *PayloadAttributes) UnmarshalJSON(input []byte) error {
 	}
 	if dec.GasLimit != nil {
 		p.GasLimit = (*uint64)(dec.GasLimit)
+	}
+	if dec.EIP1559Params != nil {
+		p.EIP1559Params = *dec.EIP1559Params
 	}
 	return nil
 }
