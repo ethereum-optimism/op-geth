@@ -107,10 +107,11 @@ type generateParams struct {
 	beaconRoot  *common.Hash      // The beacon root (cancun field).
 	noTxs       bool              // Flag whether an empty block without any transaction is expected
 
-	txs       types.Transactions // Deposit transactions to include at the start of the block
-	gasLimit  *uint64            // Optional gas limit override
-	interrupt *atomic.Int32      // Optional interruption signal to pass down to worker.generateWork
-	isUpdate  bool               // Optional flag indicating that this is building a discardable update
+	txs           types.Transactions // Deposit transactions to include at the start of the block
+	gasLimit      *uint64            // Optional gas limit override
+	eip1559Params *types.BlockNonce  // Optional EIP-1559 parameters
+	interrupt     *atomic.Int32      // Optional interruption signal to pass down to worker.generateWork
+	isUpdate      bool               // Optional flag indicating that this is building a discardable update
 }
 
 // generateWork generates a sealing block based on the given parameters.
@@ -248,6 +249,24 @@ func (miner *Miner) prepareWork(genParams *generateParams, witness bool) (*envir
 	} else if miner.chain.Config().Optimism != nil && miner.config.GasCeil != 0 {
 		// configure the gas limit of pending blocks with the miner gas limit config when using optimism
 		header.GasLimit = miner.config.GasCeil
+	}
+	if miner.chainConfig.IsHolocene(header.Time) {
+		if genParams.eip1559Params == nil {
+			return nil, errors.New("expected eip1559 params, got none")
+		}
+		if err := eip1559.ValidateHoloceneParams(*genParams.eip1559Params); err != nil {
+			return nil, err
+		}
+		header.Nonce = *genParams.eip1559Params
+		// If this is a holocene block and the params are 0, we must convert them to their Canyon
+		// defaults in the header.
+		if header.Nonce == types.BlockNonce([8]byte{}) {
+			elasticity := miner.chainConfig.ElasticityMultiplier()
+			denominator := miner.chainConfig.BaseFeeChangeDenominator(header.Time)
+			header.Nonce = eip1559.EncodeHolocene1559Params(uint32(elasticity), uint32(denominator))
+		}
+	} else if genParams.eip1559Params != nil {
+		return nil, errors.New("got eip1559 params, expected none")
 	}
 	// Run the consensus preparation with the default or customized consensus engine.
 	// Note that the `header.Time` may be changed.

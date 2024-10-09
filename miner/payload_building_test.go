@@ -28,6 +28,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/clique"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
+	"github.com/ethereum/go-ethereum/consensus/misc/eip1559"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/txpool"
@@ -52,6 +53,9 @@ var (
 
 	testUserKey, _  = crypto.GenerateKey()
 	testUserAddress = crypto.PubkeyToAddress(testUserKey.PublicKey)
+
+	testRecipient = common.HexToAddress("0xdeadbeef")
+	testTimestamp = uint64(time.Now().Unix())
 
 	// Test transactions
 	pendingTxs []*types.Transaction
@@ -147,20 +151,59 @@ func newTestWorker(t *testing.T, chainConfig *params.ChainConfig, engine consens
 }
 
 func TestBuildPayload(t *testing.T) {
-	t.Run("no-tx-pool", func(t *testing.T) { testBuildPayload(t, true, false) })
+	t.Run("no-tx-pool", func(t *testing.T) { testBuildPayload(t, true, false, nil) })
 	// no-tx-pool case with interrupt not interesting because no-tx-pool doesn't run
 	// the builder routine
-	t.Run("with-tx-pool", func(t *testing.T) { testBuildPayload(t, false, false) })
-	t.Run("with-tx-pool-interrupt", func(t *testing.T) { testBuildPayload(t, false, true) })
+	t.Run("with-tx-pool", func(t *testing.T) { testBuildPayload(t, false, false, nil) })
+	t.Run("with-tx-pool-interrupt", func(t *testing.T) { testBuildPayload(t, false, true, nil) })
+	nonce := types.BlockNonce([8]byte{0, 1, 2, 3, 4, 5, 6, 7})
+	t.Run("with-nonce", func(t *testing.T) { testBuildPayload(t, false, false, &nonce) })
+	t.Run("with-nonce-no-tx-pool", func(t *testing.T) { testBuildPayload(t, true, false, &nonce) })
+	t.Run("with-nonce-interrupt", func(t *testing.T) { testBuildPayload(t, false, true, &nonce) })
+
+	t.Run("wrong-config-no-nonce", func(t *testing.T) { testBuildPayloadWrongConfig(t, nil) })
+	t.Run("wrong-config-nonce", func(t *testing.T) { testBuildPayloadWrongConfig(t, &nonce) })
+
+	var zeroNonce types.BlockNonce
+	t.Run("with-zero-nonce", func(t *testing.T) { testBuildPayload(t, true, false, &zeroNonce) })
 }
 
-func testBuildPayload(t *testing.T, noTxPool, interrupt bool) {
+func holoceneConfig() *params.ChainConfig {
+	config := *params.TestChainConfig
+	config.LondonBlock = big.NewInt(0)
+	t := uint64(0)
+	config.CanyonTime = &t
+	config.HoloceneTime = &t
+	canyonDenom := uint64(250)
+	config.Optimism = &params.OptimismConfig{
+		EIP1559Elasticity:        6,
+		EIP1559Denominator:       50,
+		EIP1559DenominatorCanyon: &canyonDenom,
+	}
+	return &config
+}
+
+// newPayloadArgs returns a BuildPaylooadArgs with the given parentHash and nonce, testTimestamp
+// for Timestamp, and testRecipient for recipient. NoTxPool is set to true.
+func newPayloadArgs(parentHash common.Hash, nonce *types.BlockNonce) *BuildPayloadArgs {
+	return &BuildPayloadArgs{
+		Parent:        parentHash,
+		Timestamp:     testTimestamp,
+		Random:        common.Hash{},
+		FeeRecipient:  testRecipient,
+		NoTxPool:      true,
+		EIP1559Params: nonce,
+	}
+}
+
+func testBuildPayload(t *testing.T, noTxPool, interrupt bool, nonce *types.BlockNonce) {
 	t.Parallel()
-	var (
-		db        = rawdb.NewMemoryDatabase()
-		recipient = common.HexToAddress("0xdeadbeef")
-	)
-	w, b := newTestWorker(t, params.TestChainConfig, ethash.NewFaker(), db, 0)
+	db := rawdb.NewMemoryDatabase()
+	config := params.TestChainConfig
+	if nonce != nil {
+		config = holoceneConfig()
+	}
+	w, b := newTestWorker(t, config, ethash.NewFaker(), db, 0)
 
 	const numInterruptTxs = 256
 	if interrupt {
@@ -170,14 +213,9 @@ func testBuildPayload(t *testing.T, noTxPool, interrupt bool) {
 		b.txPool.Add(txs, true, false)
 	}
 
-	timestamp := uint64(time.Now().Unix())
-	args := &BuildPayloadArgs{
-		Parent:       b.chain.CurrentBlock().Hash(),
-		Timestamp:    timestamp,
-		Random:       common.Hash{},
-		FeeRecipient: recipient,
-		NoTxPool:     noTxPool,
-	}
+	args := newPayloadArgs(b.chain.CurrentBlock().Hash(), nonce)
+	args.NoTxPool = noTxPool
+
 	// payload resolution now interrupts block building, so we have to
 	// wait for the payloading building process to build its first block
 	payload, err := w.buildPayload(args, false)
@@ -196,10 +234,10 @@ func testBuildPayload(t *testing.T, noTxPool, interrupt bool) {
 		if payload.Random != (common.Hash{}) {
 			t.Fatal("Unexpected random value")
 		}
-		if payload.Timestamp != timestamp {
+		if payload.Timestamp != testTimestamp {
 			t.Fatal("Unexpected timestamp")
 		}
-		if payload.FeeRecipient != recipient {
+		if payload.FeeRecipient != testRecipient {
 			t.Fatal("Unexpected fee recipient")
 		}
 		if !interrupt && len(payload.Transactions) != txs {
@@ -207,6 +245,23 @@ func testBuildPayload(t *testing.T, noTxPool, interrupt bool) {
 		} else if interrupt && len(payload.Transactions) >= txs {
 			t.Fatalf("Unexpect transaction set: got %d, expected less than %d", len(payload.Transactions), txs)
 		}
+	}
+
+	// make sure the nonce we've specied (if any) ends up in both the full and empty block headers
+	var expected types.BlockNonce
+	if nonce != nil {
+		if *nonce == expected {
+			expected = eip1559.EncodeHolocene1559Params(6, 250) // canyon defaults
+		} else {
+			expected = *nonce
+		}
+	}
+	t.Logf("expected nonce: %x\n", expected[:])
+	if payload.full != nil && payload.full.Header().Nonce != expected {
+		t.Fatalf("Nonces don't match. want: %x, got %x", expected, payload.full.Header().Nonce)
+	}
+	if payload.empty != nil && payload.empty.Header().Nonce != expected {
+		t.Fatalf("Nonces don't match on empty block. want: %x, got %x", expected, payload.empty.Header().Nonce)
 	}
 
 	if noTxPool {
@@ -230,6 +285,39 @@ func testBuildPayload(t *testing.T, noTxPool, interrupt bool) {
 	dataTwo := payload.Resolve()
 	if !reflect.DeepEqual(dataOne, dataTwo) {
 		t.Fatal("Unexpected payload data")
+	}
+}
+
+func testBuildPayloadWrongConfig(t *testing.T, nonce *types.BlockNonce) {
+	t.Parallel()
+	db := rawdb.NewMemoryDatabase()
+	config := holoceneConfig()
+	if nonce != nil {
+		// deactivate holocene and make sure non-nil nonce gets rejected
+		config.HoloceneTime = nil
+	}
+	w, b := newTestWorker(t, config, ethash.NewFaker(), db, 0)
+
+	args := newPayloadArgs(b.chain.CurrentBlock().Hash(), nonce)
+	payload, err := w.buildPayload(args, false)
+	if err == nil && (payload == nil || payload.err == nil) {
+		t.Fatalf("expected error, got none")
+	}
+}
+
+func TestBuildPayloadInvalidHoloceneNonce(t *testing.T) {
+	t.Parallel()
+	db := rawdb.NewMemoryDatabase()
+	config := holoceneConfig()
+	w, b := newTestWorker(t, config, ethash.NewFaker(), db, 0)
+
+	// 0 denominators shouldn't be allowed
+	badNonce := eip1559.EncodeHolocene1559Params(6, 0)
+
+	args := newPayloadArgs(b.chain.CurrentBlock().Hash(), &badNonce)
+	payload, err := w.buildPayload(args, false)
+	if err == nil && (payload == nil || payload.err == nil) {
+		t.Fatalf("expected error, got none")
 	}
 }
 

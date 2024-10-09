@@ -17,6 +17,7 @@
 package eip1559
 
 import (
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"math/big"
@@ -55,15 +56,48 @@ func VerifyEIP1559Header(config *params.ChainConfig, parent, header *types.Heade
 	return nil
 }
 
+// DecodeHolocene1599Params extracts the Holcene 1599 parameters from the encoded form:
+// https://github.com/ethereum-optimism/specs/blob/main/specs/protocol/holocene/exec-engine.md#eip1559params-encoding
+func DecodeHolocene1559Params(params types.BlockNonce) (uint64, uint64) {
+	elasticity := binary.BigEndian.Uint32(params[4:])
+	denominator := binary.BigEndian.Uint32(params[:4])
+	return uint64(elasticity), uint64(denominator)
+}
+
+func EncodeHolocene1559Params(elasticity, denom uint32) types.BlockNonce {
+	var nonce types.BlockNonce
+	binary.BigEndian.PutUint32(nonce[4:], elasticity)
+	binary.BigEndian.PutUint32(nonce[:4], denom)
+	return nonce
+}
+
+// ValidateHoloceneParams checks if the encoded parameters are valid according to the Holocene
+// upgrade.
+func ValidateHoloceneParams(params types.BlockNonce) error {
+	e, d := DecodeHolocene1559Params(params)
+	if e != 0 && d == 0 {
+		return errors.New("holocene params cannot have a 0 denominator unless elasticity is also 0")
+	}
+	return nil
+}
+
 // CalcBaseFee calculates the basefee of the header.
-// The time belongs to the new block to check if Canyon is activted or not
+// The time belongs to the new block to check which upgrades are active.
 func CalcBaseFee(config *params.ChainConfig, parent *types.Header, time uint64) *big.Int {
 	// If the current block is the first EIP-1559 block, return the InitialBaseFee.
 	if !config.IsLondon(parent.Number) {
 		return new(big.Int).SetUint64(params.InitialBaseFee)
 	}
-
-	parentGasTarget := parent.GasLimit / config.ElasticityMultiplier()
+	elasticity := config.ElasticityMultiplier()
+	denominator := config.BaseFeeChangeDenominator(time)
+	if config.IsHolocene(time) {
+		// Holocene requires we get the 1559 parameters from the nonce field of the parent header
+		// unless the field is zero, in which case we use the Canyon values.
+		if parent.Nonce != types.BlockNonce([8]byte{}) {
+			elasticity, denominator = DecodeHolocene1559Params(parent.Nonce)
+		}
+	}
+	parentGasTarget := parent.GasLimit / elasticity
 	// If the parent gasUsed is the same as the target, the baseFee remains unchanged.
 	if parent.GasUsed == parentGasTarget {
 		return new(big.Int).Set(parent.BaseFee)
@@ -80,7 +114,7 @@ func CalcBaseFee(config *params.ChainConfig, parent *types.Header, time uint64) 
 		num.SetUint64(parent.GasUsed - parentGasTarget)
 		num.Mul(num, parent.BaseFee)
 		num.Div(num, denom.SetUint64(parentGasTarget))
-		num.Div(num, denom.SetUint64(config.BaseFeeChangeDenominator(time)))
+		num.Div(num, denom.SetUint64(denominator))
 		baseFeeDelta := math.BigMax(num, common.Big1)
 
 		return num.Add(parent.BaseFee, baseFeeDelta)
@@ -90,7 +124,7 @@ func CalcBaseFee(config *params.ChainConfig, parent *types.Header, time uint64) 
 		num.SetUint64(parentGasTarget - parent.GasUsed)
 		num.Mul(num, parent.BaseFee)
 		num.Div(num, denom.SetUint64(parentGasTarget))
-		num.Div(num, denom.SetUint64(config.BaseFeeChangeDenominator(time)))
+		num.Div(num, denom.SetUint64(denominator))
 		baseFee := num.Sub(parent.BaseFee, num)
 
 		return math.BigMax(baseFee, common.Big0)
