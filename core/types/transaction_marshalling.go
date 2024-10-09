@@ -174,6 +174,20 @@ func (tx *Transaction) MarshalJSON() ([]byte, error) {
 		}
 		enc.IsSystemTx = &itx.IsSystemTransaction
 		// other fields will show up as null.
+
+	case *depositTxWithNonce:
+		enc.Gas = (*hexutil.Uint64)(&itx.Gas)
+		enc.Value = (*hexutil.Big)(itx.Value)
+		enc.Input = (*hexutil.Bytes)(&itx.Data)
+		enc.To = tx.To()
+		enc.SourceHash = &itx.SourceHash
+		enc.From = &itx.From
+		if itx.Mint != nil {
+			enc.Mint = (*hexutil.Big)(itx.Mint)
+		}
+		enc.IsSystemTx = &itx.IsSystemTransaction
+		enc.Nonce = (*hexutil.Uint64)(&itx.EffectiveNonce)
+		// other fields will show up as null.
 	}
 	return json.Marshal(&enc)
 }
