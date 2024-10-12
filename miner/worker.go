@@ -109,7 +109,7 @@ type generateParams struct {
 
 	txs           types.Transactions // Deposit transactions to include at the start of the block
 	gasLimit      *uint64            // Optional gas limit override
-	eip1559Params *types.BlockNonce  // Optional EIP-1559 parameters
+	eip1559Params []byte             // Optional EIP-1559 parameters
 	interrupt     *atomic.Int32      // Optional interruption signal to pass down to worker.generateWork
 	isUpdate      bool               // Optional flag indicating that this is building a discardable update
 }
@@ -229,7 +229,8 @@ func (miner *Miner) prepareWork(genParams *generateParams, witness bool) (*envir
 		Coinbase:   genParams.coinbase,
 	}
 	// Set the extra field.
-	if len(miner.config.ExtraData) != 0 && miner.chainConfig.Optimism == nil { // Optimism chains must not set any extra data.
+	if len(miner.config.ExtraData) != 0 && miner.chainConfig.Optimism == nil {
+		// Optimism chains have their own ExtraData handling rules
 		header.Extra = miner.config.ExtraData
 	}
 	// Set the randomness field from the beacon chain if it's available.
@@ -251,20 +252,17 @@ func (miner *Miner) prepareWork(genParams *generateParams, witness bool) (*envir
 		header.GasLimit = miner.config.GasCeil
 	}
 	if miner.chainConfig.IsHolocene(header.Time) {
-		if genParams.eip1559Params == nil {
-			return nil, errors.New("expected eip1559 params, got none")
-		}
-		if err := eip1559.ValidateHoloceneParams(*genParams.eip1559Params); err != nil {
+		if err := eip1559.ValidateHolocene1559Params(genParams.eip1559Params); err != nil {
 			return nil, err
 		}
-		header.Nonce = *genParams.eip1559Params
-		// If this is a holocene block and the params are 0, we must convert them to their Canyon
-		// defaults in the header.
-		if header.Nonce == types.BlockNonce([8]byte{}) {
-			elasticity := miner.chainConfig.ElasticityMultiplier()
-			denominator := miner.chainConfig.BaseFeeChangeDenominator(header.Time)
-			header.Nonce = eip1559.EncodeHolocene1559Params(uint32(elasticity), uint32(denominator))
+		// If this is a holocene block and the params are 0, we must convert them to their previous
+		// constants in the header.
+		d, e := eip1559.DecodeHolocene1559Params(genParams.eip1559Params)
+		if d == 0 {
+			d = miner.chainConfig.BaseFeeChangeDenominator(header.Time)
+			e = miner.chainConfig.ElasticityMultiplier()
 		}
+		header.Extra = eip1559.EncodeHoloceneExtraData(uint32(d), uint32(e))
 	} else if genParams.eip1559Params != nil {
 		return nil, errors.New("got eip1559 params, expected none")
 	}

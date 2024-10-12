@@ -177,8 +177,8 @@ func TestCalcBaseFeeOptimism(t *testing.T) {
 			t.Errorf("test %d: have %d  want %d, ", i, have, want)
 		}
 		if test.postCanyon {
-			// make sure Holocene activation doesn't change the outcome; since these tests have a
-			// zero nonce, they should be handled using the Canyon config.
+			// make sure Holocene activation doesn't change the outcome; since these tests have empty eip1559 params,
+			// they should be handled using the Canyon config.
 			parent.Time = 10
 			if have, want := CalcBaseFee(opConfig(), parent, parent.Time+2), big.NewInt(test.expectedBaseFee); have.Cmp(want) != 0 {
 				t.Errorf("test %d: have %d  want %d, ", i, have, want)
@@ -189,22 +189,20 @@ func TestCalcBaseFeeOptimism(t *testing.T) {
 
 // TestCalcBaseFeeHolocene assumes all blocks are Optimism blocks post-Holocene upgrade
 func TestCalcBaseFeeOptimismHolocene(t *testing.T) {
-	elasticity2Denom10Nonce := EncodeHolocene1559Params(2, 10)
-	elasticity10Denom2Nonce := EncodeHolocene1559Params(10, 2)
 	parentBaseFee := int64(10_000_000)
 	parentGasLimit := uint64(30_000_000)
 
 	tests := []struct {
-		parentGasUsed   uint64
-		expectedBaseFee int64
-		nonce           types.BlockNonce
+		parentGasUsed     uint64
+		expectedBaseFee   int64
+		denom, elasticity uint32
 	}{
-		{parentGasLimit / 2, parentBaseFee, elasticity2Denom10Nonce},  // target
-		{10_000_000, 9_666_667, elasticity2Denom10Nonce},              // below
-		{20_000_000, 10_333_333, elasticity2Denom10Nonce},             // above
-		{parentGasLimit / 10, parentBaseFee, elasticity10Denom2Nonce}, // target
-		{1_000_000, 6_666_667, elasticity10Denom2Nonce},               // below
-		{30_000_000, 55_000_000, elasticity10Denom2Nonce},             // above
+		{parentGasLimit / 2, parentBaseFee, 10, 2},  // target
+		{10_000_000, 9_666_667, 10, 2},              // below
+		{20_000_000, 10_333_333, 10, 2},             // above
+		{parentGasLimit / 10, parentBaseFee, 2, 10}, // target
+		{1_000_000, 6_666_667, 2, 10},               // below
+		{30_000_000, 55_000_000, 2, 10},             // above
 	}
 	for i, test := range tests {
 		parent := &types.Header{
@@ -212,8 +210,8 @@ func TestCalcBaseFeeOptimismHolocene(t *testing.T) {
 			GasLimit: parentGasLimit,
 			GasUsed:  test.parentGasUsed,
 			BaseFee:  big.NewInt(parentBaseFee),
-			Time:     10,
-			Nonce:    test.nonce,
+			Time:     12,
+			Extra:    EncodeHoloceneExtraData(test.denom, test.elasticity),
 		}
 		if have, want := CalcBaseFee(opConfig(), parent, parent.Time+2), big.NewInt(test.expectedBaseFee); have.Cmp(want) != 0 {
 			t.Errorf("test %d: have %d  want %d, ", i, have, want)

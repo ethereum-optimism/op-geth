@@ -18,6 +18,7 @@
 package catalyst
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"strconv"
@@ -437,22 +438,16 @@ func (api *ConsensusAPI) forkchoiceUpdated(update engine.ForkchoiceStateV1, payl
 	// will replace it arbitrarily many times in between.
 
 	if payloadAttributes != nil {
-		var nonce *types.BlockNonce
+		var eip1559Params []byte
 		if api.eth.BlockChain().Config().Optimism != nil {
 			if payloadAttributes.GasLimit == nil {
 				return engine.STATUS_INVALID, engine.InvalidPayloadAttributes.With(errors.New("gasLimit parameter is required"))
 			}
 			if api.eth.BlockChain().Config().IsHolocene(payloadAttributes.Timestamp) {
-				var params types.BlockNonce
-				copy(params[:], payloadAttributes.EIP1559Params)
-				if len(payloadAttributes.EIP1559Params) != 8 {
-					return engine.STATUS_INVALID,
-						engine.InvalidPayloadAttributes.With(errors.New("eip1559Params is required when Holocene is active"))
-				}
-				if err := eip1559.ValidateHoloceneParams(params); err != nil {
+				if err := eip1559.ValidateHolocene1559Params(payloadAttributes.EIP1559Params); err != nil {
 					return engine.STATUS_INVALID, engine.InvalidPayloadAttributes.With(err)
 				}
-				nonce = &params
+				eip1559Params = bytes.Clone(payloadAttributes.EIP1559Params)
 			} else if len(payloadAttributes.EIP1559Params) != 0 {
 				return engine.STATUS_INVALID,
 					engine.InvalidPayloadAttributes.With(errors.New("eip155Params not supported prior to Holocene upgrade"))
@@ -477,7 +472,7 @@ func (api *ConsensusAPI) forkchoiceUpdated(update engine.ForkchoiceStateV1, payl
 			Transactions:  transactions,
 			GasLimit:      payloadAttributes.GasLimit,
 			Version:       payloadVersion,
-			EIP1559Params: nonce,
+			EIP1559Params: eip1559Params,
 		}
 		id := args.Id()
 		// If we already are busy generating this work, then we do not need
@@ -846,6 +841,14 @@ func (api *ConsensusAPI) newPayload(params engine.ExecutableData, versionedHashe
 	//    sequentially.
 	// Hence, we use a lock here, to be sure that the previous call has finished before we
 	// check whether we already have the block locally.
+
+	// Payload must have eip-1559 params in ExtraData after Holocene
+	if api.eth.BlockChain().Config().IsHolocene(params.Timestamp) {
+		if err := eip1559.ValidateHoloceneExtraData(params.ExtraData); err != nil {
+			return api.invalid(err, nil), nil
+		}
+	}
+
 	api.newPayloadLock.Lock()
 	defer api.newPayloadLock.Unlock()
 
