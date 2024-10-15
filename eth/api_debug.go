@@ -24,6 +24,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/stateless"
@@ -457,27 +458,33 @@ func (api *DebugAPI) ExecutionWitness(ctx context.Context, blockNrOrHash rpc.Blo
 		return nil, fmt.Errorf("block not found: %s", blockNrOrHash.String())
 	}
 
-	witness, err := stateless.NewWitness(block.Header(), api.eth.blockchain)
+	witness, err := generateWitness(api.eth.blockchain, block)
+	return witness.ToExecutionWitness(), err
+}
+
+func generateWitness(blockchain *core.BlockChain, block *types.Block) (*stateless.Witness, error) {
+	witness, err := stateless.NewWitness(block.Header(), blockchain)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create witness: %w", err)
 	}
 
 	parentHeader := witness.Headers[0]
-	statedb, err := api.eth.blockchain.StateAt(parentHeader.Root)
+	statedb, err := blockchain.StateAt(parentHeader.Root)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve parent state: %w", err)
 	}
 
 	statedb.StartPrefetcher("debug_execution_witness", witness)
+	defer statedb.StopPrefetcher()
 
-	res, err := api.eth.blockchain.Processor().Process(block, statedb, *api.eth.blockchain.GetVMConfig())
+	res, err := blockchain.Processor().Process(block, statedb, *blockchain.GetVMConfig())
 	if err != nil {
 		return nil, fmt.Errorf("failed to process block %d: %w", block.Number(), err)
 	}
 
-	if err := api.eth.blockchain.Validator().ValidateState(block, statedb, res, false); err != nil {
+	if err := blockchain.Validator().ValidateState(block, statedb, res, false); err != nil {
 		return nil, fmt.Errorf("failed to validate block %d: %w", block.Number(), err)
 	}
 
-	return witness.ToExecutionWitness(), nil
+	return witness, nil
 }
