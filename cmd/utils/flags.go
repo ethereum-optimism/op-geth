@@ -943,6 +943,7 @@ var (
 		Name:     "rollup.disabletxpoolgossip",
 		Usage:    "Disable transaction pool gossip.",
 		Category: flags.RollupCategory,
+		Value:    true,
 	}
 	RollupEnableTxPoolAdmissionFlag = &cli.BoolFlag{
 		Name:     "rollup.enabletxpooladmission",
