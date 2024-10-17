@@ -50,7 +50,7 @@ type BuildPayloadArgs struct {
 	NoTxPool      bool                 // Optimism addition: option to disable tx pool contents from being included
 	Transactions  []*types.Transaction // Optimism addition: txs forced into the block via engine API
 	GasLimit      *uint64              // Optimism addition: override gas limit of the block to build
-	EIP1559Params *types.BlockNonce    // Optimism addition: encodes Holocene EIP-1559 params
+	EIP1559Params []byte               // Optimism addition: encodes Holocene EIP-1559 params
 }
 
 // Id computes an 8-byte identifier by hashing the components of the payload arguments.
@@ -76,7 +76,7 @@ func (args *BuildPayloadArgs) Id() engine.PayloadID {
 	if args.GasLimit != nil {
 		binary.Write(hasher, binary.BigEndian, *args.GasLimit)
 	}
-	if args.EIP1559Params != nil {
+	if len(args.EIP1559Params) != 0 {
 		hasher.Write(args.EIP1559Params[:])
 	}
 

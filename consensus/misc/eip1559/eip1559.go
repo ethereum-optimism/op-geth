@@ -58,27 +58,64 @@ func VerifyEIP1559Header(config *params.ChainConfig, parent, header *types.Heade
 
 // DecodeHolocene1599Params extracts the Holcene 1599 parameters from the encoded form:
 // https://github.com/ethereum-optimism/specs/blob/main/specs/protocol/holocene/exec-engine.md#eip1559params-encoding
-func DecodeHolocene1559Params(params types.BlockNonce) (uint64, uint64) {
-	elasticity := binary.BigEndian.Uint32(params[4:])
+//
+// Returns 0,0 if the format is invalid, though ValidateHolocene1559Params should be used instead of
+// this function for validity checking.
+func DecodeHolocene1559Params(params []byte) (uint64, uint64) {
+	if len(params) != 8 {
+		return 0, 0
+	}
 	denominator := binary.BigEndian.Uint32(params[:4])
-	return uint64(elasticity), uint64(denominator)
+	elasticity := binary.BigEndian.Uint32(params[4:])
+	return uint64(denominator), uint64(elasticity)
 }
 
-func EncodeHolocene1559Params(elasticity, denom uint32) types.BlockNonce {
-	var nonce types.BlockNonce
-	binary.BigEndian.PutUint32(nonce[4:], elasticity)
-	binary.BigEndian.PutUint32(nonce[:4], denom)
-	return nonce
+// Decodes holocene extra data without performing full validation.
+func DecodeHoloceneExtraData(extra []byte) (uint64, uint64) {
+	if len(extra) != 9 {
+		return 0, 0
+	}
+	return DecodeHolocene1559Params(extra[1:])
 }
 
-// ValidateHoloceneParams checks if the encoded parameters are valid according to the Holocene
+func EncodeHolocene1559Params(denom, elasticity uint32) []byte {
+	r := make([]byte, 8)
+	binary.BigEndian.PutUint32(r[:4], denom)
+	binary.BigEndian.PutUint32(r[4:], elasticity)
+	return r
+}
+
+func EncodeHoloceneExtraData(denom, elasticity uint32) []byte {
+	r := make([]byte, 9)
+	// leave version byte 0
+	binary.BigEndian.PutUint32(r[1:5], denom)
+	binary.BigEndian.PutUint32(r[5:], elasticity)
+	return r
+}
+
+// ValidateHolocene1559Params checks if the encoded parameters are valid according to the Holocene
 // upgrade.
-func ValidateHoloceneParams(params types.BlockNonce) error {
-	e, d := DecodeHolocene1559Params(params)
+func ValidateHolocene1559Params(params []byte) error {
+	if len(params) != 8 {
+		return fmt.Errorf("holocene eip-1559 params should be 8 bytes, got %d", len(params))
+	}
+	d, e := DecodeHolocene1559Params(params)
 	if e != 0 && d == 0 {
 		return errors.New("holocene params cannot have a 0 denominator unless elasticity is also 0")
 	}
 	return nil
+}
+
+// ValidateHoloceneExtraData checks if the header extraData is valid according to the Holocene
+// upgrade.
+func ValidateHoloceneExtraData(extra []byte) error {
+	if len(extra) != 9 {
+		return fmt.Errorf("holocene extraData should be 9 bytes, got %d", len(extra))
+	}
+	if extra[0] != 0 {
+		return fmt.Errorf("holocene extraData should have 0 version byte, got %d", extra[0])
+	}
+	return ValidateHolocene1559Params(extra[1:])
 }
 
 // CalcBaseFee calculates the basefee of the header.
@@ -90,11 +127,11 @@ func CalcBaseFee(config *params.ChainConfig, parent *types.Header, time uint64) 
 	}
 	elasticity := config.ElasticityMultiplier()
 	denominator := config.BaseFeeChangeDenominator(time)
-	if config.IsHolocene(time) {
-		// Holocene requires we get the 1559 parameters from the nonce field of the parent header
-		// unless the field is zero, in which case we use the Canyon values.
-		if parent.Nonce != types.BlockNonce([8]byte{}) {
-			elasticity, denominator = DecodeHolocene1559Params(parent.Nonce)
+	if config.IsHolocene(parent.Time) {
+		denominator, elasticity = DecodeHoloceneExtraData(parent.Extra)
+		if denominator == 0 {
+			// this shouldn't happen as the ExtraData should have been validated prior
+			panic("invalid eip-1559 params in extradata")
 		}
 	}
 	parentGasTarget := parent.GasLimit / elasticity
