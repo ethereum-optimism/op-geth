@@ -195,7 +195,7 @@ func TestCalcBaseFeeOptimismHolocene(t *testing.T) {
 	tests := []struct {
 		parentGasUsed     uint64
 		expectedBaseFee   int64
-		denom, elasticity uint32
+		denom, elasticity uint64
 	}{
 		{parentGasLimit / 2, parentBaseFee, 10, 2},  // target
 		{10_000_000, 9_666_667, 10, 2},              // below
