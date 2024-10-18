@@ -7,6 +7,7 @@ import (
 	"github.com/ethereum-optimism/superchain-registry/superchain"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/params"
 )
 
@@ -35,7 +36,7 @@ func LoadOPStackGenesis(chainID uint64) (*Genesis, error) {
 		Difficulty:    (*big.Int)(gen.Difficulty),
 		Mixhash:       common.Hash(gen.Mixhash),
 		Coinbase:      common.Address(gen.Coinbase),
-		Alloc:         make(GenesisAlloc),
+		Alloc:         make(types.GenesisAlloc),
 		Number:        gen.Number,
 		GasUsed:       gen.GasUsed,
 		ParentHash:    common.Hash(gen.ParentHash),
@@ -76,6 +77,7 @@ func LoadOPStackGenesis(chainID uint64) (*Genesis, error) {
 			return nil, fmt.Errorf("chain definition unexpectedly contains both allocation (%d) and state-hash %s", len(gen.Alloc), *gen.StateHash)
 		}
 		genesis.StateHash = (*common.Hash)(gen.StateHash)
+		genesis.Alloc = nil
 	}
 
 	genesisBlock := genesis.ToBlock()
