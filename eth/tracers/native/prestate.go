@@ -31,6 +31,7 @@ import (
 	"github.com/ethereum/go-ethereum/eth/tracers"
 	"github.com/ethereum/go-ethereum/eth/tracers/internal"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/params"
 )
 
 //go:generate go run github.com/fjl/gencodec -type account -field-override accountMarshaling -out gen_account_json.go
@@ -158,6 +159,9 @@ func (t *prestateTracer) OnTxStart(env *tracing.VMContext, tx *types.Transaction
 	t.lookupAccount(from)
 	t.lookupAccount(t.to)
 	t.lookupAccount(env.Coinbase)
+	if env.ChainConfig.Optimism != nil {
+		t.lookupAccount(params.OptimismBaseFeeRecipient)
+	}
 }
 
 func (t *prestateTracer) OnTxEnd(receipt *types.Receipt, err error) {

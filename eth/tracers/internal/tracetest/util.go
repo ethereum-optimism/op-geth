@@ -9,6 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/consensus/misc/eip4844"
 	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 
 	// Force-load native and js packages, to trigger registration
@@ -34,7 +35,7 @@ type callContext struct {
 	BaseFee    *math.HexOrDecimal256 `json:"baseFeePerGas"`
 }
 
-func (c *callContext) toBlockContext(genesis *core.Genesis) vm.BlockContext {
+func (c *callContext) toBlockContext(genesis *core.Genesis, statedb types.StateGetter) vm.BlockContext {
 	context := vm.BlockContext{
 		CanTransfer: core.CanTransfer,
 		Transfer:    core.Transfer,
@@ -43,6 +44,8 @@ func (c *callContext) toBlockContext(genesis *core.Genesis) vm.BlockContext {
 		Time:        uint64(c.Time),
 		Difficulty:  (*big.Int)(c.Difficulty),
 		GasLimit:    uint64(c.GasLimit),
+		Random:      &genesis.Mixhash,
+		L1CostFunc:  types.NewL1CostFunc(genesis.Config, statedb),
 	}
 	if genesis.Config.IsLondon(context.BlockNumber) {
 		context.BaseFee = (*big.Int)(c.BaseFee)
