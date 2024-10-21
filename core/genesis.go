@@ -116,9 +116,11 @@ func ReadGenesis(db ethdb.Database) (*Genesis, error) {
 	genesis.BaseFee = genesisHeader.BaseFee
 	genesis.ExcessBlobGas = genesisHeader.ExcessBlobGas
 	genesis.BlobGasUsed = genesisHeader.BlobGasUsed
-	if genesis.Alloc == nil {
-		h := genesisHeader.Hash()
+	// A nil or empty alloc, with a non-matching state-root in the block header, intents to override the state-root.
+	if genesis.Alloc == nil || (len(genesis.Alloc) == 0 && genesisHeader.Root != types.EmptyRootHash) {
+		h := genesisHeader.Root // the genesis block is encoded as RLP in the DB and will contain the state-root
 		genesis.StateHash = &h
+		genesis.Alloc = nil
 	}
 
 	return &genesis, nil
@@ -567,12 +569,23 @@ func (g *Genesis) Commit(db ethdb.Database, triedb *triedb.Database) (*types.Blo
 	if config.Clique != nil && len(g.ExtraData) < 32+crypto.SignatureLength {
 		return nil, errors.New("can't start clique chain without signers")
 	}
-	// flush the data to disk and compute the state root
-	root, err := flushAlloc(&g.Alloc, triedb)
-	if err != nil {
-		return nil, err
+	var stateHash common.Hash
+	if len(g.Alloc) == 0 {
+		if g.StateHash == nil {
+			log.Warn("Empty genesis alloc, and no 'stateHash' override was set")
+			stateHash = types.EmptyRootHash // default to the hash of the empty state. Some unit-tests rely on this.
+		} else {
+			stateHash = *g.StateHash
+		}
+	} else {
+		// flush the data to disk and compute the state root
+		root, err := flushAlloc(&g.Alloc, triedb)
+		if err != nil {
+			return nil, err
+		}
+		stateHash = root
 	}
-	block := g.toBlockWithRoot(root)
+	block := g.toBlockWithRoot(stateHash)
 
 	// Marshal the genesis state specification and persist.
 	blob, err := json.Marshal(g.Alloc)

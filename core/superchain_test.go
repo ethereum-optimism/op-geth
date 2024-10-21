@@ -5,6 +5,7 @@ import (
 
 	"github.com/ethereum-optimism/superchain-registry/superchain"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/triedb"
 )
@@ -100,5 +101,25 @@ func TestRegistryChainConfigOverride(t *testing.T) {
 				t.Fatalf("expected EIP1559DenominatorCanyon to be %d, but got %d", tt.expectedDenominator, *chainConfig.Optimism.EIP1559DenominatorCanyon)
 			}
 		})
+	}
+}
+
+func TestOPMainnetGenesisDB(t *testing.T) {
+	db := rawdb.NewMemoryDatabase()
+	genesis, err := LoadOPStackGenesis(10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tdb := triedb.NewDatabase(db, newDbConfig(rawdb.PathScheme))
+	genesis.MustCommit(db, tdb)
+	bl := genesis.ToBlock()
+	expected := common.HexToHash("0x7ca38a1916c42007829c55e69d3e9a73265554b586a499015373241b8a3fa48b")
+	if blockHash := bl.Hash(); blockHash != expected {
+		t.Fatalf("block hash mismatch: %s <> %s", blockHash, expected)
+	}
+	// This is written separately to the DB by Commit() and is thus tested explicitly here
+	canonicalHash := rawdb.ReadCanonicalHash(db, 0)
+	if canonicalHash != expected {
+		t.Fatalf("canonical hash mismatch: %s <> %s", canonicalHash, expected)
 	}
 }
