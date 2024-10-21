@@ -20,6 +20,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	gomath "math"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -56,11 +57,11 @@ func VerifyEIP1559Header(config *params.ChainConfig, parent, header *types.Heade
 	return nil
 }
 
-// DecodeHolocene1599Params extracts the Holcene 1599 parameters from the encoded form:
-// https://github.com/ethereum-optimism/specs/blob/main/specs/protocol/holocene/exec-engine.md#eip1559params-encoding
+// DecodeHolocene1599Params extracts the Holcene 1599 parameters from the encoded form defined here:
+// https://github.com/ethereum-optimism/specs/blob/main/specs/protocol/holocene/exec-engine.md#eip-1559-parameters-in-payloadattributesv3
 //
-// Returns 0,0 if the format is invalid, though ValidateHolocene1559Params should be used instead of
-// this function for validity checking.
+// Returns 0,0 if the format is invalid, though ValidateHolocene1559Params should be used instead of this function for
+// validity checking.
 func DecodeHolocene1559Params(params []byte) (uint64, uint64) {
 	if len(params) != 8 {
 		return 0, 0
@@ -70,7 +71,11 @@ func DecodeHolocene1559Params(params []byte) (uint64, uint64) {
 	return uint64(denominator), uint64(elasticity)
 }
 
-// Decodes holocene extra data without performing full validation.
+// DecodeHoloceneExtraData decodes the Holocene 1559 parameters from the encoded form defined here:
+// https://github.com/ethereum-optimism/specs/blob/main/specs/protocol/holocene/exec-engine.md#eip-1559-parameters-in-block-header
+//
+// Returns 0,0 if the format is invalid, though ValidateHoloceneExtraData should be used instead of this function for
+// validity checking.
 func DecodeHoloceneExtraData(extra []byte) (uint64, uint64) {
 	if len(extra) != 9 {
 		return 0, 0
@@ -78,18 +83,28 @@ func DecodeHoloceneExtraData(extra []byte) (uint64, uint64) {
 	return DecodeHolocene1559Params(extra[1:])
 }
 
-func EncodeHolocene1559Params(denom, elasticity uint32) []byte {
+// EncodeHolocene1559Params encodes the eip-1559 parameters into 'PayloadAttributes.EIP1559Params' format. Will panic if
+// either value is outside uint32 range.
+func EncodeHolocene1559Params(denom, elasticity uint64) []byte {
 	r := make([]byte, 8)
-	binary.BigEndian.PutUint32(r[:4], denom)
-	binary.BigEndian.PutUint32(r[4:], elasticity)
+	if denom > gomath.MaxUint32 || elasticity > gomath.MaxUint32 {
+		panic("eip-1559 parameters out of uint32 range")
+	}
+	binary.BigEndian.PutUint32(r[:4], uint32(denom))
+	binary.BigEndian.PutUint32(r[4:], uint32(elasticity))
 	return r
 }
 
-func EncodeHoloceneExtraData(denom, elasticity uint32) []byte {
+// EncodeHoloceneExtraData encodes the eip-1559 parameters into the header 'ExtraData' format. Will panic if either
+// value is outside uint32 range.
+func EncodeHoloceneExtraData(denom, elasticity uint64) []byte {
 	r := make([]byte, 9)
+	if denom > gomath.MaxUint32 || elasticity > gomath.MaxUint32 {
+		panic("eip-1559 parameters out of uint32 range")
+	}
 	// leave version byte 0
-	binary.BigEndian.PutUint32(r[1:5], denom)
-	binary.BigEndian.PutUint32(r[5:], elasticity)
+	binary.BigEndian.PutUint32(r[1:5], uint32(denom))
+	binary.BigEndian.PutUint32(r[5:], uint32(elasticity))
 	return r
 }
 
