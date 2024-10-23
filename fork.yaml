@@ -86,7 +86,7 @@ def:
                 ExtraData field.  The gaslimit and EIP-1559 parameters are changed (and limited) through the
                 `SystemConfig` contract.
               globs:
-                - "consensus/misc/eip1559/eip1559.go"
+                - "consensus/misc/eip1559/*"
             - title: "Consensus tweaks"
               description: |
                 The Engine API is activated at the Merge transition, with a Total Terminal Difficulty (TTD).
