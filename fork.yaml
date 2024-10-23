@@ -78,11 +78,13 @@ def:
             - title: "Core Error definitions"
               globs:
                 - "core/error.go"
-            - title: "Gaslimit"
+            - title: "Gaslimit and EIP-1559 Params"
               description: |
                 The gaslimit is free to be set by the Engine API caller, instead of enforcing adjustments of the
-                gaslimit in increments of 1/1024 of the previous gaslimit.
-                The gaslimit is changed (and limited) through the `SystemConfig` contract.
+                gaslimit in increments of 1/1024 of the previous gaslimit. The elasticity-multiplier and
+                base-fee-max-change-denominator EIP-1559 parameters can also be set by the Engine API caller through the
+                ExtraData field.  The gaslimit and EIP-1559 parameters are changed (and limited) through the
+                `SystemConfig` contract.
               globs:
                 - "consensus/misc/eip1559/eip1559.go"
             - title: "Consensus tweaks"
@@ -103,9 +105,11 @@ def:
                 - "consensus/beacon/oplegacy.go"
         - title: "Engine API modifications"
           description: |
-            The Engine API is extended to insert transactions into the block and optionally exclude the tx-pool,
-            to reproduce the exact block of the sequencer from just the inputs, as derived from L1 by the rollup-node.
-            See [L2 execution engine specs](https://github.com/ethereum-optimism/optimism/blob/develop/specs/exec-engine.md).
+            The Engine API is extended to insert transactions into the block and optionally exclude the tx-pool, to
+            reproduce the exact block of the sequencer from just the inputs, as derived from L1 by the rollup-node.  See
+            [L2 execution engine specs](https://github.com/ethereum-optimism/specs/blob/main/specs/protocol/exec-engine.md).
+            It is also extended to support dynamic EIP-1559 parameters. See
+            [Holocene execution engine specs](https://github.com/ethereum-optimism/specs/blob/main/specs/protocol/holocene/exec-engine.md).
           globs:
             - "beacon/engine/types.go"
             - "beacon/engine/gen_blockparams.go"
@@ -113,7 +117,8 @@ def:
         - title: "Block-building modifications"
           description: |
             The block-building code (in the "miner" package because of Proof-Of-Work legacy of ethereum) implements the
-            changes to support the transaction-inclusion, tx-pool toggle and gaslimit parameters of the Engine API.
+            changes to support the transaction-inclusion, tx-pool toggle, gaslimit, and EIP-1559 parameters of the
+            Engine API.
           globs:
             - "miner/*"
         - title: "Tx-pool tx cost updates"
