@@ -344,6 +344,10 @@ func (l *list) Add(tx *types.Transaction, priceBump uint64, l1CostFn txpool.L1Co
 	l.totalcost.Add(l.totalcost, cost)
 	if l1CostFn != nil {
 		if l1Cost := l1CostFn(tx.RollupCostData()); l1Cost != nil { // add rollup cost
+			cost, overflow := uint256.FromBig(l1Cost)
+			if overflow {
+				return false, nil
+			}
 			l.totalcost.Add(l.totalcost, cost)
 		}
 	}
