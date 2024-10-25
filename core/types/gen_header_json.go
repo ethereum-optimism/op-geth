@@ -28,7 +28,7 @@ func (h Header) MarshalJSON() ([]byte, error) {
 		GasLimit         hexutil.Uint64  `json:"gasLimit"         gencodec:"required"`
 		GasUsed          hexutil.Uint64  `json:"gasUsed"          gencodec:"required"`
 		Time             hexutil.Uint64  `json:"timestamp"        gencodec:"required"`
-		Extra            hexutil.Bytes   `json:"extraData"        gencodec:"required"`
+		Extra            hexutil.Bytes   `json:"extraData"        gencodec:"required" deep:"-"`
 		MixDigest        common.Hash     `json:"mixHash"`
 		Nonce            BlockNonce      `json:"nonce"`
 		BaseFee          *hexutil.Big    `json:"baseFeePerGas" rlp:"optional"`
@@ -80,7 +80,7 @@ func (h *Header) UnmarshalJSON(input []byte) error {
 		GasLimit         *hexutil.Uint64 `json:"gasLimit"         gencodec:"required"`
 		GasUsed          *hexutil.Uint64 `json:"gasUsed"          gencodec:"required"`
 		Time             *hexutil.Uint64 `json:"timestamp"        gencodec:"required"`
-		Extra            *hexutil.Bytes  `json:"extraData"        gencodec:"required"`
+		Extra            *hexutil.Bytes  `json:"extraData"        gencodec:"required" deep:"-"`
 		MixDigest        *common.Hash    `json:"mixHash"`
 		Nonce            *BlockNonce     `json:"nonce"`
 		BaseFee          *hexutil.Big    `json:"baseFeePerGas" rlp:"optional"`
