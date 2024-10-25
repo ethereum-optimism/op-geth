@@ -29,6 +29,8 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-verkle"
 )
@@ -84,7 +86,7 @@ type Header struct {
 	GasLimit    uint64         `json:"gasLimit"         gencodec:"required"`
 	GasUsed     uint64         `json:"gasUsed"          gencodec:"required"`
 	Time        uint64         `json:"timestamp"        gencodec:"required"`
-	Extra       []byte         `json:"extraData"        gencodec:"required"`
+	Extra       []byte         `json:"extraData"        gencodec:"required" deep:"-"`
 	MixDigest   common.Hash    `json:"mixHash"`
 	Nonce       BlockNonce     `json:"nonce"`
 
@@ -257,7 +259,7 @@ type extblock struct {
 //
 // The body elements and the receipts are used to recompute and overwrite the
 // relevant portions of the header.
-func NewBlock(header *Header, body *Body, receipts []*Receipt, hasher TrieHasher) *Block {
+func NewBlock(header *Header, body *Body, receipts []*Receipt, hasher TrieHasher, config *params.ChainConfig) *Block {
 	if body == nil {
 		body = &Body{}
 	}
@@ -294,15 +296,24 @@ func NewBlock(header *Header, body *Body, receipts []*Receipt, hasher TrieHasher
 		}
 	}
 
-	if withdrawals == nil {
-		b.header.WithdrawalsHash = nil
-	} else if len(withdrawals) == 0 {
-		b.header.WithdrawalsHash = &EmptyWithdrawalsHash
-		b.withdrawals = Withdrawals{}
-	} else {
-		hash := DeriveSha(Withdrawals(withdrawals), hasher)
-		b.header.WithdrawalsHash = &hash
+	if config.IsIsthmus(header.Time) {
+		if withdrawals == nil || len(withdrawals) > 0 {
+			log.Crit("expected non-nil empty withdrawals operation list in Isthmus, but got: %v", body.Withdrawals)
+		}
+		b.header.WithdrawalsHash = header.WithdrawalsHash
 		b.withdrawals = slices.Clone(withdrawals)
+	} else {
+		// pre-Canyon
+		if withdrawals == nil {
+			b.header.WithdrawalsHash = nil
+		} else if len(withdrawals) == 0 {
+			b.header.WithdrawalsHash = &EmptyWithdrawalsHash
+			b.withdrawals = Withdrawals{}
+		} else {
+			hash := DeriveSha(Withdrawals(withdrawals), hasher)
+			b.header.WithdrawalsHash = &hash
+			b.withdrawals = slices.Clone(withdrawals)
+		}
 	}
 
 	if requests == nil {

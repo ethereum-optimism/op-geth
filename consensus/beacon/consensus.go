@@ -413,7 +413,7 @@ func (beacon *Beacon) FinalizeAndAssemble(chain consensus.ChainHeaderReader, hea
 	}
 
 	// Assemble the final block.
-	block := types.NewBlock(header, body, receipts, trie.NewStackTrie(nil))
+	block := types.NewBlock(header, body, receipts, trie.NewStackTrie(nil), chain.Config())
 
 	// Create the block witness and attach to block.
 	// This step needs to happen as late as possible to catch all access events.

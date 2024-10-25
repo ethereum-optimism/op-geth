@@ -549,8 +549,14 @@ func (g *Genesis) toBlockWithRoot(root common.Hash) *types.Block {
 			head.RequestsHash = &types.EmptyRequestsHash
 			requests = make(types.Requests, 0)
 		}
+		if conf.IsIsthmus(g.Timestamp) {
+			//TODO need to get the storage root of the L2ToL1MessagePasser contract
+			head.WithdrawalsHash = &types.EmptyWithdrawalsHash
+			//h := state.GetStorageRoot(params.OptimismL2ToL1MessagePasser)
+			//head.WithdrawalsHash = &h
+		}
 	}
-	return types.NewBlock(head, &types.Body{Withdrawals: withdrawals, Requests: requests}, nil, trie.NewStackTrie(nil))
+	return types.NewBlock(head, &types.Body{Withdrawals: withdrawals, Requests: requests}, nil, trie.NewStackTrie(nil), g.Config)
 }
 
 // Commit writes the block and state of a genesis specification to the database.

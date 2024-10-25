@@ -425,7 +425,7 @@ func GenerateBadBlock(parent *types.Block, engine consensus.Engine, txs types.Tr
 	if config.IsShanghai(header.Number, header.Time) {
 		body.Withdrawals = []*types.Withdrawal{}
 	}
-	return types.NewBlock(header, body, receipts, trie.NewStackTrie(nil))
+	return types.NewBlock(header, body, receipts, trie.NewStackTrie(nil), config)
 }
 
 var (

@@ -206,7 +206,7 @@ func TestUncleHash(t *testing.T) {
 var benchBuffer = bytes.NewBuffer(make([]byte, 0, 32000))
 
 func BenchmarkEncodeBlock(b *testing.B) {
-	block := makeBenchBlock()
+	block := makeBenchBlock(nil)
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
@@ -217,12 +217,15 @@ func BenchmarkEncodeBlock(b *testing.B) {
 	}
 }
 
-func makeBenchBlock() *Block {
+func makeBenchBlock(config *params.ChainConfig) *Block {
+	if config == nil {
+		config = params.TestChainConfig
+	}
 	var (
 		key, _   = crypto.GenerateKey()
 		txs      = make([]*Transaction, 70)
 		receipts = make([]*Receipt, len(txs))
-		signer   = LatestSigner(params.TestChainConfig)
+		signer   = LatestSigner(config)
 		uncles   = make([]*Header, 3)
 	)
 	header := &Header{
@@ -255,7 +258,8 @@ func makeBenchBlock() *Block {
 			Extra:      []byte("benchmark uncle"),
 		}
 	}
-	return NewBlock(header, &Body{Transactions: txs, Uncles: uncles}, receipts, blocktest.NewHasher())
+	withdrawals := make([]*Withdrawal, 0)
+	return NewBlock(header, &Body{Transactions: txs, Uncles: uncles, Withdrawals: withdrawals}, receipts, blocktest.NewHasher(), config)
 }
 
 func TestRlpDecodeParentHash(t *testing.T) {
