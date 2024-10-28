@@ -364,14 +364,7 @@ func NewL1CostFuncFjord(l1BaseFee, l1BlobBaseFee, baseFeeScalar, blobFeeScalar *
 		calldataCostPerByte := new(big.Int).Mul(scaledL1BaseFee, sixteen)
 		blobCostPerByte := new(big.Int).Mul(blobFeeScalar, l1BlobBaseFee)
 		l1FeeScaled := new(big.Int).Add(calldataCostPerByte, blobCostPerByte)
-
-		fastLzSize := new(big.Int).SetUint64(costData.FastLzSize)
-		estimatedSize := new(big.Int).Add(L1CostIntercept, new(big.Int).Mul(L1CostFastlzCoef, fastLzSize))
-
-		if estimatedSize.Cmp(MinTransactionSizeScaled) < 0 {
-			estimatedSize.Set(MinTransactionSizeScaled)
-		}
-
+		estimatedSize := EstimatedL1Size(costData)
 		l1CostScaled := new(big.Int).Mul(estimatedSize, l1FeeScaled)
 		l1Cost := new(big.Int).Div(l1CostScaled, fjordDivisor)
 
@@ -380,6 +373,18 @@ func NewL1CostFuncFjord(l1BaseFee, l1BlobBaseFee, baseFeeScalar, blobFeeScalar *
 
 		return l1Cost, calldataGasUsed
 	}
+}
+
+// EstimatedL1Size estimates the number of bytes the transaction will occupy in its L1 batch, using
+// the Fjord linear regression model.
+func EstimatedL1Size(costData RollupCostData) *big.Int {
+	fastLzSize := new(big.Int).SetUint64(costData.FastLzSize)
+	estimatedSize := new(big.Int).Add(L1CostIntercept, new(big.Int).Mul(L1CostFastlzCoef, fastLzSize))
+
+	if estimatedSize.Cmp(MinTransactionSizeScaled) < 0 {
+		estimatedSize.Set(MinTransactionSizeScaled)
+	}
+	return estimatedSize
 }
 
 func extractEcotoneFeeParams(l1FeeParams []byte) (l1BaseFeeScalar, l1BlobBaseFeeScalar *big.Int) {
