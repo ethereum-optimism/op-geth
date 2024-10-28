@@ -429,8 +429,8 @@ func TestCheckTransactionConditional(t *testing.T) {
 	}
 }
 
-func TestHeaderRLPEncoding(t *testing.T) {
-	header := &Header{
+func getTestHeader() *Header {
+	return &Header{
 		ParentHash:      common.HexToHash("0x112233445566778899001122334455667788990011223344556677889900aabb"),
 		UncleHash:       common.HexToHash("0x2233445566778899001122334455667788990011223344556677889900aabbcc"),
 		Coinbase:        common.HexToAddress("0x8888f1f195afa192cfee860698584c030f4c9db1"),
@@ -449,6 +449,36 @@ func TestHeaderRLPEncoding(t *testing.T) {
 		Nonce:           EncodeNonce(0xa13a5a8c8f2bb1c4),
 		BaseFee:         big.NewInt(1000000000),
 	}
+}
+
+func checkFields(t *testing.T, header, want *Header) {
+	check := func(f string, got, want interface{}) {
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("%s mismatch: got %v, want %v", f, got, want)
+		}
+	}
+
+	check("ParentHash", header.ParentHash, want.ParentHash)
+	check("UncleHash", header.UncleHash, want.UncleHash)
+	check("Coinbase", header.Coinbase, want.Coinbase)
+	check("Root", header.Root, want.Root)
+	check("TxHash", header.TxHash, want.TxHash)
+	check("ReceiptHash", header.ReceiptHash, want.ReceiptHash)
+	check("WithdrawalsHash", header.WithdrawalsHash, want.WithdrawalsHash)
+	check("Bloom", header.Bloom, want.Bloom)
+	check("Difficulty", header.Difficulty, want.Difficulty)
+	check("Number", header.Number, want.Number)
+	check("GasLimit", header.GasLimit, want.GasLimit)
+	check("GasUsed", header.GasUsed, want.GasUsed)
+	check("Time", header.Time, want.Time)
+	check("Extra", header.Extra, want.Extra)
+	check("MixDigest", header.MixDigest, want.MixDigest)
+	check("Nonce", header.Nonce, want.Nonce)
+	check("BaseFee", header.BaseFee, want.BaseFee)
+}
+
+func TestHeaderRLPEncoding(t *testing.T) {
+	header := getTestHeader()
 
 	encoded, err := rlp.EncodeToBytes(header)
 	if err != nil {
@@ -460,51 +490,11 @@ func TestHeaderRLPEncoding(t *testing.T) {
 		t.Fatalf("failed to decode header: %v", err)
 	}
 
-	check := func(f string, got, want interface{}) {
-		if !reflect.DeepEqual(got, want) {
-			t.Errorf("%s mismatch: got %v, want %v", f, got, want)
-		}
-	}
-
-	check("ParentHash", decoded.ParentHash, header.ParentHash)
-	check("UncleHash", decoded.UncleHash, header.UncleHash)
-	check("Coinbase", decoded.Coinbase, header.Coinbase)
-	check("Root", decoded.Root, header.Root)
-	check("TxHash", decoded.TxHash, header.TxHash)
-	check("ReceiptHash", decoded.ReceiptHash, header.ReceiptHash)
-	check("WithdrawalsHash", decoded.WithdrawalsHash, header.WithdrawalsHash)
-	check("Bloom", decoded.Bloom, header.Bloom)
-	check("Difficulty", decoded.Difficulty, header.Difficulty)
-	check("Number", decoded.Number, header.Number)
-	check("GasLimit", decoded.GasLimit, header.GasLimit)
-	check("GasUsed", decoded.GasUsed, header.GasUsed)
-	check("Time", decoded.Time, header.Time)
-	check("Extra", decoded.Extra, header.Extra)
-	check("MixDigest", decoded.MixDigest, header.MixDigest)
-	check("Nonce", decoded.Nonce, header.Nonce)
-	check("BaseFee", decoded.BaseFee, header.BaseFee)
+	checkFields(t, &decoded, header)
 }
 
 func TestHeaderJSONEncoding(t *testing.T) {
-	header := &Header{
-		ParentHash:      common.HexToHash("0x112233445566778899001122334455667788990011223344556677889900aabb"),
-		UncleHash:       common.HexToHash("0x2233445566778899001122334455667788990011223344556677889900aabbcc"),
-		Coinbase:        common.HexToAddress("0x8888f1f195afa192cfee860698584c030f4c9db1"),
-		Root:            common.HexToHash("0x33445566778899001122334455667788990011223344556677889900aabbccdd"),
-		TxHash:          common.HexToHash("0x445566778899001122334455667788990011223344556677889900aabbccddee"),
-		ReceiptHash:     common.HexToHash("0x5566778899001122334455667788990011223344556677889900aabbccddeeff"),
-		WithdrawalsHash: &EmptyWithdrawalsHash,
-		Bloom:           Bloom{},
-		Difficulty:      big.NewInt(131072),
-		Number:          big.NewInt(42),
-		GasLimit:        3141592,
-		GasUsed:         21000,
-		Time:            1426516743,
-		Extra:           []byte("extra data"),
-		MixDigest:       common.HexToHash("0x66778899001122334455667788990011223344556677889900aabbccddeeff00"),
-		Nonce:           EncodeNonce(0xa13a5a8c8f2bb1c4),
-		BaseFee:         big.NewInt(1000000000),
-	}
+	header := getTestHeader()
 
 	encoded, err := json.Marshal(header)
 	if err != nil {
@@ -516,27 +506,5 @@ func TestHeaderJSONEncoding(t *testing.T) {
 		t.Fatalf("failed to decode header from JSON: %v", err)
 	}
 
-	check := func(f string, got, want interface{}) {
-		if !reflect.DeepEqual(got, want) {
-			t.Errorf("%s mismatch: got %v, want %v", f, got, want)
-		}
-	}
-
-	check("ParentHash", decoded.ParentHash, header.ParentHash)
-	check("UncleHash", decoded.UncleHash, header.UncleHash)
-	check("Coinbase", decoded.Coinbase, header.Coinbase)
-	check("Root", decoded.Root, header.Root)
-	check("TxHash", decoded.TxHash, header.TxHash)
-	check("ReceiptHash", decoded.ReceiptHash, header.ReceiptHash)
-	check("WithdrawalsHash", decoded.WithdrawalsHash, header.WithdrawalsHash)
-	check("Bloom", decoded.Bloom, header.Bloom)
-	check("Difficulty", decoded.Difficulty, header.Difficulty)
-	check("Number", decoded.Number, header.Number)
-	check("GasLimit", decoded.GasLimit, header.GasLimit)
-	check("GasUsed", decoded.GasUsed, header.GasUsed)
-	check("Time", decoded.Time, header.Time)
-	check("Extra", decoded.Extra, header.Extra)
-	check("MixDigest", decoded.MixDigest, header.MixDigest)
-	check("Nonce", decoded.Nonce, header.Nonce)
-	check("BaseFee", decoded.BaseFee, header.BaseFee)
+	checkFields(t, &decoded, header)
 }
