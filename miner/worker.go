@@ -415,6 +415,7 @@ func (miner *Miner) commitTransactions(env *environment, plainTxs, blobTxs *tran
 	if env.gasPool == nil {
 		env.gasPool = new(core.GasPool).AddGas(gasLimit)
 	}
+	blockDABytes := new(big.Int)
 	for {
 		// Check interruption signal and abort building if it's fired.
 		if interrupt != nil {
@@ -468,6 +469,16 @@ func (miner *Miner) commitTransactions(env *environment, plainTxs, blobTxs *tran
 			txs.Pop()
 			continue
 		}
+		daBytesAfter := new(big.Int)
+		if ltx.DABytes != nil && miner.config.MaxDABlockSize != nil {
+			daBytesAfter.Add(blockDABytes, ltx.DABytes)
+			if daBytesAfter.Cmp(miner.config.MaxDABlockSize) > 0 {
+				log.Debug("adding tx would exceed block DA size limit",
+					"hash", ltx.Hash, "txda", ltx.DABytes, "blockda", blockDABytes, "dalimit", miner.config.MaxDABlockSize)
+				txs.Pop()
+				continue
+			}
+		}
 		// Transaction seems to fit, pull it up from the pool
 		tx := ltx.Resolve()
 		if tx == nil {
@@ -507,6 +518,7 @@ func (miner *Miner) commitTransactions(env *environment, plainTxs, blobTxs *tran
 
 		case errors.Is(err, nil):
 			// Everything ok, collect the logs and shift in the next transaction from the same account
+			blockDABytes = daBytesAfter
 			txs.Shift()
 
 		default:
@@ -529,7 +541,8 @@ func (miner *Miner) fillTransactions(interrupt *atomic.Int32, env *environment) 
 
 	// Retrieve the pending transactions pre-filtered by the 1559/4844 dynamic fees
 	filter := txpool.PendingFilter{
-		MinTip: uint256.MustFromBig(tip),
+		MinTip:      uint256.MustFromBig(tip),
+		MaxDATxSize: miner.config.MaxDATxSize,
 	}
 	if env.header.BaseFee != nil {
 		filter.BaseFee = uint256.MustFromBig(env.header.BaseFee)

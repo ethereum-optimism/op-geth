@@ -18,6 +18,7 @@ package miner
 
 import (
 	"bytes"
+	"crypto/rand"
 	"math/big"
 	"reflect"
 	"testing"
@@ -65,8 +66,12 @@ var (
 	testConfig = Config{
 		PendingFeeRecipient: testBankAddress,
 		Recommit:            time.Second,
-		GasCeil:             params.GenesisGasLimit,
+		GasCeil:             50_000_000,
 	}
+)
+
+const (
+	numDAFilterTxs = 256
 )
 
 func init() {
@@ -150,7 +155,7 @@ func (b *testWorkerBackend) TxPool() *txpool.TxPool       { return b.txPool }
 
 func newTestWorker(t *testing.T, chainConfig *params.ChainConfig, engine consensus.Engine, db ethdb.Database, blocks int) (*Miner, *testWorkerBackend) {
 	backend := newTestWorkerBackend(t, chainConfig, engine, db, blocks)
-	backend.txPool.Add(pendingTxs, true, true)
+	backend.txPool.Add(pendingTxs, false, true)
 	w := New(backend, testConfig, engine)
 	return w, backend
 }
@@ -171,6 +176,25 @@ func TestBuildPayload(t *testing.T) {
 
 	zeroParams := make([]byte, 8)
 	t.Run("with-zero-params", func(t *testing.T) { testBuildPayload(t, true, false, zeroParams) })
+}
+
+func TestDAFilters(t *testing.T) {
+	// Each test case inserts one pending small (DA cost 100) transaction followed by
+	// numDAFilterTxs transactions that have random calldata (min DA size >> 100)
+	totalTxs := numDAFilterTxs + 1
+
+	// Very low max should filter all transactions.
+	t.Run("with-tx-filter-max-filters-all", func(t *testing.T) { testDAFilters(t, big.NewInt(1), nil, 0) })
+	t.Run("with-block-filter-max-filters-all", func(t *testing.T) { testDAFilters(t, nil, big.NewInt(1), 0) })
+	// Very high max should filter nothing.
+	t.Run("with-tx-filter-max-too-high", func(t *testing.T) { testDAFilters(t, big.NewInt(1000000), nil, totalTxs) })
+	t.Run("with-block-filter-max-too-high", func(t *testing.T) { testDAFilters(t, nil, big.NewInt(1000000), totalTxs) })
+	// The first transaction has size 100, all other DA test txs are bigger due to random Data, so should get filtered.
+	t.Run("with-tx-filter-all-but-first", func(t *testing.T) { testDAFilters(t, big.NewInt(100), nil, 1) })
+	t.Run("with-block-filter-all-but-first", func(t *testing.T) { testDAFilters(t, nil, big.NewInt(100), 1) })
+	// Zero/nil values for these parameters means we should mean never filter
+	t.Run("with-zero-tx-filters", func(t *testing.T) { testDAFilters(t, big.NewInt(0), big.NewInt(0), totalTxs) })
+	t.Run("with-zero-tx-filters", func(t *testing.T) { testDAFilters(t, nil, nil, totalTxs) })
 }
 
 func holoceneConfig() *params.ChainConfig {
@@ -204,6 +228,7 @@ func newPayloadArgs(parentHash common.Hash, params1559 []byte) *BuildPayloadArgs
 func testBuildPayload(t *testing.T, noTxPool, interrupt bool, params1559 []byte) {
 	t.Parallel()
 	db := rawdb.NewMemoryDatabase()
+
 	config := params.TestChainConfig
 	if len(params1559) != 0 {
 		config = holoceneConfig()
@@ -211,11 +236,12 @@ func testBuildPayload(t *testing.T, noTxPool, interrupt bool, params1559 []byte)
 	w, b := newTestWorker(t, config, ethash.NewFaker(), db, 0)
 
 	const numInterruptTxs = 256
+
 	if interrupt {
 		// when doing interrupt testing, create a large pool so interruption will
 		// definitely be visible.
 		txs := genTxs(1, numInterruptTxs)
-		b.txPool.Add(txs, true, false)
+		b.txPool.Add(txs, false, false)
 	}
 
 	args := newPayloadArgs(b.chain.CurrentBlock().Hash(), params1559)
@@ -294,6 +320,30 @@ func testBuildPayload(t *testing.T, noTxPool, interrupt bool, params1559 []byte)
 	}
 }
 
+func testDAFilters(t *testing.T, maxDATxSize, maxDABlockSize *big.Int, expectedTxCount int) {
+	t.Parallel()
+	db := rawdb.NewMemoryDatabase()
+	config := holoceneConfig()
+	w, b := newTestWorker(t, config, ethash.NewFaker(), db, 0)
+	w.SetMaxDASize(maxDATxSize, maxDABlockSize)
+	txs := genTxs(1, numDAFilterTxs)
+	b.txPool.Add(txs, false, false)
+
+	params1559 := []byte{0, 1, 2, 3, 4, 5, 6, 7}
+	args := newPayloadArgs(b.chain.CurrentBlock().Hash(), params1559)
+	args.NoTxPool = false
+
+	payload, err := w.buildPayload(args, false)
+	if err != nil {
+		t.Fatalf("Failed to build payload %v", err)
+	}
+	payload.WaitFull()
+	result := payload.ResolveFull().ExecutionPayload
+	if len(result.Transactions) != expectedTxCount {
+		t.Fatalf("Unexpected transaction set: got %d, expected %d", len(result.Transactions), expectedTxCount)
+	}
+}
+
 func testBuildPayloadWrongConfig(t *testing.T, params1559 []byte) {
 	t.Parallel()
 	db := rawdb.NewMemoryDatabase()
@@ -331,14 +381,23 @@ func genTxs(startNonce, count uint64) types.Transactions {
 	txs := make(types.Transactions, 0, count)
 	signer := types.LatestSigner(params.TestChainConfig)
 	for nonce := startNonce; nonce < startNonce+count; nonce++ {
-		txs = append(txs, types.MustSignNewTx(testBankKey, signer, &types.AccessListTx{
+		// generate incompressible data to put in the tx for DA filter testing. each of these
+		// txs will be bigger than the 100 minimum.
+		randomBytes := make([]byte, 100)
+		_, err := rand.Read(randomBytes)
+		if err != nil {
+			panic(err)
+		}
+		tx := types.MustSignNewTx(testBankKey, signer, &types.AccessListTx{
 			ChainID:  params.TestChainConfig.ChainID,
 			Nonce:    nonce,
 			To:       &testUserAddress,
 			Value:    big.NewInt(1000),
-			Gas:      params.TxGas,
+			Gas:      params.TxGas + uint64(len(randomBytes))*16,
 			GasPrice: big.NewInt(params.InitialBaseFee),
-		}))
+			Data:     randomBytes,
+		})
+		txs = append(txs, tx)
 	}
 	return txs
 }
