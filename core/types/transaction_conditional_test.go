@@ -37,15 +37,15 @@ func TestTransactionConditionalCost(t *testing.T) {
 		{
 			name: "default cost per account",
 			cond: TransactionConditional{KnownAccounts: map[common.Address]KnownAccount{
-				{19: 1}: {},
-				{19: 2}: {},
+				common.Address{19: 1}: KnownAccount{},
+				common.Address{19: 2}: KnownAccount{},
 			}},
 			cost: 2,
 		},
 		{
 			name: "storage root lookup",
 			cond: TransactionConditional{KnownAccounts: map[common.Address]KnownAccount{
-				{19: 1}: {
+				common.Address{19: 1}: KnownAccount{
 					StorageRoot: &EmptyRootHash,
 				}}},
 			cost: 2,
@@ -53,10 +53,10 @@ func TestTransactionConditionalCost(t *testing.T) {
 		{
 			name: "cost per storage slot lookup",
 			cond: TransactionConditional{KnownAccounts: map[common.Address]KnownAccount{
-				{19: 1}: {
+				common.Address{19: 1}: KnownAccount{
 					StorageSlots: map[common.Hash]common.Hash{
-						{}:      {31: 1},
-						{31: 1}: {31: 1},
+						common.Hash{}:      common.Hash{31: 1},
+						common.Hash{31: 1}: common.Hash{31: 1},
 					},
 				}}},
 			cost: 3,
@@ -67,11 +67,11 @@ func TestTransactionConditionalCost(t *testing.T) {
 				BlockNumberMin: big.NewInt(1),
 				TimestampMin:   uint64Ptr(1),
 				KnownAccounts: map[common.Address]KnownAccount{
-					{19: 1}: {StorageRoot: &EmptyRootHash},
-					{19: 2}: {
+					common.Address{19: 1}: KnownAccount{StorageRoot: &EmptyRootHash},
+					common.Address{19: 2}: KnownAccount{
 						StorageSlots: map[common.Hash]common.Hash{
-							{}:      {31: 1},
-							{31: 1}: {31: 1},
+							common.Hash{}:      common.Hash{31: 1},
+							common.Hash{31: 1}: common.Hash{31: 1},
 						},
 					}}},
 			cost: 7,
@@ -158,7 +158,7 @@ func TestTransactionConditionalSerDeser(t *testing.T) {
 			mustFail: false,
 			expected: TransactionConditional{
 				KnownAccounts: map[common.Address]KnownAccount{
-					common.HexToAddress("0x6b3A8798E5Fb9fC5603F3aB5eA2e8136694e55d0"): {
+					common.HexToAddress("0x6b3A8798E5Fb9fC5603F3aB5eA2e8136694e55d0"): KnownAccount{
 						StorageRoot:  hashPtr(common.HexToHash("0x290decd9548b62a8d60345a988386fc84ba6bc95484008f6362f93160ef3e563")),
 						StorageSlots: make(map[common.Hash]common.Hash),
 					},
@@ -171,7 +171,7 @@ func TestTransactionConditionalSerDeser(t *testing.T) {
 			mustFail: false,
 			expected: TransactionConditional{
 				KnownAccounts: map[common.Address]KnownAccount{
-					common.HexToAddress("0x6b3A8798E5Fb9fC5603F3aB5eA2e8136694e55d0"): {
+					common.HexToAddress("0x6b3A8798E5Fb9fC5603F3aB5eA2e8136694e55d0"): KnownAccount{
 						StorageRoot: nil,
 						StorageSlots: map[common.Hash]common.Hash{
 							common.HexToHash("0xc65a7bb8d6351c1cf70c95a316cc6a92839c986682d98bc35f958f4883f9d2a8"): common.HexToHash("0x"),
