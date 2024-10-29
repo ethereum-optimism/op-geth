@@ -364,7 +364,7 @@ func NewL1CostFuncFjord(l1BaseFee, l1BlobBaseFee, baseFeeScalar, blobFeeScalar *
 		calldataCostPerByte := new(big.Int).Mul(scaledL1BaseFee, sixteen)
 		blobCostPerByte := new(big.Int).Mul(blobFeeScalar, l1BlobBaseFee)
 		l1FeeScaled := new(big.Int).Add(calldataCostPerByte, blobCostPerByte)
-		estimatedSize := EstimatedL1Size(costData)
+		estimatedSize := EstimatedL1SizeScaled(costData)
 		l1CostScaled := new(big.Int).Mul(estimatedSize, l1FeeScaled)
 		l1Cost := new(big.Int).Div(l1CostScaled, fjordDivisor)
 
@@ -375,9 +375,9 @@ func NewL1CostFuncFjord(l1BaseFee, l1BlobBaseFee, baseFeeScalar, blobFeeScalar *
 	}
 }
 
-// EstimatedL1Size estimates the number of bytes the transaction will occupy in its L1 batch, using
-// the Fjord linear regression model.
-func EstimatedL1Size(costData RollupCostData) *big.Int {
+// EstimatedL1Size estimates the number of bytes the transaction will occupy in its L1 batch using
+// the Fjord linear regression model, and returns this value scaled up by 1e6.
+func EstimatedL1SizeScaled(costData RollupCostData) *big.Int {
 	fastLzSize := new(big.Int).SetUint64(costData.FastLzSize)
 	estimatedSize := new(big.Int).Add(L1CostIntercept, new(big.Int).Mul(L1CostFastlzCoef, fastLzSize))
 
