@@ -58,6 +58,8 @@ var (
 
 	txConditionalRejectedCounter = metrics.NewRegisteredCounter("miner/transactionConditional/rejected", nil)
 	txConditionalMinedTimer      = metrics.NewRegisteredTimer("miner/transactionConditional/elapsedtime", nil)
+
+	txInteropRejectedCounter = metrics.NewRegisteredCounter("miner/transactionInterop/rejected", nil)
 )
 
 // environment is the worker's current environment and holds all
@@ -444,6 +446,7 @@ func (miner *Miner) checkInterop(ctx context.Context, tx *types.Transaction, rec
 		if ctx.Err() != nil { // don't reject transactions permanently on RPC timeouts etc.
 			return err
 		}
+		txInteropRejectedCounter.Inc(1)
 		tx.SetRejected() // Mark the tx as rejected: it will not be welcome in the tx-pool anymore.
 		return err
 	}
@@ -548,6 +551,10 @@ func (miner *Miner) commitTransactions(env *environment, plainTxs, blobTxs *tran
 		case env.rpcCtx != nil && env.rpcCtx.Err() != nil && errors.Is(err, env.rpcCtx.Err()):
 			log.Warn("Transaction processing aborted due to RPC context error", "err", err)
 			return errBlockInterruptedByTimeout // RPC timeout. Tx could not be checked.
+
+		case err != nil && tx.Rejected():
+			log.Warn("Transaction was rejected during block-building", "hash", ltx.Hash, "err", err)
+			txs.Pop()
 
 		case errors.Is(err, nil):
 			// Everything ok, collect the logs and shift in the next transaction from the same account
