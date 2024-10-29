@@ -231,6 +231,14 @@ def:
       globs:
         - "core/state/workers.go"
         - "trie/hasher.go"
+    - title: "Interop message checking"
+      description: |
+        The interop upgrade introduces cross-chain message.
+        Transactions are checked for cross-chain message safety before and during inclusion into a block.
+        This also includes tx-pool ingress filtering.
+      globs:
+        - "eth/interop.go"
+        - "core/txpool/ingress_filters.go"
     - title: "User API enhancements"
       description: "Encode the Deposit Tx properties, the L1 costs, and daisy-chain RPC-calls for pre-Bedrock historical data"
       sub:

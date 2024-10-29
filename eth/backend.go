@@ -20,7 +20,6 @@ package eth
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"math/big"
 	"runtime"
@@ -39,7 +38,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/txpool/blobpool"
 	"github.com/ethereum/go-ethereum/core/txpool/legacypool"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/core/types/interoptypes"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/eth/downloader"
 	"github.com/ethereum/go-ethereum/eth/ethconfig"
@@ -275,7 +273,13 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 		blobPool := blobpool.New(config.BlobPool, eth.blockchain)
 		txPools = append(txPools, blobPool)
 	}
-	eth.txPool, err = txpool.New(config.TxPool.PriceLimit, eth.blockchain, txPools)
+	// if interop is enabled, establish an Interop Filter connected to this Ethereum instance's
+	// simulated logs and message safety check functions
+	poolFilters := []txpool.IngressFilter{}
+	if config.InteropMessageRPC != "" {
+		poolFilters = append(poolFilters, txpool.NewInteropFilter(eth.SimLogs, eth.CheckMessages))
+	}
+	eth.txPool, err = txpool.New(config.TxPool.PriceLimit, eth.blockchain, txPools, poolFilters)
 	if err != nil {
 		return nil, err
 	}
@@ -562,11 +566,4 @@ func (s *Ethereum) HandleRequiredProtocolVersion(required params.ProtocolVersion
 		return s.nodeCloser()
 	}
 	return nil
-}
-
-func (s *Ethereum) CheckMessages(ctx context.Context, messages []interoptypes.Message, minSafety interoptypes.SafetyLevel) error {
-	if s.interopRPC == nil {
-		return errors.New("cannot check interop messages, no RPC available")
-	}
-	return s.interopRPC.CheckMessages(ctx, messages, minSafety)
 }
