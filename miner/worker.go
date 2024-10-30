@@ -406,20 +406,37 @@ func (miner *Miner) commitBlobTransaction(env *environment, tx *types.Transactio
 	return nil
 }
 
+type LogInspector interface {
+	GetLogs(hash common.Hash, blockNumber uint64, blockHash common.Hash) []*types.Log
+}
+
 // applyTransaction runs the transaction. If execution fails, state and gas pool are reverted.
 func (miner *Miner) applyTransaction(env *environment, tx *types.Transaction) (*types.Receipt, error) {
 	var (
 		snap = env.state.Snapshot()
 		gp   = env.gasPool.Gas()
 	)
-	receipt, err := core.ApplyTransaction(miner.chainConfig, miner.chain, &env.coinbase, env.gasPool, env.state, env.header, tx, &env.header.GasUsed, vm.Config{})
-	// If successful, and not just reproducing the block, check the interop executing messages.
-	if err == nil && !env.noTxs && miner.chain.Config().IsInterop(env.header.Time) {
+	var extraOpts *core.ApplyTransactionOpts
+	// If not just reproducing the block, check the interop executing messages.
+	if !env.noTxs && miner.chain.Config().IsInterop(env.header.Time) {
 		// Whenever there are `noTxs` it means we are building a block from pre-determined txs. There are two cases:
 		//	(1) it's derived from L1, and will be verified asynchronously by the op-node.
 		//	(2) it is a deposits-only empty-block by the sequencer, in which case there are no interop-txs to verify (as deposits do not emit any).
-		err = miner.checkInterop(env.rpcCtx, tx, receipt)
+
+		// We have to insert as call-back, since we cannot revert the snapshot
+		// after the tx is deemed successful and the journal has been cleared already.
+		extraOpts = &core.ApplyTransactionOpts{
+			PostValidation: func(evm *vm.EVM, result *core.ExecutionResult) error {
+				logInspector, ok := evm.StateDB.(LogInspector)
+				if !ok {
+					return fmt.Errorf("cannot get logs from StateDB type %T", evm.StateDB)
+				}
+				logs := logInspector.GetLogs(tx.Hash(), env.header.Number.Uint64(), common.Hash{})
+				return miner.checkInterop(env.rpcCtx, tx, result.Failed(), logs)
+			},
+		}
 	}
+	receipt, err := core.ApplyTransactionExtended(miner.chainConfig, miner.chain, &env.coinbase, env.gasPool, env.state, env.header, tx, &env.header.GasUsed, vm.Config{}, extraOpts)
 	if err != nil {
 		env.state.RevertToSnapshot(snap)
 		env.gasPool.SetGas(gp)
@@ -427,7 +444,13 @@ func (miner *Miner) applyTransaction(env *environment, tx *types.Transaction) (*
 	return receipt, err
 }
 
-func (miner *Miner) checkInterop(ctx context.Context, tx *types.Transaction, receipt *types.Receipt) error {
+func (miner *Miner) checkInterop(ctx context.Context, tx *types.Transaction, failed bool, logs []*types.Log) error {
+	if tx.Type() == types.DepositTxType {
+		return nil // deposit-txs are always safe
+	}
+	if failed {
+		return nil // failed txs don't persist any logs
+	}
 	b, ok := miner.backend.(BackendWithInterop)
 	if !ok {
 		return fmt.Errorf("cannot mine interop txs without interop backend, got backend type %T", miner.backend)
@@ -435,15 +458,19 @@ func (miner *Miner) checkInterop(ctx context.Context, tx *types.Transaction, rec
 	if ctx == nil { // check if the miner was set up correctly to interact with an RPC
 		return errors.New("need RPC context to check executing messages")
 	}
-	executingMessages, err := interoptypes.ExecutingMessagesFromLogs(receipt.Logs)
+	executingMessages, err := interoptypes.ExecutingMessagesFromLogs(logs)
 	if err != nil {
-		return fmt.Errorf("cannot parse interop messages from receipt of %s: %w", receipt.TxHash, err)
+		return fmt.Errorf("cannot parse interop messages from receipt of %s: %w", tx.Hash(), err)
 	}
 	if len(executingMessages) == 0 {
 		return nil // avoid an RPC check if there are no executing messages to verify.
 	}
+	if ctx.Err() != nil {
+		log.Warn("already timed out", "err", ctx.Err())
+	}
 	if err := b.CheckMessages(ctx, executingMessages, interoptypes.CrossUnsafe); err != nil {
 		if ctx.Err() != nil { // don't reject transactions permanently on RPC timeouts etc.
+			log.Debug("CheckMessages timed out", "err", ctx.Err())
 			return err
 		}
 		txInteropRejectedCounter.Inc(1)

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-
 	"github.com/holiman/uint256"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -70,6 +69,10 @@ func ExecutingMessagesFromLogs(logs []*types.Log) ([]Message, error) {
 	var executingMessages []Message
 	for i, l := range logs {
 		if l.Address == params.InteropCrossL2InboxAddress {
+			// ignore events that do not match this
+			if len(l.Topics) == 0 || l.Topics[0] != ExecutingMessageEventTopic {
+				continue
+			}
 			var msg Message
 			if err := msg.DecodeEvent(l.Topics, l.Data); err != nil {
 				return nil, fmt.Errorf("invalid executing message %d, tx-log %d: %w", len(executingMessages), i, err)
