@@ -451,6 +451,9 @@ func (miner *Miner) checkInterop(ctx context.Context, tx *types.Transaction, fai
 	if failed {
 		return nil // failed txs don't persist any logs
 	}
+	if tx.Rejected() {
+		return errors.New("transaction was previously rejected")
+	}
 	b, ok := miner.backend.(BackendWithInterop)
 	if !ok {
 		return fmt.Errorf("cannot mine interop txs without interop backend, got backend type %T", miner.backend)

@@ -113,8 +113,8 @@ type Payload struct {
 }
 
 // newPayload initializes the payload object.
-func newPayload(empty *types.Block, witness *stateless.Witness, id engine.PayloadID) *Payload {
-	rpcCtx, rpcCancel := context.WithCancel(context.Background())
+func newPayload(lifeCtx context.Context, empty *types.Block, witness *stateless.Witness, id engine.PayloadID) *Payload {
+	rpcCtx, rpcCancel := context.WithCancel(lifeCtx)
 	payload := &Payload{
 		id:           id,
 		empty:        empty,
@@ -312,7 +312,7 @@ func (miner *Miner) buildPayload(args *BuildPayloadArgs, witness bool) (*Payload
 		if empty.err != nil {
 			return nil, empty.err
 		}
-		payload := newPayload(empty.block, empty.witness, args.Id())
+		payload := newPayload(miner.lifeCtx, empty.block, empty.witness, args.Id())
 		// make sure to make it appear as full, otherwise it will wait indefinitely for payload building to complete.
 		payload.full = empty.block
 		payload.fullFees = empty.fees
@@ -341,7 +341,7 @@ func (miner *Miner) buildPayload(args *BuildPayloadArgs, witness bool) (*Payload
 		return nil, err
 	}
 
-	payload := newPayload(nil, nil, args.Id())
+	payload := newPayload(miner.lifeCtx, nil, nil, args.Id())
 	// set shared interrupt
 	fullParams.interrupt = payload.interrupt
 	fullParams.rpcCtx = payload.rpcCtx
@@ -388,6 +388,8 @@ func (miner *Miner) buildPayload(args *BuildPayloadArgs, witness bool) (*Payload
 		var lastDuration time.Duration
 		for {
 			select {
+			case <-miner.lifeCtx.Done():
+				stopReason = "miner-shutdown"
 			case <-timer.C:
 				// We have to prioritize the stop signal because the recommit timer
 				// might have fired while stop also got closed.

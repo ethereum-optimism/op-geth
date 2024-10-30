@@ -495,6 +495,9 @@ func (s *Ethereum) Stop() error {
 	if s.interopRPC != nil {
 		s.interopRPC.Close()
 	}
+	if s.miner != nil {
+		s.miner.Close()
+	}
 
 	// Clean shutdown marker as the last thing before closing db
 	s.shutdownTracker.Stop()

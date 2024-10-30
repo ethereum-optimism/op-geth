@@ -91,10 +91,14 @@ type Miner struct {
 	pendingMu   sync.Mutex // Lock protects the pending block
 
 	backend Backend
+
+	lifeCtxCancel context.CancelFunc
+	lifeCtx       context.Context
 }
 
 // New creates a new miner with provided config.
 func New(eth Backend, config Config, engine consensus.Engine) *Miner {
+	ctx, cancel := context.WithCancel(context.Background())
 	return &Miner{
 		backend:     eth,
 		config:      &config,
@@ -103,6 +107,9 @@ func New(eth Backend, config Config, engine consensus.Engine) *Miner {
 		txpool:      eth.TxPool(),
 		chain:       eth.BlockChain(),
 		pending:     &pending{},
+		// To interrupt background tasks that may be attached to external processes
+		lifeCtxCancel: cancel,
+		lifeCtx:       ctx,
 	}
 }
 
@@ -194,4 +201,8 @@ func (miner *Miner) getPending() *newPayloadResult {
 	}
 	miner.pending.update(header.Hash(), ret)
 	return ret
+}
+
+func (miner *Miner) Close() {
+	miner.lifeCtxCancel()
 }
