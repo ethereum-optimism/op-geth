@@ -568,9 +568,23 @@ func (pool *LegacyPool) Pending(filter txpool.PendingFilter) map[common.Address]
 				}
 			}
 		}
+		if filter.MaxDATxSize != nil && !pool.locals.contains(addr) {
+			for i, tx := range txs {
+				estimate := types.EstimatedL1SizeScaled(tx.RollupCostData())
+				estimate = estimate.Div(estimate, big.NewInt(1e6))
+				if estimate.Cmp(filter.MaxDATxSize) > 0 {
+					log.Debug("filtering tx that exceeds max da tx size",
+						"hash", tx.Hash(), "txda", estimate, "dalimit", filter.MaxDATxSize)
+					txs = txs[:i]
+					break
+				}
+			}
+		}
 		if len(txs) > 0 {
 			lazies := make([]*txpool.LazyTransaction, len(txs))
 			for i := 0; i < len(txs); i++ {
+				daBytes := types.EstimatedL1SizeScaled(txs[i].RollupCostData())
+				daBytes = daBytes.Div(daBytes, big.NewInt(1e6))
 				lazies[i] = &txpool.LazyTransaction{
 					Pool:      pool,
 					Hash:      txs[i].Hash(),
@@ -580,6 +594,7 @@ func (pool *LegacyPool) Pending(filter txpool.PendingFilter) map[common.Address]
 					GasTipCap: uint256.MustFromBig(txs[i].GasTipCap()),
 					Gas:       txs[i].Gas(),
 					BlobGas:   txs[i].BlobGas(),
+					DABytes:   daBytes,
 				}
 			}
 			pending[addr] = lazies
