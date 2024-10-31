@@ -154,6 +154,8 @@ type Message struct {
 	IsDepositTx    bool                 // IsDepositTx indicates the message is force-included and can persist a mint.
 	Mint           *big.Int             // Mint is the amount to mint before EVM processing, or nil if there is no minting.
 	RollupCostData types.RollupCostData // RollupCostData caches data to compute the fee we charge for data availability
+
+	PostValidation func(evm *vm.EVM, result *ExecutionResult) error
 }
 
 // TransactionToMessage converts a transaction into a Message.
@@ -447,6 +449,13 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 		}
 		err = nil
 	}
+
+	if st.msg.PostValidation != nil {
+		if err := st.msg.PostValidation(st.evm, result); err != nil {
+			return nil, err
+		}
+	}
+
 	return result, err
 }
 

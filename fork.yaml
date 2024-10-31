@@ -119,6 +119,7 @@ def:
             The block-building code (in the "miner" package because of Proof-Of-Work legacy of ethereum) implements the
             changes to support the transaction-inclusion, tx-pool toggle, gaslimit, and EIP-1559 parameters of the
             Engine API.
+            This also includes experimental support for interop executing-messages to be verified through an RPC.
           globs:
             - "miner/*"
         - title: "Tx-pool tx cost updates"

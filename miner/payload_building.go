@@ -17,6 +17,7 @@
 package miner
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/binary"
 	"errors"
@@ -106,10 +107,14 @@ type Payload struct {
 	err       error
 	stopOnce  sync.Once
 	interrupt *atomic.Int32 // interrupt signal shared with worker
+
+	rpcCtx    context.Context // context to limit RPC-coupled payload checks
+	rpcCancel context.CancelFunc
 }
 
 // newPayload initializes the payload object.
-func newPayload(empty *types.Block, witness *stateless.Witness, id engine.PayloadID) *Payload {
+func newPayload(lifeCtx context.Context, empty *types.Block, witness *stateless.Witness, id engine.PayloadID) *Payload {
+	rpcCtx, rpcCancel := context.WithCancel(lifeCtx)
 	payload := &Payload{
 		id:           id,
 		empty:        empty,
@@ -117,6 +122,9 @@ func newPayload(empty *types.Block, witness *stateless.Witness, id engine.Payloa
 		stop:         make(chan struct{}),
 
 		interrupt: new(atomic.Int32),
+
+		rpcCtx:    rpcCtx,
+		rpcCancel: rpcCancel,
 	}
 	log.Info("Starting work on payload", "id", payload.id)
 	payload.cond = sync.NewCond(&payload.lock)
@@ -253,6 +261,7 @@ func (payload *Payload) resolve(onlyFull bool) *engine.ExecutionPayloadEnvelope 
 // the update anyways.
 // interruptBuilding is safe to be called concurrently.
 func (payload *Payload) interruptBuilding() {
+	payload.rpcCancel()
 	// Set the interrupt if not interrupted already.
 	// It's ok if it has either already been interrupted by payload resolution earlier,
 	// or by the timeout timer set to commitInterruptTimeout.
@@ -269,6 +278,7 @@ func (payload *Payload) interruptBuilding() {
 // transactions with interruptBuilding.
 // stopBuilding is safe to be called concurrently.
 func (payload *Payload) stopBuilding() {
+	payload.rpcCancel()
 	// Concurrent Resolve calls should only stop once.
 	payload.stopOnce.Do(func() {
 		log.Debug("Stop payload building.", "id", payload.id)
@@ -295,12 +305,14 @@ func (miner *Miner) buildPayload(args *BuildPayloadArgs, witness bool) (*Payload
 			txs:           args.Transactions,
 			gasLimit:      args.GasLimit,
 			eip1559Params: args.EIP1559Params,
+			// No RPC requests allowed.
+			rpcCtx: nil,
 		}
 		empty := miner.generateWork(emptyParams, witness)
 		if empty.err != nil {
 			return nil, empty.err
 		}
-		payload := newPayload(empty.block, empty.witness, args.Id())
+		payload := newPayload(miner.lifeCtx, empty.block, empty.witness, args.Id())
 		// make sure to make it appear as full, otherwise it will wait indefinitely for payload building to complete.
 		payload.full = empty.block
 		payload.fullFees = empty.fees
@@ -329,9 +341,10 @@ func (miner *Miner) buildPayload(args *BuildPayloadArgs, witness bool) (*Payload
 		return nil, err
 	}
 
-	payload := newPayload(nil, nil, args.Id())
+	payload := newPayload(miner.lifeCtx, nil, nil, args.Id())
 	// set shared interrupt
 	fullParams.interrupt = payload.interrupt
+	fullParams.rpcCtx = payload.rpcCtx
 
 	// Spin up a routine for updating the payload in background. This strategy
 	// can maximum the revenue for including transactions with highest fee.
@@ -375,6 +388,8 @@ func (miner *Miner) buildPayload(args *BuildPayloadArgs, witness bool) (*Payload
 		var lastDuration time.Duration
 		for {
 			select {
+			case <-miner.lifeCtx.Done():
+				stopReason = "miner-shutdown"
 			case <-timer.C:
 				// We have to prioritize the stop signal because the recommit timer
 				// might have fired while stop also got closed.

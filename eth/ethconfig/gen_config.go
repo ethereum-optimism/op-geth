@@ -67,6 +67,7 @@ func (c Config) MarshalTOML() (interface{}, error) {
 		RollupDisableTxPoolGossip                 bool
 		RollupDisableTxPoolAdmission              bool
 		RollupHaltOnIncompatibleProtocolVersion   string
+		InteropMessageRPC                         string `toml:",omitempty"`
 	}
 	var enc Config
 	enc.Genesis = c.Genesis
@@ -119,6 +120,7 @@ func (c Config) MarshalTOML() (interface{}, error) {
 	enc.RollupDisableTxPoolGossip = c.RollupDisableTxPoolGossip
 	enc.RollupDisableTxPoolAdmission = c.RollupDisableTxPoolAdmission
 	enc.RollupHaltOnIncompatibleProtocolVersion = c.RollupHaltOnIncompatibleProtocolVersion
+	enc.InteropMessageRPC = c.InteropMessageRPC
 	return &enc, nil
 }
 
@@ -175,6 +177,7 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 		RollupDisableTxPoolGossip                 *bool
 		RollupDisableTxPoolAdmission              *bool
 		RollupHaltOnIncompatibleProtocolVersion   *string
+		InteropMessageRPC                         *string `toml:",omitempty"`
 	}
 	var dec Config
 	if err := unmarshal(&dec); err != nil {
@@ -329,6 +332,9 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 	}
 	if dec.RollupHaltOnIncompatibleProtocolVersion != nil {
 		c.RollupHaltOnIncompatibleProtocolVersion = *dec.RollupHaltOnIncompatibleProtocolVersion
+	}
+	if dec.InteropMessageRPC != nil {
+		c.InteropMessageRPC = *dec.InteropMessageRPC
 	}
 	return nil
 }
