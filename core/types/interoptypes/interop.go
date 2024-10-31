@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 
 	"github.com/holiman/uint256"
 
@@ -53,10 +54,10 @@ func (m *Message) DecodeEvent(topics []common.Hash, data []byte) error {
 		return fmt.Errorf("invalid block number padding: %w", err)
 	}
 	m.Identifier.BlockNumber = binary.BigEndian.Uint64(take(8))
-	if err := takeZeroes(32 - 8); err != nil {
+	if err := takeZeroes(32 - 4); err != nil {
 		return fmt.Errorf("invalid log index padding: %w", err)
 	}
-	m.Identifier.LogIndex = binary.BigEndian.Uint64(take(8))
+	m.Identifier.LogIndex = binary.BigEndian.Uint32(take(4))
 	if err := takeZeroes(32 - 8); err != nil {
 		return fmt.Errorf("invalid timestamp padding: %w", err)
 	}
@@ -87,7 +88,7 @@ func ExecutingMessagesFromLogs(logs []*types.Log) ([]Message, error) {
 type Identifier struct {
 	Origin      common.Address
 	BlockNumber uint64
-	LogIndex    uint64
+	LogIndex    uint32
 	Timestamp   uint64
 	ChainID     uint256.Int // flat, not a pointer, to make Identifier safe as map key
 }
@@ -117,7 +118,10 @@ func (id *Identifier) UnmarshalJSON(input []byte) error {
 	}
 	id.Origin = dec.Origin
 	id.BlockNumber = uint64(dec.BlockNumber)
-	id.LogIndex = uint64(dec.LogIndex)
+	if dec.LogIndex > math.MaxUint32 {
+		return fmt.Errorf("log index too large: %d", dec.LogIndex)
+	}
+	id.LogIndex = uint32(dec.LogIndex)
 	id.Timestamp = uint64(dec.Timestamp)
 	id.ChainID = (uint256.Int)(dec.ChainID)
 	return nil
