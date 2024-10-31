@@ -38,7 +38,7 @@ func (cl *InteropClient) Close() {
 	cl.mu.Lock()
 	defer cl.mu.Unlock()
 	if cl.client != nil {
-		cl.Close()
+		cl.client.Close()
 	}
 	cl.closed = true
 }
