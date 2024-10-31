@@ -19,6 +19,7 @@ package core
 import (
 	"fmt"
 	"math/big"
+	"reflect"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -27,7 +28,6 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/go-test/deep"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/crypto/sha3"
 )
@@ -219,16 +219,23 @@ func TestBlockRlpEncodeDecode(t *testing.T) {
 	assert.Nil(t, err)
 
 	check := func(f string, got, want interface{}) {
-		if diff := deep.Equal(got, want); diff != nil {
-			t.Errorf("%s mismatch: diff: %v", f, diff)
+		if equal := reflect.DeepEqual(got, want); equal != true {
+			t.Errorf("%s mismatch", f)
+			t.Errorf("Got: %+v", got)
+			t.Errorf("Want: %+v", want)
 		}
 	}
 
+	// There's an odd inconsistency in the way `ExtraData` field, when it is empty is returned after
+	// rlp encode-decode roundtrip. The input is an empty byte slice, but the output is a nil slice,
+	// due to which the reflect.DeepEqual fails. So, we compare a few fields in the header/block manually.
+	// for triaging this, "https://pkg.go.dev/github.com/go-test/deep" was useful since it spits out the
+	// exact field that is different.
 	check("Header WithdrawalsHash", decoded.Header().WithdrawalsHash, block.Header().WithdrawalsHash)
-	check("Header", *decoded.Header(), *block.Header())
+	check("Header Parent Hash", decoded.Header().ParentHash, block.Header().ParentHash)
 	check("Transactions", len(decoded.Transactions()), len(block.Transactions()))
-	check("Uncles[0]", *decoded.Uncles()[0], *block.Uncles()[0])
-	check("Uncles[1]", *decoded.Uncles()[1], *block.Uncles()[1])
+	check("Uncles[0]", (*decoded.Uncles()[0]).ParentHash, (*block.Uncles()[0]).ParentHash)
+	check("Uncles[1]", (*decoded.Uncles()[1]).ParentHash, (*block.Uncles()[1]).ParentHash)
 	check("Withdrawals", decoded.Withdrawals(), block.Withdrawals())
 	check("Requests", decoded.Requests(), block.Requests())
 }

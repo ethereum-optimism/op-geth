@@ -86,7 +86,7 @@ type Header struct {
 	GasLimit    uint64         `json:"gasLimit"         gencodec:"required"`
 	GasUsed     uint64         `json:"gasUsed"          gencodec:"required"`
 	Time        uint64         `json:"timestamp"        gencodec:"required"`
-	Extra       []byte         `json:"extraData"        gencodec:"required" deep:"-"`
+	Extra       []byte         `json:"extraData"        gencodec:"required"`
 	MixDigest   common.Hash    `json:"mixHash"`
 	Nonce       BlockNonce     `json:"nonce"`
 
@@ -302,18 +302,16 @@ func NewBlock(header *Header, body *Body, receipts []*Receipt, hasher TrieHasher
 		}
 		b.header.WithdrawalsHash = header.WithdrawalsHash
 		b.withdrawals = slices.Clone(withdrawals)
-	} else {
+	} else if withdrawals == nil {
 		// pre-Canyon
-		if withdrawals == nil {
-			b.header.WithdrawalsHash = nil
-		} else if len(withdrawals) == 0 {
-			b.header.WithdrawalsHash = &EmptyWithdrawalsHash
-			b.withdrawals = Withdrawals{}
-		} else {
-			hash := DeriveSha(Withdrawals(withdrawals), hasher)
-			b.header.WithdrawalsHash = &hash
-			b.withdrawals = slices.Clone(withdrawals)
-		}
+		b.header.WithdrawalsHash = nil
+	} else if len(withdrawals) == 0 {
+		b.header.WithdrawalsHash = &EmptyWithdrawalsHash
+		b.withdrawals = Withdrawals{}
+	} else {
+		hash := DeriveSha(Withdrawals(withdrawals), hasher)
+		b.header.WithdrawalsHash = &hash
+		b.withdrawals = slices.Clone(withdrawals)
 	}
 
 	if requests == nil {
