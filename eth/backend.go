@@ -20,6 +20,7 @@ package eth
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/big"
 	"runtime"
@@ -38,10 +39,12 @@ import (
 	"github.com/ethereum/go-ethereum/core/txpool/blobpool"
 	"github.com/ethereum/go-ethereum/core/txpool/legacypool"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/core/types/interoptypes"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/eth/downloader"
 	"github.com/ethereum/go-ethereum/eth/ethconfig"
 	"github.com/ethereum/go-ethereum/eth/gasprice"
+	"github.com/ethereum/go-ethereum/eth/interop"
 	"github.com/ethereum/go-ethereum/eth/protocols/eth"
 	"github.com/ethereum/go-ethereum/eth/protocols/snap"
 	"github.com/ethereum/go-ethereum/eth/tracers"
@@ -78,6 +81,8 @@ type Ethereum struct {
 
 	seqRPCService        *rpc.Client
 	historicalRPCService *rpc.Client
+
+	interopRPC *interop.InteropClient
 
 	// DB interfaces
 	chainDb ethdb.Database // Block chain database
@@ -320,6 +325,10 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 		eth.historicalRPCService = client
 	}
 
+	if config.InteropMessageRPC != "" {
+		eth.interopRPC = interop.NewInteropClient(config.InteropMessageRPC)
+	}
+
 	// Start the RPC service
 	eth.netRPCService = ethapi.NewNetAPI(eth.p2pServer, networkID)
 
@@ -483,6 +492,12 @@ func (s *Ethereum) Stop() error {
 	if s.historicalRPCService != nil {
 		s.historicalRPCService.Close()
 	}
+	if s.interopRPC != nil {
+		s.interopRPC.Close()
+	}
+	if s.miner != nil {
+		s.miner.Close()
+	}
 
 	// Clean shutdown marker as the last thing before closing db
 	s.shutdownTracker.Stop()
@@ -547,4 +562,11 @@ func (s *Ethereum) HandleRequiredProtocolVersion(required params.ProtocolVersion
 		return s.nodeCloser()
 	}
 	return nil
+}
+
+func (s *Ethereum) CheckMessages(ctx context.Context, messages []interoptypes.Message, minSafety interoptypes.SafetyLevel) error {
+	if s.interopRPC == nil {
+		return errors.New("cannot check interop messages, no RPC available")
+	}
+	return s.interopRPC.CheckMessages(ctx, messages, minSafety)
 }
