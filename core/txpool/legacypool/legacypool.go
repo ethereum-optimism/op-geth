@@ -570,8 +570,7 @@ func (pool *LegacyPool) Pending(filter txpool.PendingFilter) map[common.Address]
 		}
 		if filter.MaxDATxSize != nil && !pool.locals.contains(addr) {
 			for i, tx := range txs {
-				estimate := types.EstimatedL1SizeScaled(tx.RollupCostData())
-				estimate = estimate.Div(estimate, big.NewInt(1e6))
+				estimate := tx.RollupCostData().EstimatedDASize()
 				if estimate.Cmp(filter.MaxDATxSize) > 0 {
 					log.Debug("filtering tx that exceeds max da tx size",
 						"hash", tx.Hash(), "txda", estimate, "dalimit", filter.MaxDATxSize)
@@ -583,8 +582,7 @@ func (pool *LegacyPool) Pending(filter txpool.PendingFilter) map[common.Address]
 		if len(txs) > 0 {
 			lazies := make([]*txpool.LazyTransaction, len(txs))
 			for i := 0; i < len(txs); i++ {
-				daBytes := types.EstimatedL1SizeScaled(txs[i].RollupCostData())
-				daBytes = daBytes.Div(daBytes, big.NewInt(1e6))
+				daBytes := txs[i].RollupCostData().EstimatedDASize()
 				lazies[i] = &txpool.LazyTransaction{
 					Pool:      pool,
 					Hash:      txs[i].Hash(),
