@@ -129,9 +129,10 @@ func (lvl SafetyLevel) String() string {
 	return string(lvl)
 }
 
-func (lvl SafetyLevel) Valid() bool {
+// Valid returns if the safety level is a well-formatted safety level.
+func (lvl SafetyLevel) wellFormatted() bool {
 	switch lvl {
-	case Finalized, Safe, CrossUnsafe, Unsafe:
+	case Finalized, Safe, LocalSafe, CrossUnsafe, Unsafe, Invalid:
 		return true
 	default:
 		return false
@@ -147,7 +148,7 @@ func (lvl *SafetyLevel) UnmarshalText(text []byte) error {
 		return errors.New("cannot unmarshal into nil SafetyLevel")
 	}
 	x := SafetyLevel(text)
-	if !x.Valid() {
+	if !x.wellFormatted() {
 		return fmt.Errorf("unrecognized safety level: %q", text)
 	}
 	*lvl = x
@@ -157,6 +158,8 @@ func (lvl *SafetyLevel) UnmarshalText(text []byte) error {
 const (
 	Finalized   SafetyLevel = "finalized"
 	Safe        SafetyLevel = "safe"
+	LocalSafe   SafetyLevel = "local-safe"
 	CrossUnsafe SafetyLevel = "cross-unsafe"
 	Unsafe      SafetyLevel = "unsafe"
+	Invalid     SafetyLevel = "invalid"
 )
