@@ -3,6 +3,7 @@ package txpool
 import (
 	"context"
 	"errors"
+	"net"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -114,4 +115,65 @@ func TestInteropFilter(t *testing.T) {
 		// confirm that one executing message was passed to the checkFn
 		require.Equal(t, 1, len(spyEMs))
 	})
+}
+
+func TestInteropFilterRPCFailures(t *testing.T) {
+	tests := []struct {
+		name        string
+		networkErr  bool
+		timeout     bool
+		invalidResp bool
+	}{
+		{
+			name:       "Network Error",
+			networkErr: true,
+		},
+		{
+			name:    "Timeout",
+			timeout: true,
+		},
+		{
+			name:        "Invalid Response",
+			invalidResp: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create mock log function that always returns our test log
+			logFn := func(tx *types.Transaction) ([]*types.Log, error) {
+				log := &types.Log{
+					Address: params.InteropCrossL2InboxAddress,
+					Topics: []common.Hash{
+						common.BytesToHash(interoptypes.ExecutingMessageEventTopic[:]),
+						common.BytesToHash([]byte("payloadHash")),
+					},
+					Data: make([]byte, 32*5),
+				}
+				return []*types.Log{log}, nil
+			}
+
+			// Create mock check function that simulates RPC failures
+			checkFn := func(ctx context.Context, ems []interoptypes.Message, safety interoptypes.SafetyLevel) error {
+				if tt.networkErr {
+					return &net.OpError{Op: "dial", Err: errors.New("connection refused")}
+				}
+
+				if tt.timeout {
+					return context.DeadlineExceeded
+				}
+
+				if tt.invalidResp {
+					return errors.New("invalid response format")
+				}
+
+				return nil
+			}
+
+			// Create and test filter
+			filter := NewInteropFilter(logFn, checkFn)
+			result := filter.FilterTx(&types.Transaction{})
+			require.Equal(t, false, result, "FilterTx result mismatch")
+		})
+	}
 }
