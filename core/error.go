@@ -84,6 +84,10 @@ var (
 	// current network configuration.
 	ErrTxTypeNotSupported = types.ErrTxTypeNotSupported
 
+	// ErrTxFilteredOut indicates an ingress filter has rejected the transaction from
+	// being included in the pool.
+	ErrTxFilteredOut = errors.New("transaction filtered out")
+
 	// ErrTipAboveFeeCap is a sanity error to ensure no one is able to specify a
 	// transaction with a tip higher than the total fee cap.
 	ErrTipAboveFeeCap = errors.New("max priority fee per gas higher than max fee per gas")
