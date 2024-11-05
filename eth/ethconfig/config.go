@@ -182,7 +182,8 @@ type Config struct {
 	RollupDisableTxPoolAdmission              bool
 	RollupHaltOnIncompatibleProtocolVersion   string
 
-	InteropMessageRPC string `toml:",omitempty"`
+	InteropMessageRPC       string `toml:",omitempty"`
+	InteropMempoolFiltering bool   `toml:",omitempty"`
 }
 
 // CreateConsensusEngine creates a consensus engine for the given chain config.

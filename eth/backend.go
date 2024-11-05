@@ -276,7 +276,7 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 	// if interop is enabled, establish an Interop Filter connected to this Ethereum instance's
 	// simulated logs and message safety check functions
 	poolFilters := []txpool.IngressFilter{}
-	if config.InteropMessageRPC != "" {
+	if config.InteropMessageRPC != "" && config.InteropMempoolFiltering {
 		poolFilters = append(poolFilters, txpool.NewInteropFilter(eth.SimLogs, eth.CheckMessages))
 	}
 	eth.txPool, err = txpool.New(config.TxPool.PriceLimit, eth.blockchain, txPools, poolFilters)
