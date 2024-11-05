@@ -86,7 +86,7 @@ func TestInteropMessageFormatEdgeCases(t *testing.T) {
 			log: &types.Log{
 				Address: params.InteropCrossL2InboxAddress,
 				Topics: []common.Hash{
-					common.BytesToHash(interoptypes.ExecutingMessageEventTopic[:]),
+					common.BytesToHash(ExecutingMessageEventTopic[:]),
 				},
 				Data: make([]byte, 32*5),
 			},
@@ -97,7 +97,7 @@ func TestInteropMessageFormatEdgeCases(t *testing.T) {
 			log: &types.Log{
 				Address: params.InteropCrossL2InboxAddress,
 				Topics: []common.Hash{
-					common.BytesToHash(interoptypes.ExecutingMessageEventTopic[:]),
+					common.BytesToHash(ExecutingMessageEventTopic[:]),
 					common.BytesToHash([]byte("payloadHash")),
 					common.BytesToHash([]byte("extra")),
 				},
@@ -110,7 +110,7 @@ func TestInteropMessageFormatEdgeCases(t *testing.T) {
 			log: &types.Log{
 				Address: params.InteropCrossL2InboxAddress,
 				Topics: []common.Hash{
-					common.BytesToHash(interoptypes.ExecutingMessageEventTopic[:]),
+					common.BytesToHash(ExecutingMessageEventTopic[:]),
 					common.BytesToHash([]byte("payloadHash")),
 				},
 				Data: make([]byte, 32*4), // One word too short
@@ -122,7 +122,7 @@ func TestInteropMessageFormatEdgeCases(t *testing.T) {
 			log: &types.Log{
 				Address: params.InteropCrossL2InboxAddress,
 				Topics: []common.Hash{
-					common.BytesToHash(interoptypes.ExecutingMessageEventTopic[:]),
+					common.BytesToHash(ExecutingMessageEventTopic[:]),
 					common.BytesToHash([]byte("payloadHash")),
 				},
 				Data: make([]byte, 32*6), // One word too long
@@ -134,7 +134,7 @@ func TestInteropMessageFormatEdgeCases(t *testing.T) {
 			log: &types.Log{
 				Address: params.InteropCrossL2InboxAddress,
 				Topics: []common.Hash{
-					common.BytesToHash(interoptypes.ExecutingMessageEventTopic[:]),
+					common.BytesToHash(ExecutingMessageEventTopic[:]),
 					common.BytesToHash([]byte("payloadHash")),
 				},
 				Data: func() []byte {
@@ -150,7 +150,7 @@ func TestInteropMessageFormatEdgeCases(t *testing.T) {
 			log: &types.Log{
 				Address: params.InteropCrossL2InboxAddress,
 				Topics: []common.Hash{
-					common.BytesToHash(interoptypes.ExecutingMessageEventTopic[:]),
+					common.BytesToHash(ExecutingMessageEventTopic[:]),
 					common.BytesToHash([]byte("payloadHash")),
 				},
 				Data: func() []byte {
@@ -165,7 +165,7 @@ func TestInteropMessageFormatEdgeCases(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var msg interoptypes.Message
+			var msg Message
 			err := msg.DecodeEvent(tt.log.Topics, tt.log.Data)
 			if tt.expectedError != "" {
 				require.Error(t, err)
