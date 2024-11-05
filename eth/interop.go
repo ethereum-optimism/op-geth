@@ -24,7 +24,7 @@ func (s *Ethereum) CheckMessages(ctx context.Context, messages []interoptypes.Me
 // if errors are encountered, no logs are returned.
 func (s *Ethereum) SimLogs(tx *types.Transaction) ([]*types.Log, error) {
 	chainConfig := s.APIBackend.ChainConfig()
-	if chainConfig.IsOptimism() {
+	if !chainConfig.IsOptimism() {
 		return nil, errors.New("expected OP-Stack chain config, SimLogs is an OP-Stack feature")
 	}
 	header := s.BlockChain().CurrentBlock()
