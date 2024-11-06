@@ -152,7 +152,6 @@ func (miner *Miner) generateWork(params *generateParams, witness bool) *newPaylo
 		if err != nil {
 			return &newPayloadResult{err: fmt.Errorf("failed to force-include tx: %s type: %d sender: %s nonce: %d, err: %w", tx.Hash(), tx.Type(), from, tx.Nonce(), err)}
 		}
-		work.tcount++
 	}
 	if !params.noTxs {
 		// use shared interrupt if present
