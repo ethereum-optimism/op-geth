@@ -41,6 +41,8 @@ type LazyTransaction struct {
 
 	Gas     uint64 // Amount of gas required by the transaction
 	BlobGas uint64 // Amount of blob gas required by the transaction
+
+	DABytes *big.Int // Amount of data availability bytes this transaction may require if this is a rollup
 }
 
 // Resolve retrieves the full transaction belonging to a lazy handle if it is still
@@ -83,6 +85,10 @@ type PendingFilter struct {
 
 	OnlyPlainTxs bool // Return only plain EVM transactions (peer-join announces, block space filling)
 	OnlyBlobTxs  bool // Return only blob transactions (block blob-space filling)
+
+	// OP stack addition: Maximum l1 data size allowed for an included transaction (for throttling
+	// when batcher is backlogged). Ignored if nil.
+	MaxDATxSize *big.Int
 }
 
 // SubPool represents a specialized transaction pool that lives on its own (e.g.

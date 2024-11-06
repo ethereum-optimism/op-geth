@@ -939,6 +939,18 @@ var (
 		Category: flags.RollupCategory,
 	}
 
+	RollupInteropRPCFlag = &cli.StringFlag{
+		Name:     "rollup.interoprpc",
+		Usage:    "RPC endpoint for interop message verification (experimental).",
+		Category: flags.RollupCategory,
+	}
+
+	RollupInteropMempoolFilteringFlag = &cli.BoolFlag{
+		Name:     "rollup.interopmempoolfiltering",
+		Usage:    "If using interop, transactions are checked for interop validity before being added to the mempool (experimental).",
+		Category: flags.RollupCategory,
+	}
+
 	RollupDisableTxPoolGossipFlag = &cli.BoolFlag{
 		Name:     "rollup.disabletxpoolgossip",
 		Usage:    "Disable transaction pool gossip.",
@@ -1940,6 +1952,12 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 	}
 	if ctx.IsSet(RollupHistoricalRPCTimeoutFlag.Name) {
 		cfg.RollupHistoricalRPCTimeout = ctx.Duration(RollupHistoricalRPCTimeoutFlag.Name)
+	}
+	if ctx.IsSet(RollupInteropRPCFlag.Name) {
+		cfg.InteropMessageRPC = ctx.String(RollupInteropRPCFlag.Name)
+	}
+	if ctx.IsSet(RollupInteropMempoolFilteringFlag.Name) {
+		cfg.InteropMempoolFiltering = ctx.Bool(RollupInteropMempoolFilteringFlag.Name)
 	}
 	cfg.RollupDisableTxPoolGossip = ctx.Bool(RollupDisableTxPoolGossipFlag.Name)
 	cfg.RollupDisableTxPoolAdmission = cfg.RollupSequencerHTTP != "" && !ctx.Bool(RollupEnableTxPoolAdmissionFlag.Name)

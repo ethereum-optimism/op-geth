@@ -159,6 +159,8 @@ var (
 		utils.RollupSequencerTxConditionalCostRateLimitFlag,
 		utils.RollupHistoricalRPCFlag,
 		utils.RollupHistoricalRPCTimeoutFlag,
+		utils.RollupInteropRPCFlag,
+		utils.RollupInteropMempoolFilteringFlag,
 		utils.RollupDisableTxPoolGossipFlag,
 		utils.RollupComputePendingBlock,
 		utils.RollupHaltOnIncompatibleProtocolVersionFlag,

@@ -42,6 +42,7 @@ import (
 	"github.com/ethereum/go-ethereum/eth/downloader"
 	"github.com/ethereum/go-ethereum/eth/ethconfig"
 	"github.com/ethereum/go-ethereum/eth/gasprice"
+	"github.com/ethereum/go-ethereum/eth/interop"
 	"github.com/ethereum/go-ethereum/eth/protocols/eth"
 	"github.com/ethereum/go-ethereum/eth/protocols/snap"
 	"github.com/ethereum/go-ethereum/eth/tracers"
@@ -78,6 +79,8 @@ type Ethereum struct {
 
 	seqRPCService        *rpc.Client
 	historicalRPCService *rpc.Client
+
+	interopRPC *interop.InteropClient
 
 	// DB interfaces
 	chainDb ethdb.Database // Block chain database
@@ -270,7 +273,13 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 		blobPool := blobpool.New(config.BlobPool, eth.blockchain)
 		txPools = append(txPools, blobPool)
 	}
-	eth.txPool, err = txpool.New(config.TxPool.PriceLimit, eth.blockchain, txPools)
+	// if interop is enabled, establish an Interop Filter connected to this Ethereum instance's
+	// simulated logs and message safety check functions
+	poolFilters := []txpool.IngressFilter{}
+	if config.InteropMessageRPC != "" && config.InteropMempoolFiltering {
+		poolFilters = append(poolFilters, txpool.NewInteropFilter(eth.SimLogs, eth.CheckMessages))
+	}
+	eth.txPool, err = txpool.New(config.TxPool.PriceLimit, eth.blockchain, txPools, poolFilters)
 	if err != nil {
 		return nil, err
 	}
@@ -318,6 +327,10 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 			return nil, err
 		}
 		eth.historicalRPCService = client
+	}
+
+	if config.InteropMessageRPC != "" {
+		eth.interopRPC = interop.NewInteropClient(config.InteropMessageRPC)
 	}
 
 	// Start the RPC service
@@ -482,6 +495,12 @@ func (s *Ethereum) Stop() error {
 	}
 	if s.historicalRPCService != nil {
 		s.historicalRPCService.Close()
+	}
+	if s.interopRPC != nil {
+		s.interopRPC.Close()
+	}
+	if s.miner != nil {
+		s.miner.Close()
 	}
 
 	// Clean shutdown marker as the last thing before closing db

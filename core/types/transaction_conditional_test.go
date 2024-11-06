@@ -204,11 +204,19 @@ func TestTransactionConditionalSerDeser(t *testing.T) {
 		},
 		{
 			name:     "BlockNumberMax",
-			input:    `{"blockNumberMin":"0x1", "blockNumberMax":"0x2"}`,
+			input:    `{"blockNumberMax":"0x2"}`,
 			mustFail: false,
 			expected: TransactionConditional{
-				BlockNumberMin: big.NewInt(1),
 				BlockNumberMax: big.NewInt(2),
+			},
+		},
+		{
+			name:     "BlockNumber (decimal)",
+			input:    `{"blockNumberMin": 0, "blockNumberMax": 1}`,
+			mustFail: false,
+			expected: TransactionConditional{
+				BlockNumberMin: big.NewInt(0),
+				BlockNumberMax: big.NewInt(1),
 			},
 		},
 		{
@@ -228,10 +236,13 @@ func TestTransactionConditionalSerDeser(t *testing.T) {
 			},
 		},
 		{
-			name:     "UnknownField",
-			input:    `{"foobarbaz": 1234}`,
-			mustFail: true,
-			expected: TransactionConditional{KnownAccounts: nil},
+			name:     "Timestamp (decimal)",
+			input:    `{"timestampMin": 0, "timestampMax": 1}`,
+			mustFail: false,
+			expected: TransactionConditional{
+				TimestampMin: uint64Ptr(0),
+				TimestampMax: uint64Ptr(1),
+			},
 		},
 	}
 

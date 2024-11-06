@@ -154,6 +154,8 @@ type Message struct {
 	IsDepositTx    bool                 // IsDepositTx indicates the message is force-included and can persist a mint.
 	Mint           *big.Int             // Mint is the amount to mint before EVM processing, or nil if there is no minting.
 	RollupCostData types.RollupCostData // RollupCostData caches data to compute the fee we charge for data availability
+
+	PostValidation func(evm *vm.EVM, result *ExecutionResult) error
 }
 
 // TransactionToMessage converts a transaction into a Message.
@@ -447,6 +449,13 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 		}
 		err = nil
 	}
+
+	if st.msg.PostValidation != nil {
+		if err := st.msg.PostValidation(st.evm, result); err != nil {
+			return nil, err
+		}
+	}
+
 	return result, err
 }
 
@@ -583,23 +592,23 @@ func (st *StateTransition) innerTransitionDb() (*ExecutionResult, error) {
 		if rules.IsEIP4762 && fee.Sign() != 0 {
 			st.evm.AccessEvents.AddAccount(st.evm.Context.Coinbase, true)
 		}
-	}
 
-	// Check that we are post bedrock to enable op-geth to be able to create pseudo pre-bedrock blocks (these are pre-bedrock, but don't follow l2 geth rules)
-	// Note optimismConfig will not be nil if rules.IsOptimismBedrock is true
-	if optimismConfig := st.evm.ChainConfig().Optimism; optimismConfig != nil && rules.IsOptimismBedrock && !st.msg.IsDepositTx {
-		gasCost := new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), st.evm.Context.BaseFee)
-		amtU256, overflow := uint256.FromBig(gasCost)
-		if overflow {
-			return nil, fmt.Errorf("optimism gas cost overflows U256: %d", gasCost)
-		}
-		st.state.AddBalance(params.OptimismBaseFeeRecipient, amtU256, tracing.BalanceIncreaseRewardTransactionFee)
-		if l1Cost := st.evm.Context.L1CostFunc(st.msg.RollupCostData, st.evm.Context.Time); l1Cost != nil {
-			amtU256, overflow = uint256.FromBig(l1Cost)
+		// Check that we are post bedrock to enable op-geth to be able to create pseudo pre-bedrock blocks (these are pre-bedrock, but don't follow l2 geth rules)
+		// Note optimismConfig will not be nil if rules.IsOptimismBedrock is true
+		if optimismConfig := st.evm.ChainConfig().Optimism; optimismConfig != nil && rules.IsOptimismBedrock && !st.msg.IsDepositTx {
+			gasCost := new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), st.evm.Context.BaseFee)
+			amtU256, overflow := uint256.FromBig(gasCost)
 			if overflow {
-				return nil, fmt.Errorf("optimism l1 cost overflows U256: %d", l1Cost)
+				return nil, fmt.Errorf("optimism gas cost overflows U256: %d", gasCost)
 			}
-			st.state.AddBalance(params.OptimismL1FeeRecipient, amtU256, tracing.BalanceIncreaseRewardTransactionFee)
+			st.state.AddBalance(params.OptimismBaseFeeRecipient, amtU256, tracing.BalanceIncreaseRewardTransactionFee)
+			if l1Cost := st.evm.Context.L1CostFunc(st.msg.RollupCostData, st.evm.Context.Time); l1Cost != nil {
+				amtU256, overflow = uint256.FromBig(l1Cost)
+				if overflow {
+					return nil, fmt.Errorf("optimism l1 cost overflows U256: %d", l1Cost)
+				}
+				st.state.AddBalance(params.OptimismL1FeeRecipient, amtU256, tracing.BalanceIncreaseRewardTransactionFee)
+			}
 		}
 	}
 

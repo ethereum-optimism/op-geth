@@ -17,6 +17,7 @@
 package txpool
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"math/big"
@@ -77,22 +78,32 @@ type TxPool struct {
 	term chan struct{}           // Termination channel to detect a closed pool
 
 	sync chan chan error // Testing / simulator channel to block until internal reset is done
+
+	ingressFilters []IngressFilter // List of filters to apply to incoming transactions
+
+	filterCtx    context.Context    // Filters may use external resources
+	filterCancel context.CancelFunc // Filter calls are cancelled on shutdown
 }
 
 // New creates a new transaction pool to gather, sort and filter inbound
 // transactions from the network.
-func New(gasTip uint64, chain BlockChain, subpools []SubPool) (*TxPool, error) {
+func New(gasTip uint64, chain BlockChain, subpools []SubPool, poolFilters []IngressFilter) (*TxPool, error) {
 	// Retrieve the current head so that all subpools and this main coordinator
 	// pool will have the same starting state, even if the chain moves forward
 	// during initialization.
 	head := chain.CurrentBlock()
 
+	filterCtx, filterCancel := context.WithCancel(context.Background())
+
 	pool := &TxPool{
-		subpools:     subpools,
-		reservations: make(map[common.Address]SubPool),
-		quit:         make(chan chan error),
-		term:         make(chan struct{}),
-		sync:         make(chan chan error),
+		subpools:       subpools,
+		reservations:   make(map[common.Address]SubPool),
+		quit:           make(chan chan error),
+		term:           make(chan struct{}),
+		sync:           make(chan chan error),
+		ingressFilters: poolFilters,
+		filterCtx:      filterCtx,
+		filterCancel:   filterCancel,
 	}
 	for i, subpool := range subpools {
 		if err := subpool.Init(gasTip, head, pool.reserver(i, subpool)); err != nil {
@@ -155,6 +166,8 @@ func (p *TxPool) reserver(id int, subpool SubPool) AddressReserver {
 // Close terminates the transaction pool and all its subpools.
 func (p *TxPool) Close() error {
 	var errs []error
+
+	p.filterCancel() // Cancel filter work, these in-flight txs will be not be allowed through before shutdown
 
 	// Terminate the reset loop and wait for it to finish
 	errc := make(chan error)
@@ -319,10 +332,22 @@ func (p *TxPool) Add(txs []*types.Transaction, local bool, sync bool) []error {
 	// so we can piece back the returned errors into the original order.
 	txsets := make([][]*types.Transaction, len(p.subpools))
 	splits := make([]int, len(txs))
+	filtered_out := make([]bool, len(txs))
 
 	for i, tx := range txs {
 		// Mark this transaction belonging to no-subpool
 		splits[i] = -1
+
+		// Filter the transaction through the ingress filters
+		for _, f := range p.ingressFilters {
+			if !f.FilterTx(p.filterCtx, tx) {
+				filtered_out[i] = true
+			}
+		}
+		// if the transaction is filtered out, don't add it to any subpool
+		if filtered_out[i] {
+			continue
+		}
 
 		// Try to find a subpool that accepts the transaction
 		for j, subpool := range p.subpools {
@@ -341,6 +366,11 @@ func (p *TxPool) Add(txs []*types.Transaction, local bool, sync bool) []error {
 	}
 	errs := make([]error, len(txs))
 	for i, split := range splits {
+		// If the transaction was filtered out, mark it as such
+		if filtered_out[i] {
+			errs[i] = core.ErrTxFilteredOut
+			continue
+		}
 		// If the transaction was rejected by all subpools, mark it unsupported
 		if split == -1 {
 			errs[i] = core.ErrTxTypeNotSupported

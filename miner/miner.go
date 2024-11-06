@@ -31,6 +31,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/txpool"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/core/types/interoptypes"
 	"github.com/ethereum/go-ethereum/eth/tracers"
 	"github.com/ethereum/go-ethereum/params"
 )
@@ -46,6 +47,10 @@ type BackendWithHistoricalState interface {
 	StateAtBlock(ctx context.Context, block *types.Block, reexec uint64, base *state.StateDB, readOnly bool, preferDisk bool) (*state.StateDB, tracers.StateReleaseFunc, error)
 }
 
+type BackendWithInterop interface {
+	CheckMessages(ctx context.Context, messages []interoptypes.Message, minSafety interoptypes.SafetyLevel) error
+}
+
 // Config is the configuration parameters of mining.
 type Config struct {
 	Etherbase           common.Address `toml:"-"`          // Deprecated
@@ -58,7 +63,9 @@ type Config struct {
 	RollupComputePendingBlock             bool // Compute the pending block from tx-pool, instead of copying the latest-block
 	RollupTransactionConditionalRateLimit int  // Total number of conditional cost units allowed in a second
 
-	EffectiveGasCeil uint64 // if non-zero, a gas ceiling to apply independent of the header's gaslimit value
+	EffectiveGasCeil uint64   // if non-zero, a gas ceiling to apply independent of the header's gaslimit value
+	MaxDATxSize      *big.Int // if non-nil, don't include any txs with data availability size larger than this in any built block
+	MaxDABlockSize   *big.Int // if non-nil, then don't build a block requiring more than this amount of total data availability
 }
 
 // DefaultConfig contains default settings for miner.
@@ -86,10 +93,14 @@ type Miner struct {
 	pendingMu   sync.Mutex // Lock protects the pending block
 
 	backend Backend
+
+	lifeCtxCancel context.CancelFunc
+	lifeCtx       context.Context
 }
 
 // New creates a new miner with provided config.
 func New(eth Backend, config Config, engine consensus.Engine) *Miner {
+	ctx, cancel := context.WithCancel(context.Background())
 	return &Miner{
 		backend:     eth,
 		config:      &config,
@@ -98,6 +109,9 @@ func New(eth Backend, config Config, engine consensus.Engine) *Miner {
 		txpool:      eth.TxPool(),
 		chain:       eth.BlockChain(),
 		pending:     &pending{},
+		// To interrupt background tasks that may be attached to external processes
+		lifeCtxCancel: cancel,
+		lifeCtx:       ctx,
 	}
 }
 
@@ -152,6 +166,22 @@ func (miner *Miner) SetGasTip(tip *big.Int) error {
 	return nil
 }
 
+// SetMaxDASize sets the maximum data availability size currently allowed for inclusion. 0 means no maximum.
+func (miner *Miner) SetMaxDASize(maxTxSize, maxBlockSize *big.Int) {
+	miner.confMu.Lock()
+	if maxTxSize == nil || maxTxSize.BitLen() == 0 {
+		miner.config.MaxDATxSize = nil
+	} else {
+		miner.config.MaxDATxSize = new(big.Int).Set(maxTxSize)
+	}
+	if maxBlockSize == nil || maxBlockSize.BitLen() == 0 {
+		miner.config.MaxDABlockSize = nil
+	} else {
+		miner.config.MaxDABlockSize = new(big.Int).Set(maxBlockSize)
+	}
+	miner.confMu.Unlock()
+}
+
 // BuildPayload builds the payload according to the provided parameters.
 func (miner *Miner) BuildPayload(args *BuildPayloadArgs, witness bool) (*Payload, error) {
 	return miner.buildPayload(args, witness)
@@ -189,4 +219,8 @@ func (miner *Miner) getPending() *newPayloadResult {
 	}
 	miner.pending.update(header.Hash(), ret)
 	return ret
+}
+
+func (miner *Miner) Close() {
+	miner.lifeCtxCancel()
 }

@@ -6,7 +6,7 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/common/math"
 )
 
 // KnownAccounts represents a set of KnownAccounts
@@ -42,7 +42,7 @@ func (ka *KnownAccount) UnmarshalJSON(data []byte) error {
 }
 
 // MarshalJSON will serialize the KnownAccount into JSON bytes.
-func (ka *KnownAccount) MarshalJSON() ([]byte, error) {
+func (ka KnownAccount) MarshalJSON() ([]byte, error) {
 	if ka.StorageRoot != nil {
 		return json.Marshal(ka.StorageRoot)
 	}
@@ -86,10 +86,10 @@ type TransactionConditional struct {
 
 // field type overrides for gencodec
 type transactionConditionalMarshalling struct {
-	BlockNumberMax *hexutil.Big
-	BlockNumberMin *hexutil.Big
-	TimestampMin   *hexutil.Uint64
-	TimestampMax   *hexutil.Uint64
+	BlockNumberMax *math.HexOrDecimal256
+	BlockNumberMin *math.HexOrDecimal256
+	TimestampMin   *math.HexOrDecimal64
+	TimestampMax   *math.HexOrDecimal64
 }
 
 // Validate will perform sanity checks on the preconditions. This does not check the aggregate cost of the preconditions.

@@ -56,3 +56,10 @@ func (api *MinerAPI) SetGasLimit(gasLimit hexutil.Uint64) bool {
 	api.e.Miner().SetGasCeil(uint64(gasLimit))
 	return true
 }
+
+// SetMaxDASize sets the maximum data availability size of any tx allowed in a block, and the total max l1 data size of
+// the block. 0 means no maximum.
+func (api *MinerAPI) SetMaxDASize(maxTxSize hexutil.Big, maxBlockSize hexutil.Big) bool {
+	api.e.Miner().SetMaxDASize(maxTxSize.ToInt(), maxBlockSize.ToInt())
+	return true
+}
