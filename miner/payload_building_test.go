@@ -192,9 +192,9 @@ func TestDAFilters(t *testing.T) {
 	// The first transaction has size 100, all other DA test txs are bigger due to random Data, so should get filtered.
 	t.Run("with-tx-filter-all-but-first", func(t *testing.T) { testDAFilters(t, big.NewInt(100), nil, 1) })
 	t.Run("with-block-filter-all-but-first", func(t *testing.T) { testDAFilters(t, nil, big.NewInt(100), 1) })
-	// Zero/nil values for these parameters means we should mean never filter
+	// Zero/nil values for these parameters means we should never filter
 	t.Run("with-zero-tx-filters", func(t *testing.T) { testDAFilters(t, big.NewInt(0), big.NewInt(0), totalTxs) })
-	t.Run("with-zero-tx-filters", func(t *testing.T) { testDAFilters(t, nil, nil, totalTxs) })
+	t.Run("with-nil-tx-filters", func(t *testing.T) { testDAFilters(t, nil, nil, totalTxs) })
 }
 
 func holoceneConfig() *params.ChainConfig {
