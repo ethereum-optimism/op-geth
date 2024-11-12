@@ -54,8 +54,8 @@ var (
 	BedrockL1AttributesSelector = []byte{0x01, 0x5d, 0x8e, 0xb9}
 	// EcotoneL1AttributesSelector is the selector indicating Ecotone style L1 gas attributes.
 	EcotoneL1AttributesSelector = []byte{0x44, 0x0a, 0x5e, 0x20}
-	// HoloceneL1AttributesSelector is the selector indicating Holocene style L1 gas attributes.
-	HoloceneL1AttributesSelector = []byte{0xd1, 0xfb, 0xe1, 0x5b}
+	// IsthmusL1AttributesSelector is the selector indicating Isthmus style L1 gas attributes.
+	IsthmusL1AttributesSelector = []byte{0xd1, 0xfb, 0xe1, 0x5b}
 
 	// L1BlockAddr is the address of the L1Block contract which stores the L1 gas attributes.
 	L1BlockAddr = common.HexToAddress("0x4200000000000000000000000000000000000015")
@@ -197,7 +197,7 @@ func NewOperatorCostFunc(config *params.ChainConfig, statedb StateGetter) Operat
 		return nil
 	}
 	return func(gasUsed *big.Int, includeConstant bool, blockTime uint64) *big.Int {
-		if !config.IsOptimismHolocene(blockTime) {
+		if !config.IsOptimismIsthmus(blockTime) {
 			return big.NewInt(0)
 		}
 		operatorFeeParams := statedb.GetState(L1BlockAddr, OperatorFeeParamsSlot).Bytes()
@@ -282,8 +282,8 @@ type gasParams struct {
 	feeScalar           *big.Float // pre-ecotone
 	l1BaseFeeScalar     *uint32    // post-ecotone
 	l1BlobBaseFeeScalar *uint32    // post-ecotone
-	operatorFeeScalar   *uint32    // post-holocene
-	operatorFeeConstant *uint64    // post-holocene
+	operatorFeeScalar   *uint32    // post-Isthmus
+	operatorFeeConstant *uint64    // post-Isthmus
 }
 
 // intToScaledFloat returns scalar/10e6 as a float
@@ -295,8 +295,8 @@ func intToScaledFloat(scalar *big.Int) *big.Float {
 
 // extractL1GasParams extracts the gas parameters necessary to compute gas costs from L1 block info
 func extractL1GasParams(config *params.ChainConfig, time uint64, data []byte) (gasParams, error) {
-	if config.IsHolocene(time) {
-		p, err := extractL1GasParamsPostHolocene(data)
+	if config.IsIsthmus(time) {
+		p, err := extractL1GasParamsPostIsthmus(data)
 		if err != nil {
 			return gasParams{}, err
 		}
@@ -386,13 +386,13 @@ func extractL1GasParamsPostEcotone(data []byte) (gasParams, error) {
 	}, nil
 }
 
-// extractL1GasParamsPostHolocene extracts the gas parameters necessary to compute gas from L1 attribute
-// info calldata after the Holocene upgrade, but not for the very first Holocene block.
-func extractL1GasParamsPostHolocene(data []byte) (gasParams, error) {
+// extractL1GasParamsPostIsthmus extracts the gas parameters necessary to compute gas from L1 attribute
+// info calldata after the Isthmus upgrade, but not for the very first Isthmus block.
+func extractL1GasParamsPostIsthmus(data []byte) (gasParams, error) {
 	if len(data) != 176 {
 		return gasParams{}, fmt.Errorf("expected 176 L1 info bytes, got %d", len(data))
 	}
-	// data layout assumed for Holocene:
+	// data layout assumed for Isthmus:
 	// offset type varname
 	// 0     <selector>
 	// 4     uint32 _basefeeScalar
