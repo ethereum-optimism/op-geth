@@ -107,8 +107,8 @@ type L1CostFunc func(rcd RollupCostData, blockTime uint64) *big.Int
 
 // OperatorCostFunc is used in the state transition to determine the operator fee charged to the
 // sender of non-Deposit transactions. It returns nil if no data availability fee is charged.
-// The `includeConstant` parameter is usually true, unless calculating a refund.
-type OperatorCostFunc func(gasUsed *big.Int, includeConstant bool, blockTime uint64) *big.Int
+// The `isRefund` parameter is true if calculating a refund.
+type OperatorCostFunc func(gasUsed *big.Int, isRefund bool, blockTime uint64) *big.Int
 
 // l1CostFunc is an internal version of L1CostFunc that also returns the gasUsed for use in
 // receipts.
@@ -196,7 +196,7 @@ func NewOperatorCostFunc(config *params.ChainConfig, statedb StateGetter) Operat
 	if config.Optimism == nil {
 		return nil
 	}
-	return func(gasUsed *big.Int, includeConstant bool, blockTime uint64) *big.Int {
+	return func(gasUsed *big.Int, isRefund bool, blockTime uint64) *big.Int {
 		if !config.IsOptimismIsthmus(blockTime) {
 			return big.NewInt(0)
 		}
@@ -205,7 +205,7 @@ func NewOperatorCostFunc(config *params.ChainConfig, statedb StateGetter) Operat
 		operatorFeeScalar, operatorFeeConstant := extractOperatorFeeParams(operatorFeeParams)
 		product := operatorFeeScalar.Mul(gasUsed, operatorFeeScalar)
 		product = product.Div(product, oneMillion)
-		if !includeConstant {
+		if isRefund {
 			return product
 		} else {
 			return product.Add(product, operatorFeeConstant)
