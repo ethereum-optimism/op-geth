@@ -4,6 +4,11 @@ orbs:
   gcp-cli: circleci/gcp-cli@3.0.1
   slack: circleci/slack@4.10.1
 
+parameters:
+  go_version:
+    type: string
+    default: 1.22.7 # update CI Go version here
+
 commands:
   gcp-oidc-authenticate:
     description: "Authenticate with GCP using a CircleCI OIDC token."
@@ -134,7 +139,7 @@ jobs:
 
   build-geth:
     docker:
-      - image: cimg/go:1.21
+      - image: cimg/go:<<pipeline.parameters.go_version>>
     resource_class: xlarge
     steps:
       - checkout
@@ -143,7 +148,7 @@ jobs:
   unit-test:
     resource_class: xlarge
     docker:
-      - image: cimg/go:1.21
+      - image: cimg/go:<<pipeline.parameters.go_version>>
     steps:
       - checkout
       - run:
@@ -151,7 +156,7 @@ jobs:
   lint-geth:
     resource_class: medium
     docker:
-      - image: cimg/go:1.21
+      - image: cimg/go:<<pipeline.parameters.go_version>>
     steps:
       - checkout
       - run:
@@ -159,14 +164,14 @@ jobs:
   tidy-geth:
     resource_class: small
     docker:
-      - image: cimg/go:1.21
+      - image: cimg/go:<<pipeline.parameters.go_version>>
     steps:
       - checkout
       - run:
           command: go mod tidy && git diff --exit-code
   check-releases:
     docker:
-      - image: cimg/go:1.21
+      - image: cimg/go:<<pipeline.parameters.go_version>>
     steps:
       - checkout
       - run:
