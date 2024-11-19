@@ -57,7 +57,6 @@ func TestSignalSuperchainV1Halt(t *testing.T) {
 		{"patch", "patch", true},
 	}
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.cfg+"_"+tc.bump, func(t *testing.T) {
 			genesis, preMergeBlocks := generateMergeChain(2, false)
 			ethcfg := &ethconfig.Config{Genesis: genesis, SyncMode: downloader.FullSync, TrieTimeout: time.Minute, TrieDirtyCache: 256, TrieCleanCache: 256}

@@ -18,12 +18,12 @@ package params
 
 import (
 	"fmt"
+	"math"
 	"math/big"
 	"reflect"
 	"testing"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/stretchr/testify/require"
 )
 

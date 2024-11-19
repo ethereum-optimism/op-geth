@@ -1,4 +1,4 @@
-// Copyright 2020 The go-ethereum Authors
+// Copyright 2016 The go-ethereum Authors
 // This file is part of the go-ethereum library.
 //
 // The go-ethereum library is free software: you can redistribute it and/or modify
@@ -14,35 +14,20 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
-package console
+package version
 
-import (
-	"testing"
-
-	"github.com/dop251/goja"
-	"github.com/ethereum/go-ethereum/internal/jsre"
+// Upstream geth version
+const (
+	Major = 1        // Major version component of the current release
+	Minor = 14       // Minor version component of the current release
+	Patch = 12       // Patch version component of the current release
+	Meta  = "stable" // Version metadata to append to the version string
 )
 
-// TestUndefinedAsParam ensures that personal functions can receive
-// `undefined` as a parameter.
-func TestUndefinedAsParam(t *testing.T) {
-	b := bridge{}
-	call := jsre.Call{}
-	call.Arguments = []goja.Value{goja.Undefined()}
-
-	b.UnlockAccount(call)
-	b.Sign(call)
-	b.Sleep(call)
-}
-
-// TestNullAsParam ensures that personal functions can receive
-// `null` as a parameter.
-func TestNullAsParam(t *testing.T) {
-	b := bridge{}
-	call := jsre.Call{}
-	call.Arguments = []goja.Value{goja.Null()}
-
-	b.UnlockAccount(call)
-	b.Sign(call)
-	b.Sleep(call)
-}
+// OPVersion is the version of op-geth
+var (
+	OPMajor = 0          // Major version component of the current release
+	OPMinor = 1          // Minor version component of the current release
+	OPPatch = 0          // Patch version component of the current release
+	OPMeta  = "untagged" // Version metadata to append to the version string
+)
