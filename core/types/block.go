@@ -300,7 +300,7 @@ func NewBlock(header *Header, body *Body, receipts []*Receipt, hasher TrieHasher
 			panic(fmt.Sprintf("expected non-nil empty withdrawals operation list in Isthmus, but got: %v", body.Withdrawals))
 		}
 		b.header.WithdrawalsHash = header.WithdrawalsHash
-		b.withdrawals = slices.Clone(withdrawals)
+		b.withdrawals = make(Withdrawals, 0)
 	} else if withdrawals == nil {
 		// pre-Canyon
 		b.header.WithdrawalsHash = nil
@@ -310,7 +310,7 @@ func NewBlock(header *Header, body *Body, receipts []*Receipt, hasher TrieHasher
 	} else {
 		hash := DeriveSha(Withdrawals(withdrawals), hasher)
 		b.header.WithdrawalsHash = &hash
-		b.withdrawals = make(Withdrawals, 0)
+		b.withdrawals = slices.Clone(withdrawals)
 	}
 
 	if requests == nil {
