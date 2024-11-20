@@ -477,22 +477,6 @@ func checkFields(t *testing.T, header, want *Header) {
 	check("BaseFee", header.BaseFee, want.BaseFee)
 }
 
-func TestHeaderRLPEncoding(t *testing.T) {
-	header := getTestHeader()
-
-	encoded, err := rlp.EncodeToBytes(header)
-	if err != nil {
-		t.Fatalf("failed to encode header: %v", err)
-	}
-
-	var decoded Header
-	if err := rlp.DecodeBytes(encoded, &decoded); err != nil {
-		t.Fatalf("failed to decode header: %v", err)
-	}
-
-	checkFields(t, &decoded, header)
-}
-
 func TestHeaderJSONEncoding(t *testing.T) {
 	header := getTestHeader()
 

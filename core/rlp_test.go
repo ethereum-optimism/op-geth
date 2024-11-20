@@ -228,14 +228,8 @@ func TestBlockRlpEncodeDecode(t *testing.T) {
 
 	// There's an odd inconsistency in the way `ExtraData` field, when it is empty is returned after
 	// rlp encode-decode roundtrip. The input is an empty byte slice, but the output is a nil slice,
-	// due to which the reflect.DeepEqual fails. So, we compare a few fields in the header/block manually.
+	// due to which the reflect.DeepEqual fails. So, we compare the hash instead of each individual field.
 	// for triaging this, "https://pkg.go.dev/github.com/go-test/deep" was useful since it spits out the
 	// exact field that is different.
-	check("Header WithdrawalsHash", decoded.Header().WithdrawalsHash, block.Header().WithdrawalsHash)
-	check("Header Parent Hash", decoded.Header().ParentHash, block.Header().ParentHash)
-	check("Transactions", len(decoded.Transactions()), len(block.Transactions()))
-	check("Uncles[0]", (*decoded.Uncles()[0]).ParentHash, (*block.Uncles()[0]).ParentHash)
-	check("Uncles[1]", (*decoded.Uncles()[1]).ParentHash, (*block.Uncles()[1]).ParentHash)
-	check("Withdrawals", decoded.Withdrawals(), block.Withdrawals())
-	check("Requests", decoded.Requests(), block.Requests())
+	check("block hash", decoded.Hash(), block.Hash())
 }

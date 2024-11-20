@@ -495,11 +495,6 @@ func (g *Genesis) IsVerkle() bool {
 	return g.Config.IsVerkle(new(big.Int).SetUint64(g.Number), g.Timestamp)
 }
 
-// IsIsthmus indicates whether Isthmus is active at genesis time.
-func (g *Genesis) IsIsthmus() bool {
-	return g.Config.IsIsthmus(g.Timestamp)
-}
-
 // ToBlock returns the genesis block according to genesis specification.
 func (g *Genesis) ToBlock() *types.Block {
 	var stateRoot, storageRootMessagePasser common.Hash
@@ -511,11 +506,11 @@ func (g *Genesis) ToBlock() *types.Block {
 		}
 		// stateHash is only relevant for pre-bedrock (and hence pre-isthmus) chains.
 		// we bail here since this is not a valid usage of StateHash
-		if g.IsIsthmus() {
-			panic(fmt.Errorf("stateHash usage disallowed in isthmus chain"))
+		if g.Config.IsIsthmus(g.Timestamp) {
+			panic(fmt.Errorf("stateHash usage disallowed in chain with isthmus active at genesis"))
 		}
 		stateRoot = *g.StateHash
-	} else if stateRoot, storageRootMessagePasser, err = hashAlloc(&g.Alloc, g.IsVerkle(), g.IsIsthmus()); err != nil {
+	} else if stateRoot, storageRootMessagePasser, err = hashAlloc(&g.Alloc, g.IsVerkle(), g.Config.IsIsthmus(g.Timestamp)); err != nil {
 		panic(err)
 	}
 	return g.toBlockWithRoot(stateRoot, storageRootMessagePasser)
@@ -580,7 +575,7 @@ func (g *Genesis) toBlockWithRoot(stateRoot, storageRootMessagePasser common.Has
 			requests = make(types.Requests, 0)
 		}
 		// If Isthmus is active at genesis, set the WithdrawalRoot to the storage root of the L2ToL1MessagePasser contract.
-		if g.IsIsthmus() {
+		if g.Config.IsIsthmus(g.Timestamp) {
 			if storageRootMessagePasser == (common.Hash{}) {
 				// if there was no MessagePasser contract storage, set the WithdrawalsHash to the empty hash
 				head.WithdrawalsHash = &types.EmptyWithdrawalsHash
@@ -619,7 +614,7 @@ func (g *Genesis) Commit(db ethdb.Database, triedb *triedb.Database) (*types.Blo
 		}
 	} else {
 		// flush the data to disk and compute the state root
-		stateRoot, storageRootMessagePasser, err = flushAlloc(&g.Alloc, triedb, g.IsIsthmus())
+		stateRoot, storageRootMessagePasser, err = flushAlloc(&g.Alloc, triedb, g.Config.IsIsthmus(g.Timestamp))
 		if err != nil {
 			return nil, err
 		}
