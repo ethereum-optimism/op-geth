@@ -64,8 +64,8 @@ type Config struct {
 	RollupTransactionConditionalRateLimit int  // Total number of conditional cost units allowed in a second
 
 	EffectiveGasCeil uint64   // if non-zero, a gas ceiling to apply independent of the header's gaslimit value
-	MaxDATxSize      *big.Int // if non-nil, don't include any txs with data availability size larger than this in any built block
-	MaxDABlockSize   *big.Int // if non-nil, then don't build a block requiring more than this amount of total data availability
+	MaxDATxSize      *big.Int `toml:",omitempty"` // if non-nil, don't include any txs with data availability size larger than this in any built block
+	MaxDABlockSize   *big.Int `toml:",omitempty"` // if non-nil, then don't build a block requiring more than this amount of total data availability
 }
 
 // DefaultConfig contains default settings for miner.
