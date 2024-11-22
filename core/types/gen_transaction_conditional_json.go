@@ -5,8 +5,6 @@ package types
 import (
 	"encoding/json"
 	"math/big"
-	"bytes"
-
 	"github.com/ethereum/go-ethereum/common/math"
 )
 
@@ -40,11 +38,7 @@ func (t *TransactionConditional) UnmarshalJSON(input []byte) error {
 		TimestampMax   *math.HexOrDecimal64  `json:"timestampMax,omitempty"`
 	}
 	var dec TransactionConditional
-	// --- Not Generated. Disallow unknown fields
-	decoder := json.NewDecoder(bytes.NewReader(input))
-	decoder.DisallowUnknownFields() // Force errors
-	// ---
-	if err := decoder.Decode(&dec); err != nil {
+	if err := json.Unmarshal(input, &dec); err != nil {
 		return err
 	}
 	if dec.KnownAccounts != nil {

@@ -19,7 +19,6 @@ package core
 import (
 	"fmt"
 	"math/big"
-	"reflect"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -218,18 +217,5 @@ func TestBlockRlpEncodeDecode(t *testing.T) {
 	err = rlp.DecodeBytes(blockRlp, &decoded)
 	assert.Nil(t, err)
 
-	check := func(f string, got, want interface{}) {
-		if equal := reflect.DeepEqual(got, want); equal != true {
-			t.Errorf("%s mismatch", f)
-			t.Errorf("Got: %+v", got)
-			t.Errorf("Want: %+v", want)
-		}
-	}
-
-	// There's an odd inconsistency in the way `ExtraData` field, when it is empty is returned after
-	// rlp encode-decode roundtrip. The input is an empty byte slice, but the output is a nil slice,
-	// due to which the reflect.DeepEqual fails. So, we compare the hash instead of each individual field.
-	// for triaging this, "https://pkg.go.dev/github.com/go-test/deep" was useful since it spits out the
-	// exact field that is different.
-	check("block hash", decoded.Hash(), block.Hash())
+	assert.Equal(t, decoded.Hash(), block.Hash())
 }
