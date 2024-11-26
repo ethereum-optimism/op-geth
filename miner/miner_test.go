@@ -188,8 +188,8 @@ func TestRejectedConditionalTx(t *testing.T) {
 	})
 	tx.SetConditional(&types.TransactionConditional{TimestampMax: uint64Ptr(timestamp - 1)})
 
-	// 1 pending tx
-	miner.txpool.Add(types.Transactions{tx}, true, false)
+	// 1 pending tx (synchronously, it has to be there before it can be rejected)
+	miner.txpool.Add(types.Transactions{tx}, true, true)
 	if !miner.txpool.Has(tx.Hash()) {
 		t.Fatalf("conditional tx is not in the mempool")
 	}
