@@ -545,6 +545,12 @@ func (miner *Miner) commitTransactions(env *environment, plainTxs, blobTxs *tran
 				log.Debug("adding tx would exceed block DA size limit",
 					"hash", ltx.Hash, "txda", ltx.DABytes, "blockda", blockDABytes, "dalimit", miner.config.MaxDABlockSize)
 				txs.Pop()
+				// If the number of remaining bytes is too few to hold even the minimum possible transaction size,
+				// then we can stop early.
+				daBytesRemaining := new(big.Int).Sub(miner.config.MaxDABlockSize, daBytesAfter)
+				if daBytesRemaining.Cmp(types.MinTransactionSize) < 0 {
+					break
+				}
 				continue
 			}
 		}
