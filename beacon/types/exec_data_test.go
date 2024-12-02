@@ -1,47 +1,62 @@
 package types
 
 import (
+	"bytes"
+	"encoding/json"
+	"fmt"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/beacon/engine"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/stretchr/testify/assert"
 )
 
-var (
-	withdrawalsHash1 = common.HexToHash("dead")
-
-	isthumusExecData = engine.ExecutableData{
-		ParentHash:      common.HexToHash("parent"),
-		FeeRecipient:    common.HexToAddress("0x376c47978271565f56DEB45495afa69E59c16Ab2"),
-		StateRoot:       common.HexToHash("sRoot"),
-		ReceiptsRoot:    common.HexToHash("rRoot"),
-		LogsBloom:       common.Hex2Bytes("0x376c47978271565f56DEB45495afa69E59c16Ab2"),
-		Random:          common.HexToHash("randao"),
-		BaseFeePerGas:   hexutil.MustDecodeBig("0x2000000"),
-		Transactions:    [][]byte{},
-		Withdrawals:     []*types.Withdrawal{},
-		WithdrawalsRoot: &withdrawalsHash1,
+func decodeEncodeJSON(input []byte, val interface{}) error {
+	if err := json.Unmarshal(input, &val); err != nil {
+		// not valid JSON, nothing to do
+		return nil
 	}
-
-	executableDataSamples = []engine.ExecutableData{
-		isthumusExecData,
+	output, err := json.Marshal(val)
+	if err != nil {
+		return err
 	}
-)
+	if !bytes.Equal(input, output) {
+		return fmt.Errorf("encode-decode is not equal, \ninput : %x\noutput: %x", input, output)
+	}
+	return nil
+}
 
-func TestExecutableDataJSONEncodeDecode(t *testing.T) {
-	for i := range executableDataSamples {
-		b, err := executableDataSamples[i].MarshalJSON()
-		if err != nil {
-			t.Fatal("error marshaling executable data to json:", err)
+func FuzzJSON(f *testing.F) {
+	f.Fuzz(fuzzJSON)
+}
+
+func fuzzJSON(t *testing.T, input []byte) {
+	if len(input) == 0 {
+		return
+	}
+	{
+		var h types.Header
+		if err := decodeEncodeJSON(input, &h); err != nil {
+			t.Fatal(err)
 		}
-		r := engine.ExecutableData{}
-		err = r.UnmarshalJSON(b)
-		if err != nil {
-			t.Fatal("error unmarshalling executable data from json:", err)
+		var b types.Block
+		if err := decodeEncodeJSON(input, &b); err != nil {
+			t.Fatal(err)
 		}
-		assert.Equal(t, withdrawalsHash1, *r.WithdrawalsRoot)
+		var tx types.Transaction
+		if err := decodeEncodeJSON(input, &tx); err != nil {
+			t.Fatal(err)
+		}
+		var txs types.Transactions
+		if err := decodeEncodeJSON(input, &txs); err != nil {
+			t.Fatal(err)
+		}
+		var rs types.Receipts
+		if err := decodeEncodeJSON(input, &rs); err != nil {
+			t.Fatal(err)
+		}
+		var e engine.ExecutableData
+		if err := decodeEncodeJSON(input, &e); err != nil {
+			t.Fatal(err)
+		}
 	}
 }
