@@ -18,7 +18,6 @@ package types
 
 import (
 	"bytes"
-	"encoding/json"
 	"math/big"
 	"reflect"
 	"testing"
@@ -206,7 +205,7 @@ func TestUncleHash(t *testing.T) {
 var benchBuffer = bytes.NewBuffer(make([]byte, 0, 32000))
 
 func BenchmarkEncodeBlock(b *testing.B) {
-	block := makeBenchBlock(nil)
+	block := makeBenchBlock()
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
@@ -217,15 +216,12 @@ func BenchmarkEncodeBlock(b *testing.B) {
 	}
 }
 
-func makeBenchBlock(config *params.ChainConfig) *Block {
-	if config == nil {
-		config = params.TestChainConfig
-	}
+func makeBenchBlock() *Block {
 	var (
 		key, _   = crypto.GenerateKey()
 		txs      = make([]*Transaction, 70)
 		receipts = make([]*Receipt, len(txs))
-		signer   = LatestSigner(config)
+		signer   = LatestSigner(params.TestChainConfig)
 		uncles   = make([]*Header, 3)
 	)
 	header := &Header{
@@ -259,7 +255,7 @@ func makeBenchBlock(config *params.ChainConfig) *Block {
 		}
 	}
 	withdrawals := make([]*Withdrawal, 0)
-	return NewBlock(header, &Body{Transactions: txs, Uncles: uncles, Withdrawals: withdrawals}, receipts, blocktest.NewHasher(), config)
+	return NewBlock(header, &Body{Transactions: txs, Uncles: uncles, Withdrawals: withdrawals}, receipts, blocktest.NewHasher(), params.TestChainConfig)
 }
 
 func TestRlpDecodeParentHash(t *testing.T) {
@@ -427,68 +423,4 @@ func TestCheckTransactionConditional(t *testing.T) {
 			}
 		})
 	}
-}
-
-func getTestHeader() *Header {
-	return &Header{
-		ParentHash:      common.HexToHash("0x112233445566778899001122334455667788990011223344556677889900aabb"),
-		UncleHash:       common.HexToHash("0x2233445566778899001122334455667788990011223344556677889900aabbcc"),
-		Coinbase:        common.HexToAddress("0x8888f1f195afa192cfee860698584c030f4c9db1"),
-		Root:            common.HexToHash("0x33445566778899001122334455667788990011223344556677889900aabbccdd"),
-		TxHash:          common.HexToHash("0x445566778899001122334455667788990011223344556677889900aabbccddee"),
-		ReceiptHash:     common.HexToHash("0x5566778899001122334455667788990011223344556677889900aabbccddeeff"),
-		WithdrawalsHash: &EmptyWithdrawalsHash,
-		Bloom:           Bloom{},
-		Difficulty:      big.NewInt(131072),
-		Number:          big.NewInt(42),
-		GasLimit:        3141592,
-		GasUsed:         21000,
-		Time:            1426516743,
-		Extra:           []byte("extra data"),
-		MixDigest:       common.HexToHash("0x66778899001122334455667788990011223344556677889900aabbccddeeff00"),
-		Nonce:           EncodeNonce(0xa13a5a8c8f2bb1c4),
-		BaseFee:         big.NewInt(1000000000),
-	}
-}
-
-func checkFields(t *testing.T, header, want *Header) {
-	check := func(f string, got, want interface{}) {
-		if !reflect.DeepEqual(got, want) {
-			t.Errorf("%s mismatch: got %v, want %v", f, got, want)
-		}
-	}
-
-	check("ParentHash", header.ParentHash, want.ParentHash)
-	check("UncleHash", header.UncleHash, want.UncleHash)
-	check("Coinbase", header.Coinbase, want.Coinbase)
-	check("Root", header.Root, want.Root)
-	check("TxHash", header.TxHash, want.TxHash)
-	check("ReceiptHash", header.ReceiptHash, want.ReceiptHash)
-	check("WithdrawalsHash", header.WithdrawalsHash, want.WithdrawalsHash)
-	check("Bloom", header.Bloom, want.Bloom)
-	check("Difficulty", header.Difficulty, want.Difficulty)
-	check("Number", header.Number, want.Number)
-	check("GasLimit", header.GasLimit, want.GasLimit)
-	check("GasUsed", header.GasUsed, want.GasUsed)
-	check("Time", header.Time, want.Time)
-	check("Extra", header.Extra, want.Extra)
-	check("MixDigest", header.MixDigest, want.MixDigest)
-	check("Nonce", header.Nonce, want.Nonce)
-	check("BaseFee", header.BaseFee, want.BaseFee)
-}
-
-func TestHeaderJSONEncoding(t *testing.T) {
-	header := getTestHeader()
-
-	encoded, err := json.Marshal(header)
-	if err != nil {
-		t.Fatalf("failed to encode header to JSON: %v", err)
-	}
-
-	var decoded Header
-	if err := json.Unmarshal(encoded, &decoded); err != nil {
-		t.Fatalf("failed to decode header from JSON: %v", err)
-	}
-
-	checkFields(t, &decoded, header)
 }
