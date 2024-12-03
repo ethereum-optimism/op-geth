@@ -278,11 +278,11 @@ func ExecutableDataToBlockNoHash(data ExecutableData, versionedHashes []common.H
 	if config.IsOptimismIsthmus(data.Timestamp) && data.WithdrawalsRoot == nil {
 		return nil, fmt.Errorf("attribute WithdrawalsRoot is required for Isthmus blocks")
 	}
-	if data.Withdrawals != nil {
-		h := types.DeriveSha(types.Withdrawals(data.Withdrawals), trie.NewStackTrie(nil))
-		withdrawalsRoot = &h
-	} else if data.WithdrawalsRoot != nil {
+	if data.WithdrawalsRoot != nil {
 		h := *data.WithdrawalsRoot // copy, avoid any sharing of memory
+		withdrawalsRoot = &h
+	} else if data.Withdrawals != nil {
+		h := types.DeriveSha(types.Withdrawals(data.Withdrawals), trie.NewStackTrie(nil))
 		withdrawalsRoot = &h
 	}
 	// Compute requestsHash if any requests are non-nil.
