@@ -30,6 +30,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/eth/tracers"
+	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/tests"
 )
 
@@ -97,6 +98,24 @@ func testPrestateDiffTracer(tracerName string, dirPath string, t *testing.T) {
 				state   = tests.MakePreState(rawdb.NewMemoryDatabase(), test.Genesis.Alloc, false, rawdb.HashScheme)
 			)
 			defer state.Close()
+
+			// Setting up context for testing transaction fee distribution in Optimism
+			if test.Genesis.Config.IsOptimismRegolith(context.Time) {
+				l1CostOverhead := big.NewInt(int64(188))
+				l1CostScalar := big.NewInt(int64(684000))
+				l1BaseFee := big.NewInt(int64(5227))
+
+				context.Random = &common.Hash{}
+				context.BaseFee = big.NewInt(int64(20_000_000_000))
+				context.L1CostFunc = func(rcd types.RollupCostData, blockTime uint64) *big.Int {
+					gas := rcd.Zeroes*params.TxDataZeroGas + rcd.Ones*params.TxDataNonZeroGasEIP2028 // 2088
+					gasWithOverhead := new(big.Int).SetUint64(gas)
+					gasWithOverhead.Add(gasWithOverhead, l1CostOverhead) // 2088 + 188 = 2276
+					fee := new(big.Int).Set(gasWithOverhead)
+					fee.Mul(fee, l1BaseFee).Mul(fee, l1CostScalar).Div(fee, big.NewInt(1_000_000)) // 2276 * 5227 * 684000 / 1000000 = 8137309 (0x7c2a5d)
+					return fee
+				}
+			}
 
 			tracer, err := tracers.DefaultDirectory.New(tracerName, new(tracers.Context), test.TracerConfig)
 			if err != nil {
