@@ -187,7 +187,7 @@ func TestCalcBaseFeeOptimism(t *testing.T) {
 	}
 }
 
-// TestCalcBaseFeeHolocene assumes all blocks are Optimism blocks post-Holocene upgrade
+// TestCalcBaseFeeOptimismHolocene assumes all blocks are Optimism blocks post-Holocene upgrade
 func TestCalcBaseFeeOptimismHolocene(t *testing.T) {
 	parentBaseFee := int64(10_000_000)
 	parentGasLimit := uint64(30_000_000)

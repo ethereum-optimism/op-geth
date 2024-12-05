@@ -57,7 +57,7 @@ func VerifyEIP1559Header(config *params.ChainConfig, parent, header *types.Heade
 	return nil
 }
 
-// DecodeHolocene1599Params extracts the Holcene 1599 parameters from the encoded form defined here:
+// DecodeHolocene1559Params extracts the Holcene 1599 parameters from the encoded form defined here:
 // https://github.com/ethereum-optimism/specs/blob/main/specs/protocol/holocene/exec-engine.md#eip-1559-parameters-in-payloadattributesv3
 //
 // Returns 0,0 if the format is invalid, though ValidateHolocene1559Params should be used instead of this function for
