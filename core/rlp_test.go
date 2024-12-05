@@ -27,7 +27,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -207,15 +207,16 @@ func TestBlockRlpEncodeDecode(t *testing.T) {
 	config := *params.OptimismTestConfig
 	config.ShanghaiTime = &zeroTime
 	config.IsthmusTime = &zeroTime
+	require.True(t, config.IsOptimismIsthmus(zeroTime))
 
 	block := getBlock(&config, 10, 2, 50)
 
 	blockRlp, err := rlp.EncodeToBytes(block)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
 	var decoded types.Block
 	err = rlp.DecodeBytes(blockRlp, &decoded)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
-	assert.Equal(t, decoded.Hash(), block.Hash())
+	require.Equal(t, decoded.Hash(), block.Hash())
 }

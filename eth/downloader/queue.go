@@ -167,7 +167,7 @@ type queue struct {
 }
 
 // newQueue creates a new download queue for scheduling block retrieval.
-// The
+// The opConfig argument may be nil, if not an OP-Stack chain.
 func newQueue(opConfig OPStackChainConfig, blockCacheLimit int, thresholdInitialSize int) *queue {
 	lock := new(sync.RWMutex)
 	q := &queue{

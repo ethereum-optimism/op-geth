@@ -410,6 +410,7 @@ func (beacon *Beacon) FinalizeAndAssemble(chain consensus.ChainHeaderReader, hea
 		// State-root has just been computed, we can get an accurate storage-root now.
 		h := state.GetStorageRoot(params.OptimismL2ToL1MessagePasser)
 		header.WithdrawalsHash = &h
+		state.AccessEvents().AddAccount(params.OptimismL2ToL1MessagePasser, false) // include in execution witness
 	}
 
 	// Assemble the final block.

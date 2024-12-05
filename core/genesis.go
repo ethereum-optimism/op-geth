@@ -504,13 +504,13 @@ func (g *Genesis) ToBlock() *types.Block {
 			panic(fmt.Errorf("cannot both have genesis hash %s "+
 				"and non-empty state-allocation", *g.StateHash))
 		}
-		// stateHash is only relevant for pre-bedrock (and hence pre-isthmus) chains.
+		// g.StateHash is only relevant for pre-bedrock (and hence pre-isthmus) chains.
 		// we bail here since this is not a valid usage of StateHash
-		if g.Config.IsIsthmus(g.Timestamp) {
+		if g.Config.IsOptimismIsthmus(g.Timestamp) {
 			panic(fmt.Errorf("stateHash usage disallowed in chain with isthmus active at genesis"))
 		}
 		stateRoot = *g.StateHash
-	} else if stateRoot, storageRootMessagePasser, err = hashAlloc(&g.Alloc, g.IsVerkle(), g.Config.IsIsthmus(g.Timestamp)); err != nil {
+	} else if stateRoot, storageRootMessagePasser, err = hashAlloc(&g.Alloc, g.IsVerkle(), g.Config.IsOptimismIsthmus(g.Timestamp)); err != nil {
 		panic(err)
 	}
 	return g.toBlockWithRoot(stateRoot, storageRootMessagePasser)
@@ -575,13 +575,12 @@ func (g *Genesis) toBlockWithRoot(stateRoot, storageRootMessagePasser common.Has
 			requests = make(types.Requests, 0)
 		}
 		// If Isthmus is active at genesis, set the WithdrawalRoot to the storage root of the L2ToL1MessagePasser contract.
-		if g.Config.IsIsthmus(g.Timestamp) {
+		if g.Config.IsOptimismIsthmus(g.Timestamp) {
 			if storageRootMessagePasser == (common.Hash{}) {
 				// if there was no MessagePasser contract storage, set the WithdrawalsHash to the empty hash
-				head.WithdrawalsHash = &types.EmptyWithdrawalsHash
-			} else {
-				head.WithdrawalsHash = &storageRootMessagePasser
+				storageRootMessagePasser = types.EmptyWithdrawalsHash
 			}
+			head.WithdrawalsHash = &storageRootMessagePasser
 		}
 	}
 	return types.NewBlock(head, &types.Body{Withdrawals: withdrawals, Requests: requests}, nil, trie.NewStackTrie(nil), g.Config)

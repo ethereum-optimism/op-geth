@@ -79,7 +79,7 @@ func (v *BlockValidator) ValidateBody(block *types.Block) error {
 			}
 			// The withdrawalsHash is verified in ValidateState, like the state root, as verification requires state merkleization.
 		} else if hash := types.DeriveSha(block.Withdrawals(), trie.NewStackTrie(nil)); hash != *header.WithdrawalsHash {
-			return fmt.Errorf("withdrawals root hash mismatch (header value %x, calculated %x)", *header.WithdrawalsHash, hash)
+			return fmt.Errorf("withdrawals root hash mismatch (header value %s, calculated %s)", *header.WithdrawalsHash, hash)
 		}
 	} else if block.Withdrawals() != nil {
 		// Withdrawals are not allowed prior to Shanghai fork

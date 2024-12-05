@@ -329,9 +329,10 @@ func GenerateChain(config *params.ChainConfig, parent *types.Block, engine conse
 				b.header.Difficulty = big.NewInt(0)
 			}
 		}
-		if config.IsIsthmus(b.header.Time) {
+		if config.IsOptimismIsthmus(b.header.Time) {
 			b.withdrawals = make([]*types.Withdrawal, 0)
-			b.header.WithdrawalsHash = &types.EmptyWithdrawalsHash
+			h := types.EmptyWithdrawalsHash
+			b.header.WithdrawalsHash = &h
 		}
 		// Mutate the state and block according to any hard-fork specs
 		if daoBlock := config.DAOForkBlock; daoBlock != nil {

@@ -304,7 +304,7 @@ func (c *Clique) verifyHeader(chain consensus.ChainHeaderReader, header *types.H
 	}
 	// Verify the non-existence of withdrawalsHash.
 	if header.WithdrawalsHash != nil {
-		return fmt.Errorf("invalid withdrawalsHash: have %x, expected nil", header.WithdrawalsHash)
+		return fmt.Errorf("invalid withdrawalsHash: have %s, expected nil", header.WithdrawalsHash)
 	}
 	if chain.Config().IsCancun(header.Number, header.Time) {
 		return errors.New("clique does not support cancun fork")

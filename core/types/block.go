@@ -295,7 +295,7 @@ func NewBlock(header *Header, body *Body, receipts []*Receipt, hasher TrieHasher
 		}
 	}
 
-	if config.IsIsthmus(header.Time) {
+	if config.IsOptimismIsthmus(header.Time) {
 		if withdrawals == nil || len(withdrawals) > 0 {
 			panic(fmt.Sprintf("expected non-nil empty withdrawals operation list in Isthmus, but got: %v", body.Withdrawals))
 		}

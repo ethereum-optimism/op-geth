@@ -275,8 +275,13 @@ func ExecutableDataToBlockNoHash(data ExecutableData, versionedHashes []common.H
 	// ExecutableData before withdrawals are enabled by marshaling
 	// Withdrawals as the json null value.
 	var withdrawalsRoot *common.Hash
-	if config.IsOptimismIsthmus(data.Timestamp) && data.WithdrawalsRoot == nil {
-		return nil, fmt.Errorf("attribute WithdrawalsRoot is required for Isthmus blocks")
+	if config.IsOptimismIsthmus(data.Timestamp) {
+		if data.WithdrawalsRoot == nil {
+			return nil, fmt.Errorf("attribute WithdrawalsRoot is required for Isthmus blocks")
+		}
+		if data.Withdrawals == nil || len(data.Withdrawals) > 0 {
+			return nil, fmt.Errorf("expected non-nil empty withdrawals operation list in Isthmus, but got: %v", data.Withdrawals)
+		}
 	}
 	if data.WithdrawalsRoot != nil {
 		h := *data.WithdrawalsRoot // copy, avoid any sharing of memory
