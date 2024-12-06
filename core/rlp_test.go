@@ -199,3 +199,23 @@ func BenchmarkHashing(b *testing.B) {
 		b.Fatalf("hash wrong, got %x exp %x", got, exp)
 	}
 }
+
+func TestBlockRlpEncodeDecode(t *testing.T) {
+	zeroTime := uint64(0)
+
+	// create a config where Isthmus upgrade is active
+	config := *params.OptimismTestConfig
+	config.ShanghaiTime = &zeroTime
+	config.IsthmusTime = &zeroTime
+
+	block := getBlock(&config, 10, 2, 50)
+
+	blockRlp, err := rlp.EncodeToBytes(block)
+	assert.Nil(t, err)
+
+	var decoded types.Block
+	err = rlp.DecodeBytes(blockRlp, &decoded)
+	assert.Nil(t, err)
+
+	assert.Equal(t, decoded.Hash(), block.Hash())
+}
