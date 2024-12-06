@@ -95,7 +95,7 @@ type ExecutableData struct {
 	Deposits         types.Deposits          `json:"depositRequests"`
 	ExecutionWitness *types.ExecutionWitness `json:"executionWitness,omitempty"`
 
-	// OP-Stack Holocene specific field:
+	// OP-Stack Isthmus specific field:
 	// instead of computing the root from a withdrawals list, set it directly.
 	// The "withdrawals" list attribute must be non-nil but empty.
 	WithdrawalsRoot *common.Hash `json:"withdrawalsRoot,omitempty"`
@@ -230,8 +230,8 @@ func decodeTransactions(enc [][]byte) ([]*types.Transaction, error) {
 // and that the blockhash of the constructed block matches the parameters. Nil
 // Withdrawals value will propagate through the returned block. Empty
 // Withdrawals value must be passed via non-nil, length 0 value in data.
-func ExecutableDataToBlock(data ExecutableData, versionedHashes []common.Hash, beaconRoot *common.Hash) (*types.Block, error) {
-	block, err := ExecutableDataToBlockNoHash(data, versionedHashes, beaconRoot)
+func ExecutableDataToBlock(data ExecutableData, versionedHashes []common.Hash, beaconRoot *common.Hash, config *params.ChainConfig) (*types.Block, error) {
+	block, err := ExecutableDataToBlockNoHash(data, versionedHashes, beaconRoot, config)
 	if err != nil {
 		return nil, err
 	}
@@ -244,7 +244,7 @@ func ExecutableDataToBlock(data ExecutableData, versionedHashes []common.Hash, b
 // ExecutableDataToBlockNoHash is analogous to ExecutableDataToBlock, but is used
 // for stateless execution, so it skips checking if the executable data hashes to
 // the requested hash (stateless has to *compute* the root hash, it's not given).
-func ExecutableDataToBlockNoHash(data ExecutableData, versionedHashes []common.Hash, beaconRoot *common.Hash) (*types.Block, error) {
+func ExecutableDataToBlockNoHash(data ExecutableData, versionedHashes []common.Hash, beaconRoot *common.Hash, config *params.ChainConfig) (*types.Block, error) {
 	txs, err := decodeTransactions(data.Transactions)
 	if err != nil {
 		return nil, err
@@ -275,10 +275,10 @@ func ExecutableDataToBlockNoHash(data ExecutableData, versionedHashes []common.H
 	// ExecutableData before withdrawals are enabled by marshaling
 	// Withdrawals as the json null value.
 	var withdrawalsRoot *common.Hash
+	if config.IsOptimismIsthmus(data.Timestamp) && data.WithdrawalsRoot == nil {
+		return nil, fmt.Errorf("attribute WithdrawalsRoot is required for Isthmus blocks")
+	}
 	if data.WithdrawalsRoot != nil {
-		if data.Withdrawals == nil || len(data.Withdrawals) != 0 {
-			return nil, fmt.Errorf("attribute WithdrawalsRoot was set. Expecting non-nil empty withdrawals list, but got %v", data.Withdrawals)
-		}
 		h := *data.WithdrawalsRoot // copy, avoid any sharing of memory
 		withdrawalsRoot = &h
 	} else if data.Withdrawals != nil {
