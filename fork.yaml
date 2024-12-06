@@ -329,6 +329,14 @@ def:
             similar to a withdrawal of the Beacon-chain into the Ethereum L1 execution chain.
           globs:
             - "eth/tracers/live/supply.go"
+        - title: EVM t8ntool
+          description: |
+            The EVM `t8ntool` has not been updated with most op-stack features and does not
+            use the same sealer logic as used in Geth consensus. Isthumus hard fork adds
+            a `withdrawalsRoot` field in the block header. We note that the `t8ntool` is
+            not updated to handle the newly added `withdrawalsRoot` field in the block header.
+          globs:
+            - "cmd/evm/internal/t8ntool/block.go"
     - title: "Hardware wallet support"
       description: Extend Ledger wallet support for newer devices on Macos
       sub:
