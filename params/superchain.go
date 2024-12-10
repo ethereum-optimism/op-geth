@@ -11,7 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-var OPStackSupport = ProtocolVersionV0{Build: [8]byte{}, Major: 9, Minor: 0, Patch: 0, PreRelease: 1}.Encode()
+var OPStackSupport = ProtocolVersionV0{Build: [8]byte{}, Major: 9, Minor: 0, Patch: 0, PreRelease: 0}.Encode()
 
 func init() {
 	for id, ch := range superchain.OPChains {
