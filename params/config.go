@@ -955,7 +955,7 @@ func configBlockEqual(x, y *big.Int) bool {
 // isForkTimestampIncompatible returns true if a fork scheduled at timestamp s1
 // cannot be rescheduled to timestamp s2 because head is already past the fork.
 func isForkTimestampIncompatible(s1, s2 *uint64, head uint64, genesis *uint64) bool {
-	return (isTimestampForked(s1, head) || isTimestampForked(s2, head)) && !configTimestampEqual(s1, s2) && !isTimestampPreGenesis(s1, genesis) && !isTimestampPreGenesis(s2, genesis)
+	return (isTimestampForked(s1, head) || isTimestampForked(s2, head)) && !configTimestampEqual(s1, s2) && !(isTimestampPreGenesis(s1, genesis) && isTimestampPreGenesis(s2, genesis))
 }
 
 func isTimestampPreGenesis(s, genesis *uint64) bool {
