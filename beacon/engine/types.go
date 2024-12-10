@@ -94,11 +94,6 @@ type ExecutableData struct {
 	ExcessBlobGas    *uint64                 `json:"excessBlobGas"`
 	Deposits         types.Deposits          `json:"depositRequests"`
 	ExecutionWitness *types.ExecutionWitness `json:"executionWitness,omitempty"`
-
-	// OP-Stack Isthmus specific field:
-	// instead of computing the root from a withdrawals list, set it directly.
-	// The "withdrawals" list attribute must be non-nil but empty.
-	WithdrawalsRoot *common.Hash `json:"withdrawalsRoot,omitempty"`
 }
 
 // JSON type overrides for executableData.
@@ -230,8 +225,8 @@ func decodeTransactions(enc [][]byte) ([]*types.Transaction, error) {
 // and that the blockhash of the constructed block matches the parameters. Nil
 // Withdrawals value will propagate through the returned block. Empty
 // Withdrawals value must be passed via non-nil, length 0 value in data.
-func ExecutableDataToBlock(data ExecutableData, versionedHashes []common.Hash, beaconRoot *common.Hash, config *params.ChainConfig) (*types.Block, error) {
-	block, err := ExecutableDataToBlockNoHash(data, versionedHashes, beaconRoot, config)
+func ExecutableDataToBlock(data ExecutableData, versionedHashes []common.Hash, beaconRoot *common.Hash) (*types.Block, error) {
+	block, err := ExecutableDataToBlockNoHash(data, versionedHashes, beaconRoot)
 	if err != nil {
 		return nil, err
 	}
@@ -244,7 +239,7 @@ func ExecutableDataToBlock(data ExecutableData, versionedHashes []common.Hash, b
 // ExecutableDataToBlockNoHash is analogous to ExecutableDataToBlock, but is used
 // for stateless execution, so it skips checking if the executable data hashes to
 // the requested hash (stateless has to *compute* the root hash, it's not given).
-func ExecutableDataToBlockNoHash(data ExecutableData, versionedHashes []common.Hash, beaconRoot *common.Hash, config *params.ChainConfig) (*types.Block, error) {
+func ExecutableDataToBlockNoHash(data ExecutableData, versionedHashes []common.Hash, beaconRoot *common.Hash) (*types.Block, error) {
 	txs, err := decodeTransactions(data.Transactions)
 	if err != nil {
 		return nil, err
@@ -275,18 +270,7 @@ func ExecutableDataToBlockNoHash(data ExecutableData, versionedHashes []common.H
 	// ExecutableData before withdrawals are enabled by marshaling
 	// Withdrawals as the json null value.
 	var withdrawalsRoot *common.Hash
-	if config.IsOptimismIsthmus(data.Timestamp) {
-		if data.WithdrawalsRoot == nil {
-			return nil, fmt.Errorf("attribute WithdrawalsRoot is required for Isthmus blocks")
-		}
-		if data.Withdrawals == nil || len(data.Withdrawals) > 0 {
-			return nil, fmt.Errorf("expected non-nil empty withdrawals operation list in Isthmus, but got: %v", data.Withdrawals)
-		}
-	}
-	if data.WithdrawalsRoot != nil {
-		h := *data.WithdrawalsRoot // copy, avoid any sharing of memory
-		withdrawalsRoot = &h
-	} else if data.Withdrawals != nil {
+	if data.Withdrawals != nil {
 		h := types.DeriveSha(types.Withdrawals(data.Withdrawals), trie.NewStackTrie(nil))
 		withdrawalsRoot = &h
 	}
@@ -353,8 +337,6 @@ func BlockToExecutableData(block *types.Block, fees *big.Int, sidecars []*types.
 		BlobGasUsed:      block.BlobGasUsed(),
 		ExcessBlobGas:    block.ExcessBlobGas(),
 		ExecutionWitness: block.ExecutionWitness(),
-		// OP-Stack addition: withdrawals list alone does not express the withdrawals storage-root.
-		WithdrawalsRoot: block.WithdrawalsRoot(),
 	}
 	bundle := BlobsBundleV1{
 		Commitments: make([]hexutil.Bytes, 0),
