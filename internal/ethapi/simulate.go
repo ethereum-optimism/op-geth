@@ -249,7 +249,7 @@ func (sim *simulator) processBlock(ctx context.Context, block *simBlock, header,
 	if sim.chainConfig.IsShanghai(header.Number, header.Time) {
 		withdrawals = make([]*types.Withdrawal, 0)
 	}
-	b := types.NewBlock(header, &types.Body{Transactions: txes, Withdrawals: withdrawals}, receipts, trie.NewStackTrie(nil))
+	b := types.NewBlock(header, &types.Body{Transactions: txes, Withdrawals: withdrawals}, receipts, trie.NewStackTrie(nil), sim.chainConfig)
 	repairLogs(callResults, b.Hash())
 	return b, callResults, nil
 }
