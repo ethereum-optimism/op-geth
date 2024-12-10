@@ -103,7 +103,7 @@ func newOpTestBackend(t *testing.T, txs []testTxData) *opTestBackend {
 		nonce++
 	}
 	hasher := trie.NewStackTrie(nil)
-	b := types.NewBlock(&header, &types.Body{Transactions: ts}, nil, hasher, params.OptimismTestConfig)
+	b := types.NewBlock(&header, &types.Body{Transactions: ts}, nil, hasher)
 	return &opTestBackend{block: b, receipts: rs}
 }
 

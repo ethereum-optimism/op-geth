@@ -121,10 +121,6 @@ func (f *fetchResult) Done(kind uint) bool {
 	return v&(1<<kind) == 0
 }
 
-type OPStackChainConfig interface {
-	IsOptimismIsthmus(time uint64) bool
-}
-
 // queue represents hashes that are either need fetching or are being fetched
 type queue struct {
 	mode SyncMode // Synchronisation mode to decide on the block parts to schedule for fetching
@@ -160,15 +156,10 @@ type queue struct {
 	closed bool
 
 	logTime time.Time // Time instance when status was last reported
-
-	// opConfig is used for OP-Stack chain configuration checks.
-	// This may be nil if not an OP-Stack chain.
-	opConfig OPStackChainConfig
 }
 
 // newQueue creates a new download queue for scheduling block retrieval.
-// The opConfig argument may be nil, if not an OP-Stack chain.
-func newQueue(opConfig OPStackChainConfig, blockCacheLimit int, thresholdInitialSize int) *queue {
+func newQueue(blockCacheLimit int, thresholdInitialSize int) *queue {
 	lock := new(sync.RWMutex)
 	q := &queue{
 		headerContCh:     make(chan bool, 1),
@@ -178,7 +169,6 @@ func newQueue(opConfig OPStackChainConfig, blockCacheLimit int, thresholdInitial
 		receiptWakeCh:    make(chan bool, 1),
 		active:           sync.NewCond(lock),
 		lock:             lock,
-		opConfig:         opConfig,
 	}
 	q.Reset(blockCacheLimit, thresholdInitialSize)
 	return q
@@ -815,13 +805,7 @@ func (q *queue) DeliverBodies(id string, txLists [][]*types.Transaction, txListH
 			if withdrawalLists[index] == nil {
 				return errInvalidBody
 			}
-			if q.opConfig != nil && q.opConfig.IsOptimismIsthmus(header.Time) {
-				// If Isthmus, we expect an empty list of withdrawal operations,
-				// but the WithdrawalsHash in the header is used for the withdrawals state storage-root.
-				if withdrawalListHashes[index] != types.EmptyWithdrawalsHash {
-					return errInvalidBody
-				}
-			} else if withdrawalListHashes[index] != *header.WithdrawalsHash {
+			if withdrawalListHashes[index] != *header.WithdrawalsHash {
 				return errInvalidBody
 			}
 		}

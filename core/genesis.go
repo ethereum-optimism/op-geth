@@ -126,11 +126,8 @@ func ReadGenesis(db ethdb.Database) (*Genesis, error) {
 	return &genesis, nil
 }
 
-// hashAlloc returns the following:
-// * computed state root according to the genesis specification.
-// * storage root of the L2ToL1MessagePasser contract.
-// * error if any, when committing the genesis state (if so, state root and storage root will be empty).
-func hashAlloc(ga *types.GenesisAlloc, isVerkle, isIsthmus bool) (common.Hash, common.Hash, error) {
+// hashAlloc computes the state root according to the genesis specification.
+func hashAlloc(ga *types.GenesisAlloc, isVerkle bool) (common.Hash, error) {
 	// If a genesis-time verkle trie is requested, create a trie config
 	// with the verkle trie enabled so that the tree can be initialized
 	// as such.
@@ -146,7 +143,7 @@ func hashAlloc(ga *types.GenesisAlloc, isVerkle, isIsthmus bool) (common.Hash, c
 	db := rawdb.NewMemoryDatabase()
 	statedb, err := state.New(types.EmptyRootHash, state.NewDatabase(triedb.NewDatabase(db, config), nil))
 	if err != nil {
-		return common.Hash{}, common.Hash{}, err
+		return common.Hash{}, err
 	}
 	for addr, account := range *ga {
 		if account.Balance != nil {
@@ -158,27 +155,15 @@ func hashAlloc(ga *types.GenesisAlloc, isVerkle, isIsthmus bool) (common.Hash, c
 			statedb.SetState(addr, key, value)
 		}
 	}
-
-	stateRoot, err := statedb.Commit(0, false)
-	if err != nil {
-		return common.Hash{}, common.Hash{}, err
-	}
-	// get the storage root of the L2ToL1MessagePasser contract
-	var storageRootMessagePasser common.Hash
-	if isIsthmus {
-		storageRootMessagePasser = statedb.GetStorageRoot(params.OptimismL2ToL1MessagePasser)
-	}
-
-	return stateRoot, storageRootMessagePasser, nil
+	return statedb.Commit(0, false)
 }
 
 // flushAlloc is very similar with hash, but the main difference is all the
-// generated states will be persisted into the given database. Returns the
-// same values as hashAlloc.
-func flushAlloc(ga *types.GenesisAlloc, triedb *triedb.Database, isIsthmus bool) (common.Hash, common.Hash, error) {
+// generated states will be persisted into the given database.
+func flushAlloc(ga *types.GenesisAlloc, triedb *triedb.Database) (common.Hash, error) {
 	statedb, err := state.New(types.EmptyRootHash, state.NewDatabase(triedb, nil))
 	if err != nil {
-		return common.Hash{}, common.Hash{}, err
+		return common.Hash{}, err
 	}
 	for addr, account := range *ga {
 		if account.Balance != nil {
@@ -192,22 +177,17 @@ func flushAlloc(ga *types.GenesisAlloc, triedb *triedb.Database, isIsthmus bool)
 			statedb.SetState(addr, key, value)
 		}
 	}
-	stateRoot, err := statedb.Commit(0, false)
+	root, err := statedb.Commit(0, false)
 	if err != nil {
-		return common.Hash{}, common.Hash{}, err
-	}
-	// get the storage root of the L2ToL1MessagePasser contract
-	var storageRootMessagePasser common.Hash
-	if isIsthmus {
-		storageRootMessagePasser = statedb.GetStorageRoot(params.OptimismL2ToL1MessagePasser)
+		return common.Hash{}, err
 	}
 	// Commit newly generated states into disk if it's not empty.
-	if stateRoot != types.EmptyRootHash {
-		if err := triedb.Commit(stateRoot, true); err != nil {
-			return common.Hash{}, common.Hash{}, err
+	if root != types.EmptyRootHash {
+		if err := triedb.Commit(root, true); err != nil {
+			return common.Hash{}, err
 		}
 	}
-	return stateRoot, storageRootMessagePasser, nil
+	return root, nil
 }
 
 func getGenesisState(db ethdb.Database, blockhash common.Hash) (alloc types.GenesisAlloc, err error) {
@@ -497,27 +477,22 @@ func (g *Genesis) IsVerkle() bool {
 
 // ToBlock returns the genesis block according to genesis specification.
 func (g *Genesis) ToBlock() *types.Block {
-	var stateRoot, storageRootMessagePasser common.Hash
+	var root common.Hash
 	var err error
 	if g.StateHash != nil {
 		if len(g.Alloc) > 0 {
 			panic(fmt.Errorf("cannot both have genesis hash %s "+
 				"and non-empty state-allocation", *g.StateHash))
 		}
-		// g.StateHash is only relevant for pre-bedrock (and hence pre-isthmus) chains.
-		// we bail here since this is not a valid usage of StateHash
-		if g.Config.IsOptimismIsthmus(g.Timestamp) {
-			panic(fmt.Errorf("stateHash usage disallowed in chain with isthmus active at genesis"))
-		}
-		stateRoot = *g.StateHash
-	} else if stateRoot, storageRootMessagePasser, err = hashAlloc(&g.Alloc, g.IsVerkle(), g.Config.IsOptimismIsthmus(g.Timestamp)); err != nil {
+		root = *g.StateHash
+	} else if root, err = hashAlloc(&g.Alloc, g.IsVerkle()); err != nil {
 		panic(err)
 	}
-	return g.toBlockWithRoot(stateRoot, storageRootMessagePasser)
+	return g.toBlockWithRoot(root)
 }
 
 // toBlockWithRoot constructs the genesis block with the given genesis state root.
-func (g *Genesis) toBlockWithRoot(stateRoot, storageRootMessagePasser common.Hash) *types.Block {
+func (g *Genesis) toBlockWithRoot(root common.Hash) *types.Block {
 	head := &types.Header{
 		Number:     new(big.Int).SetUint64(g.Number),
 		Nonce:      types.EncodeNonce(g.Nonce),
@@ -530,7 +505,7 @@ func (g *Genesis) toBlockWithRoot(stateRoot, storageRootMessagePasser common.Has
 		Difficulty: g.Difficulty,
 		MixDigest:  g.Mixhash,
 		Coinbase:   g.Coinbase,
-		Root:       stateRoot,
+		Root:       root,
 	}
 	if g.GasLimit == 0 {
 		head.GasLimit = params.GenesisGasLimit
@@ -574,16 +549,8 @@ func (g *Genesis) toBlockWithRoot(stateRoot, storageRootMessagePasser common.Has
 			head.RequestsHash = &types.EmptyRequestsHash
 			requests = make(types.Requests, 0)
 		}
-		// If Isthmus is active at genesis, set the WithdrawalRoot to the storage root of the L2ToL1MessagePasser contract.
-		if g.Config.IsOptimismIsthmus(g.Timestamp) {
-			if storageRootMessagePasser == (common.Hash{}) {
-				// if there was no MessagePasser contract storage, set the WithdrawalsHash to the empty hash
-				storageRootMessagePasser = types.EmptyWithdrawalsHash
-			}
-			head.WithdrawalsHash = &storageRootMessagePasser
-		}
 	}
-	return types.NewBlock(head, &types.Body{Withdrawals: withdrawals, Requests: requests}, nil, trie.NewStackTrie(nil), g.Config)
+	return types.NewBlock(head, &types.Body{Withdrawals: withdrawals, Requests: requests}, nil, trie.NewStackTrie(nil))
 }
 
 // Commit writes the block and state of a genesis specification to the database.
@@ -602,23 +569,23 @@ func (g *Genesis) Commit(db ethdb.Database, triedb *triedb.Database) (*types.Blo
 	if config.Clique != nil && len(g.ExtraData) < 32+crypto.SignatureLength {
 		return nil, errors.New("can't start clique chain without signers")
 	}
-	var stateRoot, storageRootMessagePasser common.Hash
-	var err error
+	var stateHash common.Hash
 	if len(g.Alloc) == 0 {
 		if g.StateHash == nil {
 			log.Warn("Empty genesis alloc, and no 'stateHash' override was set")
-			stateRoot = types.EmptyRootHash // default to the hash of the empty state. Some unit-tests rely on this.
+			stateHash = types.EmptyRootHash // default to the hash of the empty state. Some unit-tests rely on this.
 		} else {
-			stateRoot = *g.StateHash
+			stateHash = *g.StateHash
 		}
 	} else {
 		// flush the data to disk and compute the state root
-		stateRoot, storageRootMessagePasser, err = flushAlloc(&g.Alloc, triedb, g.Config.IsIsthmus(g.Timestamp))
+		root, err := flushAlloc(&g.Alloc, triedb)
 		if err != nil {
 			return nil, err
 		}
+		stateHash = root
 	}
-	block := g.toBlockWithRoot(stateRoot, storageRootMessagePasser)
+	block := g.toBlockWithRoot(stateHash)
 
 	// Marshal the genesis state specification and persist.
 	blob, err := json.Marshal(g.Alloc)
