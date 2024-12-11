@@ -156,6 +156,18 @@ func TestCheckCompatible(t *testing.T) {
 				RewindToTime: 9,
 			},
 		},
+		{
+			stored:           &ChainConfig{HoloceneTime: newUint64(10)},
+			new:              &ChainConfig{HoloceneTime: newUint64(20)},
+			headTimestamp:    15,
+			genesisTimestamp: newUint64(5),
+			wantErr: &ConfigCompatError{
+				What:         "Holocene fork timestamp",
+				StoredTime:   newUint64(10),
+				NewTime:      newUint64(20),
+				RewindToTime: 9,
+			},
+		},
 	}
 
 	for i, test := range tests {

@@ -21,6 +21,7 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params/forks"
 )
 
@@ -709,6 +710,7 @@ func (c *ChainConfig) CheckCompatible(newcfg *ChainConfig, height, time uint64, 
 	var lasterr *ConfigCompatError
 	for {
 		err := c.checkCompatible(newcfg, bhead, btime, genesisTimestamp)
+		log.Info("Checking compatibility", "height", bhead, "time", btime, "error", err)
 		if err == nil || (lasterr != nil && err.RewindToBlock == lasterr.RewindToBlock && err.RewindToTime == lasterr.RewindToTime) {
 			break
 		}
