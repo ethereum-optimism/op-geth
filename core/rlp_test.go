@@ -27,10 +27,14 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/sha3"
 )
 
-func getBlock(transactions int, uncles int, dataSize int) *types.Block {
+func getBlock(config *params.ChainConfig, transactions int, uncles int, dataSize int) *types.Block {
+	if config == nil {
+		config = params.TestChainConfig
+	}
 	var (
 		aa     = common.HexToAddress("0x000000000000000000000000000000000000aaaa")
 		engine = ethash.NewFaker()
@@ -40,7 +44,7 @@ func getBlock(transactions int, uncles int, dataSize int) *types.Block {
 		address = crypto.PubkeyToAddress(key.PublicKey)
 		funds   = big.NewInt(1_000_000_000_000_000_000)
 		gspec   = &Genesis{
-			Config: params.TestChainConfig,
+			Config: config,
 			Alloc:  types.GenesisAlloc{address: {Balance: funds}},
 		}
 	)
@@ -83,7 +87,7 @@ func TestRlpIterator(t *testing.T) {
 
 func testRlpIterator(t *testing.T, txs, uncles, datasize int) {
 	desc := fmt.Sprintf("%d txs [%d datasize] and %d uncles", txs, datasize, uncles)
-	bodyRlp, _ := rlp.EncodeToBytes(getBlock(txs, uncles, datasize).Body())
+	bodyRlp, _ := rlp.EncodeToBytes(getBlock(nil, txs, uncles, datasize).Body())
 	it, err := rlp.NewListIterator(bodyRlp)
 	if err != nil {
 		t.Fatal(err)
@@ -142,7 +146,7 @@ func BenchmarkHashing(b *testing.B) {
 		blockRlp []byte
 	)
 	{
-		block := getBlock(200, 2, 50)
+		block := getBlock(nil, 200, 2, 50)
 		bodyRlp, _ = rlp.EncodeToBytes(block.Body())
 		blockRlp, _ = rlp.EncodeToBytes(block)
 	}
@@ -194,4 +198,25 @@ func BenchmarkHashing(b *testing.B) {
 	if got != exp {
 		b.Fatalf("hash wrong, got %x exp %x", got, exp)
 	}
+}
+
+func TestBlockRlpEncodeDecode(t *testing.T) {
+	zeroTime := uint64(0)
+
+	// create a config where Isthmus upgrade is active
+	config := *params.OptimismTestConfig
+	config.ShanghaiTime = &zeroTime
+	config.IsthmusTime = &zeroTime
+	require.True(t, config.IsOptimismIsthmus(zeroTime))
+
+	block := getBlock(&config, 10, 2, 50)
+
+	blockRlp, err := rlp.EncodeToBytes(block)
+	require.NoError(t, err)
+
+	var decoded types.Block
+	err = rlp.DecodeBytes(blockRlp, &decoded)
+	require.NoError(t, err)
+
+	require.Equal(t, decoded.Hash(), block.Hash())
 }

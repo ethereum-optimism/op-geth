@@ -853,7 +853,7 @@ func (api *ConsensusAPI) newPayload(params engine.ExecutableData, versionedHashe
 	defer api.newPayloadLock.Unlock()
 
 	log.Trace("Engine API request received", "method", "NewPayload", "number", params.Number, "hash", params.BlockHash)
-	block, err := engine.ExecutableDataToBlock(params, versionedHashes, beaconRoot)
+	block, err := engine.ExecutableDataToBlock(params, versionedHashes, beaconRoot, api.eth.BlockChain().Config())
 	if err != nil {
 		bgu := "nil"
 		if params.BlobGasUsed != nil {
@@ -881,6 +881,7 @@ func (api *ConsensusAPI) newPayload(params engine.ExecutableData, versionedHashe
 			"len(params.Transactions)", len(params.Transactions),
 			"len(params.Withdrawals)", len(params.Withdrawals),
 			"len(params.Deposits)", len(params.Deposits),
+			"params.WithdrawalsRoot", params.WithdrawalsRoot,
 			"beaconRoot", beaconRoot,
 			"error", err)
 		return api.invalid(err, nil), nil
@@ -968,7 +969,7 @@ func (api *ConsensusAPI) newPayload(params engine.ExecutableData, versionedHashe
 func (api *ConsensusAPI) executeStatelessPayload(params engine.ExecutableData, versionedHashes []common.Hash, beaconRoot *common.Hash, opaqueWitness hexutil.Bytes) (engine.StatelessPayloadStatusV1, error) {
 	log.Trace("Engine API request received", "method", "ExecuteStatelessPayload", "number", params.Number, "hash", params.BlockHash)
 
-	block, err := engine.ExecutableDataToBlockNoHash(params, versionedHashes, beaconRoot)
+	block, err := engine.ExecutableDataToBlockNoHash(params, versionedHashes, beaconRoot, api.eth.BlockChain().Config())
 	if err != nil {
 		bgu := "nil"
 		if params.BlobGasUsed != nil {
@@ -996,6 +997,7 @@ func (api *ConsensusAPI) executeStatelessPayload(params engine.ExecutableData, v
 			"len(params.Transactions)", len(params.Transactions),
 			"len(params.Withdrawals)", len(params.Withdrawals),
 			"len(params.Deposits)", len(params.Deposits),
+			"params.WithdrawalsRoot", params.WithdrawalsRoot,
 			"beaconRoot", beaconRoot,
 			"error", err)
 		errorMsg := err.Error()

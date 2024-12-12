@@ -304,7 +304,7 @@ func (c *Clique) verifyHeader(chain consensus.ChainHeaderReader, header *types.H
 	}
 	// Verify the non-existence of withdrawalsHash.
 	if header.WithdrawalsHash != nil {
-		return fmt.Errorf("invalid withdrawalsHash: have %x, expected nil", header.WithdrawalsHash)
+		return fmt.Errorf("invalid withdrawalsHash: have %s, expected nil", header.WithdrawalsHash)
 	}
 	if chain.Config().IsCancun(header.Number, header.Time) {
 		return errors.New("clique does not support cancun fork")
@@ -597,7 +597,7 @@ func (c *Clique) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *
 	header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
 
 	// Assemble and return the final block for sealing.
-	return types.NewBlock(header, &types.Body{Transactions: body.Transactions}, receipts, trie.NewStackTrie(nil)), nil
+	return types.NewBlock(header, &types.Body{Transactions: body.Transactions}, receipts, trie.NewStackTrie(nil), chain.Config()), nil
 }
 
 // Authorize injects a private key into the consensus engine to mint new blocks
