@@ -1614,7 +1614,7 @@ func TestBlockToPayloadWithBlobs(t *testing.T) {
 		},
 	}
 
-	block := types.NewBlock(&header, &types.Body{Transactions: txs}, nil, trie.NewStackTrie(nil), params.OptimismTestConfig)
+	block := types.NewBlock(&header, &types.Body{Transactions: txs}, nil, trie.NewStackTrie(nil), types.DefaultBlockConfig)
 	envelope := engine.BlockToExecutableData(block, nil, sidecars)
 	var want int
 	for _, tx := range txs {

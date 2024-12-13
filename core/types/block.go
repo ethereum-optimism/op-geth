@@ -29,7 +29,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-verkle"
 )
@@ -253,12 +252,16 @@ type extblock struct {
 	Requests    []*Request    `rlp:"optional"`
 }
 
+type BlockType interface {
+	HasOptimismWithdrawalsRoot(blkTime uint64) bool
+}
+
 // NewBlock creates a new block. The input data is copied, changes to header and to the
 // field values will not affect the block.
 //
 // The body elements and the receipts are used to recompute and overwrite the
 // relevant portions of the header.
-func NewBlock(header *Header, body *Body, receipts []*Receipt, hasher TrieHasher, config *params.ChainConfig) *Block {
+func NewBlock(header *Header, body *Body, receipts []*Receipt, hasher TrieHasher, bType BlockType) *Block {
 	if body == nil {
 		body = &Body{}
 	}
@@ -295,7 +298,7 @@ func NewBlock(header *Header, body *Body, receipts []*Receipt, hasher TrieHasher
 		}
 	}
 
-	if config.IsOptimismIsthmus(header.Time) {
+	if bType.HasOptimismWithdrawalsRoot(b.header.Time) {
 		if withdrawals == nil || len(withdrawals) > 0 {
 			panic(fmt.Sprintf("expected non-nil empty withdrawals operation list in Isthmus, but got: %v", body.Withdrawals))
 		}

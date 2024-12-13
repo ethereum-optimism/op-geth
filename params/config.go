@@ -517,6 +517,9 @@ func (c *ChainConfig) Description() string {
 	if c.HoloceneTime != nil {
 		banner += fmt.Sprintf(" - Holocene:                     @%-10v\n", *c.HoloceneTime)
 	}
+	if c.IsthmusTime != nil {
+		banner += fmt.Sprintf(" - Isthmus:                     @%-10v\n", *c.IsthmusTime)
+	}
 	if c.InteropTime != nil {
 		banner += fmt.Sprintf(" - Interop:                     @%-10v\n", *c.InteropTime)
 	}
@@ -1127,4 +1130,8 @@ func (c *ChainConfig) Rules(num *big.Int, isMerge bool, timestamp uint64) Rules 
 		IsOptimismGranite:  isMerge && c.IsOptimismGranite(timestamp),
 		IsOptimismHolocene: isMerge && c.IsOptimismHolocene(timestamp),
 	}
+}
+
+func (c *ChainConfig) HasOptimismWithdrawalsRoot(blockTime uint64) bool {
+	return c.IsOptimismIsthmus(blockTime)
 }

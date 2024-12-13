@@ -230,8 +230,8 @@ func decodeTransactions(enc [][]byte) ([]*types.Transaction, error) {
 // and that the blockhash of the constructed block matches the parameters. Nil
 // Withdrawals value will propagate through the returned block. Empty
 // Withdrawals value must be passed via non-nil, length 0 value in data.
-func ExecutableDataToBlock(data ExecutableData, versionedHashes []common.Hash, beaconRoot *common.Hash, config *params.ChainConfig) (*types.Block, error) {
-	block, err := ExecutableDataToBlockNoHash(data, versionedHashes, beaconRoot, config)
+func ExecutableDataToBlock(data ExecutableData, versionedHashes []common.Hash, beaconRoot *common.Hash, bType types.BlockType) (*types.Block, error) {
+	block, err := ExecutableDataToBlockNoHash(data, versionedHashes, beaconRoot, bType)
 	if err != nil {
 		return nil, err
 	}
@@ -244,7 +244,7 @@ func ExecutableDataToBlock(data ExecutableData, versionedHashes []common.Hash, b
 // ExecutableDataToBlockNoHash is analogous to ExecutableDataToBlock, but is used
 // for stateless execution, so it skips checking if the executable data hashes to
 // the requested hash (stateless has to *compute* the root hash, it's not given).
-func ExecutableDataToBlockNoHash(data ExecutableData, versionedHashes []common.Hash, beaconRoot *common.Hash, config *params.ChainConfig) (*types.Block, error) {
+func ExecutableDataToBlockNoHash(data ExecutableData, versionedHashes []common.Hash, beaconRoot *common.Hash, bType types.BlockType) (*types.Block, error) {
 	txs, err := decodeTransactions(data.Transactions)
 	if err != nil {
 		return nil, err
@@ -275,7 +275,7 @@ func ExecutableDataToBlockNoHash(data ExecutableData, versionedHashes []common.H
 	// ExecutableData before withdrawals are enabled by marshaling
 	// Withdrawals as the json null value.
 	var withdrawalsRoot *common.Hash
-	if config.IsOptimismIsthmus(data.Timestamp) {
+	if bType.HasOptimismWithdrawalsRoot(data.Timestamp) {
 		if data.WithdrawalsRoot == nil {
 			return nil, fmt.Errorf("attribute WithdrawalsRoot is required for Isthmus blocks")
 		}

@@ -255,7 +255,7 @@ func makeBenchBlock() *Block {
 		}
 	}
 	withdrawals := make([]*Withdrawal, 0)
-	return NewBlock(header, &Body{Transactions: txs, Uncles: uncles, Withdrawals: withdrawals}, receipts, blocktest.NewHasher(), params.TestChainConfig)
+	return NewBlock(header, &Body{Transactions: txs, Uncles: uncles, Withdrawals: withdrawals}, receipts, blocktest.NewHasher(), IsthmusBlockConfig)
 }
 
 func TestRlpDecodeParentHash(t *testing.T) {
