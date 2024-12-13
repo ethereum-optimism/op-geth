@@ -93,16 +93,18 @@ func (args *BuildPayloadArgs) Id() engine.PayloadID {
 // the revenue. Therefore, the empty-block here is always available and full-block
 // will be set/updated afterwards.
 type Payload struct {
-	id           engine.PayloadID
-	empty        *types.Block
-	emptyWitness *stateless.Witness
-	full         *types.Block
-	fullWitness  *stateless.Witness
-	sidecars     []*types.BlobTxSidecar
-	fullFees     *big.Int
-	stop         chan struct{}
-	lock         sync.Mutex
-	cond         *sync.Cond
+	id            engine.PayloadID
+	empty         *types.Block
+	emptyWitness  *stateless.Witness
+	full          *types.Block
+	fullWitness   *stateless.Witness
+	sidecars      []*types.BlobTxSidecar
+	emptyRequests [][]byte
+	requests      [][]byte
+	fullFees      *big.Int
+	stop          chan struct{}
+	lock          sync.Mutex
+	cond          *sync.Cond
 
 	err       error
 	stopOnce  sync.Once
@@ -113,13 +115,14 @@ type Payload struct {
 }
 
 // newPayload initializes the payload object.
-func newPayload(lifeCtx context.Context, empty *types.Block, witness *stateless.Witness, id engine.PayloadID) *Payload {
+func newPayload(lifeCtx context.Context, empty *types.Block, emptyRequests [][]byte, witness *stateless.Witness, id engine.PayloadID) *Payload {
 	rpcCtx, rpcCancel := context.WithCancel(lifeCtx)
 	payload := &Payload{
-		id:           id,
-		empty:        empty,
-		emptyWitness: witness,
-		stop:         make(chan struct{}),
+		id:            id,
+		empty:         empty,
+		emptyRequests: emptyRequests,
+		emptyWitness:  witness,
+		stop:          make(chan struct{}),
 
 		interrupt: new(atomic.Int32),
 
@@ -163,6 +166,7 @@ func (payload *Payload) update(r *newPayloadResult, elapsed time.Duration) {
 		payload.full = r.block
 		payload.fullFees = r.fees
 		payload.sidecars = r.sidecars
+		payload.requests = r.requests
 		payload.fullWitness = r.witness
 
 		feesInEther := new(big.Float).Quo(new(big.Float).SetInt(r.fees), big.NewFloat(params.Ether))
@@ -192,7 +196,7 @@ func (payload *Payload) ResolveEmpty() *engine.ExecutionPayloadEnvelope {
 	payload.lock.Lock()
 	defer payload.lock.Unlock()
 
-	envelope := engine.BlockToExecutableData(payload.empty, big.NewInt(0), nil)
+	envelope := engine.BlockToExecutableData(payload.empty, big.NewInt(0), nil, payload.emptyRequests)
 	if payload.emptyWitness != nil {
 		envelope.Witness = new(hexutil.Bytes)
 		*envelope.Witness, _ = rlp.EncodeToBytes(payload.emptyWitness) // cannot fail
@@ -236,14 +240,14 @@ func (payload *Payload) resolve(onlyFull bool) *engine.ExecutionPayloadEnvelope 
 	payload.stopBuilding()
 
 	if payload.full != nil {
-		envelope := engine.BlockToExecutableData(payload.full, payload.fullFees, payload.sidecars)
+		envelope := engine.BlockToExecutableData(payload.full, payload.fullFees, payload.sidecars, payload.requests)
 		if payload.fullWitness != nil {
 			envelope.Witness = new(hexutil.Bytes)
 			*envelope.Witness, _ = rlp.EncodeToBytes(payload.fullWitness) // cannot fail
 		}
 		return envelope
 	} else if !onlyFull && payload.empty != nil {
-		envelope := engine.BlockToExecutableData(payload.empty, big.NewInt(0), nil)
+		envelope := engine.BlockToExecutableData(payload.empty, big.NewInt(0), nil, payload.emptyRequests)
 		if payload.emptyWitness != nil {
 			envelope.Witness = new(hexutil.Bytes)
 			*envelope.Witness, _ = rlp.EncodeToBytes(payload.emptyWitness) // cannot fail
@@ -312,7 +316,7 @@ func (miner *Miner) buildPayload(args *BuildPayloadArgs, witness bool) (*Payload
 		if empty.err != nil {
 			return nil, empty.err
 		}
-		payload := newPayload(miner.lifeCtx, empty.block, empty.witness, args.Id())
+		payload := newPayload(miner.lifeCtx, empty.block, empty.requests, empty.witness, args.Id())
 		// make sure to make it appear as full, otherwise it will wait indefinitely for payload building to complete.
 		payload.full = empty.block
 		payload.fullFees = empty.fees
@@ -341,7 +345,7 @@ func (miner *Miner) buildPayload(args *BuildPayloadArgs, witness bool) (*Payload
 		return nil, err
 	}
 
-	payload := newPayload(miner.lifeCtx, nil, nil, args.Id())
+	payload := newPayload(miner.lifeCtx, nil, nil, nil, args.Id())
 	// set shared interrupt
 	fullParams.interrupt = payload.interrupt
 	fullParams.rpcCtx = payload.rpcCtx

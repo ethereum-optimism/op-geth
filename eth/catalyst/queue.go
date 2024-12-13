@@ -97,7 +97,6 @@ func (q *payloadQueue) get(id engine.PayloadID, full bool) *engine.ExecutionPayl
 func (q *payloadQueue) waitFull(id engine.PayloadID) error {
 	q.lock.RLock()
 	defer q.lock.RUnlock()
-
 	for _, item := range q.payloads {
 		if item == nil {
 			return errors.New("unknown payload")
