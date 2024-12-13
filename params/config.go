@@ -22,6 +22,7 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params/forks"
 )
 
@@ -677,6 +678,7 @@ func (c *ChainConfig) CheckCompatible(newcfg *ChainConfig, height, time uint64, 
 	var lasterr *ConfigCompatError
 	for {
 		err := c.checkCompatible(newcfg, bhead, btime, genesisTimestamp)
+		log.Info("Checking compatibility", "height", bhead, "time", btime, "error", err)
 		if err == nil || (lasterr != nil && err.RewindToBlock == lasterr.RewindToBlock && err.RewindToTime == lasterr.RewindToTime) {
 			break
 		}
@@ -923,7 +925,7 @@ func configBlockEqual(x, y *big.Int) bool {
 // isForkTimestampIncompatible returns true if a fork scheduled at timestamp s1
 // cannot be rescheduled to timestamp s2 because head is already past the fork.
 func isForkTimestampIncompatible(s1, s2 *uint64, head uint64, genesis *uint64) bool {
-	return (isTimestampForked(s1, head) || isTimestampForked(s2, head)) && !configTimestampEqual(s1, s2) && !isTimestampPreGenesis(s1, genesis) && !isTimestampPreGenesis(s2, genesis)
+	return (isTimestampForked(s1, head) || isTimestampForked(s2, head)) && !configTimestampEqual(s1, s2) && !(isTimestampPreGenesis(s1, genesis) && isTimestampPreGenesis(s2, genesis))
 }
 
 func isTimestampPreGenesis(s, genesis *uint64) bool {
