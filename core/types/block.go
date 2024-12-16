@@ -252,12 +252,16 @@ type extblock struct {
 	Requests    []*Request    `rlp:"optional"`
 }
 
+type BlockType interface {
+	HasOptimismWithdrawalsRoot(blkTime uint64) bool
+}
+
 // NewBlock creates a new block. The input data is copied, changes to header and to the
 // field values will not affect the block.
 //
 // The body elements and the receipts are used to recompute and overwrite the
 // relevant portions of the header.
-func NewBlock(header *Header, body *Body, receipts []*Receipt, hasher TrieHasher) *Block {
+func NewBlock(header *Header, body *Body, receipts []*Receipt, hasher TrieHasher, bType BlockType) *Block {
 	if body == nil {
 		body = &Body{}
 	}
@@ -294,7 +298,14 @@ func NewBlock(header *Header, body *Body, receipts []*Receipt, hasher TrieHasher
 		}
 	}
 
-	if withdrawals == nil {
+	if bType.HasOptimismWithdrawalsRoot(b.header.Time) {
+		if withdrawals == nil || len(withdrawals) > 0 {
+			panic(fmt.Sprintf("expected non-nil empty withdrawals operation list in Isthmus, but got: %v", body.Withdrawals))
+		}
+		b.header.WithdrawalsHash = header.WithdrawalsHash
+		b.withdrawals = make(Withdrawals, 0)
+	} else if withdrawals == nil {
+		// pre-Canyon
 		b.header.WithdrawalsHash = nil
 	} else if len(withdrawals) == 0 {
 		b.header.WithdrawalsHash = &EmptyWithdrawalsHash
@@ -428,6 +439,14 @@ func (b *Block) TxHash() common.Hash      { return b.header.TxHash }
 func (b *Block) ReceiptHash() common.Hash { return b.header.ReceiptHash }
 func (b *Block) UncleHash() common.Hash   { return b.header.UncleHash }
 func (b *Block) Extra() []byte            { return common.CopyBytes(b.header.Extra) }
+
+func (b *Block) WithdrawalsRoot() *common.Hash {
+	if b.header.WithdrawalsHash == nil {
+		return nil
+	}
+	h := *b.header.WithdrawalsHash
+	return &h
+}
 
 func (b *Block) BaseFee() *big.Int {
 	if b.header.BaseFee == nil {

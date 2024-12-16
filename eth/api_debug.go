@@ -482,6 +482,9 @@ func generateWitness(blockchain *core.BlockChain, block *types.Block) (*stateles
 		return nil, fmt.Errorf("failed to process block %d: %w", block.Number(), err)
 	}
 
+	// OP-Stack warning: below has the side-effect of including the withdrawals storage-root
+	// into the execution witness through the storage lookup by ValidateState, triggering the pre-fetcher.
+	// The Process function only runs through Finalize steps, not through FinalizeAndAssemble, missing merkleization.
 	if err := blockchain.Validator().ValidateState(block, statedb, res, false); err != nil {
 		return nil, fmt.Errorf("failed to validate block %d: %w", block.Number(), err)
 	}

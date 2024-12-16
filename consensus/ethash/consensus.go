@@ -270,7 +270,7 @@ func (ethash *Ethash) verifyHeader(chain consensus.ChainHeaderReader, header, pa
 	}
 	// Verify the non-existence of withdrawalsHash.
 	if header.WithdrawalsHash != nil {
-		return fmt.Errorf("invalid withdrawalsHash: have %x, expected nil", header.WithdrawalsHash)
+		return fmt.Errorf("invalid withdrawalsHash: have %s, expected nil", header.WithdrawalsHash)
 	}
 	if chain.Config().IsCancun(header.Number, header.Time) {
 		return errors.New("ethash does not support cancun fork")
@@ -520,7 +520,7 @@ func (ethash *Ethash) FinalizeAndAssemble(chain consensus.ChainHeaderReader, hea
 	header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
 
 	// Header seems complete, assemble into a block and return
-	return types.NewBlock(header, &types.Body{Transactions: body.Transactions, Uncles: body.Uncles}, receipts, trie.NewStackTrie(nil)), nil
+	return types.NewBlock(header, &types.Body{Transactions: body.Transactions, Uncles: body.Uncles, Withdrawals: body.Withdrawals}, receipts, trie.NewStackTrie(nil), chain.Config()), nil
 }
 
 // SealHash returns the hash of a block prior to it being sealed.
