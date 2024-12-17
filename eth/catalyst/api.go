@@ -875,7 +875,7 @@ func (api *ConsensusAPI) newPayload(params engine.ExecutableData, versionedHashe
 	defer api.newPayloadLock.Unlock()
 
 	log.Trace("Engine API request received", "method", "NewPayload", "number", params.Number, "hash", params.BlockHash)
-	block, err := engine.ExecutableDataToBlock(params, versionedHashes, beaconRoot, requests)
+	block, err := engine.ExecutableDataToBlock(params, versionedHashes, beaconRoot, requests, api.eth.BlockChain().Config())
 	if err != nil {
 		bgu := "nil"
 		if params.BlobGasUsed != nil {
@@ -902,6 +902,7 @@ func (api *ConsensusAPI) newPayload(params engine.ExecutableData, versionedHashe
 			"params.ExcessBlobGas", ebg,
 			"len(params.Transactions)", len(params.Transactions),
 			"len(params.Withdrawals)", len(params.Withdrawals),
+			"params.WithdrawalsRoot", params.WithdrawalsRoot,
 			"beaconRoot", beaconRoot,
 			"len(requests)", len(requests),
 			"error", err)
@@ -989,7 +990,7 @@ func (api *ConsensusAPI) newPayload(params engine.ExecutableData, versionedHashe
 
 func (api *ConsensusAPI) executeStatelessPayload(params engine.ExecutableData, versionedHashes []common.Hash, beaconRoot *common.Hash, requests [][]byte, opaqueWitness hexutil.Bytes) (engine.StatelessPayloadStatusV1, error) {
 	log.Trace("Engine API request received", "method", "ExecuteStatelessPayload", "number", params.Number, "hash", params.BlockHash)
-	block, err := engine.ExecutableDataToBlockNoHash(params, versionedHashes, beaconRoot, requests)
+	block, err := engine.ExecutableDataToBlockNoHash(params, versionedHashes, beaconRoot, requests, api.eth.BlockChain().Config())
 	if err != nil {
 		bgu := "nil"
 		if params.BlobGasUsed != nil {
@@ -1016,6 +1017,7 @@ func (api *ConsensusAPI) executeStatelessPayload(params engine.ExecutableData, v
 			"params.ExcessBlobGas", ebg,
 			"len(params.Transactions)", len(params.Transactions),
 			"len(params.Withdrawals)", len(params.Withdrawals),
+			"params.WithdrawalsRoot", params.WithdrawalsRoot,
 			"beaconRoot", beaconRoot,
 			"len(requests)", len(requests),
 			"error", err)

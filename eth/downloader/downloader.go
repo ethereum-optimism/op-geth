@@ -146,6 +146,11 @@ type Downloader struct {
 
 // BlockChain encapsulates functions required to sync a (full or snap) blockchain.
 type BlockChain interface {
+	// Config returns the chain configuration.
+	// OP-Stack diff, to adjust withdrawal-hash verification.
+	// Usage of ths in the Downloader is discouraged.
+	Config() *params.ChainConfig
+
 	// HasHeader verifies a header's presence in the local chain.
 	HasHeader(common.Hash, uint64) bool
 
@@ -201,7 +206,7 @@ func New(stateDb ethdb.Database, mux *event.TypeMux, chain BlockChain, dropPeer 
 	dl := &Downloader{
 		stateDB:        stateDb,
 		mux:            mux,
-		queue:          newQueue(blockCacheMaxItems, blockCacheInitialItems),
+		queue:          newQueue(chain.Config(), blockCacheMaxItems, blockCacheInitialItems),
 		peers:          newPeerSet(),
 		blockchain:     chain,
 		dropPeer:       dropPeer,
