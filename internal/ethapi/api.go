@@ -1595,7 +1595,7 @@ func marshalReceipt(receipt *types.Receipt, blockHash common.Hash, blockNumber u
 		if receipt.L1BlobBaseFeeScalar != nil {
 			fields["l1BlobBaseFeeScalar"] = hexutil.Uint64(*receipt.L1BlobBaseFeeScalar)
 		}
-		// Fields added in Holocene
+		// Fields added in Isthmus
 		if receipt.OperatorFeeScalar != nil {
 			fields["operatorFeeScalar"] = hexutil.Uint64(*receipt.OperatorFeeScalar)
 		}
