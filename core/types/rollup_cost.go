@@ -487,8 +487,8 @@ func extractEcotoneFeeParams(l1FeeParams []byte) (l1BaseFeeScalar, l1BlobBaseFee
 }
 
 func extractOperatorFeeParams(operatorFeeParams []byte) (operatorFeeScalar, operatorFeeConstant *big.Int) {
-	operatorFeeScalar = new(big.Int).SetBytes(operatorFeeParams[28:32])
-	operatorFeeConstant = new(big.Int).SetBytes(operatorFeeParams[20:28])
+	operatorFeeScalar = new(big.Int).SetBytes(operatorFeeParams[20:24])
+	operatorFeeConstant = new(big.Int).SetBytes(operatorFeeParams[24:32])
 	return
 }
 
