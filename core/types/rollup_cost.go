@@ -49,12 +49,18 @@ func init() {
 }
 
 var (
-	// BedrockL1AttributesSelector is the function selector indicating Bedrock style L1 gas
-	// attributes.
-	BedrockL1AttributesSelector = []byte{0x01, 0x5d, 0x8e, 0xb9}
+	// BedrockL1AttributesSelector is the function selector indicating Bedrock style L1 gas attributes.
+	// keccak256("setL1BlockValues(uint64,uint64,uint256,bytes32,uint64,bytes32,uint256,uint256)")[:4]
+	BedrockL1AttributesSelector = [4]byte{0x01, 0x5d, 0x8e, 0xb9}
 	// EcotoneL1AttributesSelector is the selector indicating Ecotone style L1 gas attributes.
-	EcotoneL1AttributesSelector = []byte{0x44, 0x0a, 0x5e, 0x20}
-
+	// keccak256("setL1BlockValuesEcotone()")[:4]
+	EcotoneL1AttributesSelector = [4]byte{0x44, 0x0a, 0x5e, 0x20}
+	// IsthmusL1AttributesSelector is the selector indicating Isthmus style L1 gas attributes.
+	// keccak256("setL1BlockValuesIsthmus()")[:4]
+	IsthmusL1AttributesSelector = [4]byte{0x09, 0x89, 0x99, 0xbe}
+	// InteropL1AttributesSelector is the selector indicating Interop style L1 gas attributes.
+	// keccak256("setL1BlockValuesInterop()")[:4]
+	InteropL1AttributesSelector = [4]byte{0x76, 0x0e, 0xe0, 0x4d}
 	// L1BlockAddr is the address of the L1Block contract which stores the L1 gas attributes.
 	L1BlockAddr = common.HexToAddress("0x4200000000000000000000000000000000000015")
 
@@ -259,35 +265,60 @@ func intToScaledFloat(scalar *big.Int) *big.Float {
 
 // extractL1GasParams extracts the gas parameters necessary to compute gas costs from L1 block info
 func extractL1GasParams(config *params.ChainConfig, time uint64, data []byte) (gasParams, error) {
-	// edge case: for the very first Ecotone block we still need to use the Bedrock
-	// function. We detect this edge case by seeing if the function selector is the old one
-	// If so, fall through to the pre-ecotone format
-	// Both Ecotone and Fjord use the same function selector
-	if config.IsEcotone(time) && len(data) >= 4 && !bytes.Equal(data[0:4], BedrockL1AttributesSelector) {
-		p, err := extractL1GasParamsPostEcotone(data)
-		if err != nil {
-			return gasParams{}, err
-		}
-
-		if config.IsFjord(time) {
-			p.costFunc = NewL1CostFuncFjord(
-				p.l1BaseFee,
-				p.l1BlobBaseFee,
-				big.NewInt(int64(*p.l1BaseFeeScalar)),
-				big.NewInt(int64(*p.l1BlobBaseFeeScalar)),
-			)
-		} else {
-			p.costFunc = newL1CostFuncEcotone(
-				p.l1BaseFee,
-				p.l1BlobBaseFee,
-				big.NewInt(int64(*p.l1BaseFeeScalar)),
-				big.NewInt(int64(*p.l1BlobBaseFeeScalar)),
-			)
-		}
-
-		return p, nil
+	if len(data) < 4 {
+		return gasParams{}, fmt.Errorf("unexpected L1 info data length, got %d", len(data))
 	}
-	return extractL1GasParamsPreEcotone(config, time, data)
+
+	var p gasParams
+	var err error
+	var signature [4]byte
+	copy(signature[:], data)
+	// Note: for Ecotone + Isthmus, the new L1Block method selector is used in the block after
+	// activation, so we use the selector for the switch block rather than the fork time.
+	switch signature {
+	case BedrockL1AttributesSelector:
+		return extractL1GasParamsPreEcotone(config, time, data)
+	case EcotoneL1AttributesSelector:
+		if !config.IsEcotone(time) {
+			return gasParams{}, fmt.Errorf("setL1BlockValuesEcotone called before Ecotone active")
+		}
+		p, err = extractL1GasParamsPostEcotone(data)
+	case IsthmusL1AttributesSelector:
+		if !config.IsIsthmus(time) {
+			return gasParams{}, fmt.Errorf("setL1BlockValuesIsthmus called before Isthmus active")
+		}
+		p, err = extractL1GasParamsPostIsthmus(data)
+	case InteropL1AttributesSelector:
+		if !config.IsInterop(time) {
+			return gasParams{}, fmt.Errorf("setL1BlockValuesInterop called before Interop active")
+		}
+		// Interop uses the same tx calldata size/format as Isthmus
+		p, err = extractL1GasParamsPostIsthmus(data)
+	default:
+		return gasParams{}, fmt.Errorf("unknown L1Block function signature: 0x%s", common.Bytes2Hex(signature[:]))
+	}
+
+	if err != nil {
+		return gasParams{}, err
+	}
+
+	if config.IsFjord(time) {
+		p.costFunc = NewL1CostFuncFjord(
+			p.l1BaseFee,
+			p.l1BlobBaseFee,
+			big.NewInt(int64(*p.l1BaseFeeScalar)),
+			big.NewInt(int64(*p.l1BlobBaseFeeScalar)),
+		)
+	} else {
+		p.costFunc = newL1CostFuncEcotone(
+			p.l1BaseFee,
+			p.l1BlobBaseFee,
+			big.NewInt(int64(*p.l1BaseFeeScalar)),
+			big.NewInt(int64(*p.l1BlobBaseFeeScalar)),
+		)
+	}
+
+	return p, nil
 }
 
 func extractL1GasParamsPreEcotone(config *params.ChainConfig, time uint64, data []byte) (gasParams, error) {
@@ -314,6 +345,19 @@ func extractL1GasParamsPostEcotone(data []byte) (gasParams, error) {
 	if len(data) != 164 {
 		return gasParams{}, fmt.Errorf("expected 164 L1 info bytes, got %d", len(data))
 	}
+	return extractL1GasParamsPostEcotoneIsthmus(data)
+}
+
+// extractL1GasParamsPostIsthmus extracts the gas parameters necessary to compute gas from L1 attribute
+// info calldata after the Isthmus upgrade, but not for the very first Isthmus block.
+func extractL1GasParamsPostIsthmus(data []byte) (gasParams, error) {
+	if len(data) != 180 {
+		return gasParams{}, fmt.Errorf("expected 180 L1 info bytes, got %d", len(data))
+	}
+	return extractL1GasParamsPostEcotoneIsthmus(data)
+}
+
+func extractL1GasParamsPostEcotoneIsthmus(data []byte) (gasParams, error) {
 	// data layout assumed for Ecotone:
 	// offset type varname
 	// 0     <selector>
@@ -326,6 +370,9 @@ func extractL1GasParamsPostEcotone(data []byte) (gasParams, error) {
 	// 68    uint256 _blobBaseFee,
 	// 100   bytes32 _hash,
 	// 132   bytes32 _batcherHash,
+	// Isthmus adds two more uint64s, which are ignored by this function:
+	// 164   uint64 _depositNonce
+	// 172   uint64 _configUpdateNonce
 	l1BaseFee := new(big.Int).SetBytes(data[36:68])
 	l1BlobBaseFee := new(big.Int).SetBytes(data[68:100])
 	l1BaseFeeScalar := binary.BigEndian.Uint32(data[4:8])
