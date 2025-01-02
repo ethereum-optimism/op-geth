@@ -3,6 +3,7 @@ version: 2.1
 orbs:
   gcp-cli: circleci/gcp-cli@3.0.1
   slack: circleci/slack@4.10.1
+  utils: ethereum-optimism/circleci-utils@0.0.7
 
 parameters:
   go_version:
@@ -52,6 +53,72 @@ commands:
             echo "export GOOGLE_APPLICATION_CREDENTIALS='<< parameters.gcp_cred_config_file_path >>'" | tee -a "$BASH_ENV"
 
 jobs:
+  build-and-deploy:
+    machine:
+      image: ubuntu-2004:current
+    steps:
+      - checkout
+      # Fetch more history for diffing
+      - run:
+          name: Fetch git history
+          command: |
+            git fetch --depth 1000
+
+      # Build forkdiff using Docker
+      - run:
+          name: Build forkdiff
+          command: |
+            docker run --volume $(pwd):/workspace \
+              protolambda/forkdiff:0.1.0 \
+              -repo=/workspace \
+              -fork=/workspace/fork.yaml \
+              -out=/workspace/index.html
+
+      # Prepare pages directory
+      - run:
+          name: Build pages
+          command: |
+            mkdir -p /tmp/pages
+            mv index.html /tmp/pages/index.html
+            touch /tmp/pages/.nojekyll
+            if [ "$CIRCLE_PROJECT_REPONAME" == "op-geth" ] && [ "$CIRCLE_PROJECT_USERNAME" == "ethereum-optimism" ]; then
+              echo "op-geth.optimism.io" > /tmp/pages/CNAME
+            fi
+      - utils/get-github-access-token:
+          private-key-str: GITHUB_APP_KEY
+          app-id: GITHUB_APP_ID
+          repo: $CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME
+      # Deploy to GitHub Pages
+      - run:
+          name: Deploy to GitHub Pages
+          command: |
+            pages_branch="gh-pages-test"
+
+            SOURCE_COMMIT=$(git rev-parse HEAD)
+            SOURCE_REPO="${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}"
+
+            COMMIT_USER_NAME=$(git log -1 --pretty=format:'%an')
+            COMMIT_USER_EMAIL=$(git log -1 --pretty=format:'%ae')
+
+            # Git operations with committer's identity
+            git config --global user.name "${COMMIT_USER_NAME}"
+            git config --global user.email "${COMMIT_USER_EMAIL}"
+
+            # Create new orphan branch without parent history
+            git checkout --orphan ${pages_branch}
+            git reset --hard  # Remove all files from staging
+
+            # Clean working directory
+            rm -rf *
+
+            # Copy new files
+            cp -a /tmp/pages/. .
+
+            # Commit and push
+            git add .
+            git commit -m "Deploying to gh-pages from @ ${SOURCE_REPO}@${SOURCE_COMMIT} 🚀"
+            git push "https://x-access-token:${GITHUB_APP_TOKEN}@github.com/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}.git" ${pages_branch} --force
+
   docker-release:
     environment:
       DOCKER_BUILDKIT: 1
@@ -107,7 +174,7 @@ jobs:
               -f Dockerfile .
       - when:
           condition:
-            equal: [ true, <<parameters.push_tags>> ]
+            equal: [true, <<parameters.push_tags>>]
           steps:
             - run:
                 name: Tag
@@ -135,7 +202,6 @@ jobs:
                       --image-path="$IMAGE_PATH"\
                       --signer-logging-level="INFO"\
                       --attestor-key-id="//cloudkms.googleapis.com/v1/projects/$ATTESTOR_PROJECT_NAME/locations/global/keyRings/$ATTESTOR_NAME-key-ring/cryptoKeys/$ATTESTOR_NAME-key/cryptoKeyVersions/1"
-
 
   build-geth:
     docker:
@@ -182,7 +248,6 @@ jobs:
           event: fail
           template: basic_fail_1
 
-
 workflows:
   main:
     jobs:
@@ -228,8 +293,16 @@ workflows:
           cron: "0 0 * * *"
           filters:
             branches:
-              only: [ "optimism" ]
+              only: ["optimism"]
     jobs:
       - check-releases:
           name: Check for new upstream releases
           context: slack
+
+  merge:
+    jobs:
+      - build-and-deploy:
+          context: circleci-repo-op-geth
+          filters:
+            branches:
+              only: optimism
