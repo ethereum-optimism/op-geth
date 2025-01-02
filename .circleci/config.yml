@@ -97,16 +97,17 @@ jobs:
             SOURCE_COMMIT=$(git rev-parse HEAD)
             SOURCE_REPO="${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}"
 
-            COMMIT_USER_NAME=$(git log -1 --pretty=format:'%an')
-            COMMIT_USER_EMAIL=$(git log -1 --pretty=format:'%ae')
+            COMMIT_USER_NAME=${CIRCLE_USERNAME}
 
             # Git operations with committer's identity
             git config --global user.name "${COMMIT_USER_NAME}"
-            git config --global user.email "${COMMIT_USER_EMAIL}"
 
-            # Create new orphan branch without parent history
-            git checkout --orphan ${pages_branch}
-            git reset --hard  # Remove all files from staging
+            # Remove all files from staging
+            git reset --hard  
+
+            #checkout target branch
+            git fetch origin ${pages_branch} 
+            git checkout ${pages_branch}
 
             # Clean working directory
             rm -rf *
@@ -117,7 +118,7 @@ jobs:
             # Commit and push
             git add .
             git commit -m "Deploying to gh-pages from @ ${SOURCE_REPO}@${SOURCE_COMMIT} 🚀"
-            git push "https://x-access-token:${GITHUB_APP_TOKEN}@github.com/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}.git" ${pages_branch} --force
+            git push "https://x-access-token:${GITHUB_APP_TOKEN}@github.com/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}.git" ${pages_branch}
 
   docker-release:
     environment:
@@ -305,4 +306,5 @@ workflows:
           context: circleci-repo-op-geth
           filters:
             branches:
-              only: optimism
+              # only: optimism
+              only: fix-bugs-on-circleci-gh-pages
