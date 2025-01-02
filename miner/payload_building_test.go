@@ -278,7 +278,7 @@ func testBuildPayload(t *testing.T, noTxPool, interrupt bool, params1559 []byte)
 		}
 	}
 
-	// make sure the 1559 params we've specied (if any) ends up in both the full and empty block headers
+	// make sure the 1559 params we've specified (if any) ends up in both the full and empty block headers
 	var expected []byte
 	if len(params1559) != 0 {
 		expected = []byte{0}
