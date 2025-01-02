@@ -92,12 +92,23 @@ jobs:
       - run:
           name: Deploy to GitHub Pages
           command: |
+            echo ${GITHUB_APP_TOKEN} > /tmp/GITHUB_APP_TOKEN
+
             pages_branch="gh-pages-test"
 
             SOURCE_COMMIT=$(git rev-parse HEAD)
             SOURCE_REPO="${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}"
 
             COMMIT_USER_NAME=${CIRCLE_USERNAME}
+            USER_INFO=$(curl -H "Authorization: token ${GITHUB_APP_TOKEN}" https://api.github.com/users/$USERNAME)
+              # Extract the email from the user info
+
+            USER_EMAIL=$(echo $USER_INFO | jq -r .email)
+            if [ "$USER_EMAIL" != "null" ]; then
+              echo "Email for $USERNAME: $USER_EMAIL"
+            else
+              echo "Email not available or set to private for $USERNAME"
+            fi
 
             # Git operations with committer's identity
             git config --global user.name "${COMMIT_USER_NAME}"
