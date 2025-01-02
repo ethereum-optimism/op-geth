@@ -311,5 +311,4 @@ workflows:
           context: circleci-repo-op-geth
           filters:
             branches:
-              # only: optimism
-              only: fix-bugs-on-circleci-gh-pages
+              only: optimism
