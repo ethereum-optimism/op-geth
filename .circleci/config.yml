@@ -88,7 +88,6 @@ jobs:
           private-key-str: GITHUB_APP_KEY
           app-id: GITHUB_APP_ID
           repo: $CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME
-      # Deploy to GitHub Pages
       - utils/github-pages-deploy:
           pages-branch: gh-pages-test
           src-pages-dir: /tmp/pages
