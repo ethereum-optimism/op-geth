@@ -3,7 +3,7 @@ version: 2.1
 orbs:
   gcp-cli: circleci/gcp-cli@3.0.1
   slack: circleci/slack@4.10.1
-  utils: ethereum-optimism/circleci-utils@dev:first
+  utils: ethereum-optimism/circleci-utils@0.0.8
 
 parameters:
   go_version:
