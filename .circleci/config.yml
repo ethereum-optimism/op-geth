@@ -89,7 +89,6 @@ jobs:
           app-id: GITHUB_APP_ID
           repo: $CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME
       - utils/github-pages-deploy:
-          pages-branch: gh-pages-test
           src-pages-dir: /tmp/pages
   docker-release:
     environment:
@@ -277,4 +276,4 @@ workflows:
           context: circleci-repo-op-geth
           filters:
             branches:
-              only: complete-migration
+              only: optimism
