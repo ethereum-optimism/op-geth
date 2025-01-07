@@ -474,7 +474,7 @@ func generateWitness(blockchain *core.BlockChain, block *types.Block) (*stateles
 		return nil, fmt.Errorf("failed to retrieve parent state: %w", err)
 	}
 
-	statedb.StartPrefetcher("debug_execution_witness", witness)
+	statedb.StartPrefetcher("debug_execution_witness", witness, blockchain.CacheConfig().TriePrefetcherParallelism)
 	defer statedb.StopPrefetcher()
 
 	res, err := blockchain.Processor().Process(block, statedb, *blockchain.GetVMConfig())

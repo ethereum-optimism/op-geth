@@ -47,6 +47,9 @@ type triePrefetcher struct {
 	term     chan struct{}          // Channel to signal interruption
 	noreads  bool                   // Whether to ignore state-read-only prefetch requests
 
+	maxConcurrency int
+	workers        workerGroup
+
 	deliveryMissMeter metrics.Meter
 
 	accountLoadReadMeter  metrics.Meter
@@ -64,8 +67,10 @@ type triePrefetcher struct {
 	storageWasteMeter     metrics.Meter
 }
 
-func newTriePrefetcher(db Database, root common.Hash, namespace string, noreads bool) *triePrefetcher {
+func newTriePrefetcher(db Database, root common.Hash, namespace string, noreads bool, maxConcurrency int) *triePrefetcher {
 	prefix := triePrefetchMetricsPrefix + namespace
+	workers := newWorkerGroup(maxConcurrency == 1)
+	workers.SetLimit(maxConcurrency)
 	return &triePrefetcher{
 		verkle:   db.TrieDB().IsVerkle(),
 		db:       db,
@@ -73,6 +78,9 @@ func newTriePrefetcher(db Database, root common.Hash, namespace string, noreads 
 		fetchers: make(map[string]*subfetcher), // Active prefetchers use the fetchers map
 		term:     make(chan struct{}),
 		noreads:  noreads,
+
+		maxConcurrency: maxConcurrency,
+		workers:        newWorkerGroup(maxConcurrency == 1),
 
 		deliveryMissMeter: metrics.GetOrRegisterMeter(prefix+"/deliverymiss", nil),
 
@@ -172,7 +180,11 @@ func (p *triePrefetcher) prefetch(owner common.Hash, root common.Hash, addr comm
 	id := p.trieID(owner, root)
 	fetcher := p.fetchers[id]
 	if fetcher == nil {
-		fetcher = newSubfetcher(p.db, p.root, owner, root, addr)
+		var err error
+		fetcher, err = newSubfetcher(p.db, p.root, owner, root, addr, p.workers)
+		if err != nil {
+			return err
+		}
 		p.fetchers[id] = fetcher
 	}
 	return fetcher.schedule(keys, read)
@@ -228,6 +240,10 @@ type subfetcher struct {
 	addr  common.Address // Address of the account that the trie belongs to
 	trie  Trie           // Trie being populated with nodes
 
+	workers   workerGroup
+	pool      *sync.Pool
+	waitGroup *sync.WaitGroup
+
 	tasks []*subfetcherTask // Items queued up for retrieval
 	lock  sync.Mutex        // Lock protecting the task queue
 
@@ -254,21 +270,40 @@ type subfetcherTask struct {
 
 // newSubfetcher creates a goroutine to prefetch state items belonging to a
 // particular root hash.
-func newSubfetcher(db Database, state common.Hash, owner common.Hash, root common.Hash, addr common.Address) *subfetcher {
+func newSubfetcher(db Database, state common.Hash, owner common.Hash, root common.Hash, addr common.Address, workers workerGroup) (*subfetcher, error) {
 	sf := &subfetcher{
 		db:        db,
 		state:     state,
 		owner:     owner,
 		root:      root,
 		addr:      addr,
+		workers:   workers,
+		waitGroup: new(sync.WaitGroup),
 		wake:      make(chan struct{}, 1),
 		stop:      make(chan struct{}),
 		term:      make(chan struct{}),
 		seenRead:  make(map[string]struct{}),
 		seenWrite: make(map[string]struct{}),
 	}
+	tr, err := sf.openTrie()
+	if err != nil {
+		return nil, err
+	}
+	sf.trie = tr
+	sf.pool = &sync.Pool{
+		New: func() any {
+			return sf.copyTrie()
+		},
+	}
 	go sf.loop()
-	return sf
+	return sf, nil
+}
+
+func (sf *subfetcher) copyTrie() Trie {
+	sf.lock.Lock()
+	defer sf.lock.Unlock()
+
+	return mustCopyTrie(sf.trie)
 }
 
 // schedule adds a batch of trie keys to the queue to prefetch.
@@ -300,17 +335,19 @@ func (sf *subfetcher) schedule(keys [][]byte, read bool) error {
 // wait blocks until the subfetcher terminates. This method is used to block on
 // an async termination before accessing internal fields from the fetcher.
 func (sf *subfetcher) wait() {
+	sf.waitGroup.Wait()
 	<-sf.term
 }
 
 // peek retrieves the fetcher's trie, populated with any pre-fetched data. The
 // returned trie will be a shallow copy, so modifying it will break subsequent
 // peeks for the original data. The method will block until all the scheduled
-// data has been loaded and the fethcer terminated.
+// data has been loaded and the subfetcher terminated.
 func (sf *subfetcher) peek() Trie {
-	// Block until the fetcher terminates, then retrieve the trie
+	// Block until the subfetcher terminates, then retrieve the trie
 	sf.wait()
-	return sf.trie
+
+	return sf.copyTrie()
 }
 
 // terminate requests the subfetcher to stop accepting new tasks and spin down
@@ -329,35 +366,32 @@ func (sf *subfetcher) terminate(async bool) {
 }
 
 // openTrie resolves the target trie from database for prefetching.
-func (sf *subfetcher) openTrie() error {
+func (sf *subfetcher) openTrie() (Trie, error) {
 	// Open the verkle tree if the sub-fetcher is in verkle mode. Note, there is
 	// only a single fetcher for verkle.
 	if sf.db.TrieDB().IsVerkle() {
 		tr, err := sf.db.OpenTrie(sf.state)
 		if err != nil {
 			log.Warn("Trie prefetcher failed opening verkle trie", "root", sf.root, "err", err)
-			return err
+			return nil, err
 		}
-		sf.trie = tr
-		return nil
+		return tr, nil
 	}
 	// Open the merkle tree if the sub-fetcher is in merkle mode
 	if sf.owner == (common.Hash{}) {
 		tr, err := sf.db.OpenTrie(sf.state)
 		if err != nil {
 			log.Warn("Trie prefetcher failed opening account trie", "root", sf.root, "err", err)
-			return err
+			return nil, err
 		}
-		sf.trie = tr
-		return nil
+		return tr, nil
 	}
 	tr, err := sf.db.OpenStorageTrie(sf.state, sf.addr, sf.root, nil)
 	if err != nil {
 		log.Warn("Trie prefetcher failed opening storage trie", "root", sf.root, "err", err)
-		return err
+		return nil, err
 	}
-	sf.trie = tr
-	return nil
+	return tr, nil
 }
 
 // loop loads newly-scheduled trie tasks as they are received and loads them, stopping
@@ -366,9 +400,6 @@ func (sf *subfetcher) loop() {
 	// No matter how the loop stops, signal anyone waiting that it's terminated
 	defer close(sf.term)
 
-	if err := sf.openTrie(); err != nil {
-		return
-	}
 	for {
 		select {
 		case <-sf.wake:
@@ -376,39 +407,54 @@ func (sf *subfetcher) loop() {
 			sf.lock.Lock()
 			tasks := sf.tasks
 			sf.tasks = nil
+			sf.waitGroup.Add(len(tasks))
 			sf.lock.Unlock()
 
 			for _, task := range tasks {
 				key := string(task.key)
+				isDuplicate := false
+
+				sf.lock.Lock()
 				if task.read {
 					if _, ok := sf.seenRead[key]; ok {
 						sf.dupsRead++
-						continue
+						isDuplicate = true
 					}
 					if _, ok := sf.seenWrite[key]; ok {
 						sf.dupsCross++
-						continue
+						isDuplicate = true
 					}
+					sf.seenRead[key] = struct{}{}
 				} else {
 					if _, ok := sf.seenRead[key]; ok {
 						sf.dupsCross++
-						continue
+						isDuplicate = true
 					}
 					if _, ok := sf.seenWrite[key]; ok {
 						sf.dupsWrite++
-						continue
+						isDuplicate = true
 					}
-				}
-				if len(task.key) == common.AddressLength {
-					sf.trie.GetAccount(common.BytesToAddress(task.key))
-				} else {
-					sf.trie.GetStorage(sf.addr, task.key)
-				}
-				if task.read {
-					sf.seenRead[key] = struct{}{}
-				} else {
 					sf.seenWrite[key] = struct{}{}
 				}
+				sf.lock.Unlock()
+
+				if isDuplicate {
+					sf.waitGroup.Done()
+					continue
+				}
+
+				sf.workers.Go(func() error {
+					defer sf.waitGroup.Done()
+
+					trie := sf.pool.Get().(Trie)
+					if len(task.key) == common.AddressLength {
+						trie.GetAccount(common.BytesToAddress(task.key))
+					} else {
+						trie.GetStorage(sf.addr, task.key)
+					}
+					sf.pool.Put(trie)
+					return nil
+				})
 			}
 
 		case <-sf.stop:

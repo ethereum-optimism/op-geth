@@ -339,7 +339,7 @@ func (miner *Miner) makeEnv(parent *types.Header, header *types.Header, coinbase
 		if err != nil {
 			return nil, err
 		}
-		state.StartPrefetcher("miner", bundle)
+		state.StartPrefetcher("miner", bundle, miner.backend.BlockChain().CacheConfig().TriePrefetcherParallelism)
 	}
 	// Note the passed coinbase may be different with header.Coinbase.
 	return &environment{

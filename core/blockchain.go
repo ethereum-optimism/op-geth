@@ -132,15 +132,16 @@ const (
 // CacheConfig contains the configuration values for the trie database
 // and state snapshot these are resident in a blockchain.
 type CacheConfig struct {
-	TrieCleanLimit      int           // Memory allowance (MB) to use for caching trie nodes in memory
-	TrieCleanNoPrefetch bool          // Whether to disable heuristic state prefetching for followup blocks
-	TrieDirtyLimit      int           // Memory limit (MB) at which to start flushing dirty trie nodes to disk
-	TrieDirtyDisabled   bool          // Whether to disable trie write caching and GC altogether (archive node)
-	TrieTimeLimit       time.Duration // Time limit after which to flush the current in-memory trie to disk
-	SnapshotLimit       int           // Memory allowance (MB) to use for caching snapshot entries in memory
-	Preimages           bool          // Whether to store preimage of trie key to the disk
-	StateHistory        uint64        // Number of blocks from head whose state histories are reserved.
-	StateScheme         string        // Scheme used to store ethereum states and merkle tree nodes on top
+	TrieCleanLimit            int           // Memory allowance (MB) to use for caching trie nodes in memory
+	TrieCleanNoPrefetch       bool          // Whether to disable heuristic state prefetching for followup blocks
+	TrieDirtyLimit            int           // Memory limit (MB) at which to start flushing dirty trie nodes to disk
+	TrieDirtyDisabled         bool          // Whether to disable trie write caching and GC altogether (archive node)
+	TriePrefetcherParallelism int           // Max concurrent disk reads trie prefetcher should perform at once
+	TrieTimeLimit             time.Duration // Time limit after which to flush the current in-memory trie to disk
+	SnapshotLimit             int           // Memory allowance (MB) to use for caching snapshot entries in memory
+	Preimages                 bool          // Whether to store preimage of trie key to the disk
+	StateHistory              uint64        // Number of blocks from head whose state histories are reserved.
+	StateScheme               string        // Scheme used to store ethereum states and merkle tree nodes on top
 
 	SnapshotNoBuild bool // Whether the background generation is allowed
 	SnapshotWait    bool // Wait for snapshot construction on startup. TODO(karalabe): This is a dirty hack for testing, nuke it
@@ -170,12 +171,13 @@ func (c *CacheConfig) triedbConfig(isVerkle bool) *triedb.Config {
 // defaultCacheConfig are the default caching values if none are specified by the
 // user (also used during testing).
 var defaultCacheConfig = &CacheConfig{
-	TrieCleanLimit: 256,
-	TrieDirtyLimit: 256,
-	TrieTimeLimit:  5 * time.Minute,
-	SnapshotLimit:  256,
-	SnapshotWait:   true,
-	StateScheme:    rawdb.HashScheme,
+	TrieCleanLimit:            256,
+	TrieDirtyLimit:            256,
+	TriePrefetcherParallelism: 16,
+	TrieTimeLimit:             5 * time.Minute,
+	SnapshotLimit:             256,
+	SnapshotWait:              true,
+	StateScheme:               rawdb.HashScheme,
 }
 
 // DefaultCacheConfigWithScheme returns a deep copied default cache config with
@@ -1796,7 +1798,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks, setHead bool, makeWitness 
 					return nil, it.index, err
 				}
 			}
-			statedb.StartPrefetcher("chain", witness)
+			statedb.StartPrefetcher("chain", witness, bc.cacheConfig.TriePrefetcherParallelism)
 		}
 		activeState = statedb
 
@@ -2541,4 +2543,12 @@ func (bc *BlockChain) SetTrieFlushInterval(interval time.Duration) {
 // GetTrieFlushInterval gets the in-memory tries flushAlloc interval
 func (bc *BlockChain) GetTrieFlushInterval() time.Duration {
 	return time.Duration(bc.flushInterval.Load())
+}
+
+// CacheConfig returns a reference to [bc.cacheConfig]
+//
+// This is used by [miner] to set prefetch parallelism
+// during block building.
+func (bc *BlockChain) CacheConfig() *CacheConfig {
+	return bc.cacheConfig
 }

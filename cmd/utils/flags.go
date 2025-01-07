@@ -495,6 +495,12 @@ var (
 		Usage:    "Disable heuristic state prefetch during block import (less CPU and disk IO, more time waiting for data)",
 		Category: flags.PerfCategory,
 	}
+	CachePrefetcherParallelismFlag = &cli.IntFlag{
+		Name:     "cache.prefetcher.parallelism",
+		Usage:    "Maximum number of concurrent disk reads trie prefetcher should perform at once",
+		Value:    16,
+		Category: flags.PerfCategory,
+	}
 	CachePreimagesFlag = &cli.BoolFlag{
 		Name:     "cache.preimages",
 		Usage:    "Enable recording the SHA3/keccak preimages of trie keys",
@@ -2349,15 +2355,16 @@ func MakeChain(ctx *cli.Context, stack *node.Node, readonly bool) (*core.BlockCh
 		Fatalf("%v", err)
 	}
 	cache := &core.CacheConfig{
-		TrieCleanLimit:      ethconfig.Defaults.TrieCleanCache,
-		TrieCleanNoPrefetch: ctx.Bool(CacheNoPrefetchFlag.Name),
-		TrieDirtyLimit:      ethconfig.Defaults.TrieDirtyCache,
-		TrieDirtyDisabled:   ctx.String(GCModeFlag.Name) == "archive",
-		TrieTimeLimit:       ethconfig.Defaults.TrieTimeout,
-		SnapshotLimit:       ethconfig.Defaults.SnapshotCache,
-		Preimages:           ctx.Bool(CachePreimagesFlag.Name),
-		StateScheme:         scheme,
-		StateHistory:        ctx.Uint64(StateHistoryFlag.Name),
+		TrieCleanLimit:            ethconfig.Defaults.TrieCleanCache,
+		TrieCleanNoPrefetch:       ctx.Bool(CacheNoPrefetchFlag.Name),
+		TrieDirtyLimit:            ethconfig.Defaults.TrieDirtyCache,
+		TrieDirtyDisabled:         ctx.String(GCModeFlag.Name) == "archive",
+		TrieTimeLimit:             ethconfig.Defaults.TrieTimeout,
+		TriePrefetcherParallelism: ctx.Int(CachePrefetcherParallelismFlag.Name),
+		SnapshotLimit:             ethconfig.Defaults.SnapshotCache,
+		Preimages:                 ctx.Bool(CachePreimagesFlag.Name),
+		StateScheme:               scheme,
+		StateHistory:              ctx.Uint64(StateHistoryFlag.Name),
 	}
 	if cache.TrieDirtyDisabled && !cache.Preimages {
 		cache.Preimages = true
