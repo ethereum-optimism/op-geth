@@ -55,9 +55,9 @@ var (
 	// EcotoneL1AttributesSelector is the selector indicating Ecotone style L1 gas attributes.
 	// keccak256("setL1BlockValuesEcotone()")[:4]
 	EcotoneL1AttributesSelector = [4]byte{0x44, 0x0a, 0x5e, 0x20}
-	// IsthmusL1AttributesSelector is the selector indicating Isthmus style L1 gas attributes.
-	// keccak256("setL1BlockValuesIsthmus()")[:4]
-	IsthmusL1AttributesSelector = [4]byte{0x09, 0x89, 0x99, 0xbe}
+	// JovianL1AttributesSelector is the selector indicating Jovian style L1 gas attributes.
+	// keccak256("setL1BlockValuesJovian()")[:4]
+	JovianL1AttributesSelector = [4]byte{0x3d, 0xb6, 0xbe, 0x2b}
 	// InteropL1AttributesSelector is the selector indicating Interop style L1 gas attributes.
 	// keccak256("setL1BlockValuesInterop()")[:4]
 	InteropL1AttributesSelector = [4]byte{0x76, 0x0e, 0xe0, 0x4d}
@@ -273,7 +273,7 @@ func extractL1GasParams(config *params.ChainConfig, time uint64, data []byte) (g
 	var err error
 	var signature [4]byte
 	copy(signature[:], data)
-	// Note: for Ecotone + Isthmus, the new L1Block method selector is used in the block after
+	// Note: for Ecotone + Jovian, the new L1Block method selector is used in the block after
 	// activation, so we use the selector for the switch block rather than the fork time.
 	switch signature {
 	case BedrockL1AttributesSelector:
@@ -283,17 +283,17 @@ func extractL1GasParams(config *params.ChainConfig, time uint64, data []byte) (g
 			return gasParams{}, fmt.Errorf("setL1BlockValuesEcotone called before Ecotone active")
 		}
 		p, err = extractL1GasParamsPostEcotone(data)
-	case IsthmusL1AttributesSelector:
-		if !config.IsIsthmus(time) {
-			return gasParams{}, fmt.Errorf("setL1BlockValuesIsthmus called before Isthmus active")
+	case JovianL1AttributesSelector:
+		if !config.IsJovian(time) {
+			return gasParams{}, fmt.Errorf("setL1BlockValuesJovian called before Jovian active")
 		}
-		p, err = extractL1GasParamsPostIsthmus(data)
+		p, err = extractL1GasParamsPostJovian(data)
 	case InteropL1AttributesSelector:
 		if !config.IsInterop(time) {
 			return gasParams{}, fmt.Errorf("setL1BlockValuesInterop called before Interop active")
 		}
-		// Interop uses the same tx calldata size/format as Isthmus
-		p, err = extractL1GasParamsPostIsthmus(data)
+		// Interop uses the same tx calldata size/format as Jovian
+		p, err = extractL1GasParamsPostJovian(data)
 	default:
 		return gasParams{}, fmt.Errorf("unknown L1Block function signature: 0x%s", common.Bytes2Hex(signature[:]))
 	}
@@ -345,19 +345,19 @@ func extractL1GasParamsPostEcotone(data []byte) (gasParams, error) {
 	if len(data) != 164 {
 		return gasParams{}, fmt.Errorf("expected 164 L1 info bytes, got %d", len(data))
 	}
-	return extractL1GasParamsPostEcotoneIsthmus(data)
+	return extractL1GasParamsPostEcotoneJovian(data)
 }
 
-// extractL1GasParamsPostIsthmus extracts the gas parameters necessary to compute gas from L1 attribute
-// info calldata after the Isthmus upgrade, but not for the very first Isthmus block.
-func extractL1GasParamsPostIsthmus(data []byte) (gasParams, error) {
+// extractL1GasParamsPostJovian extracts the gas parameters necessary to compute gas from L1 attribute
+// info calldata after the Jovian upgrade, but not for the very first Jovian block.
+func extractL1GasParamsPostJovian(data []byte) (gasParams, error) {
 	if len(data) != 180 {
 		return gasParams{}, fmt.Errorf("expected 180 L1 info bytes, got %d", len(data))
 	}
-	return extractL1GasParamsPostEcotoneIsthmus(data)
+	return extractL1GasParamsPostEcotoneJovian(data)
 }
 
-func extractL1GasParamsPostEcotoneIsthmus(data []byte) (gasParams, error) {
+func extractL1GasParamsPostEcotoneJovian(data []byte) (gasParams, error) {
 	// data layout assumed for Ecotone:
 	// offset type varname
 	// 0     <selector>
@@ -370,7 +370,7 @@ func extractL1GasParamsPostEcotoneIsthmus(data []byte) (gasParams, error) {
 	// 68    uint256 _blobBaseFee,
 	// 100   bytes32 _hash,
 	// 132   bytes32 _batcherHash,
-	// Isthmus adds two more uint64s, which are ignored by this function:
+	// Jovian adds two more uint64s, which are ignored by this function:
 	// 164   uint64 _depositNonce
 	// 172   uint64 _configUpdateNonce
 	l1BaseFee := new(big.Int).SetBytes(data[36:68])

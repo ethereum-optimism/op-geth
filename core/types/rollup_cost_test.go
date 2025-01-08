@@ -206,19 +206,19 @@ func TestExtractFjordGasParams(t *testing.T) {
 	require.Equal(t, fjordFee, c)
 }
 
-func TestExtractIsthmusGasParams(t *testing.T) {
+func TestExtractJovianGasParams(t *testing.T) {
 	zeroTime := uint64(0)
-	// create a config where isthmus is active
+	// create a config where jovian is active
 	config := &params.ChainConfig{
 		Optimism:     params.OptimismTestConfig.Optimism,
 		RegolithTime: &zeroTime,
 		EcotoneTime:  &zeroTime,
 		FjordTime:    &zeroTime,
-		IsthmusTime:  &zeroTime,
+		JovianTime:   &zeroTime,
 	}
-	require.True(t, config.IsOptimismIsthmus(zeroTime))
+	require.True(t, config.IsOptimismJovian(zeroTime))
 
-	data := getIsthmusL1Attributes(
+	data := getJovianL1Attributes(
 		baseFee,
 		blobBaseFee,
 		baseFeeScalar,
@@ -257,20 +257,20 @@ func TestFirstBlockEcotoneGasParams(t *testing.T) {
 	require.Equal(t, regolithFee, c)
 }
 
-// make sure the first block of the isthmus upgrade is properly detected, and invokes the ecotone
+// make sure the first block of the jovian upgrade is properly detected, and invokes the ecotone
 // cost function appropriately
-func TestFirstBlockIsthmusGasParams(t *testing.T) {
+func TestFirstBlockJovianGasParams(t *testing.T) {
 	zeroTime := uint64(0)
-	// create a config where isthmus upgrade is active
+	// create a config where jovian upgrade is active
 	config := &params.ChainConfig{
 		Optimism:     params.OptimismTestConfig.Optimism,
 		RegolithTime: &zeroTime,
 		EcotoneTime:  &zeroTime,
 		FjordTime:    &zeroTime,
-		IsthmusTime:  &zeroTime,
+		JovianTime:   &zeroTime,
 	}
 	require.True(t, config.IsOptimismEcotone(0))
-	require.True(t, config.IsOptimismIsthmus(0))
+	require.True(t, config.IsOptimismJovian(0))
 
 	data := getEcotoneL1Attributes(
 		baseFee,
@@ -322,13 +322,13 @@ func getEcotoneL1Attributes(baseFee, blobBaseFee, baseFeeScalar, blobBaseFeeScal
 	return data
 }
 
-func getIsthmusL1Attributes(baseFee, blobBaseFee, baseFeeScalar, blobBaseFeeScalar *big.Int) []byte {
+func getJovianL1Attributes(baseFee, blobBaseFee, baseFeeScalar, blobBaseFeeScalar *big.Int) []byte {
 	ignored := big.NewInt(1234)
 	data := []byte{}
 	uint256Slice := make([]byte, 32)
 	uint64Slice := make([]byte, 8)
 	uint32Slice := make([]byte, 4)
-	data = append(data, IsthmusL1AttributesSelector[:]...)
+	data = append(data, JovianL1AttributesSelector[:]...)
 	data = append(data, baseFeeScalar.FillBytes(uint32Slice)...)
 	data = append(data, blobBaseFeeScalar.FillBytes(uint32Slice)...)
 	data = append(data, ignored.FillBytes(uint64Slice)...)
