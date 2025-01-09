@@ -3,7 +3,7 @@ version: 2.1
 orbs:
   gcp-cli: circleci/gcp-cli@3.0.1
   slack: circleci/slack@4.10.1
-  utils: ethereum-optimism/circleci-utils@0.0.7
+  utils: ethereum-optimism/circleci-utils@0.0.8
 
 parameters:
   go_version:
@@ -88,43 +88,8 @@ jobs:
           private-key-str: GITHUB_APP_KEY
           app-id: GITHUB_APP_ID
           repo: $CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME
-      # Deploy to GitHub Pages
-      - run:
-          name: Deploy to GitHub Pages
-          command: |
-            pages_branch="gh-pages-test"
-
-            SOURCE_COMMIT=$(git rev-parse HEAD)
-            SOURCE_REPO="${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}"
-
-            USERNAME=${CIRCLE_USERNAME}
-
-            # Extract the email from the user info
-            ID=$(curl https://api.github.com/users/$USERNAME | jq -r '.id')
-            USER_EMAIL="${ID}+${USERNAME}@users.noreply.github.com"
-
-            # Git operations with committer's identity
-            git config --global user.name "${USERNAME}"
-            git config --global user.email "${USER_EMAIL}"
-
-            # Remove all files from staging
-            git reset --hard  
-
-            #checkout target branch
-            git fetch origin ${pages_branch} 
-            git checkout ${pages_branch}
-
-            # Clean working directory
-            rm -rf *
-
-            # Copy new files
-            cp -a /tmp/pages/. .
-
-            # Commit and push
-            git add .
-            git commit -m "Deploying to gh-pages from @ ${SOURCE_REPO}@${SOURCE_COMMIT} 🚀"
-            git push "https://x-access-token:${GITHUB_APP_TOKEN}@github.com/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}.git" ${pages_branch}
-
+      - utils/github-pages-deploy:
+          src-pages-dir: /tmp/pages
   docker-release:
     environment:
       DOCKER_BUILDKIT: 1
