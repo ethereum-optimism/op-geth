@@ -37,7 +37,6 @@ var (
 	bedrockGenesisTestConfig = func() *params.ChainConfig {
 		conf := *params.AllCliqueProtocolChanges // copy the config
 		conf.Clique = nil
-		conf.TerminalTotalDifficultyPassed = true
 		conf.BedrockBlock = big.NewInt(0)
 		conf.Optimism = &params.OptimismConfig{EIP1559Elasticity: 50, EIP1559Denominator: 10}
 		return &conf

@@ -121,7 +121,6 @@ func TestProtocolVersion_Compare(t *testing.T) {
 		},
 	}
 	for i, tc := range testCases {
-		tc := tc // not a parallel sub-test, but better than a flake
 		t.Run(fmt.Sprintf("case_%d", i), func(t *testing.T) {
 			a := ProtocolVersionV0{tc.A.Build, tc.A.Major, tc.A.Minor, tc.A.Patch, tc.A.Prerelease}.Encode()
 			a[0] = tc.A.VersionType

@@ -92,7 +92,6 @@ type ExecutableData struct {
 	Withdrawals      []*types.Withdrawal     `json:"withdrawals"`
 	BlobGasUsed      *uint64                 `json:"blobGasUsed"`
 	ExcessBlobGas    *uint64                 `json:"excessBlobGas"`
-	Deposits         types.Deposits          `json:"depositRequests"`
 	ExecutionWitness *types.ExecutionWitness `json:"executionWitness,omitempty"`
 
 	// OP-Stack Isthmus specific field:
@@ -129,8 +128,9 @@ type ExecutionPayloadEnvelope struct {
 	ExecutionPayload *ExecutableData `json:"executionPayload"  gencodec:"required"`
 	BlockValue       *big.Int        `json:"blockValue"  gencodec:"required"`
 	BlobsBundle      *BlobsBundleV1  `json:"blobsBundle"`
+	Requests         [][]byte        `json:"executionRequests"`
 	Override         bool            `json:"shouldOverrideBuilder"`
-	Witness          *hexutil.Bytes  `json:"witness"`
+	Witness          *hexutil.Bytes  `json:"witness,omitempty"`
 	// OP-Stack: Ecotone specific fields
 	ParentBeaconBlockRoot *common.Hash `json:"parentBeaconBlockRoot,omitempty"`
 }
@@ -141,9 +141,15 @@ type BlobsBundleV1 struct {
 	Blobs       []hexutil.Bytes `json:"blobs"`
 }
 
+type BlobAndProofV1 struct {
+	Blob  hexutil.Bytes `json:"blob"`
+	Proof hexutil.Bytes `json:"proof"`
+}
+
 // JSON type overrides for ExecutionPayloadEnvelope.
 type executionPayloadEnvelopeMarshaling struct {
 	BlockValue *hexutil.Big
+	Requests   []hexutil.Bytes
 }
 
 type PayloadStatusV1 struct {
@@ -230,8 +236,8 @@ func decodeTransactions(enc [][]byte) ([]*types.Transaction, error) {
 // and that the blockhash of the constructed block matches the parameters. Nil
 // Withdrawals value will propagate through the returned block. Empty
 // Withdrawals value must be passed via non-nil, length 0 value in data.
-func ExecutableDataToBlock(data ExecutableData, versionedHashes []common.Hash, beaconRoot *common.Hash, bType types.BlockType) (*types.Block, error) {
-	block, err := ExecutableDataToBlockNoHash(data, versionedHashes, beaconRoot, bType)
+func ExecutableDataToBlock(data ExecutableData, versionedHashes []common.Hash, beaconRoot *common.Hash, requests [][]byte, bType types.BlockType) (*types.Block, error) {
+	block, err := ExecutableDataToBlockNoHash(data, versionedHashes, beaconRoot, requests, bType)
 	if err != nil {
 		return nil, err
 	}
@@ -244,7 +250,7 @@ func ExecutableDataToBlock(data ExecutableData, versionedHashes []common.Hash, b
 // ExecutableDataToBlockNoHash is analogous to ExecutableDataToBlock, but is used
 // for stateless execution, so it skips checking if the executable data hashes to
 // the requested hash (stateless has to *compute* the root hash, it's not given).
-func ExecutableDataToBlockNoHash(data ExecutableData, versionedHashes []common.Hash, beaconRoot *common.Hash, bType types.BlockType) (*types.Block, error) {
+func ExecutableDataToBlockNoHash(data ExecutableData, versionedHashes []common.Hash, beaconRoot *common.Hash, requests [][]byte, bType types.BlockType) (*types.Block, error) {
 	txs, err := decodeTransactions(data.Transactions)
 	if err != nil {
 		return nil, err
@@ -290,19 +296,21 @@ func ExecutableDataToBlockNoHash(data ExecutableData, versionedHashes []common.H
 		h := types.DeriveSha(types.Withdrawals(data.Withdrawals), trie.NewStackTrie(nil))
 		withdrawalsRoot = &h
 	}
-	// Compute requestsHash if any requests are non-nil.
-	var (
-		requestsHash *common.Hash
-		requests     types.Requests
-	)
-	if data.Deposits != nil {
-		requests = make(types.Requests, 0)
-		for _, d := range data.Deposits {
-			requests = append(requests, types.NewRequest(d))
+
+	var requestsHash *common.Hash
+	if requests != nil {
+		// Put back request type byte.
+		typedRequests := make([][]byte, len(requests))
+		for i, reqdata := range requests {
+			typedReqdata := make([]byte, len(reqdata)+1)
+			typedReqdata[0] = byte(i)
+			copy(typedReqdata[1:], reqdata)
+			typedRequests[i] = typedReqdata
 		}
-		h := types.DeriveSha(requests, trie.NewStackTrie(nil))
+		h := types.CalcRequestsHash(typedRequests)
 		requestsHash = &h
 	}
+
 	header := &types.Header{
 		ParentHash:       data.ParentHash,
 		UncleHash:        types.EmptyUncleHash,
@@ -326,14 +334,14 @@ func ExecutableDataToBlockNoHash(data ExecutableData, versionedHashes []common.H
 		RequestsHash:     requestsHash,
 	}
 	return types.NewBlockWithHeader(header).
-			WithBody(types.Body{Transactions: txs, Uncles: nil, Withdrawals: data.Withdrawals, Requests: requests}).
+			WithBody(types.Body{Transactions: txs, Uncles: nil, Withdrawals: data.Withdrawals}).
 			WithWitness(data.ExecutionWitness),
 		nil
 }
 
 // BlockToExecutableData constructs the ExecutableData structure by filling the
 // fields from the given block. It assumes the given block is post-merge block.
-func BlockToExecutableData(block *types.Block, fees *big.Int, sidecars []*types.BlobTxSidecar) *ExecutionPayloadEnvelope {
+func BlockToExecutableData(block *types.Block, fees *big.Int, sidecars []*types.BlobTxSidecar, requests [][]byte) *ExecutionPayloadEnvelope {
 	data := &ExecutableData{
 		BlockHash:        block.Hash(),
 		ParentHash:       block.ParentHash(),
@@ -356,6 +364,8 @@ func BlockToExecutableData(block *types.Block, fees *big.Int, sidecars []*types.
 		// OP-Stack addition: withdrawals list alone does not express the withdrawals storage-root.
 		WithdrawalsRoot: block.WithdrawalsRoot(),
 	}
+
+	// Add blobs.
 	bundle := BlobsBundleV1{
 		Commitments: make([]hexutil.Bytes, 0),
 		Blobs:       make([]hexutil.Bytes, 0),
@@ -368,28 +378,21 @@ func BlockToExecutableData(block *types.Block, fees *big.Int, sidecars []*types.
 			bundle.Proofs = append(bundle.Proofs, hexutil.Bytes(sidecar.Proofs[j][:]))
 		}
 	}
-	setRequests(block.Requests(), data)
+	// Remove type byte in requests.
+	var plainRequests [][]byte
+	if requests != nil {
+		plainRequests = make([][]byte, len(requests))
+		for i, reqdata := range requests {
+			plainRequests[i] = reqdata[1:]
+		}
+	}
 	return &ExecutionPayloadEnvelope{
 		ExecutionPayload:      data,
 		BlockValue:            fees,
 		BlobsBundle:           &bundle,
+		Requests:              plainRequests,
 		Override:              false,
 		ParentBeaconBlockRoot: block.BeaconRoot(),
-	}
-}
-
-// setRequests differentiates the different request types and
-// assigns them to the associated fields in ExecutableData.
-func setRequests(requests types.Requests, data *ExecutableData) {
-	if requests != nil {
-		// If requests is non-nil, it means deposits are available in block and we
-		// should return an empty slice instead of nil if there are no deposits.
-		data.Deposits = make(types.Deposits, 0)
-	}
-	for _, r := range requests {
-		if d, ok := r.Inner().(*types.Deposit); ok {
-			data.Deposits = append(data.Deposits, d)
-		}
 	}
 }
 
@@ -397,7 +400,6 @@ func setRequests(requests types.Requests, data *ExecutableData) {
 type ExecutionPayloadBody struct {
 	TransactionData []hexutil.Bytes     `json:"transactions"`
 	Withdrawals     []*types.Withdrawal `json:"withdrawals"`
-	Deposits        types.Deposits      `json:"depositRequests"`
 }
 
 // Client identifiers to support ClientVersionV1.
