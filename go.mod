@@ -23,7 +23,7 @@ require (
 	github.com/deckarep/golang-set/v2 v2.6.0
 	github.com/donovanhide/eventsource v0.0.0-20210830082556-c59027999da0
 	github.com/dop251/goja v0.0.0-20230806174421-c933cf95e127
-	github.com/ethereum-optimism/superchain-registry/superchain v0.0.0-20241213092551-33a63fce8214
+	github.com/ethereum-optimism/superchain-registry/superchain v0.0.0-20250115145553-996c7aba6565
 	github.com/ethereum/c-kzg-4844 v1.0.0
 	github.com/ethereum/go-verkle v0.1.1-0.20240829091221-dffa7562dbe9
 	github.com/fatih/color v1.16.0
