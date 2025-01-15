@@ -73,6 +73,7 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/netutil"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/ethereum/go-ethereum/superchain"
 	"github.com/ethereum/go-ethereum/triedb"
 	"github.com/ethereum/go-ethereum/triedb/hashdb"
 	"github.com/ethereum/go-ethereum/triedb/pathdb"
@@ -159,7 +160,7 @@ var (
 		Name:    "op-network",
 		Aliases: []string{"beta.op-network"},
 		Usage: "Select a pre-configured OP-Stack network (warning: op-mainnet and op-goerli require special sync," +
-			" datadir is recommended), options: " + strings.Join(params.OPStackChainNames(), ", "),
+			" datadir is recommended), options: " + strings.Join(superchain.ChainNames(), ", "),
 		Category: flags.EthCategory,
 	}
 
@@ -2314,7 +2315,7 @@ func MakeGenesis(ctx *cli.Context) *core.Genesis {
 		genesis = core.DefaultSepoliaGenesisBlock()
 	case ctx.IsSet(OPNetworkFlag.Name):
 		name := ctx.String(OPNetworkFlag.Name)
-		ch, err := params.OPStackChainIDByName(name)
+		ch, err := superchain.ChainIDByName(name)
 		if err != nil {
 			Fatalf("failed to load OP-Stack chain %q: %v", name, err)
 		}

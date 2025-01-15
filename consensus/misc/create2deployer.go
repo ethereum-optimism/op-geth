@@ -1,10 +1,11 @@
 package misc
 
 import (
-	"github.com/ethereum-optimism/superchain-registry/superchain"
+	_ "embed"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 )
@@ -18,14 +19,15 @@ import (
 
 var create2DeployerAddress = common.HexToAddress("0x13b0D85CcB8bf860b6b79AF3029fCA081AE9beF2")
 var create2DeployerCodeHash = common.HexToHash("0xb0550b5b431e30d38000efb7107aaa0ade03d48a7198a140edda9d27134468b2")
+
+//go:embed create2deployer.bin
 var create2DeployerCode []byte
 
 func init() {
-	code, err := superchain.LoadContractBytecode(superchain.Hash(create2DeployerCodeHash))
-	if err != nil {
-		panic(err)
+	testCodeHash := crypto.Keccak256Hash(create2DeployerCode)
+	if testCodeHash != create2DeployerCodeHash {
+		panic("create2deployer hash and code mismatch")
 	}
-	create2DeployerCode = code
 }
 
 func EnsureCreate2Deployer(c *params.ChainConfig, timestamp uint64, db vm.StateDB) {
