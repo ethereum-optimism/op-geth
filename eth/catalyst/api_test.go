@@ -1106,6 +1106,7 @@ func TestWithdrawals(t *testing.T) {
 		BeaconRoot:   blockParams.BeaconRoot,
 		Version:      engine.PayloadV2,
 	}).Id()
+	require.Equal(t, payloadID, *resp.PayloadID)
 	require.NoError(t, waitForApiPayloadToBuild(api, payloadID))
 	execData, err := api.GetPayloadV2(payloadID)
 	if err != nil {
@@ -1141,7 +1142,8 @@ func TestWithdrawals(t *testing.T) {
 		},
 	}
 	fcState.HeadBlockHash = execData.ExecutionPayload.BlockHash
-	_, err = api.ForkchoiceUpdatedV2(fcState, &blockParams)
+	// note: diff, need latest response to get payload ID comparison right.
+	resp, err = api.ForkchoiceUpdatedV2(fcState, &blockParams)
 	if err != nil {
 		t.Fatalf("error preparing payload, err=%v", err)
 	}
@@ -1156,6 +1158,7 @@ func TestWithdrawals(t *testing.T) {
 		BeaconRoot:   blockParams.BeaconRoot,
 		Version:      engine.PayloadV2,
 	}).Id()
+	require.Equal(t, payloadID, *resp.PayloadID)
 	require.NoError(t, waitForApiPayloadToBuild(api, payloadID))
 	execData, err = api.GetPayloadV2(payloadID)
 	if err != nil {
@@ -1676,6 +1679,7 @@ func TestParentBeaconBlockRoot(t *testing.T) {
 		BeaconRoot:   blockParams.BeaconRoot,
 		Version:      engine.PayloadV3,
 	}).Id()
+	require.Equal(t, payloadID, *resp.PayloadID)
 	require.NoError(t, waitForApiPayloadToBuild(api, *resp.PayloadID))
 	execData, err := api.GetPayloadV3(payloadID)
 	if err != nil {
