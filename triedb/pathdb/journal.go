@@ -45,10 +45,7 @@ var (
 //
 // - Version 0: initial version
 // - Version 1: storage.Incomplete field is removed
-const (
-	journalVersion   uint64 = 1
-	journalVersionV0 uint64 = 0
-)
+const journalVersion uint64 = 1
 
 // loadJournal tries to parse the layer journal from the disk.
 func (db *Database) loadJournal(diskRoot common.Hash) (layer, error) {
@@ -63,7 +60,7 @@ func (db *Database) loadJournal(diskRoot common.Hash) (layer, error) {
 	if err != nil {
 		return nil, errMissVersion
 	}
-	if version != journalVersionV0 && version != journalVersion {
+	if version != journalVersion {
 		return nil, fmt.Errorf("%w want %d got %d", errUnexpectedVersion, journalVersion, version)
 	}
 	// Secondly, resolve the disk layer root, ensure it's continuous
@@ -95,7 +92,7 @@ func (db *Database) loadJournal(diskRoot common.Hash) (layer, error) {
 // loadLayers loads a pre-existing state layer backed by a key-value store.
 func (db *Database) loadLayers() layer {
 	// Retrieve the root node of persistent state.
-	root := types.EmptyRootHash
+	var root = types.EmptyRootHash
 	if blob := rawdb.ReadAccountTrieNode(db.diskdb, nil); len(blob) > 0 {
 		root = crypto.Keccak256Hash(blob)
 	}
