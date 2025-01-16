@@ -5,7 +5,7 @@
 set -euo pipefail
 
 # Constants
-REGISTRY_COMMIT="9596f616b9bd07b7823e23aac72ae4621805653d"
+REGISTRY_COMMIT=$(cat superchain-registry-commit.txt)
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
 repodir=$(mktemp -d)
