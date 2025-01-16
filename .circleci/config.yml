@@ -227,9 +227,6 @@ jobs:
           name: install dasel
           command: go install github.com/tomwright/dasel/v2/cmd/dasel@v2.8.1
       - run:
-          name: install jq
-          command: sudo apt-get install jq
-      - run:
           name: generate artifact and check diff
           command: |
             bash ./sync-superchain.sh
