@@ -22,11 +22,11 @@ type ChainConfig struct {
 	MaxSequencerDrift uint64          `toml:"max_sequencer_drift"`
 	GasPayingToken    *common.Address `toml:"gas_paying_token"`
 	Hardforks         HardforkConfig  `toml:"hardforks"`
-	Optimism          *OptimismConfig `toml:"optimism,omitempty" json:"optimism,omitempty"`
+	Optimism          *OptimismConfig `toml:"optimism,omitempty"`
 
-	AltDA *AltDAConfig `toml:"alt_da,omitempty" json:"alt_da,omitempty"`
+	AltDA *AltDAConfig `toml:"alt_da,omitempty"`
 
-	Genesis GenesisConfig `toml:"genesis" json:"genesis"`
+	Genesis GenesisConfig `toml:"genesis"`
 
 	Roles RolesConfig `toml:"roles"`
 
