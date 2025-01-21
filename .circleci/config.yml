@@ -218,6 +218,19 @@ jobs:
           branch_pattern: optimism
           event: fail
           template: basic_fail_1
+  check-sr-diff:
+    docker:
+      - image: cimg/go:<<pipeline.parameters.go_version>>
+    steps:
+      - checkout
+      - run:
+          name: install dasel
+          command: go install github.com/tomwright/dasel/v2/cmd/dasel@v2.8.1
+      - run:
+          name: generate artifact and check diff
+          command: |
+            bash ./sync-superchain.sh
+            git diff --exit-code
 
 workflows:
   main:
@@ -235,6 +248,8 @@ workflows:
           docker_tags: <<pipeline.git.revision>>
           context:
             - oplabs-gcr
+      - check-sr-diff:
+          name: Check superchain registry bundle diff
   release:
     jobs:
       - hold:

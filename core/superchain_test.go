@@ -1,21 +1,24 @@
 package core
 
 import (
+	"fmt"
 	"testing"
-
-	"github.com/ethereum-optimism/superchain-registry/superchain"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/rawdb"
+	"github.com/ethereum/go-ethereum/superchain"
 	"github.com/ethereum/go-ethereum/triedb"
 )
 
 func TestOPStackGenesis(t *testing.T) {
-	for id := range superchain.OPChains {
-		_, err := LoadOPStackGenesis(id)
-		if err != nil {
-			t.Error(err)
-		}
+	for id, cfg := range superchain.Chains {
+		t.Run(fmt.Sprintf("chain-%s", cfg.Name), func(t *testing.T) {
+			t.Parallel()
+			_, err := LoadOPStackGenesis(id)
+			if err != nil {
+				t.Error(err)
+			}
+		})
 	}
 }
 

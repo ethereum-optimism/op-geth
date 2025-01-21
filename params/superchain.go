@@ -4,36 +4,18 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math/big"
-	"sort"
 	"strings"
 
-	"github.com/ethereum-optimism/superchain-registry/superchain"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/superchain"
 )
 
 var OPStackSupport = ProtocolVersionV0{Build: [8]byte{}, Major: 9, Minor: 0, Patch: 0, PreRelease: 0}.Encode()
 
 func init() {
-	for id, ch := range superchain.OPChains {
+	for id, ch := range superchain.Chains {
 		NetworkNames[fmt.Sprintf("%d", id)] = ch.Name
 	}
-}
-
-func OPStackChainIDByName(name string) (uint64, error) {
-	for id, ch := range superchain.OPChains {
-		if ch.Chain+"-"+ch.Superchain == name {
-			return id, nil
-		}
-	}
-	return 0, fmt.Errorf("unknown chain %q", name)
-}
-
-func OPStackChainNames() (out []string) {
-	for _, ch := range superchain.OPChains {
-		out = append(out, ch.Chain+"-"+ch.Superchain)
-	}
-	sort.Strings(out)
-	return
 }
 
 // uint64ptr is a weird helper to allow 1-line constant pointer creation.
@@ -41,15 +23,11 @@ func uint64ptr(n uint64) *uint64 {
 	return &n
 }
 
-func LoadOPStackChainConfig(chainID uint64) (*ChainConfig, error) {
-	chConfig, ok := superchain.OPChains[chainID]
-	if !ok {
-		return nil, fmt.Errorf("unknown chain ID: %d", chainID)
-	}
-
+func LoadOPStackChainConfig(chConfig *superchain.ChainConfig) (*ChainConfig, error) {
+	hardforks := chConfig.Hardforks
 	genesisActivation := uint64(0)
 	out := &ChainConfig{
-		ChainID:                 new(big.Int).SetUint64(chainID),
+		ChainID:                 new(big.Int).SetUint64(chConfig.ChainID),
 		HomesteadBlock:          common.Big0,
 		DAOForkBlock:            nil,
 		DAOForkSupport:          false,
@@ -66,16 +44,16 @@ func LoadOPStackChainConfig(chainID uint64) (*ChainConfig, error) {
 		ArrowGlacierBlock:       common.Big0,
 		GrayGlacierBlock:        common.Big0,
 		MergeNetsplitBlock:      common.Big0,
-		ShanghaiTime:            chConfig.CanyonTime,  // Shanghai activates with Canyon
-		CancunTime:              chConfig.EcotoneTime, // Cancun activates with Ecotone
+		ShanghaiTime:            hardforks.CanyonTime,  // Shanghai activates with Canyon
+		CancunTime:              hardforks.EcotoneTime, // Cancun activates with Ecotone
 		PragueTime:              nil,
 		BedrockBlock:            common.Big0,
 		RegolithTime:            &genesisActivation,
-		CanyonTime:              chConfig.CanyonTime,
-		EcotoneTime:             chConfig.EcotoneTime,
-		FjordTime:               chConfig.FjordTime,
-		GraniteTime:             chConfig.GraniteTime,
-		HoloceneTime:            chConfig.HoloceneTime,
+		CanyonTime:              hardforks.CanyonTime,
+		EcotoneTime:             hardforks.EcotoneTime,
+		FjordTime:               hardforks.FjordTime,
+		GraniteTime:             hardforks.GraniteTime,
+		HoloceneTime:            hardforks.HoloceneTime,
 		TerminalTotalDifficulty: common.Big0,
 		Ethash:                  nil,
 		Clique:                  nil,
@@ -92,7 +70,7 @@ func LoadOPStackChainConfig(chainID uint64) (*ChainConfig, error) {
 	}
 
 	// special overrides for OP-Stack chains with pre-Regolith upgrade history
-	switch chainID {
+	switch chConfig.ChainID {
 	case OPMainnetChainID:
 		out.BerlinBlock = big.NewInt(3950000)
 		out.LondonBlock = big.NewInt(105235063)

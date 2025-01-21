@@ -24,8 +24,6 @@ import (
 	"math/big"
 	"strings"
 
-	"github.com/ethereum-optimism/superchain-registry/superchain"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/common/math"
@@ -38,6 +36,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/ethereum/go-ethereum/superchain"
 	"github.com/ethereum/go-ethereum/trie"
 	"github.com/ethereum/go-ethereum/triedb"
 	"github.com/ethereum/go-ethereum/triedb/pathdb"
@@ -306,13 +305,26 @@ func SetupGenesisBlockWithOverride(db ethdb.Database, triedb *triedb.Database, g
 			// If applying the superchain-registry to a known OP-Stack chain,
 			// then override the local chain-config with that from the registry.
 			if overrides != nil && overrides.ApplySuperchainUpgrades && config.IsOptimism() && config.ChainID != nil && config.ChainID.IsUint64() {
-				if _, ok := superchain.OPChains[config.ChainID.Uint64()]; ok {
-					conf, err := params.LoadOPStackChainConfig(config.ChainID.Uint64())
+				getChainConfig := func() (*params.ChainConfig, error) {
+					chain, err := superchain.GetChain(config.ChainID.Uint64())
 					if err != nil {
-						log.Warn("failed to load chain config from superchain-registry, skipping override", "err", err, "chain_id", config.ChainID)
-					} else {
-						*config = *conf
+						return nil, err
 					}
+					chainConf, err := chain.Config()
+					if err != nil {
+						return nil, err
+					}
+					genConf, err := params.LoadOPStackChainConfig(chainConf)
+					if err != nil {
+						return nil, err
+					}
+					return genConf, err
+				}
+
+				if genConf, err := getChainConfig(); err == nil {
+					*config = *genConf
+				} else {
+					log.Warn("failed to load chain config from superchain-registry, skipping override", "err", err, "chain_id", config.ChainID)
 				}
 			}
 			if overrides != nil && overrides.OverrideCancun != nil {
