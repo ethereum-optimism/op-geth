@@ -49,6 +49,7 @@ const (
 	AccessListTxType = 0x01
 	DynamicFeeTxType = 0x02
 	BlobTxType       = 0x03
+	SetCodeTxType    = 0x04
 )
 
 // Transaction is an Ethereum transaction.
@@ -216,6 +217,8 @@ func (tx *Transaction) decodeTyped(b []byte) (TxData, error) {
 		inner = new(DynamicFeeTx)
 	case BlobTxType:
 		inner = new(BlobTx)
+	case SetCodeTxType:
+		inner = new(SetCodeTx)
 	case DepositTxType:
 		inner = new(DepositTx)
 	default:
@@ -584,6 +587,15 @@ func (tx *Transaction) WithBlobTxSidecar(sideCar *BlobTxSidecar) *Transaction {
 		cpy.from.Store(f)
 	}
 	return cpy
+}
+
+// AuthList returns the authorizations list of the transaction.
+func (tx *Transaction) AuthList() []Authorization {
+	setcodetx, ok := tx.inner.(*SetCodeTx)
+	if !ok {
+		return nil
+	}
+	return setcodetx.AuthList
 }
 
 // SetTime sets the decoding time of a transaction. Used by the sequencer API to
