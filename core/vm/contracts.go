@@ -176,6 +176,27 @@ var PrecompiledContractsGranite = map[common.Address]PrecompiledContract{
 	common.BytesToAddress([]byte{0x01, 0x00}): &p256Verify{},
 }
 
+var PrecompiledContractsIsthmus = map[common.Address]PrecompiledContract{
+	common.BytesToAddress([]byte{1}):          &ecrecover{},
+	common.BytesToAddress([]byte{2}):          &sha256hash{},
+	common.BytesToAddress([]byte{3}):          &ripemd160hash{},
+	common.BytesToAddress([]byte{4}):          &dataCopy{},
+	common.BytesToAddress([]byte{5}):          &bigModExp{eip2565: true},
+	common.BytesToAddress([]byte{6}):          &bn256AddIstanbul{},
+	common.BytesToAddress([]byte{7}):          &bn256ScalarMulIstanbul{},
+	common.BytesToAddress([]byte{8}):          &bn256PairingGranite{},
+	common.BytesToAddress([]byte{9}):          &blake2F{},
+	common.BytesToAddress([]byte{0x0a}):       &kzgPointEvaluation{},
+	common.BytesToAddress([]byte{0x0b}):       &bls12381G1Add{},
+	common.BytesToAddress([]byte{0x0c}):       &bls12381G1MultiExp{},
+	common.BytesToAddress([]byte{0x0d}):       &bls12381G2Add{},
+	common.BytesToAddress([]byte{0x0e}):       &bls12381G2MultiExp{},
+	common.BytesToAddress([]byte{0x0f}):       &bls12381Pairing{},
+	common.BytesToAddress([]byte{0x10}):       &bls12381MapG1{},
+	common.BytesToAddress([]byte{0x11}):       &bls12381MapG2{},
+	common.BytesToAddress([]byte{0x01, 0x00}): &p256Verify{},
+}
+
 var (
 	PrecompiledAddressesGranite   []common.Address
 	PrecompiledAddressesFjord     []common.Address
@@ -185,6 +206,7 @@ var (
 	PrecompiledAddressesIstanbul  []common.Address
 	PrecompiledAddressesByzantium []common.Address
 	PrecompiledAddressesHomestead []common.Address
+	PrecompiledAddressesIsthmus   []common.Address
 )
 
 func init() {
@@ -212,10 +234,16 @@ func init() {
 	for k := range PrecompiledContractsGranite {
 		PrecompiledAddressesGranite = append(PrecompiledAddressesGranite, k)
 	}
+	for k := range PrecompiledContractsIsthmus {
+		PrecompiledAddressesIsthmus = append(PrecompiledAddressesIsthmus, k)
+	}
 }
 
 func activePrecompiledContracts(rules params.Rules) PrecompiledContracts {
+	// note: the order of these switch cases is important
 	switch {
+	case rules.IsOptimismIsthmus:
+		return PrecompiledContractsIsthmus
 	case rules.IsOptimismGranite:
 		return PrecompiledContractsGranite
 	case rules.IsOptimismFjord:
@@ -245,6 +273,8 @@ func ActivePrecompiledContracts(rules params.Rules) PrecompiledContracts {
 // ActivePrecompiles returns the precompile addresses enabled with the current configuration.
 func ActivePrecompiles(rules params.Rules) []common.Address {
 	switch {
+	case rules.IsOptimismIsthmus:
+		return PrecompiledAddressesIsthmus
 	case rules.IsOptimismGranite:
 		return PrecompiledAddressesGranite
 	case rules.IsOptimismFjord:
