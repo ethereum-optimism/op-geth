@@ -251,6 +251,7 @@ type extblock struct {
 
 type BlockType interface {
 	HasOptimismWithdrawalsRoot(blkTime uint64) bool
+	IsIsthmus(blkTime uint64) bool
 }
 
 // NewBlock creates a new block. The input data is copied, changes to header and to the
