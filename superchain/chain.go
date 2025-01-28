@@ -58,6 +58,10 @@ type Chain struct {
 	config  *ChainConfig
 	genesis []byte
 
+	// The config and genesis initialization is separated
+	// to allow for lazy loading. Reading genesis files is
+	// very expensive in Cannon so we only want to do it
+	// when necessary.
 	configOnce  sync.Once
 	genesisOnce sync.Once
 	err         error
