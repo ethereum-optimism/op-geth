@@ -329,13 +329,6 @@ def:
             not updated to handle the newly added `withdrawalsRoot` field in the block header.
           globs:
             - "cmd/evm/internal/t8ntool/block.go"
-    - title: "Hardware wallet support"
-      description: Extend Ledger wallet support for newer devices on Macos
-      sub:
-        - title: Fix Ledger discoverability
-          # upstream PR: https://github.com/ethereum/go-ethereum/pull/28863/
-          globs:
-            - "accounts/usbwallet/hub.go"
     - title: "Testing"
       description: Additional or modified tests, not already captured by the above diff
       ignore:

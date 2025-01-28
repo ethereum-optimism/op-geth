@@ -13,7 +13,7 @@ import (
 
 func TestEnsureCreate2Deployer(t *testing.T) {
 	canyonTime := uint64(1000)
-	var tests = []struct {
+	tests := []struct {
 		name       string
 		override   func(cfg *params.ChainConfig)
 		timestamp  uint64
@@ -90,6 +90,7 @@ func (s *stateDb) GetCodeSize(_ common.Address) int {
 	return 0
 }
 
-func (s *stateDb) SetCode(_ common.Address, _ []byte) {
+func (s *stateDb) SetCode(_ common.Address, _ []byte) []byte {
 	s.codeSet = true
+	return nil
 }
