@@ -357,6 +357,7 @@ func SetupGenesisBlockWithOverride(db ethdb.Database, triedb *triedb.Database, g
 			}
 			if overrides != nil && overrides.OverrideOptimismIsthmus != nil {
 				config.IsthmusTime = overrides.OverrideOptimismIsthmus
+				config.PragueTime = overrides.OverrideOptimismIsthmus
 			}
 			if overrides != nil && overrides.OverrideOptimismInterop != nil {
 				config.InteropTime = overrides.OverrideOptimismInterop
