@@ -46,7 +46,7 @@ func LoadOPStackChainConfig(chConfig *superchain.ChainConfig) (*ChainConfig, err
 		MergeNetsplitBlock:      common.Big0,
 		ShanghaiTime:            hardforks.CanyonTime,  // Shanghai activates with Canyon
 		CancunTime:              hardforks.EcotoneTime, // Cancun activates with Ecotone
-		PragueTime:              nil,
+		PragueTime:              hardforks.IsthmusTime, // Prague activates with Isthmus
 		BedrockBlock:            common.Big0,
 		RegolithTime:            &genesisActivation,
 		CanyonTime:              hardforks.CanyonTime,
@@ -54,6 +54,7 @@ func LoadOPStackChainConfig(chConfig *superchain.ChainConfig) (*ChainConfig, err
 		FjordTime:               hardforks.FjordTime,
 		GraniteTime:             hardforks.GraniteTime,
 		HoloceneTime:            hardforks.HoloceneTime,
+		IsthmusTime:             hardforks.IsthmusTime,
 		TerminalTotalDifficulty: common.Big0,
 		Ethash:                  nil,
 		Clique:                  nil,

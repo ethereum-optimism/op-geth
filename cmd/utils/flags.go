@@ -274,6 +274,11 @@ var (
 		Usage:    "Manually specify the Optimism Granite fork timestamp, overriding the bundled setting",
 		Category: flags.EthCategory,
 	}
+	OverrideOptimismIsthmus = &cli.Uint64Flag{
+		Name:     "override.isthmus",
+		Usage:    "Manually specify the Optimism Isthmus fork timestamp, overriding the bundled setting",
+		Category: flags.EthCategory,
+	}
 	OverrideOptimismHolocene = &cli.Uint64Flag{
 		Name:     "override.holocene",
 		Usage:    "Manually specify the Optimism Holocene fork timestamp, overriding the bundled setting",
