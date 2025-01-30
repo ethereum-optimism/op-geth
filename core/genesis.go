@@ -402,19 +402,18 @@ func SetupGenesisBlockWithOverride(db ethdb.Database, triedb *triedb.Database, g
 		}
 		return chainCfg, block.Hash(), nil, nil
 	}
-
-	// OP-Stack note: if it's a bedrock-transition genesis,
-	// then only commit to DB if it has a StateHash to work with,
-	// as the genesis config accounts map will not be usable.
-	transitionedNetwork := genesis != nil && genesis.Config != nil && genesis.Config.BedrockBlock != nil && genesis.Config.BedrockBlock.Uint64() != 0
-	canCommitGenesis := !transitionedNetwork || genesis.StateHash != nil
+	log.Info("Genesis hash", "hash", ghash)
+	// OP-Stack note: the OP-Mainnet bedrock-migration snapshot has a genesis hash, header and storedCfg.
+	// The only thing to do to it is to apply the overrides, to apply later superchain-upgrades.
 
 	// Commit the genesis if the genesis block exists in the ancient database
 	// but the key-value database is empty without initializing the genesis
 	// fields. This scenario can occur when the node is created from scratch
 	// with an existing ancient store.
 	storedCfg := rawdb.ReadChainConfig(db, ghash)
-	if storedCfg == nil && canCommitGenesis {
+	if storedCfg == nil {
+		// OP-Stack note: a new chain, initialized with op-network CLI flag, hits this case.
+
 		// Ensure the stored genesis block matches with the given genesis. Private
 		// networks must explicitly specify the genesis in the config file, mainnet
 		// genesis will be used as default and the initialization will always fail.
@@ -465,17 +464,15 @@ func SetupGenesisBlockWithOverride(db ethdb.Database, triedb *triedb.Database, g
 	// Returns genesis.Config if genesis is not nil. Falls back to storedCfg otherwise. And some special L1 cases.
 	newCfg := genesis.chainConfigOrDefault(ghash, storedCfg)
 
-	// OP-Stack note: geth used to have a "Special case" for private networks,
-	// where it would set newCfg to storedCfg if genesis was nil. That is implied now in chainConfigOrDefault.
-	// However, a possible upstream bug means that overrides are not always applied to this new config.
-	// Always apply overrides.
+	// OP-Stack note: Always apply overrides.
+	// The genesis function arg may be nil, and stored-config may be non-nil at the same time.
+	// This is important to apply superchain-upgrades to existing DBs, where the network CLI flag is not used.
 	chainCfg, err := overrides.apply(newCfg)
 	if err != nil {
 		return nil, common.Hash{}, nil, err
 	}
 	newCfg = chainCfg
 
-	log.Info("New config", "cfg", newCfg, "genesis-nil", genesis == nil)
 	var genesisTimestamp *uint64
 	if genesis != nil {
 		genesisTimestamp = &genesis.Timestamp

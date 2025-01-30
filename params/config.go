@@ -496,7 +496,7 @@ func (c *ChainConfig) Description() string {
 		banner += fmt.Sprintf(" - Granite:                     @%-10v\n", *c.GraniteTime)
 	}
 	if c.HoloceneTime != nil {
-		banner += fmt.Sprintf(" - Holocene:                     @%-10v\n", *c.HoloceneTime)
+		banner += fmt.Sprintf(" - Holocene:                    @%-10v\n", *c.HoloceneTime)
 	}
 	if c.IsthmusTime != nil {
 		banner += fmt.Sprintf(" - Isthmus:                     @%-10v\n", *c.IsthmusTime)
