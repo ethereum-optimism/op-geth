@@ -17,9 +17,7 @@
 package t8ntool
 
 import (
-	"encoding/json"
 	"fmt"
-	"io"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -35,7 +33,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/eth/tracers"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
@@ -70,11 +67,11 @@ type ExecutionResult struct {
 	CurrentExcessBlobGas *math.HexOrDecimal64  `json:"currentExcessBlobGas,omitempty"`
 	CurrentBlobGasUsed   *math.HexOrDecimal64  `json:"blobGasUsed,omitempty"`
 	RequestsHash         *common.Hash          `json:"requestsHash,omitempty"`
-	Requests             [][]byte              `json:"requests,omitempty"`
+	Requests             [][]byte              `json:"requests"`
 }
 
 type executionResultMarshaling struct {
-	Requests []hexutil.Bytes `json:"requests,omitempty"`
+	Requests []hexutil.Bytes `json:"requests"`
 }
 
 type ommer struct {
@@ -130,9 +127,7 @@ type rejectedTx struct {
 }
 
 // Apply applies a set of transactions to a pre-state
-func (pre *Prestate) Apply(vmConfig vm.Config, chainConfig *params.ChainConfig,
-	txIt txIterator, miningReward int64,
-	getTracerFn func(txIndex int, txHash common.Hash, chainConfig *params.ChainConfig) (*tracers.Tracer, io.WriteCloser, error)) (*state.StateDB, *ExecutionResult, []byte, error) {
+func (pre *Prestate) Apply(vmConfig vm.Config, chainConfig *params.ChainConfig, txIt txIterator, miningReward int64) (*state.StateDB, *ExecutionResult, []byte, error) {
 	// Capture errors for BLOCKHASH operation, if we haven't been supplied the
 	// required blockhashes
 	var hashError error
@@ -201,17 +196,16 @@ func (pre *Prestate) Apply(vmConfig vm.Config, chainConfig *params.ChainConfig,
 		chainConfig.DAOForkBlock.Cmp(new(big.Int).SetUint64(pre.Env.Number)) == 0 {
 		misc.ApplyDAOHardFork(statedb)
 	}
+	evm := vm.NewEVM(vmContext, statedb, chainConfig, vmConfig)
 	if beaconRoot := pre.Env.ParentBeaconBlockRoot; beaconRoot != nil {
-		evm := vm.NewEVM(vmContext, vm.TxContext{}, statedb, chainConfig, vmConfig)
-		core.ProcessBeaconBlockRoot(*beaconRoot, evm, statedb)
+		core.ProcessBeaconBlockRoot(*beaconRoot, evm)
 	}
 	if pre.Env.BlockHashes != nil && chainConfig.IsPrague(new(big.Int).SetUint64(pre.Env.Number), pre.Env.Timestamp) {
 		var (
 			prevNumber = pre.Env.Number - 1
 			prevHash   = pre.Env.BlockHashes[math.HexOrDecimal64(prevNumber)]
-			evm        = vm.NewEVM(vmContext, vm.TxContext{}, statedb, chainConfig, vmConfig)
 		)
-		core.ProcessParentBlockHash(prevHash, evm, statedb)
+		core.ProcessParentBlockHash(prevHash, evm)
 	}
 	for i := 0; txIt.Next(); i++ {
 		tx, err := txIt.Tx()
@@ -242,24 +236,13 @@ func (pre *Prestate) Apply(vmConfig vm.Config, chainConfig *params.ChainConfig,
 				continue
 			}
 		}
-		tracer, traceOutput, err := getTracerFn(txIndex, tx.Hash(), chainConfig)
-		if err != nil {
-			return nil, nil, nil, err
-		}
-		if tracer != nil {
-			vmConfig.Tracer = tracer.Hooks
-		}
 		statedb.SetTxContext(tx.Hash(), txIndex)
-
 		var (
-			txContext = core.NewEVMTxContext(msg)
-			snapshot  = statedb.Snapshot()
-			prevGas   = gaspool.Gas()
+			snapshot = statedb.Snapshot()
+			prevGas  = gaspool.Gas()
 		)
-		evm := vm.NewEVM(vmContext, txContext, statedb, chainConfig, vmConfig)
-
-		if tracer != nil && tracer.OnTxStart != nil {
-			tracer.OnTxStart(evm.GetVMContext(), tx, msg.From)
+		if evm.Config.Tracer != nil && evm.Config.Tracer.OnTxStart != nil {
+			evm.Config.Tracer.OnTxStart(evm.GetVMContext(), tx, msg.From)
 		}
 		// (ret []byte, usedGas uint64, failed bool, err error)
 		msgResult, err := core.ApplyMessage(evm, msg, gaspool)
@@ -268,13 +251,8 @@ func (pre *Prestate) Apply(vmConfig vm.Config, chainConfig *params.ChainConfig,
 			log.Info("rejected tx", "index", i, "hash", tx.Hash(), "from", msg.From, "error", err)
 			rejectedTxs = append(rejectedTxs, &rejectedTx{i, err.Error()})
 			gaspool.SetGas(prevGas)
-			if tracer != nil {
-				if tracer.OnTxEnd != nil {
-					tracer.OnTxEnd(nil, err)
-				}
-				if err := writeTraceResult(tracer, traceOutput); err != nil {
-					log.Warn("Error writing tracer output", "err", err)
-				}
+			if evm.Config.Tracer != nil && evm.Config.Tracer.OnTxEnd != nil {
+				evm.Config.Tracer.OnTxEnd(nil, err)
 			}
 			continue
 		}
@@ -318,13 +296,8 @@ func (pre *Prestate) Apply(vmConfig vm.Config, chainConfig *params.ChainConfig,
 			//receipt.BlockNumber
 			receipt.TransactionIndex = uint(txIndex)
 			receipts = append(receipts, receipt)
-			if tracer != nil {
-				if tracer.Hooks.OnTxEnd != nil {
-					tracer.Hooks.OnTxEnd(receipt, nil)
-				}
-				if err = writeTraceResult(tracer, traceOutput); err != nil {
-					log.Warn("Error writing tracer output", "err", err)
-				}
+			if evm.Config.Tracer != nil && evm.Config.Tracer.OnTxEnd != nil {
+				evm.Config.Tracer.OnTxEnd(receipt, nil)
 			}
 		}
 
@@ -365,26 +338,23 @@ func (pre *Prestate) Apply(vmConfig vm.Config, chainConfig *params.ChainConfig,
 	// Gather the execution-layer triggered requests.
 	var requests [][]byte
 	if chainConfig.IsPrague(vmContext.BlockNumber, vmContext.Time) {
-		// EIP-6110 deposits
+		requests = [][]byte{}
+		// EIP-6110
 		var allLogs []*types.Log
 		for _, receipt := range receipts {
 			allLogs = append(allLogs, receipt.Logs...)
 		}
-		depositRequests, err := core.ParseDepositLogs(allLogs, chainConfig)
-		if err != nil {
+		if err := core.ParseDepositLogs(&requests, allLogs, chainConfig); err != nil {
 			return nil, nil, nil, NewError(ErrorEVM, fmt.Errorf("could not parse requests logs: %v", err))
 		}
-		requests = append(requests, depositRequests)
-		// create EVM for system calls
-		vmenv := vm.NewEVM(vmContext, vm.TxContext{}, statedb, chainConfig, vm.Config{})
-		// EIP-7002 withdrawals
-		requests = append(requests, core.ProcessWithdrawalQueue(vmenv, statedb))
-		// EIP-7251 consolidations
-		requests = append(requests, core.ProcessConsolidationQueue(vmenv, statedb))
+		// EIP-7002
+		core.ProcessWithdrawalQueue(&requests, evm)
+		// EIP-7251
+		core.ProcessConsolidationQueue(&requests, evm)
 	}
 
 	// Commit block
-	root, err := statedb.Commit(vmContext.BlockNumber.Uint64(), chainConfig.IsEIP158(vmContext.BlockNumber))
+	root, err := statedb.Commit(vmContext.BlockNumber.Uint64(), chainConfig.IsEIP158(vmContext.BlockNumber), chainConfig.IsCancun(vmContext.BlockNumber, vmContext.Time))
 	if err != nil {
 		return nil, nil, nil, NewError(ErrorEVM, fmt.Errorf("could not commit state: %v", err))
 	}
@@ -442,7 +412,7 @@ func MakePreState(db ethdb.Database, accounts types.GenesisAlloc) *state.StateDB
 		}
 	}
 	// Commit and re-open to start with a clean state.
-	root, _ := statedb.Commit(0, false)
+	root, _ := statedb.Commit(0, false, false)
 	statedb, _ = state.New(root, sdb)
 	return statedb
 }
@@ -472,17 +442,4 @@ func calcDifficulty(config *params.ChainConfig, number, currentTime, parentTime 
 		Time:       parentTime,
 	}
 	return ethash.CalcDifficulty(config, currentTime, parent)
-}
-
-func writeTraceResult(tracer *tracers.Tracer, f io.WriteCloser) error {
-	defer f.Close()
-	result, err := tracer.GetResult()
-	if err != nil || result == nil {
-		return err
-	}
-	err = json.NewEncoder(f).Encode(result)
-	if err != nil {
-		return err
-	}
-	return nil
 }

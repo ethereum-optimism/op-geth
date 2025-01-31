@@ -5,7 +5,7 @@ footer: |
 base:
   name: go-ethereum
   url: https://github.com/ethereum/go-ethereum
-  hash: 293a300d64be3d9a1c2cc92c26fcff4089deadcd # v1.14.12
+  hash: f0e8a3e9c8a59ce3c97c2f474eee7a1e86544e8d # between v1.14.12 <> v1.14.13/v1.15
 fork:
   name: op-geth
   url: https://github.com/ethereum-optimism/op-geth
@@ -329,13 +329,6 @@ def:
             not updated to handle the newly added `withdrawalsRoot` field in the block header.
           globs:
             - "cmd/evm/internal/t8ntool/block.go"
-    - title: "Hardware wallet support"
-      description: Extend Ledger wallet support for newer devices on Macos
-      sub:
-        - title: Fix Ledger discoverability
-          # upstream PR: https://github.com/ethereum/go-ethereum/pull/28863/
-          globs:
-            - "accounts/usbwallet/hub.go"
     - title: "Testing"
       description: Additional or modified tests, not already captured by the above diff
       ignore:

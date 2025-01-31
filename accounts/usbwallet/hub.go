@@ -19,7 +19,6 @@ package usbwallet
 import (
 	"errors"
 	"runtime"
-	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -49,7 +48,7 @@ type Hub struct {
 	scheme     string                  // Protocol scheme prefixing account and wallet URLs.
 	vendorID   uint16                  // USB vendor identifier used for device discovery
 	productIDs []uint16                // USB product identifiers used for device discovery
-	usageIDs   []uint16                // USB usage page identifier used for macOS device discovery
+	usageID    uint16                  // USB usage page identifier used for macOS device discovery
 	endpointID int                     // USB endpoint identifier used for non-macOS device discovery
 	makeDriver func(log.Logger) driver // Factory method to construct a vendor specific driver
 
@@ -74,7 +73,7 @@ func NewLedgerHub() (*Hub, error) {
 	return newHub(LedgerScheme, 0x2c97, []uint16{
 
 		// Device definitions taken from
-		// https://github.com/LedgerHQ/ledger-live/blob/38012bc8899e0f07149ea9cfe7e64b2c146bc92b/libs/ledgerjs/packages/devices/src/index.ts
+		// https://github.com/LedgerHQ/ledger-live/blob/595cb73b7e6622dbbcfc11867082ddc886f1bf01/libs/ledgerjs/packages/devices/src/index.ts
 
 		// Original product IDs
 		0x0000, /* Ledger Blue */
@@ -82,34 +81,30 @@ func NewLedgerHub() (*Hub, error) {
 		0x0004, /* Ledger Nano X */
 		0x0005, /* Ledger Nano S Plus */
 		0x0006, /* Ledger Nano FTS */
+		0x0007, /* Ledger Flex */
 
-		0x0015, /* HID + U2F + WebUSB Ledger Blue */
-		0x1015, /* HID + U2F + WebUSB Ledger Nano S */
-		0x4015, /* HID + U2F + WebUSB Ledger Nano X */
-		0x5015, /* HID + U2F + WebUSB Ledger Nano S Plus */
-		0x6015, /* HID + U2F + WebUSB Ledger Nano FTS */
-
-		0x0011, /* HID + WebUSB Ledger Blue */
-		0x1011, /* HID + WebUSB Ledger Nano S */
-		0x4011, /* HID + WebUSB Ledger Nano X */
-		0x5011, /* HID + WebUSB Ledger Nano S Plus */
-		0x6011, /* HID + WebUSB Ledger Nano FTS */
-	}, []uint16{0xffa0, 0}, 2, newLedgerDriver)
+		0x0000, /* WebUSB Ledger Blue */
+		0x1000, /* WebUSB Ledger Nano S */
+		0x4000, /* WebUSB Ledger Nano X */
+		0x5000, /* WebUSB Ledger Nano S Plus */
+		0x6000, /* WebUSB Ledger Nano FTS */
+		0x7000, /* WebUSB Ledger Flex */
+	}, 0xffa0, 0, newLedgerDriver)
 }
 
 // NewTrezorHubWithHID creates a new hardware wallet manager for Trezor devices.
 func NewTrezorHubWithHID() (*Hub, error) {
-	return newHub(TrezorScheme, 0x534c, []uint16{0x0001 /* Trezor HID */}, []uint16{0xff00}, 0, newTrezorDriver)
+	return newHub(TrezorScheme, 0x534c, []uint16{0x0001 /* Trezor HID */}, 0xff00, 0, newTrezorDriver)
 }
 
 // NewTrezorHubWithWebUSB creates a new hardware wallet manager for Trezor devices with
 // firmware version > 1.8.0
 func NewTrezorHubWithWebUSB() (*Hub, error) {
-	return newHub(TrezorScheme, 0x1209, []uint16{0x53c1 /* Trezor WebUSB */}, []uint16{0xffff} /* No usage id on webusb, don't match unset (0) */, 0, newTrezorDriver)
+	return newHub(TrezorScheme, 0x1209, []uint16{0x53c1 /* Trezor WebUSB */}, 0xffff /* No usage id on webusb, don't match unset (0) */, 0, newTrezorDriver)
 }
 
 // newHub creates a new hardware wallet manager for generic USB devices.
-func newHub(scheme string, vendorID uint16, productIDs []uint16, usageIDs []uint16, endpointID int, makeDriver func(log.Logger) driver) (*Hub, error) {
+func newHub(scheme string, vendorID uint16, productIDs []uint16, usageID uint16, endpointID int, makeDriver func(log.Logger) driver) (*Hub, error) {
 	if !hid.Supported() {
 		return nil, errors.New("unsupported platform")
 	}
@@ -117,7 +112,7 @@ func newHub(scheme string, vendorID uint16, productIDs []uint16, usageIDs []uint
 		scheme:     scheme,
 		vendorID:   vendorID,
 		productIDs: productIDs,
-		usageIDs:   usageIDs,
+		usageID:    usageID,
 		endpointID: endpointID,
 		makeDriver: makeDriver,
 		quit:       make(chan chan error),
@@ -186,10 +181,11 @@ func (hub *Hub) refreshWallets() {
 
 	for _, info := range infos {
 		for _, id := range hub.productIDs {
+			// We check both the raw ProductID (legacy) and just the upper byte, as Ledger
+			// uses `MMII`, encoding a model (MM) and an interface bitfield (II)
+			mmOnly := info.ProductID & 0xff00
 			// Windows and Macos use UsageID matching, Linux uses Interface matching
-			if info.ProductID == id &&
-				info.Path != "" &&
-				(slices.Contains(hub.usageIDs, info.UsagePage) || info.Interface == hub.endpointID) {
+			if (info.ProductID == id || mmOnly == id) && (info.UsagePage == hub.usageID || info.Interface == hub.endpointID) {
 				devices = append(devices, info)
 				break
 			}

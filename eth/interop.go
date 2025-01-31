@@ -43,8 +43,7 @@ func (s *Ethereum) SimLogs(tx *types.Transaction) ([]*types.Log, error) {
 	}
 	chainCtx := ethapi.NewChainContext(context.Background(), s.APIBackend)
 	blockCtx := core.NewEVMBlockContext(header, chainCtx, &header.Coinbase, chainConfig, state)
-	txCtx := core.NewEVMTxContext(message)
-	vmenv := vm.NewEVM(blockCtx, txCtx, state, chainConfig, vmConf)
+	vmenv := vm.NewEVM(blockCtx, state, chainConfig, vmConf)
 	state.SetTxContext(tx.Hash(), 0)
 	result, err := core.ApplyMessage(vmenv, message, new(core.GasPool).AddGas(header.GasLimit))
 	if err != nil {
