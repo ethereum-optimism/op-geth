@@ -58,21 +58,42 @@ type Chain struct {
 	config  *ChainConfig
 	genesis []byte
 
-	initOnce sync.Once
-	err      error
+	// The config and genesis initialization is separated
+	// to allow for lazy loading. Reading genesis files is
+	// very expensive in Cannon so we only want to do it
+	// when necessary.
+	configOnce  sync.Once
+	genesisOnce sync.Once
+	err         error
 }
 
 func (c *Chain) Config() (*ChainConfig, error) {
-	c.initOnce.Do(c.populate)
+	c.configOnce.Do(c.populateConfig)
 	return c.config, c.err
 }
 
 func (c *Chain) GenesisData() ([]byte, error) {
-	c.initOnce.Do(c.populate)
+	c.genesisOnce.Do(c.populateGenesis)
 	return c.genesis, c.err
 }
 
-func (c *Chain) populate() {
+func (c *Chain) populateConfig() {
+	configFile, err := configDataReader.Open(path.Join("configs", c.Network, c.Name+".toml"))
+	if err != nil {
+		c.err = fmt.Errorf("error opening chain config file %s/%s: %w", c.Network, c.Name, err)
+		return
+	}
+	defer configFile.Close()
+
+	var cfg ChainConfig
+	if _, err := toml.NewDecoder(configFile).Decode(&cfg); err != nil {
+		c.err = fmt.Errorf("error decoding chain config file %s/%s: %w", c.Network, c.Name, err)
+		return
+	}
+	c.config = &cfg
+}
+
+func (c *Chain) populateGenesis() {
 	genesisFile, err := configDataReader.Open(path.Join("genesis", c.Network, c.Name+".json.zst"))
 	if err != nil {
 		c.err = fmt.Errorf("error opening compressed genesis file %s/%s: %w", c.Network, c.Name, err)
@@ -92,20 +113,6 @@ func (c *Chain) populate() {
 		return
 	}
 	c.genesis = out
-
-	configFile, err := configDataReader.Open(path.Join("configs", c.Network, c.Name+".toml"))
-	if err != nil {
-		c.err = fmt.Errorf("error opening chain config file %s/%s: %w", c.Network, c.Name, err)
-		return
-	}
-	defer configFile.Close()
-
-	var cfg ChainConfig
-	if _, err := toml.NewDecoder(configFile).Decode(&cfg); err != nil {
-		c.err = fmt.Errorf("error decoding chain config file %s/%s: %w", c.Network, c.Name, err)
-		return
-	}
-	c.config = &cfg
 }
 
 func init() {
