@@ -208,7 +208,7 @@ func TestExtractFjordGasParams(t *testing.T) {
 	require.Equal(t, fjordFee, c)
 }
 
-func TestExtractHoloceneGasParams(t *testing.T) {
+func TestExtractIsthmusGasParams(t *testing.T) {
 	zeroTime := uint64(0)
 	// create a config where holocene is active
 	config := &params.ChainConfig{
@@ -217,10 +217,11 @@ func TestExtractHoloceneGasParams(t *testing.T) {
 		EcotoneTime:  &zeroTime,
 		FjordTime:    &zeroTime,
 		HoloceneTime: &zeroTime,
+		IsthmusTime:  &zeroTime,
 	}
-	require.True(t, config.IsOptimismHolocene(zeroTime))
+	require.True(t, config.IsOptimismIsthmus(zeroTime))
 
-	data := getHoloceneL1Attributes(
+	data := getIsthmusL1Attributes(
 		baseFee,
 		blobBaseFee,
 		baseFeeScalar,
@@ -298,13 +299,13 @@ func getEcotoneL1Attributes(baseFee, blobBaseFee, baseFeeScalar, blobBaseFeeScal
 	return data
 }
 
-func getHoloceneL1Attributes(baseFee, blobBaseFee, baseFeeScalar, blobBaseFeeScalar, operatorFeeScalar, operatorFeeConstant *big.Int) []byte {
+func getIsthmusL1Attributes(baseFee, blobBaseFee, baseFeeScalar, blobBaseFeeScalar, operatorFeeScalar, operatorFeeConstant *big.Int) []byte {
 	ignored := big.NewInt(1234)
 	data := []byte{}
 	uint256Slice := make([]byte, 32)
 	uint64Slice := make([]byte, 8)
 	uint32Slice := make([]byte, 4)
-	data = append(data, HoloceneL1AttributesSelector...)
+	data = append(data, IsthmusL1AttributesSelector...)
 	data = append(data, baseFeeScalar.FillBytes(uint32Slice)...)
 	data = append(data, blobBaseFeeScalar.FillBytes(uint32Slice)...)
 	data = append(data, ignored.FillBytes(uint64Slice)...)
