@@ -196,14 +196,14 @@ func NewOperatorCostFunc(config *params.ChainConfig, statedb StateGetter) Operat
 	if config.Optimism == nil {
 		return nil
 	}
-	return func(gasUsed *big.Int, isRefund bool, blockTime uint64) *big.Int {
+	return func(gas *big.Int, isRefund bool, blockTime uint64) *big.Int {
 		if !config.IsOptimismIsthmus(blockTime) {
 			return big.NewInt(0)
 		}
 		operatorFeeParams := statedb.GetState(L1BlockAddr, OperatorFeeParamsSlot).Bytes()
 
 		operatorFeeScalar, operatorFeeConstant := extractOperatorFeeParams(operatorFeeParams)
-		product := operatorFeeScalar.Mul(gasUsed, operatorFeeScalar)
+		product := operatorFeeScalar.Mul(gas, operatorFeeScalar)
 		product = product.Div(product, oneMillion)
 		if isRefund {
 			return product
@@ -295,7 +295,10 @@ func intToScaledFloat(scalar *big.Int) *big.Float {
 
 // extractL1GasParams extracts the gas parameters necessary to compute gas costs from L1 block info
 func extractL1GasParams(config *params.ChainConfig, time uint64, data []byte) (gasParams, error) {
-	if config.IsIsthmus(time) {
+	if config.IsIsthmus(time) && len(data) >= 4 && !bytes.Equal(data[0:4], EcotoneL1AttributesSelector) {
+		// edge case: for the very first Isthmus block we still need to use the Ecotone
+		// function. We detect this edge case by seeing if the function selector is the old one
+		// If so, fall through to the pre-isthmus format
 		p, err := extractL1GasParamsPostIsthmus(data)
 		if err != nil {
 			return gasParams{}, err
