@@ -231,7 +231,7 @@ func NewDatabaseWithFreezer(db ethdb.KeyValueStore, ancient string, namespace st
 				return nil, fmt.Errorf("failed to retrieve genesis from ancient %v", err)
 			} else if !bytes.Equal(kvgenesis, frgenesis) {
 				printChainMetadata(db)
-				return nil, fmt.Errorf("genesis mismatch: %#x (leveldb) != %#x (ancients)", kvgenesis, frgenesis)
+				return nil, fmt.Errorf("genesis mismatch: %#x (db) != %#x (ancients)", kvgenesis, frgenesis)
 			}
 			// Key-value store and freezer belong to the same network. Ensure that they
 			// are contiguous, otherwise we might end up with a non-functional freezer.
@@ -249,7 +249,7 @@ func NewDatabaseWithFreezer(db ethdb.KeyValueStore, ancient string, namespace st
 					}
 					// We are about to exit on error. Print database metadata before exiting
 					printChainMetadata(db)
-					return nil, fmt.Errorf("gap in the chain between ancients [0 - #%d] and leveldb [#%d - #%d] ",
+					return nil, fmt.Errorf("gap in the chain between ancients [0 - #%d] and db [#%d - #%d] ",
 						frozen-1, number, head)
 				}
 				// Database contains only older data than the freezer, this happens if the
