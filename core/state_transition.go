@@ -297,9 +297,6 @@ func (st *stateTransition) buyGas() error {
 		}
 	}
 	balanceCheck.Add(balanceCheck, st.msg.Value)
-	if l1Cost != nil {
-		balanceCheck.Add(balanceCheck, l1Cost)
-	}
 	if operatorCost != nil {
 		balanceCheck.Add(balanceCheck, operatorCost)
 	}
