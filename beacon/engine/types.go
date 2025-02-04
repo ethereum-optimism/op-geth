@@ -300,10 +300,7 @@ func ExecutableDataToBlockNoHash(data ExecutableData, versionedHashes []common.H
 	isthmusEnabled := bType.IsIsthmus(data.Timestamp)
 	var requestsHash *common.Hash
 	if requests != nil {
-		if !isthmusEnabled {
-			return nil, fmt.Errorf("requests should be nil for pre-Isthmus blocks")
-		}
-		if len(requests) > 0 {
+		if isthmusEnabled && len(requests) > 0 {
 			return nil, fmt.Errorf("requests should be empty for Isthmus blocks")
 		}
 		h := types.CalcRequestsHash(requests)
