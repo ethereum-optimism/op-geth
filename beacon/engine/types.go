@@ -306,7 +306,7 @@ func ExecutableDataToBlockNoHash(data ExecutableData, versionedHashes []common.H
 		h := types.CalcRequestsHash(requests)
 		requestsHash = &h
 	} else if isthmusEnabled {
-		return nil, fmt.Errorf("requests should be non-nil for Isthmus blocks")
+		return nil, fmt.Errorf("requests must be an empty array for Isthmus blocks")
 	}
 
 	header := &types.Header{
