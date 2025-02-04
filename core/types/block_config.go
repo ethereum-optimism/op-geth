@@ -1,14 +1,18 @@
 package types
 
 type BlockConfig struct {
-	CustomWithdrawalsRoot bool
+	IsIsthmusEnabled bool
 }
 
 func (bc *BlockConfig) HasOptimismWithdrawalsRoot(blockTime uint64) bool {
-	return bc.CustomWithdrawalsRoot
+	return bc.IsIsthmusEnabled
+}
+
+func (bc *BlockConfig) IsIsthmus(blockTime uint64) bool {
+	return bc.IsIsthmusEnabled
 }
 
 var (
-	DefaultBlockConfig = &BlockConfig{CustomWithdrawalsRoot: false}
-	IsthmusBlockConfig = &BlockConfig{CustomWithdrawalsRoot: true}
+	DefaultBlockConfig = &BlockConfig{IsIsthmusEnabled: false}
+	IsthmusBlockConfig = &BlockConfig{IsIsthmusEnabled: true}
 )
