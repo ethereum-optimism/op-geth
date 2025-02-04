@@ -25,6 +25,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/holiman/uint256"
 )
 
 const (
@@ -108,7 +109,7 @@ type L1CostFunc func(rcd RollupCostData, blockTime uint64) *big.Int
 // OperatorCostFunc is used in the state transition to determine the operator fee charged to the
 // sender of non-Deposit transactions. It returns nil if no data availability fee is charged.
 // The `isRefund` parameter is true if calculating a refund.
-type OperatorCostFunc func(gasUsed *big.Int, isRefund bool, blockTime uint64) *big.Int
+type OperatorCostFunc func(gasUsed *big.Int, blockTime uint64) *uint256.Int
 
 // l1CostFunc is an internal version of L1CostFunc that also returns the gasUsed for use in
 // receipts.
@@ -196,20 +197,24 @@ func NewOperatorCostFunc(config *params.ChainConfig, statedb StateGetter) Operat
 	if config.Optimism == nil {
 		return nil
 	}
-	return func(gas *big.Int, isRefund bool, blockTime uint64) *big.Int {
+	return func(gas *big.Int, blockTime uint64) *uint256.Int {
 		if !config.IsOptimismIsthmus(blockTime) {
-			return big.NewInt(0)
+			return uint256.NewInt(0)
 		}
 		operatorFeeParams := statedb.GetState(L1BlockAddr, OperatorFeeParamsSlot).Bytes()
 
 		operatorFeeScalar, operatorFeeConstant := extractOperatorFeeParams(operatorFeeParams)
 		product := operatorFeeScalar.Mul(gas, operatorFeeScalar)
 		product = product.Div(product, oneMillion)
-		if isRefund {
-			return product
-		} else {
-			return product.Add(product, operatorFeeConstant)
+		fee := product.Add(product, operatorFeeConstant)
+
+		feeU256, overflow := uint256.FromBig(fee)
+		if overflow {
+			// This should never happen, but if it does, we return the maximum possible fee.
+			feeU256 = feeU256.SetAllOne()
 		}
+
+		return feeU256
 	}
 }
 
