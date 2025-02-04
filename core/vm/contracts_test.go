@@ -59,16 +59,16 @@ var allPrecompiles = map[common.Address]PrecompiledContract{
 	common.BytesToAddress([]byte{9}):    &blake2F{},
 	common.BytesToAddress([]byte{0x0a}): &kzgPointEvaluation{},
 
-	common.BytesToAddress([]byte{0x0b}): &bls12381G1Add{},
-	common.BytesToAddress([]byte{0x0c}): &bls12381G1MultiExpPrague{},
-	common.BytesToAddress([]byte{0xfc}): &bls12381G1MultiExpIsthmus{},
-	common.BytesToAddress([]byte{0x0d}): &bls12381G2Add{},
-	common.BytesToAddress([]byte{0x0e}): &bls12381G2MultiExpPrague{},
-	common.BytesToAddress([]byte{0xfe}): &bls12381G2MultiExpIsthmus{},
-	common.BytesToAddress([]byte{0x0f}): &bls12381PairingPrague{},
-	common.BytesToAddress([]byte{0xff}): &bls12381PairingIsthmus{},
-	common.BytesToAddress([]byte{0x10}): &bls12381MapG1{},
-	common.BytesToAddress([]byte{0x11}): &bls12381MapG2{},
+	common.BytesToAddress([]byte{0x0f, 0x0a}): &bls12381G1Add{},
+	common.BytesToAddress([]byte{0x0f, 0x0b}): &bls12381G1MultiExpPrague{},
+	common.BytesToAddress([]byte{0x0f, 0xfb}): &bls12381G1MultiExpIsthmus{},
+	common.BytesToAddress([]byte{0x0f, 0x0c}): &bls12381G2Add{},
+	common.BytesToAddress([]byte{0x0f, 0x0d}): &bls12381G2MultiExpPrague{},
+	common.BytesToAddress([]byte{0x0f, 0xfd}): &bls12381G2MultiExpIsthmus{},
+	common.BytesToAddress([]byte{0x0f, 0x0e}): &bls12381PairingPrague{},
+	common.BytesToAddress([]byte{0x0f, 0xfe}): &bls12381PairingIsthmus{},
+	common.BytesToAddress([]byte{0x0f, 0x0f}): &bls12381MapG1{},
+	common.BytesToAddress([]byte{0x0f, 0x10}): &bls12381MapG2{},
 
 	common.BytesToAddress([]byte{0x01, 0x00}): &p256Verify{},
 }
@@ -287,21 +287,21 @@ func TestPrecompileBn256PairingTooLargeInput(t *testing.T) {
 
 func TestPrecompileBlsInputSize(t *testing.T) {
 	big := make([]byte, params.Bls12381G1MulMaxInputSizeIsthmus+1)
-	testPrecompiledFailure("fc", precompiledFailureTest{
+	testPrecompiledFailure("ffc", precompiledFailureTest{
 		Input:         common.Bytes2Hex(big),
 		ExpectedError: "g1 msm input size exceeds maximum",
 		Name:          "bls12381G1MSM_input_too_big",
 	}, t)
 
 	big = make([]byte, params.Bls12381G2MulMaxInputSizeIsthmus+1)
-	testPrecompiledFailure("fe", precompiledFailureTest{
+	testPrecompiledFailure("ffe", precompiledFailureTest{
 		Input:         common.Bytes2Hex(big),
 		ExpectedError: "g2 msm input size exceeds maximum",
 		Name:          "bls12381G2MSM_input_too_big",
 	}, t)
 
 	big = make([]byte, params.Bls12381PairingMaxInputSizeIsthmus+1)
-	testPrecompiledFailure("ff", precompiledFailureTest{
+	testPrecompiledFailure("fff", precompiledFailureTest{
 		Input:         common.Bytes2Hex(big),
 		ExpectedError: "pairing input size exceeds maximum",
 		Name:          "bls12381Pairing_input_too_big",
