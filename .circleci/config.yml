@@ -206,18 +206,6 @@ jobs:
       - checkout
       - run:
           command: go mod tidy && git diff --exit-code
-  check-releases:
-    docker:
-      - image: cimg/go:<<pipeline.parameters.go_version>>
-    steps:
-      - checkout
-      - run:
-          command: .circleci/check-releases.sh
-      - slack/notify:
-          channel: C03N11M0BBN
-          branch_pattern: optimism
-          event: fail
-          template: basic_fail_1
   check-sr-diff:
     docker:
       - image: cimg/go:<<pipeline.parameters.go_version>>
@@ -272,18 +260,6 @@ workflows:
             - oplabs-gcr-release
           requires:
             - hold
-  scheduled:
-    triggers:
-      - schedule:
-          # run daily
-          cron: "0 0 * * *"
-          filters:
-            branches:
-              only: ["optimism"]
-    jobs:
-      - check-releases:
-          name: Check for new upstream releases
-          context: slack
 
   merge:
     jobs:
