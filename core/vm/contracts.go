@@ -130,10 +130,10 @@ var PrecompiledContractsPrague = PrecompiledContracts{
 	common.BytesToAddress([]byte{0x09}): &blake2F{},
 	common.BytesToAddress([]byte{0x0a}): &kzgPointEvaluation{},
 	common.BytesToAddress([]byte{0x0b}): &bls12381G1Add{},
-	common.BytesToAddress([]byte{0x0c}): &bls12381G1MultiExp{},
+	common.BytesToAddress([]byte{0x0c}): &bls12381G1MultiExpPrague{},
 	common.BytesToAddress([]byte{0x0d}): &bls12381G2Add{},
-	common.BytesToAddress([]byte{0x0e}): &bls12381G2MultiExp{},
-	common.BytesToAddress([]byte{0x0f}): &bls12381Pairing{},
+	common.BytesToAddress([]byte{0x0e}): &bls12381G2MultiExpPrague{},
+	common.BytesToAddress([]byte{0x0f}): &bls12381PairingPrague{},
 	common.BytesToAddress([]byte{0x10}): &bls12381MapG1{},
 	common.BytesToAddress([]byte{0x11}): &bls12381MapG2{},
 }
@@ -174,7 +174,29 @@ var PrecompiledContractsGranite = map[common.Address]PrecompiledContract{
 	common.BytesToAddress([]byte{0x01, 0x00}): &p256Verify{},
 }
 
+var PrecompiledContractsIsthmus = map[common.Address]PrecompiledContract{
+	common.BytesToAddress([]byte{1}):          &ecrecover{},
+	common.BytesToAddress([]byte{2}):          &sha256hash{},
+	common.BytesToAddress([]byte{3}):          &ripemd160hash{},
+	common.BytesToAddress([]byte{4}):          &dataCopy{},
+	common.BytesToAddress([]byte{5}):          &bigModExp{eip2565: true},
+	common.BytesToAddress([]byte{6}):          &bn256AddIstanbul{},
+	common.BytesToAddress([]byte{7}):          &bn256ScalarMulIstanbul{},
+	common.BytesToAddress([]byte{8}):          &bn256PairingGranite{},
+	common.BytesToAddress([]byte{9}):          &blake2F{},
+	common.BytesToAddress([]byte{0x0a}):       &kzgPointEvaluation{},
+	common.BytesToAddress([]byte{0x0b}):       &bls12381G1Add{},
+	common.BytesToAddress([]byte{0x0c}):       &bls12381G1MultiExpIsthmus{},
+	common.BytesToAddress([]byte{0x0d}):       &bls12381G2Add{},
+	common.BytesToAddress([]byte{0x0e}):       &bls12381G2MultiExpIsthmus{},
+	common.BytesToAddress([]byte{0x0f}):       &bls12381PairingIsthmus{},
+	common.BytesToAddress([]byte{0x10}):       &bls12381MapG1{},
+	common.BytesToAddress([]byte{0x11}):       &bls12381MapG2{},
+	common.BytesToAddress([]byte{0x01, 0x00}): &p256Verify{},
+}
+
 var (
+	PrecompiledAddressesIsthmus   []common.Address
 	PrecompiledAddressesGranite   []common.Address
 	PrecompiledAddressesFjord     []common.Address
 	PrecompiledAddressesPrague    []common.Address
@@ -210,10 +232,16 @@ func init() {
 	for k := range PrecompiledContractsGranite {
 		PrecompiledAddressesGranite = append(PrecompiledAddressesGranite, k)
 	}
+	for k := range PrecompiledContractsIsthmus {
+		PrecompiledAddressesIsthmus = append(PrecompiledAddressesIsthmus, k)
+	}
 }
 
 func activePrecompiledContracts(rules params.Rules) PrecompiledContracts {
+	// note: the order of these switch cases is important
 	switch {
+	case rules.IsOptimismIsthmus:
+		return PrecompiledContractsIsthmus
 	case rules.IsOptimismGranite:
 		return PrecompiledContractsGranite
 	case rules.IsOptimismFjord:
@@ -243,6 +271,8 @@ func ActivePrecompiledContracts(rules params.Rules) PrecompiledContracts {
 // ActivePrecompiles returns the precompile addresses enabled with the current configuration.
 func ActivePrecompiles(rules params.Rules) []common.Address {
 	switch {
+	case rules.IsOptimismIsthmus:
+		return PrecompiledAddressesIsthmus
 	case rules.IsOptimismGranite:
 		return PrecompiledAddressesGranite
 	case rules.IsOptimismFjord:
@@ -778,6 +808,9 @@ var (
 	errBLS12381InvalidFieldElementTopBytes = errors.New("invalid field element top bytes")
 	errBLS12381G1PointSubgroup             = errors.New("g1 point is not on correct subgroup")
 	errBLS12381G2PointSubgroup             = errors.New("g2 point is not on correct subgroup")
+	errBLS12381MaxG1Size                   = errors.New("g1 msm input size exceeds maximum")
+	errBLS12381MaxG2Size                   = errors.New("g2 msm input size exceeds maximum")
+	errBLS12381MaxPairingSize              = errors.New("pairing input size exceeds maximum")
 )
 
 // bls12381G1Add implements EIP-2537 G1Add precompile.
@@ -816,11 +849,26 @@ func (c *bls12381G1Add) Run(input []byte) ([]byte, error) {
 	return encodePointG1(p0), nil
 }
 
-// bls12381G1MultiExp implements EIP-2537 G1MultiExp precompile.
-type bls12381G1MultiExp struct{}
+type bls12381G1MultiExpIsthmus struct {
+}
+
+func (c *bls12381G1MultiExpIsthmus) RequiredGas(input []byte) uint64 {
+	return new(bls12381G1MultiExpPrague).RequiredGas(input)
+}
+
+func (c *bls12381G1MultiExpIsthmus) Run(input []byte) ([]byte, error) {
+	if len(input) > int(params.Bls12381G1MulMaxInputSizeIsthmus) {
+		return nil, errBLS12381MaxG1Size
+	}
+
+	return new(bls12381G1MultiExpPrague).Run(input)
+}
+
+// bls12381G1MultiExpPrague implements EIP-2537 G1MultiExp precompile for Prague (no size limits).
+type bls12381G1MultiExpPrague struct{}
 
 // RequiredGas returns the gas required to execute the pre-compiled contract.
-func (c *bls12381G1MultiExp) RequiredGas(input []byte) uint64 {
+func (c *bls12381G1MultiExpPrague) RequiredGas(input []byte) uint64 {
 	// Calculate G1 point, scalar value pair length
 	k := len(input) / 160
 	if k == 0 {
@@ -838,7 +886,7 @@ func (c *bls12381G1MultiExp) RequiredGas(input []byte) uint64 {
 	return (uint64(k) * params.Bls12381G1MulGas * discount) / 1000
 }
 
-func (c *bls12381G1MultiExp) Run(input []byte) ([]byte, error) {
+func (c *bls12381G1MultiExpPrague) Run(input []byte) ([]byte, error) {
 	// Implements EIP-2537 G1MultiExp precompile.
 	// G1 multiplication call expects `160*k` bytes as an input that is interpreted as byte concatenation of `k` slices each of them being a byte concatenation of encoding of G1 point (`128` bytes) and encoding of a scalar value (`32` bytes).
 	// Output is an encoding of multiexponentiation operation result - single G1 point (`128` bytes).
@@ -913,11 +961,26 @@ func (c *bls12381G2Add) Run(input []byte) ([]byte, error) {
 	return encodePointG2(r), nil
 }
 
-// bls12381G2MultiExp implements EIP-2537 G2MultiExp precompile.
-type bls12381G2MultiExp struct{}
+type bls12381G2MultiExpIsthmus struct {
+}
+
+func (c *bls12381G2MultiExpIsthmus) RequiredGas(input []byte) uint64 {
+	return new(bls12381G2MultiExpPrague).RequiredGas(input)
+}
+
+func (c *bls12381G2MultiExpIsthmus) Run(input []byte) ([]byte, error) {
+	if len(input) > int(params.Bls12381G2MulMaxInputSizeIsthmus) {
+		return nil, errBLS12381MaxG2Size
+	}
+
+	return new(bls12381G2MultiExpPrague).Run(input)
+}
+
+// bls12381G2MultiExpPrague implements EIP-2537 G2MultiExp precompile.
+type bls12381G2MultiExpPrague struct{}
 
 // RequiredGas returns the gas required to execute the pre-compiled contract.
-func (c *bls12381G2MultiExp) RequiredGas(input []byte) uint64 {
+func (c *bls12381G2MultiExpPrague) RequiredGas(input []byte) uint64 {
 	// Calculate G2 point, scalar value pair length
 	k := len(input) / 288
 	if k == 0 {
@@ -935,7 +998,7 @@ func (c *bls12381G2MultiExp) RequiredGas(input []byte) uint64 {
 	return (uint64(k) * params.Bls12381G2MulGas * discount) / 1000
 }
 
-func (c *bls12381G2MultiExp) Run(input []byte) ([]byte, error) {
+func (c *bls12381G2MultiExpPrague) Run(input []byte) ([]byte, error) {
 	// Implements EIP-2537 G2MultiExp precompile logic
 	// > G2 multiplication call expects `288*k` bytes as an input that is interpreted as byte concatenation of `k` slices each of them being a byte concatenation of encoding of G2 point (`256` bytes) and encoding of a scalar value (`32` bytes).
 	// > Output is an encoding of multiexponentiation operation result - single G2 point (`256` bytes).
@@ -973,15 +1036,30 @@ func (c *bls12381G2MultiExp) Run(input []byte) ([]byte, error) {
 	return encodePointG2(r), nil
 }
 
-// bls12381Pairing implements EIP-2537 Pairing precompile.
-type bls12381Pairing struct{}
+type bls12381PairingIsthmus struct {
+}
+
+func (c *bls12381PairingIsthmus) RequiredGas(input []byte) uint64 {
+	return new(bls12381PairingPrague).RequiredGas(input)
+}
+
+func (c *bls12381PairingIsthmus) Run(input []byte) ([]byte, error) {
+	if len(input) > int(params.Bls12381PairingMaxInputSizeIsthmus) {
+		return nil, errBLS12381MaxPairingSize
+	}
+
+	return new(bls12381PairingPrague).Run(input)
+}
+
+// bls12381PairingPrague implements EIP-2537 Pairing precompile.
+type bls12381PairingPrague struct{}
 
 // RequiredGas returns the gas required to execute the pre-compiled contract.
-func (c *bls12381Pairing) RequiredGas(input []byte) uint64 {
+func (c *bls12381PairingPrague) RequiredGas(input []byte) uint64 {
 	return params.Bls12381PairingBaseGas + uint64(len(input)/384)*params.Bls12381PairingPerPairGas
 }
 
-func (c *bls12381Pairing) Run(input []byte) ([]byte, error) {
+func (c *bls12381PairingPrague) Run(input []byte) ([]byte, error) {
 	// Implements EIP-2537 Pairing precompile logic.
 	// > Pairing call expects `384*k` bytes as an inputs that is interpreted as byte concatenation of `k` slices. Each slice has the following structure:
 	// > - `128` bytes of G1 point encoding
