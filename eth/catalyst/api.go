@@ -871,10 +871,14 @@ func (api *ConsensusAPI) newPayload(params engine.ExecutableData, versionedHashe
 	// Hence, we use a lock here, to be sure that the previous call has finished before we
 	// check whether we already have the block locally.
 
-	// Payload must have eip-1559 params in ExtraData after Holocene
-	if api.eth.BlockChain().Config().IsHolocene(params.Timestamp) {
+	// OP-Stack diff: payload must have empty extraData before Holocene and hold eip-1559 params after Holocene.
+	if cfg := api.eth.BlockChain().Config(); cfg.IsHolocene(params.Timestamp) {
 		if err := eip1559.ValidateHoloceneExtraData(params.ExtraData); err != nil {
 			return api.invalid(err, nil), nil
+		}
+	} else if cfg.IsOptimism() {
+		if len(params.ExtraData) > 0 {
+			return api.invalid(errors.New("extraData must be empty before Holocene"), nil), nil
 		}
 	}
 
