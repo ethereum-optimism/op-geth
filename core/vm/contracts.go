@@ -196,6 +196,7 @@ var PrecompiledContractsIsthmus = map[common.Address]PrecompiledContract{
 }
 
 var (
+	PrecompiledAddressesIsthmus   []common.Address
 	PrecompiledAddressesGranite   []common.Address
 	PrecompiledAddressesFjord     []common.Address
 	PrecompiledAddressesPrague    []common.Address
@@ -204,7 +205,6 @@ var (
 	PrecompiledAddressesIstanbul  []common.Address
 	PrecompiledAddressesByzantium []common.Address
 	PrecompiledAddressesHomestead []common.Address
-	PrecompiledAddressesIsthmus   []common.Address
 )
 
 func init() {
