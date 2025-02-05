@@ -794,6 +794,14 @@ func (st *stateTransition) returnGas() {
 		st.evm.Config.Tracer.OnGasChange(st.gasRemaining, 0, tracing.GasChangeTxLeftOverReturned)
 	}
 
+	if optimismConfig := st.evm.ChainConfig().Optimism; optimismConfig != nil && !st.msg.IsDepositTx {
+		// Return ETH to transaction sender for operator cost overcharge.
+		operatorCostGasLimit := st.evm.Context.OperatorCostFunc(new(big.Int).SetUint64(st.msg.GasLimit), st.evm.Context.Time)
+		operatorCostGasUsed := st.evm.Context.OperatorCostFunc(new(big.Int).SetUint64(st.gasUsed()), st.evm.Context.Time)
+
+		st.state.AddBalance(st.msg.From, new(uint256.Int).Sub(operatorCostGasLimit, operatorCostGasUsed), tracing.BalanceIncreaseGasReturn)
+	}
+
 	// Also return remaining gas to the block gas counter so it is
 	// available for the next transaction.
 	st.gp.AddGas(st.gasRemaining)
