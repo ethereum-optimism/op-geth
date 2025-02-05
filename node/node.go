@@ -430,6 +430,14 @@ func (n *Node) startRPC() error {
 	}
 
 	initAuth := func(port int, secret []byte) error {
+		authModules := DefaultAuthModules
+		for _, module := range n.config.HTTPModules {
+			if module == "miner" {
+				authModules = append(authModules, "miner")
+				break
+			}
+		}
+
 		// Enable auth via HTTP
 		server := n.httpAuth
 		if err := server.setListenAddr(n.config.AuthAddr, port); err != nil {
@@ -444,7 +452,7 @@ func (n *Node) startRPC() error {
 		err := server.enableRPC(allAPIs, httpConfig{
 			CorsAllowedOrigins: DefaultAuthCors,
 			Vhosts:             n.config.AuthVirtualHosts,
-			Modules:            DefaultAuthModules,
+			Modules:            authModules,
 			prefix:             DefaultAuthPrefix,
 			rpcEndpointConfig:  sharedConfig,
 		})
