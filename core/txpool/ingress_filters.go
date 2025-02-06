@@ -53,5 +53,7 @@ func (f *interopFilter) FilterTx(ctx context.Context, tx *types.Transaction) boo
 	ctx, cancel := context.WithTimeout(ctx, time.Second*2)
 	defer cancel()
 	// check with the supervisor if the transaction should be allowed given the executing messages
-	return f.checkFn(ctx, ems, interoptypes.Unsafe) == nil
+	// the message can be unsafe (discovered only via P2P unsafe blocks), but it must be cross-valid
+	// so CrossUnsafe is used here
+	return f.checkFn(ctx, ems, interoptypes.CrossUnsafe) == nil
 }
