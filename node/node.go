@@ -431,11 +431,8 @@ func (n *Node) startRPC() error {
 
 	initAuth := func(port int, secret []byte) error {
 		authModules := DefaultAuthModules
-		for _, module := range n.config.HTTPModules {
-			if module == "miner" {
-				authModules = append(authModules, "miner")
-				break
-			}
+		if slices.Contains(n.config.HTTPModules, "miner") {
+			authModules = append(authModules, "miner")
 		}
 
 		// Enable auth via HTTP
