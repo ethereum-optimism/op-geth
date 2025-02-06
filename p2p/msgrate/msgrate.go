@@ -81,8 +81,8 @@ const ttlLimit = time.Minute
 
 // tuningConfidenceCap is the number of active peers above which to stop detuning
 // the confidence number. The idea here is that once we hone in on the capacity
-// of a meaningful number of peers, adding one more should ot have a significant
-// impact on things, so just ron with the originals.
+// of a meaningful number of peers, adding one more should not have a significant
+// impact on things, so just run with the originals.
 const tuningConfidenceCap = 10
 
 // tuningImpact is the influence that a new tuning target has on the previously
@@ -95,7 +95,7 @@ const tuningImpact = 0.25
 // type it can deliver. The goal is to dynamically adjust request sizes to max
 // out network throughput without overloading either the peer or the local node.
 //
-// By tracking in real time the latencies and bandwidths peers exhibit for each
+// By tracking in real time the latencies and bandwidth peers exhibit for each
 // packet type, it's possible to prevent overloading by detecting a slowdown on
 // one type when another type is pushed too hard.
 //
