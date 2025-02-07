@@ -196,6 +196,11 @@ func (miner *Miner) generateWork(params *generateParams, witness bool) *newPaylo
 		// EIP-7251 consolidations
 		core.ProcessConsolidationQueue(&requests, work.evm)
 	}
+
+	if miner.chainConfig.IsIsthmus(work.header.Time) {
+		requests = [][]byte{}
+	}
+
 	if requests != nil {
 		reqHash := types.CalcRequestsHash(requests)
 		work.header.RequestsHash = &reqHash
