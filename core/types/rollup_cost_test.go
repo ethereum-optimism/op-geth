@@ -210,7 +210,7 @@ func TestExtractFjordGasParams(t *testing.T) {
 
 func TestExtractIsthmusGasParams(t *testing.T) {
 	zeroTime := uint64(0)
-	// create a config where holocene is active
+	// create a config where isthmus is active
 	config := &params.ChainConfig{
 		Optimism:     params.OptimismTestConfig.Optimism,
 		RegolithTime: &zeroTime,
