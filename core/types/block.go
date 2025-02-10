@@ -106,8 +106,8 @@ type Header struct {
 	// RequestsHash was added by EIP-7685 and is ignored in legacy headers.
 	RequestsHash *common.Hash `json:"requestsHash" rlp:"optional"`
 
-	// preGingerbread determines whether this is a pre-gingerbread header, which determines how this block will be encoded.
-	preGingerbread bool
+	// PreGingerbread determines whether this is a pre-gingerbread header, which determines how this block will be encoded.
+	PreGingerbread bool `json:"-"`
 }
 
 // field type overrides for gencodec
@@ -286,13 +286,16 @@ func NewBlock(header *Header, body *Body, receipts []*Receipt, hasher TrieHasher
 		b.header.Bloom = CreateBloom(receipts)
 	}
 
-	if len(uncles) == 0 {
-		b.header.UncleHash = EmptyUncleHash
-	} else {
-		b.header.UncleHash = CalcUncleHash(uncles)
-		b.uncles = make([]*Header, len(uncles))
-		for i := range uncles {
-			b.uncles[i] = CopyHeader(uncles[i])
+	// Don't set the unclehash for pre-gingerbread blocks
+	if !header.IsPreGingerbread() {
+		if len(uncles) == 0 {
+			b.header.UncleHash = EmptyUncleHash
+		} else {
+			b.header.UncleHash = CalcUncleHash(uncles)
+			b.uncles = make([]*Header, len(uncles))
+			for i := range uncles {
+				b.uncles[i] = CopyHeader(uncles[i])
+			}
 		}
 	}
 

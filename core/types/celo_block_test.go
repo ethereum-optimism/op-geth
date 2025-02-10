@@ -88,7 +88,7 @@ func BeforeGingerbreadHeaderToHeader(h *BeforeGingerbreadHeader) *Header {
 		Time:           h.Time,
 		Extra:          h.Extra,
 		Difficulty:     new(big.Int),
-		preGingerbread: true,
+		PreGingerbread: true,
 	}
 }
 

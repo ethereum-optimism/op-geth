@@ -57,7 +57,7 @@ func (h *Header) DecodeRLP(s *rlp.Stream) error {
 		h.Time = decodedHeader.Time
 		h.Extra = decodedHeader.Extra
 		h.Difficulty = new(big.Int)
-		h.preGingerbread = true
+		h.PreGingerbread = true
 	} else {
 		// After gingerbread
 		decodedHeader := AfterGingerbreadHeader{}
@@ -110,5 +110,5 @@ func isPreGingerbreadHeader(buf []byte) (bool, error) {
 }
 
 func (h *Header) IsPreGingerbread() bool {
-	return h.preGingerbread
+	return h.PreGingerbread
 }

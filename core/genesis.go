@@ -607,6 +607,10 @@ func (g *Genesis) toBlockWithRoot(stateRoot, storageRootMessagePasser common.Has
 		Coinbase:   g.Coinbase,
 		Root:       stateRoot,
 	}
+	// Check to see if the gingerbread block is set at genesis
+	if !g.Config.IsGingerbread(head.Number) {
+		head.PreGingerbread = true
+	}
 	if !g.IgnoreDefaults {
 		if g.GasLimit == 0 {
 			head.GasLimit = params.GenesisGasLimit
