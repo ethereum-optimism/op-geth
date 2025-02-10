@@ -275,16 +275,16 @@ func (st *stateTransition) buyGas() error {
 	mgval := new(big.Int).SetUint64(st.msg.GasLimit)
 	mgval.Mul(mgval, st.msg.GasPrice)
 	var l1Cost *big.Int
-	if st.evm.Context.L1CostFunc != nil && !st.msg.SkipNonceChecks && !st.msg.SkipFromEOACheck {
-		l1Cost = st.evm.Context.L1CostFunc(st.msg.RollupCostData, st.evm.Context.Time)
-		if l1Cost != nil {
-			mgval = mgval.Add(mgval, l1Cost)
-		}
-	}
 	var operatorCost *uint256.Int
-	if st.evm.Context.OperatorCostFunc != nil && !st.msg.SkipNonceChecks && !st.msg.SkipFromEOACheck {
-		operatorCost = st.evm.Context.OperatorCostFunc(new(big.Int).SetUint64(st.msg.GasLimit), st.evm.Context.Time)
-		if operatorCost != nil {
+	if !st.msg.SkipNonceChecks && !st.msg.SkipFromEOACheck {
+		if st.evm.Context.L1CostFunc != nil {
+			l1Cost = st.evm.Context.L1CostFunc(st.msg.RollupCostData, st.evm.Context.Time)
+			if l1Cost != nil {
+				mgval = mgval.Add(mgval, l1Cost)
+			}
+		}
+		if st.evm.Context.OperatorCostFunc != nil {
+			operatorCost = st.evm.Context.OperatorCostFunc(new(big.Int).SetUint64(st.msg.GasLimit), st.evm.Context.Time)
 			mgval = mgval.Add(mgval, operatorCost.ToBig())
 		}
 	}
@@ -692,9 +692,8 @@ func (st *stateTransition) innerExecute() (*ExecutionResult, error) {
 				}
 				st.state.AddBalance(params.OptimismL1FeeRecipient, amtU256, tracing.BalanceIncreaseRewardTransactionFee)
 			}
-			if operatorFeeCost := st.evm.Context.OperatorCostFunc(new(big.Int).SetUint64(st.gasUsed()), st.evm.Context.Time); operatorFeeCost != nil {
-				st.state.AddBalance(params.OptimismOperatorFeeRecipient, operatorFeeCost, tracing.BalanceIncreaseRewardTransactionFee)
-			}
+			operatorFeeCost := st.evm.Context.OperatorCostFunc(new(big.Int).SetUint64(st.gasUsed()), st.evm.Context.Time)
+			st.state.AddBalance(params.OptimismOperatorFeeRecipient, operatorFeeCost, tracing.BalanceIncreaseRewardTransactionFee)
 		}
 	}
 
@@ -791,6 +790,10 @@ func (st *stateTransition) returnGas() {
 		// Return ETH to transaction sender for operator cost overcharge.
 		operatorCostGasLimit := st.evm.Context.OperatorCostFunc(new(big.Int).SetUint64(st.msg.GasLimit), st.evm.Context.Time)
 		operatorCostGasUsed := st.evm.Context.OperatorCostFunc(new(big.Int).SetUint64(st.gasUsed()), st.evm.Context.Time)
+
+		if operatorCostGasUsed.Cmp(operatorCostGasLimit) > 0 { // Sanity check.
+			panic(fmt.Sprintf("operator cost gas used (%d) > operator cost gas limit (%d)", operatorCostGasUsed, operatorCostGasLimit))
+		}
 
 		st.state.AddBalance(st.msg.From, new(uint256.Int).Sub(operatorCostGasLimit, operatorCostGasUsed), tracing.BalanceIncreaseGasReturn)
 	}

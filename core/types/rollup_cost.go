@@ -107,8 +107,7 @@ type StateGetter interface {
 type L1CostFunc func(rcd RollupCostData, blockTime uint64) *big.Int
 
 // OperatorCostFunc is used in the state transition to determine the operator fee charged to the
-// sender of non-Deposit transactions. It returns nil if no data availability fee is charged.
-// The `isRefund` parameter is true if calculating a refund.
+// sender of non-Deposit transactions. It returns 0 if no data availability fee is charged.
 type OperatorCostFunc func(gasUsed *big.Int, blockTime uint64) *uint256.Int
 
 // l1CostFunc is an internal version of L1CostFunc that also returns the gasUsed for use in
