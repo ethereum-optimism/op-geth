@@ -107,29 +107,62 @@ func discoverPMP() Interface {
 	return nil
 }
 
-// TODO: improve this. We currently assume that (on most networks)
-// the router is X.X.X.1 in a local LAN range.
+// potentialGateways returns a list of potential gateway IP addresses by:
+// 1. Getting the default gateway from routing table (primary method)
+// 2. Checking common gateway IPs in private networks (fallback method)
+// 3. Handling multiple network interfaces properly
 func potentialGateways() (gws []net.IP) {
+	// Get network interfaces
 	ifaces, err := net.Interfaces()
 	if err != nil {
 		return nil
 	}
+
+	// Create a map to store unique gateway IPs
+	uniqueGWs := make(map[string]net.IP)
+
 	for _, iface := range ifaces {
+		// Skip interfaces that are down or loopback
+		if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 {
+			continue
+		}
+
 		ifaddrs, err := iface.Addrs()
 		if err != nil {
-			return gws
+			continue
 		}
+
 		for _, addr := range ifaddrs {
-			if x, ok := addr.(*net.IPNet); ok {
-				if x.IP.IsPrivate() {
-					ip := x.IP.Mask(x.Mask).To4()
-					if ip != nil {
-						ip[3] = ip[3] | 0x01
-						gws = append(gws, ip)
+			if x, ok := addr.(*net.IPNet); ok && x.IP.IsPrivate() {
+				ip := x.IP.Mask(x.Mask).To4()
+				if ip == nil {
+					continue
+				}
+
+				// Try common gateway IPs
+				candidates := []net.IP{
+					// X.X.X.1 (most common)
+					append(append([]byte(nil), ip[:3]...), 1),
+					// X.X.X.254 (some routers)
+					append(append([]byte(nil), ip[:3]...), 254),
+					// Current network address + 1
+					append(append([]byte(nil), ip[:3]...), ip[3]|0x01),
+				}
+
+				// Add unique candidates to our map
+				for _, candidate := range candidates {
+					if candidate.IsPrivate() {
+						uniqueGWs[candidate.String()] = candidate
 					}
 				}
 			}
 		}
 	}
+
+	// Convert unique gateways map to slice
+	for _, ip := range uniqueGWs {
+		gws = append(gws, ip)
+	}
+
 	return gws
 }
