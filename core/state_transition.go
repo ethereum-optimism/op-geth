@@ -295,11 +295,11 @@ func (st *stateTransition) buyGas() error {
 		if l1Cost != nil {
 			balanceCheck.Add(balanceCheck, l1Cost)
 		}
+		if operatorCost != nil {
+			balanceCheck.Add(balanceCheck, operatorCost.ToBig())
+		}
 	}
 	balanceCheck.Add(balanceCheck, st.msg.Value)
-	if operatorCost != nil {
-		balanceCheck.Add(balanceCheck, operatorCost.ToBig())
-	}
 
 	if st.evm.ChainConfig().IsCancun(st.evm.Context.BlockNumber, st.evm.Context.Time) {
 		if blobGas := st.blobGasUsed(); blobGas > 0 {
