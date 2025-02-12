@@ -17,6 +17,7 @@
 package core
 
 import (
+	"bytes"
 	"fmt"
 	"math"
 	"math/big"
@@ -79,12 +80,9 @@ func IntrinsicGas(data []byte, accessList types.AccessList, authList []types.Set
 	// Bump the required gas by the amount of transactional data
 	if dataLen > 0 {
 		// Zero and non-zero bytes are priced differently
-		var nz uint64
-		for _, byt := range data {
-			if byt != 0 {
-				nz++
-			}
-		}
+		z := uint64(bytes.Count(data, []byte{0}))
+		nz := dataLen - z
+
 		// Make sure we don't exceed uint64 for all data combinations
 		nonZeroGas := params.TxDataNonZeroGasFrontier
 		if isEIP2028 {
@@ -95,7 +93,6 @@ func IntrinsicGas(data []byte, accessList types.AccessList, authList []types.Set
 		}
 		gas += nz * nonZeroGas
 
-		z := dataLen - nz
 		if (math.MaxUint64-gas)/params.TxDataZeroGas < z {
 			return 0, ErrGasUintOverflow
 		}
@@ -117,6 +114,21 @@ func IntrinsicGas(data []byte, accessList types.AccessList, authList []types.Set
 		gas += uint64(len(authList)) * params.CallNewAccountGas
 	}
 	return gas, nil
+}
+
+// FloorDataGas computes the minimum gas required for a transaction based on its data tokens (EIP-7623).
+func FloorDataGas(data []byte) (uint64, error) {
+	var (
+		z      = uint64(bytes.Count(data, []byte{0}))
+		nz     = uint64(len(data)) - z
+		tokens = nz*params.TxTokenPerNonZeroByte + z
+	)
+	// Check for overflow
+	if (math.MaxUint64-params.TxGas)/params.TxCostFloorPerToken < tokens {
+		return 0, ErrGasUintOverflow
+	}
+	// Minimum gas required for a transaction based on its data tokens (EIP-7623).
+	return params.TxGas + tokens*params.TxCostFloorPerToken, nil
 }
 
 // toWordSize returns the ceiled word size required for init code payment calculation.
@@ -499,6 +511,7 @@ func (st *stateTransition) innerExecute() (*ExecutionResult, error) {
 		sender           = vm.AccountRef(msg.From)
 		rules            = st.evm.ChainConfig().Rules(st.evm.Context.BlockNumber, st.evm.Context.Random != nil, st.evm.Context.Time)
 		contractCreation = msg.To == nil
+		floorDataGas     uint64
 	)
 
 	// Check clauses 4-5, subtract intrinsic gas if everything is correct
@@ -508,6 +521,16 @@ func (st *stateTransition) innerExecute() (*ExecutionResult, error) {
 	}
 	if st.gasRemaining < gas {
 		return nil, fmt.Errorf("%w: have %d, want %d", ErrIntrinsicGas, st.gasRemaining, gas)
+	}
+	// Gas limit suffices for the floor data cost (EIP-7623)
+	if rules.IsPrague {
+		floorDataGas, err = FloorDataGas(msg.Data)
+		if err != nil {
+			return nil, err
+		}
+		if msg.GasLimit < floorDataGas {
+			return nil, fmt.Errorf("%w: have %d, want %d", ErrFloorDataGas, msg.GasLimit, floorDataGas)
+		}
 	}
 	if t := st.evm.Config.Tracer; t != nil && t.OnGasChange != nil {
 		if st.msg.IsDepositTx {
@@ -553,7 +576,7 @@ func (st *stateTransition) innerExecute() (*ExecutionResult, error) {
 		ret, _, st.gasRemaining, vmerr = st.evm.Create(sender, msg.Data, st.gasRemaining, value)
 	} else {
 		// Increment the nonce for the next transaction.
-		st.state.SetNonce(msg.From, st.state.GetNonce(msg.From)+1)
+		st.state.SetNonce(msg.From, st.state.GetNonce(msg.From)+1, tracing.NonceChangeEoACall)
 
 		// Apply EIP-7702 authorizations.
 		if msg.SetCodeAuthorizations != nil {
@@ -576,7 +599,7 @@ func (st *stateTransition) innerExecute() (*ExecutionResult, error) {
 		ret, st.gasRemaining, vmerr = st.evm.Call(sender, st.to(), msg.Data, st.gasRemaining, value)
 	}
 
-	// if deposit: skip refunds, skip tipping coinbase
+	// OP-Stack: pre-Regolith: if deposit, skip refunds, skip tipping coinbase
 	// Regolith changes this behaviour to report the actual gasUsed instead of always reporting all gas used.
 	if st.msg.IsDepositTx && !rules.IsOptimismRegolith {
 		// Record deposits as using all their gas (matches the gas pool)
@@ -591,17 +614,25 @@ func (st *stateTransition) innerExecute() (*ExecutionResult, error) {
 			ReturnData: ret,
 		}, nil
 	}
-	// Note for deposit tx there is no ETH refunded for unused gas, but that's taken care of by the fact that gasPrice
-	// is always 0 for deposit tx. So calling refundGas will ensure the gasUsed accounting is correct without actually
-	// changing the sender's balance
-	var gasRefund uint64
-	if !rules.IsLondon {
-		// Before EIP-3529: refunds were capped to gasUsed / 2
-		gasRefund = st.refundGas(params.RefundQuotient)
-	} else {
-		// After EIP-3529: refunds are capped to gasUsed / 5
-		gasRefund = st.refundGas(params.RefundQuotientEIP3529)
+
+	// Compute refund counter, capped to a refund quotient.
+	gasRefund := st.calcRefund()
+	st.gasRemaining += gasRefund
+	if rules.IsPrague {
+		// After EIP-7623: Data-heavy transactions pay the floor gas.
+		if st.gasUsed() < floorDataGas {
+			prev := st.gasRemaining
+			st.gasRemaining = st.initialGas - floorDataGas
+			if t := st.evm.Config.Tracer; t != nil && t.OnGasChange != nil {
+				t.OnGasChange(prev, st.gasRemaining, tracing.GasChangeTxDataFloor)
+			}
+		}
 	}
+	st.returnGas()
+
+	// OP-Stack: Note for deposit tx there is no ETH refunded for unused gas, but that's taken care of by the fact that gasPrice
+	// is always 0 for deposit tx. So calling refundGas will ensure the gasUsed accounting is correct without actually
+	// changing the sender's balance.
 	if st.msg.IsDepositTx && rules.IsOptimismRegolith {
 		// Skip coinbase payments for deposit tx in Regolith
 		return &ExecutionResult{
@@ -611,6 +642,7 @@ func (st *stateTransition) innerExecute() (*ExecutionResult, error) {
 			ReturnData:  ret,
 		}, nil
 	}
+
 	effectiveTip := msg.GasPrice
 	if rules.IsLondon {
 		effectiveTip = new(big.Int).Sub(msg.GasFeeCap, st.evm.Context.BaseFee)
@@ -706,7 +738,7 @@ func (st *stateTransition) applyAuthorization(auth *types.SetCodeAuthorization) 
 	}
 
 	// Update nonce and account code.
-	st.state.SetNonce(authority, auth.Nonce+1)
+	st.state.SetNonce(authority, auth.Nonce+1, tracing.NonceChangeAuthorization)
 	if auth.Address == (common.Address{}) {
 		// Delegation to zero address means clear.
 		st.state.SetCode(authority, nil)
@@ -719,20 +751,28 @@ func (st *stateTransition) applyAuthorization(auth *types.SetCodeAuthorization) 
 	return nil
 }
 
-func (st *stateTransition) refundGas(refundQuotient uint64) uint64 {
-	// Apply refund counter, capped to a refund quotient
-	refund := st.gasUsed() / refundQuotient
+// calcRefund computes refund counter, capped to a refund quotient.
+func (st *stateTransition) calcRefund() uint64 {
+	var refund uint64
+	if !st.evm.ChainConfig().IsLondon(st.evm.Context.BlockNumber) {
+		// Before EIP-3529: refunds were capped to gasUsed / 2
+		refund = st.gasUsed() / params.RefundQuotient
+	} else {
+		// After EIP-3529: refunds are capped to gasUsed / 5
+		refund = st.gasUsed() / params.RefundQuotientEIP3529
+	}
 	if refund > st.state.GetRefund() {
 		refund = st.state.GetRefund()
 	}
-
 	if st.evm.Config.Tracer != nil && st.evm.Config.Tracer.OnGasChange != nil && refund > 0 {
 		st.evm.Config.Tracer.OnGasChange(st.gasRemaining, st.gasRemaining+refund, tracing.GasChangeTxRefunds)
 	}
+	return refund
+}
 
-	st.gasRemaining += refund
-
-	// Return ETH for remaining gas, exchanged at the original rate.
+// returnGas returns ETH for remaining gas,
+// exchanged at the original rate.
+func (st *stateTransition) returnGas() {
 	remaining := uint256.NewInt(st.gasRemaining)
 	remaining.Mul(remaining, uint256.MustFromBig(st.msg.GasPrice))
 	st.state.AddBalance(st.msg.From, remaining, tracing.BalanceIncreaseGasReturn)
@@ -744,8 +784,6 @@ func (st *stateTransition) refundGas(refundQuotient uint64) uint64 {
 	// Also return remaining gas to the block gas counter so it is
 	// available for the next transaction.
 	st.gp.AddGas(st.gasRemaining)
-
-	return refund
 }
 
 // gasUsed returns the amount of gas used up by the state transition.
