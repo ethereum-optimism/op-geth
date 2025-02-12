@@ -638,7 +638,7 @@ func (st *stateTransition) innerExecute() (*ExecutionResult, error) {
 			}
 		}
 	}
-	st.returnGas()
+	st.returnGas(rules.IsOptimismIsthmus)
 
 	// OP-Stack: Note for deposit tx there is no ETH refunded for unused gas, but that's taken care of by the fact that gasPrice
 	// is always 0 for deposit tx. So calling refundGas will ensure the gasUsed accounting is correct without actually
@@ -692,8 +692,10 @@ func (st *stateTransition) innerExecute() (*ExecutionResult, error) {
 				}
 				st.state.AddBalance(params.OptimismL1FeeRecipient, amtU256, tracing.BalanceIncreaseRewardTransactionFee)
 			}
-			operatorFeeCost := st.evm.Context.OperatorCostFunc(new(big.Int).SetUint64(st.gasUsed()), st.evm.Context.Time)
-			st.state.AddBalance(params.OptimismOperatorFeeRecipient, operatorFeeCost, tracing.BalanceIncreaseRewardTransactionFee)
+			if rules.IsOptimismIsthmus {
+				operatorFeeCost := st.evm.Context.OperatorCostFunc(new(big.Int).SetUint64(st.gasUsed()), st.evm.Context.Time)
+				st.state.AddBalance(params.OptimismOperatorFeeRecipient, operatorFeeCost, tracing.BalanceIncreaseRewardTransactionFee)
+			}
 		}
 	}
 
@@ -784,9 +786,9 @@ func (st *stateTransition) calcRefund() uint64 {
 
 // returnGas returns ETH for remaining gas,
 // exchanged at the original rate.
-func (st *stateTransition) returnGas() {
+func (st *stateTransition) returnGas(isIsthmus bool) {
 
-	if optimismConfig := st.evm.ChainConfig().Optimism; optimismConfig != nil && !st.msg.IsDepositTx {
+	if optimismConfig := st.evm.ChainConfig().Optimism; optimismConfig != nil && !st.msg.IsDepositTx && isIsthmus {
 		// Return ETH to transaction sender for operator cost overcharge.
 		operatorCostGasLimit := st.evm.Context.OperatorCostFunc(new(big.Int).SetUint64(st.msg.GasLimit), st.evm.Context.Time)
 		operatorCostGasUsed := st.evm.Context.OperatorCostFunc(new(big.Int).SetUint64(st.gasUsed()), st.evm.Context.Time)
