@@ -207,6 +207,7 @@ func TestBlockRlpEncodeDecode(t *testing.T) {
 	config := *params.OptimismTestConfig
 	config.ShanghaiTime = &zeroTime
 	config.IsthmusTime = &zeroTime
+	config.CancunTime = &zeroTime
 	require.True(t, config.IsOptimismIsthmus(zeroTime))
 
 	block := getBlock(&config, 10, 2, 50)
