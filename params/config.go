@@ -866,6 +866,15 @@ func (c *ChainConfig) CheckConfigForkOrder() error {
 		}
 	}
 
+	// OP-Stack chains don't support blobs, and must have a nil BlobScheduleConfig.
+	if c.IsOptimism() {
+		if c.BlobScheduleConfig == nil {
+			return nil
+		} else {
+			return errors.New("OP-Stack chains must have empty blob configuration")
+		}
+	}
+
 	// Check that all forks with blobs explicitly define the blob schedule configuration.
 	bsc := c.BlobScheduleConfig
 	if bsc == nil {

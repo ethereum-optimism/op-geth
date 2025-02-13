@@ -388,7 +388,7 @@ var (
 	}
 	TxPoolJournalRemotesFlag = &cli.BoolFlag{
 		Name:     "txpool.journalremotes",
-		Usage:    "Includes remote transactions in the journal",
+		Usage:    "Includes remote transactions in the journal. Only effective if nolocals is set too.",
 		Category: flags.TxPoolCategory,
 	}
 	TxPoolRejournalFlag = &cli.DurationFlag{

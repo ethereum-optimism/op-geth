@@ -298,7 +298,7 @@ func (b *EthAPIBackend) SendTx(ctx context.Context, signedTx *types.Transaction)
 			return nil
 		}
 		// Retain tx in local tx pool after forwarding, for local RPC usage.
-		if err := b.eth.txPool.Add([]*types.Transaction{signedTx}, true, false)[0]; err != nil {
+		if err := b.eth.txPool.Add([]*types.Transaction{signedTx}, false)[0]; err != nil {
 			log.Warn("successfully sent tx to sequencer, but failed to persist in local tx pool", "err", err, "tx", signedTx.Hash())
 		}
 		return nil

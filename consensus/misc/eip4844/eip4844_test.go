@@ -21,6 +21,8 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/params"
 )
@@ -88,6 +90,28 @@ func TestCalcBlobFee(t *testing.T) {
 			t.Errorf("test %d: blobfee mismatch: have %v want %v", i, have, tt.blobfee)
 		}
 	}
+}
+
+func TestCalcBlobFeeOPStack(t *testing.T) {
+	zero := uint64(0)
+	header := &types.Header{ExcessBlobGas: &zero}
+	// any non-nil optimism confic should do
+	config := &params.ChainConfig{Optimism: new(params.OptimismConfig)}
+	bfee := CalcBlobFee(config, header)
+	require.Equal(t, int64(1), bfee.Int64())
+
+	reqPanic := func() {
+		require.PanicsWithValue(t,
+			"OP-Stack: CalcBlobFee: unexpected blob schedule or excess blob gas",
+			func() { CalcBlobFee(config, header) })
+	}
+	(*header.ExcessBlobGas)++
+	reqPanic()
+	header.ExcessBlobGas = nil
+	reqPanic()
+	header.ExcessBlobGas = &zero
+	config.BlobScheduleConfig = params.DefaultBlobSchedule
+	reqPanic()
 }
 
 func TestFakeExponential(t *testing.T) {

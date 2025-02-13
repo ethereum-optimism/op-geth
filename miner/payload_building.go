@@ -320,6 +320,8 @@ func (miner *Miner) buildPayload(args *BuildPayloadArgs, witness bool) (*Payload
 		// make sure to make it appear as full, otherwise it will wait indefinitely for payload building to complete.
 		payload.full = empty.block
 		payload.fullFees = empty.fees
+		payload.fullWitness = empty.witness
+		payload.requests = empty.requests
 		payload.cond.Broadcast() // unblocks Resolve
 		return payload, nil
 	}

@@ -551,7 +551,8 @@ func (miner *Miner) commitTransactions(env *environment, plainTxs, blobTxs *tran
 			if left < int(ltx.BlobGas/params.BlobTxBlobGasPerBlob) {
 				log.Trace("Not enough blob space left for transaction", "hash", ltx.Hash, "left", left, "needed", ltx.BlobGas/params.BlobTxBlobGasPerBlob)
 				txs.Pop()
-			continue
+				continue
+			}
 		}
 
 		// OP-Stack addition: sequencer throttling

@@ -268,7 +268,7 @@ func (m *SortedMap) LastElement() *types.Transaction {
 
 // FirstElement returns the first element from the heap (guaranteed to be lowest), thus, the
 // transaction with the lowest nonce. Returns nil if there are no elements.
-func (m *sortedMap) FirstElement() *types.Transaction {
+func (m *SortedMap) FirstElement() *types.Transaction {
 	if m.Len() == 0 {
 		return nil
 	}

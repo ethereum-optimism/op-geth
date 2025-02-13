@@ -464,7 +464,7 @@ func (st *stateTransition) execute() (*ExecutionResult, error) {
 
 		st.state.RevertToSnapshot(snap)
 		// Even though we revert the state changes, always increment the nonce for the next deposit transaction
-		st.state.SetNonce(st.msg.From, st.state.GetNonce(st.msg.From)+1)
+		st.state.SetNonce(st.msg.From, st.state.GetNonce(st.msg.From)+1, tracing.NonceChangeEoACall)
 		// Record deposits as using all their gas (matches the gas pool)
 		// System Transactions are special & are not recorded as using any gas (anywhere)
 		// Regolith changes this behaviour so the actual gas used is reported.

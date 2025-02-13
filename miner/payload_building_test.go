@@ -274,8 +274,11 @@ func testBuildPayload(t *testing.T, noTxPool, interrupt bool, params1559 []byte)
 			t.Fatalf("Unexpect transaction set: got %d, expected less than %d", len(payload.Transactions), txs)
 		}
 	}
-	empty := payload.ResolveEmpty()
-	verify(empty, 0)
+	// OP-Stack: we only build the empty payload if noTxPool is set.
+	if args.NoTxPool {
+		empty := payload.ResolveEmpty()
+		verify(empty, 0)
+	}
 
 	// make sure the 1559 params we've specied (if any) ends up in both the full and empty block headers
 	var expected []byte

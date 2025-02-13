@@ -122,8 +122,11 @@ func (beacon *Beacon) VerifyHeader(chain consensus.ChainHeaderReader, header *ty
 	if parent.Difficulty.Sign() == 0 && header.Difficulty.Sign() > 0 {
 		return consensus.ErrInvalidTerminalBlock
 	}
+	cfg := chain.Config()
 	// Check >0 TDs with pre-merge, --0 TDs with post-merge rules
-	if header.Difficulty.Sign() > 0 {
+	if header.Difficulty.Sign() > 0 ||
+		// OP-Stack: transitioned networks must use legacy consensus pre-Bedrock
+		(cfg.IsOptimism() && !cfg.IsBedrock(header.Number)) {
 		return beacon.ethone.VerifyHeader(chain, header)
 	}
 	return beacon.verifyHeader(chain, header, parent)
@@ -132,21 +135,21 @@ func (beacon *Beacon) VerifyHeader(chain consensus.ChainHeaderReader, header *ty
 // OP-Stack Bedrock variant of splitHeaders: the total-terminal difficulty is terminated at bedrock transition, but also reset to 0.
 // So just use the bedrock fork check to split the headers, to simplify the splitting.
 // The returned slices are slices over the input. The input must be sorted.
-func (beacon *Beacon) splitBedrockHeaders(chain consensus.ChainHeaderReader, headers []*types.Header) ([]*types.Header, []*types.Header, error) {
+func (beacon *Beacon) splitBedrockHeaders(chain consensus.ChainHeaderReader, headers []*types.Header) ([]*types.Header, []*types.Header) {
 	for i, h := range headers {
 		if chain.Config().IsBedrock(h.Number) {
-			return headers[:i], headers[i:], nil
+			return headers[:i], headers[i:]
 		}
 	}
-	return headers, nil, nil
+	return headers, nil
 }
 
 // splitHeaders splits the provided header batch into two parts according to
 // the difficulty field.
 //
 // Note, this function will not verify the header validity but just split them.
-func (beacon *Beacon) splitHeaders(headers []*types.Header) ([]*types.Header, []*types.Header) {
-	if chain.Config().Optimism != nil {
+func (beacon *Beacon) splitHeaders(chain consensus.ChainHeaderReader, headers []*types.Header) ([]*types.Header, []*types.Header) {
+	if chain.Config().IsOptimism() {
 		return beacon.splitBedrockHeaders(chain, headers)
 	}
 
@@ -169,7 +172,7 @@ func (beacon *Beacon) splitHeaders(headers []*types.Header) ([]*types.Header, []
 // a results channel to retrieve the async verifications.
 // VerifyHeaders expect the headers to be ordered and continuous.
 func (beacon *Beacon) VerifyHeaders(chain consensus.ChainHeaderReader, headers []*types.Header) (chan<- struct{}, <-chan error) {
-	preHeaders, postHeaders := beacon.splitHeaders(headers)
+	preHeaders, postHeaders := beacon.splitHeaders(chain, headers)
 	if len(postHeaders) == 0 {
 		return beacon.ethone.VerifyHeaders(chain, headers)
 	}
@@ -488,7 +491,10 @@ func (beacon *Beacon) CalcDifficulty(chain consensus.ChainHeaderReader, time uin
 	// We do not need to seal non-merge blocks anymore live, but we do need
 	// to be able to generate test chains, thus we're reverting to a testing-
 	// settable field to direct that.
-	if beacon.ttdblock != nil && *beacon.ttdblock > parent.Number.Uint64() {
+	cfg := chain.Config()
+	if beacon.ttdblock != nil && *beacon.ttdblock > parent.Number.Uint64() ||
+		// OP-Stack: transitioned networks must use legacy consensus pre-Bedrock
+		(cfg.IsOptimism() && !cfg.IsBedrock(new(big.Int).Add(parent.Number, common.Big1))) {
 		return beacon.ethone.CalcDifficulty(chain, time, parent)
 	}
 	return beaconDifficulty

@@ -29,8 +29,6 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/consensus"
-	"github.com/ethereum/go-ethereum/consensus/beacon"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/internal/ethapi/override"
 
@@ -247,7 +245,10 @@ func generateTestChain(genesis *core.Genesis, length int) []*types.Block {
 }
 
 func TestEthClientHistoricalBackend(t *testing.T) {
-	backend, _, _ := newTestBackend(t, nil, true)
+	backend, _, err := newTestBackend(t, nil, true)
+	if err != nil {
+		t.Fatal(err)
+	}
 	client := backend.Attach()
 	defer backend.Close()
 	defer client.Close()

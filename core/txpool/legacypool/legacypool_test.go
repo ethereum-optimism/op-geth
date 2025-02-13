@@ -699,8 +699,8 @@ func TestRejectedDropping(t *testing.T) {
 	// create some txs. tx0 has a conditional
 	tx0, tx1 := transaction(0, 100, key), transaction(1, 200, key)
 
-	pool.all.Add(tx0, false)
-	pool.all.Add(tx1, false)
+	pool.all.Add(tx0)
+	pool.all.Add(tx1)
 	pool.promoteTx(account, tx0.Hash(), tx0)
 	pool.promoteTx(account, tx1.Hash(), tx1)
 

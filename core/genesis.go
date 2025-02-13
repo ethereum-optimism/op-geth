@@ -477,11 +477,9 @@ func SetupGenesisBlockWithOverride(db ethdb.Database, triedb *triedb.Database, g
 	// OP-Stack note: Always apply overrides.
 	// The genesis function arg may be nil, and stored-config may be non-nil at the same time.
 	// This is important to apply superchain-upgrades to existing DBs, where the network CLI flag is not used.
-	chainCfg, err := overrides.apply(newCfg)
-	if err != nil {
+	if err := overrides.apply(newCfg); err != nil {
 		return nil, common.Hash{}, nil, err
 	}
-	newCfg = chainCfg
 
 	var genesisTimestamp *uint64
 	if genesis != nil {

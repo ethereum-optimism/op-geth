@@ -122,12 +122,19 @@ def:
             This also includes experimental support for interop executing-messages to be verified through an RPC.
           globs:
             - "miner/*"
-        - title: "Tx-pool tx cost updates"
-          description: |
-            Transaction queueing and inclusion needs to account for the L1 cost component.
-          globs:
-            - "core/txpool/**/*"
-            - "core/txpool/legacypool/*"
+        - title: "Tx-pool"
+          sub:
+            - title: "Full Tx-pool journaling"
+              description: |
+                Adds support for full tx-pool journaling via the journalremotes config flag.
+              globs:
+                - "core/txpool/locals/pool_journaler.go"
+            - title: "Transaction cost updates"
+              description: |
+                Transaction queueing and inclusion needs to account for the L1 cost component.
+              globs:
+                - "core/txpool/**/*"
+                - "core/txpool/legacypool/*"
         - title: "RIP-7212"
           description: ""
           globs:

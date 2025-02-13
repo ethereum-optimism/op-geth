@@ -291,14 +291,20 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 		return nil, err
 	}
 
+	// OP-Stack addition: to periodically journal the txpool, if noLocals and
+	// journalRemotes are enabled, we spin up the alternative PoolJournaler,
+	// instead of the TxTracker.
+	rejournal := config.TxPool.Rejournal
+	if rejournal < time.Second {
+		log.Warn("Sanitizing invalid txpool journal time", "provided", rejournal, "updated", time.Second)
+		rejournal = time.Second
+	}
 	if !config.TxPool.NoLocals {
-		rejournal := config.TxPool.Rejournal
-		if rejournal < time.Second {
-			log.Warn("Sanitizing invalid txpool journal time", "provided", rejournal, "updated", time.Second)
-			rejournal = time.Second
-		}
 		eth.localTxTracker = locals.New(config.TxPool.Journal, rejournal, eth.blockchain.Config(), eth.txPool)
 		stack.RegisterLifecycle(eth.localTxTracker)
+	} else if config.TxPool.JournalRemote {
+		pj := locals.NewPoolJournaler(config.TxPool.Journal, rejournal, eth.txPool)
+		stack.RegisterLifecycle(pj)
 	}
 	// Permit the downloader to use the trie cache allowance during fast sync
 	cacheLimit := cacheConfig.TrieCleanLimit + cacheConfig.TrieDirtyLimit + cacheConfig.SnapshotLimit
