@@ -345,6 +345,7 @@ type ChainConfig struct {
 	GraniteTime  *uint64 `json:"graniteTime,omitempty"`  // Granite switch time (nil = no fork, 0 = already on Optimism Granite)
 	HoloceneTime *uint64 `json:"holoceneTime,omitempty"` // Holocene switch time (nil = no fork, 0 = already on Optimism Holocene)
 	IsthmusTime  *uint64 `json:"isthmusTime,omitempty"`  // Isthmus switch time (nil = no fork, 0 = already on Optimism Isthmus)
+	JovianTime   *uint64 `json:"jovianTime,omitempty"`   // Jovian switch time (nil = no fork, 0 = already on Optimism Jovian)
 
 	InteropTime *uint64 `json:"interopTime,omitempty"` // Interop switch time (nil = no fork, 0 = already on optimism interop)
 
@@ -500,6 +501,9 @@ func (c *ChainConfig) Description() string {
 	}
 	if c.IsthmusTime != nil {
 		banner += fmt.Sprintf(" - Isthmus:                     @%-10v\n", *c.IsthmusTime)
+	}
+	if c.JovianTime != nil {
+		banner += fmt.Sprintf(" - Jovian:                      @%-10v\n", *c.JovianTime)
 	}
 	if c.InteropTime != nil {
 		banner += fmt.Sprintf(" - Interop:                     @%-10v\n", *c.InteropTime)
@@ -659,6 +663,10 @@ func (c *ChainConfig) IsIsthmus(time uint64) bool {
 	return isTimestampForked(c.IsthmusTime, time)
 }
 
+func (c *ChainConfig) IsJovian(time uint64) bool {
+	return isTimestampForked(c.JovianTime, time)
+}
+
 func (c *ChainConfig) IsInterop(time uint64) bool {
 	return isTimestampForked(c.InteropTime, time)
 }
@@ -699,6 +707,10 @@ func (c *ChainConfig) IsOptimismHolocene(time uint64) bool {
 
 func (c *ChainConfig) IsOptimismIsthmus(time uint64) bool {
 	return c.IsOptimism() && c.IsIsthmus(time)
+}
+
+func (c *ChainConfig) IsOptimismJovian(time uint64) bool {
+	return c.IsOptimism() && c.IsJovian(time)
 }
 
 // IsOptimismPreBedrock returns true iff this is an optimism node & bedrock is not yet active
@@ -891,6 +903,9 @@ func (c *ChainConfig) checkCompatible(newcfg *ChainConfig, headNumber *big.Int, 
 	}
 	if isForkTimestampIncompatible(c.IsthmusTime, newcfg.IsthmusTime, headTimestamp, genesisTimestamp) {
 		return newTimestampCompatError("Isthmus fork timestamp", c.IsthmusTime, newcfg.IsthmusTime)
+	}
+	if isForkTimestampIncompatible(c.JovianTime, newcfg.JovianTime, headTimestamp, genesisTimestamp) {
+		return newTimestampCompatError("Jovian fork timestamp", c.JovianTime, newcfg.JovianTime)
 	}
 	if isForkTimestampIncompatible(c.InteropTime, newcfg.InteropTime, headTimestamp, genesisTimestamp) {
 		return newTimestampCompatError("Interop fork timestamp", c.InteropTime, newcfg.InteropTime)

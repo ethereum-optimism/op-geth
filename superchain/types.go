@@ -41,6 +41,7 @@ type HardforkConfig struct {
 	GraniteTime  *uint64 `toml:"granite_time"`
 	HoloceneTime *uint64 `toml:"holocene_time"`
 	IsthmusTime  *uint64 `toml:"isthmus_time"`
+	JovianTime   *uint64 `toml:"jovian_time"`
 }
 
 type OptimismConfig struct {
