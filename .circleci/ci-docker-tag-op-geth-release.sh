@@ -27,12 +27,11 @@ fi
 echo "Tagging $SOURCE_IMAGE_TAG with '$IMAGE_TAG'"
 gcloud container images add-tag -q "$SOURCE_IMAGE_TAG" "$TARGET_IMAGE_TAG"
 
-# Do not tag with latest if the release is a release candidate.
-if [[ "$IMAGE_TAG" == *"rc"* ]]; then
-  echo "Not tagging with 'latest' because the release is a release candidate."
+# Only tag finalized releases with 'latest'
+if ! [[ "$IMAGE_TAG" =~ ^v1\.[0-9]+\.[0-9]+$ ]]; then
+  echo "Not tagging with 'latest' because the release is not finalized."
   exit 0
 fi
 
 echo "Tagging $SOURCE_IMAGE_TAG with 'latest'"
 gcloud container images add-tag -q "$SOURCE_IMAGE_TAG" "$TARGET_IMAGE_TAG_LATEST"
-
