@@ -40,7 +40,12 @@ type Block struct {
 
 func ExampleClientSubscription() {
 	// Connect the client.
-	client, _ := rpc.Dial("ws://127.0.0.1:8545")
+	client, err := rpc.Dial("ws://127.0.0.1:8545")
+	if err != nil {
+   	    fmt.Println("failed to connect:", err)
+   	    return
+}
+
 	subch := make(chan Block)
 
 	// Ensure that subch receives the latest block.
