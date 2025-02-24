@@ -48,7 +48,7 @@ type BackendWithHistoricalState interface {
 }
 
 type BackendWithInterop interface {
-	CheckMessages(ctx context.Context, messages []interoptypes.Message, minSafety interoptypes.SafetyLevel) error
+	CheckMessages(ctx context.Context, messages []interoptypes.Message, minSafety interoptypes.SafetyLevel, executingTimestamp uint64) error
 }
 
 // Config is the configuration parameters of mining.

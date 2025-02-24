@@ -447,7 +447,7 @@ func (miner *Miner) applyTransaction(env *environment, tx *types.Transaction) (*
 					return fmt.Errorf("cannot get logs from StateDB type %T", evm.StateDB)
 				}
 				logs := logInspector.GetLogs(tx.Hash(), env.header.Number.Uint64(), common.Hash{})
-				return miner.checkInterop(env.rpcCtx, tx, result.Failed(), logs)
+				return miner.checkInterop(env.rpcCtx, tx, result.Failed(), logs, env.header.Time)
 			},
 		}
 	}
@@ -459,7 +459,7 @@ func (miner *Miner) applyTransaction(env *environment, tx *types.Transaction) (*
 	return receipt, err
 }
 
-func (miner *Miner) checkInterop(ctx context.Context, tx *types.Transaction, failed bool, logs []*types.Log) error {
+func (miner *Miner) checkInterop(ctx context.Context, tx *types.Transaction, failed bool, logs []*types.Log, logTimestamp uint64) error {
 	if tx.Type() == types.DepositTxType {
 		return nil // deposit-txs are always safe
 	}
@@ -483,7 +483,7 @@ func (miner *Miner) checkInterop(ctx context.Context, tx *types.Transaction, fai
 	if len(executingMessages) == 0 {
 		return nil // avoid an RPC check if there are no executing messages to verify.
 	}
-	if err := b.CheckMessages(ctx, executingMessages, interoptypes.CrossUnsafe); err != nil {
+	if err := b.CheckMessages(ctx, executingMessages, interoptypes.CrossUnsafe, logTimestamp); err != nil {
 		if ctx.Err() != nil { // don't reject transactions permanently on RPC timeouts etc.
 			log.Debug("CheckMessages timed out", "err", ctx.Err())
 			return err
