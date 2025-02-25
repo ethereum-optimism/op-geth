@@ -48,10 +48,10 @@ func NewInteropClient(rpcEndpoint string) *InteropClient {
 }
 
 // CheckMessages checks if the given messages meet the given minimum safety level.
-func (cl *InteropClient) CheckMessages(ctx context.Context, messages []interoptypes.Message, minSafety interoptypes.SafetyLevel) error {
+func (cl *InteropClient) CheckMessages(ctx context.Context, messages []interoptypes.Message, minSafety interoptypes.SafetyLevel, executingDescriptor interoptypes.ExecutingDescriptor) error {
 	// we lazy-dial the endpoint, so we can start geth, and build blocks, without supervisor endpoint availability.
 	if err := cl.maybeDial(ctx); err != nil { // a single dial attempt is made, the next call may retry.
 		return err
 	}
-	return cl.client.CallContext(ctx, nil, "supervisor_checkMessages", messages, minSafety)
+	return cl.client.CallContext(ctx, nil, "supervisor_checkMessages", messages, minSafety, executingDescriptor)
 }
