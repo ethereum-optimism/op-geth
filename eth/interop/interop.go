@@ -53,5 +53,10 @@ func (cl *InteropClient) CheckMessages(ctx context.Context, messages []interopty
 	if err := cl.maybeDial(ctx); err != nil { // a single dial attempt is made, the next call may retry.
 		return err
 	}
-	return cl.client.CallContext(ctx, nil, "supervisor_checkMessages", messages, minSafety, executingDescriptor)
+	err := cl.client.CallContext(ctx, nil, "supervisor_checkMessagesV2", messages, minSafety, executingDescriptor)
+	var x rpc.Error
+	if err != nil && errors.As(err, &x) && x.ErrorCode() == -32601 { // check if it's the MethodNotFound error code, retry with V1 if so
+		return cl.client.CallContext(ctx, nil, "supervisor_checkMessages", messages, minSafety)
+	}
+	return err
 }
