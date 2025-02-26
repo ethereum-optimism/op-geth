@@ -211,6 +211,12 @@ func NewOperatorCostFunc(config *params.ChainConfig, statedb StateGetter) Operat
 		operatorFeeParams := statedb.GetState(L1BlockAddr, OperatorFeeParamsSlot).Bytes()
 		operatorFeeScalar, operatorFeeConstant := extractOperatorFeeParams(operatorFeeParams)
 
+		if operatorFeeScalar.BitLen() == 0 && operatorFeeConstant.BitLen() == 0 {
+			return func(gas uint64) *uint256.Int {
+				return uint256.NewInt(0)
+			}
+		}
+
 		return newOperatorCostFunc(operatorFeeScalar, operatorFeeConstant)
 	}
 
@@ -233,8 +239,8 @@ func newOperatorCostFunc(operatorFeeScalar *big.Int, operatorFeeConstant *big.In
 
 		feeU256, overflow := uint256.FromBig(fee)
 		if overflow {
-			// This should never happen, but if it does, we return the maximum possible fee.
-			feeU256 = feeU256.SetAllOne()
+			// This should never happen, as (u64.max * u32.max / 1e6) + u64.max is an int of bit length 77
+			panic("overflow in operator cost calculation")
 		}
 
 		return feeU256

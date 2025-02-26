@@ -7,6 +7,7 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/holiman/uint256"
 	"github.com/stretchr/testify/require"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -21,8 +22,8 @@ var (
 	blobBaseFee         = big.NewInt(10 * 1e6)
 	baseFeeScalar       = big.NewInt(2)
 	blobBaseFeeScalar   = big.NewInt(3)
-	operatorFeeScalar   = big.NewInt(7)
-	operatorFeeConstant = big.NewInt(9)
+	operatorFeeScalar   = big.NewInt(2000000)
+	operatorFeeConstant = big.NewInt(5000)
 
 	// below are the expected cost func outcomes for the above parameter settings on the emptyTx
 	// which is defined in transaction_test.go
@@ -30,7 +31,8 @@ var (
 	regolithFee = big.NewInt(3710000000000)
 	ecotoneFee  = big.NewInt(960900) // (480/16)*(2*16*1000 + 3*10) == 960900
 	// the emptyTx is out of bounds for the linear regression so it uses the minimum size
-	fjordFee = big.NewInt(3203000) // 100_000_000 * (2 * 1000 * 1e6 * 16 + 3 * 10 * 1e6) / 1e12
+	fjordFee          = big.NewInt(3203000)  // 100_000_000 * (2 * 1000 * 1e6 * 16 + 3 * 10 * 1e6) / 1e12
+	ithmusOperatorFee = uint256.NewInt(8236) // 1618 * 2000000 / 1e6 + 5000
 
 	bedrockGas      = big.NewInt(1618)
 	regolithGas     = big.NewInt(530) // 530  = 1618 - (16*68)
@@ -345,8 +347,8 @@ func (sg *testStateGetter) GetState(addr common.Address, slot common.Hash) commo
 		binary.BigEndian.PutUint32(buf[offset+4:offset+8], sg.blobBaseFeeScalar)
 	case OperatorFeeParamsSlot:
 		// fetch operator fee scalars
-		binary.BigEndian.PutUint32(buf[0:4], sg.operatorFeeScalar)
-		binary.BigEndian.PutUint64(buf[4:12], sg.operatorFeeConstant)
+		binary.BigEndian.PutUint32(buf[20:24], sg.operatorFeeScalar)
+		binary.BigEndian.PutUint64(buf[24:32], sg.operatorFeeConstant)
 	default:
 		panic("unknown slot")
 	}
@@ -426,6 +428,39 @@ func TestNewL1CostFunc(t *testing.T) {
 	fee = costFunc(emptyTx.RollupCostData(), time)
 	require.NotNil(t, fee)
 	require.Equal(t, regolithFee, fee)
+}
+
+// TestNewL1CostFunc tests that the appropriate cost function is selected based on the
+// configuration and statedb values.
+func TestNewOperatorCostFunc(t *testing.T) {
+	time := uint64(10)
+	config := &params.ChainConfig{
+		Optimism: params.OptimismTestConfig.Optimism,
+	}
+	statedb := &testStateGetter{
+		baseFee:             baseFee,
+		overhead:            overhead,
+		scalar:              scalar,
+		blobBaseFee:         blobBaseFee,
+		baseFeeScalar:       uint32(baseFeeScalar.Uint64()),
+		blobBaseFeeScalar:   uint32(blobBaseFeeScalar.Uint64()),
+		operatorFeeScalar:   uint32(operatorFeeScalar.Uint64()),
+		operatorFeeConstant: operatorFeeConstant.Uint64(),
+	}
+
+	// emptyTx fee w/ fjord config, operator fee should be 0
+	config.FjordTime = &time
+	costFunc := NewOperatorCostFunc(config, statedb)
+	fee := costFunc(bedrockGas.Uint64(), time)
+	require.NotNil(t, fee)
+	require.Equal(t, uint256.NewInt(0), fee)
+
+	// emptyTx fee w/ isthmus config should be not 0
+	config.IsthmusTime = &time
+	costFunc = NewOperatorCostFunc(config, statedb)
+	fee = costFunc(bedrockGas.Uint64(), time)
+	require.NotNil(t, fee)
+	require.Equal(t, ithmusOperatorFee, fee)
 }
 
 func TestFlzCompressLen(t *testing.T) {
