@@ -37,9 +37,9 @@ const (
 	BaseFeeScalarSlotOffset     = 12 // bytes [16:20) of the slot
 	BlobBaseFeeScalarSlotOffset = 8  // bytes [20:24) of the slot
 
-	// ecotoneScalarSectionStart is the beginning of the scalar values segment in the slot
+	// scalarSectionStart is the beginning of the scalar values segment in the slot
 	// array. baseFeeScalar is in the first four bytes of the segment, blobBaseFeeScalar the next
-	// four, operatorFeeScalar the next four, and operatorFeeConstant the next eight.
+	// four.
 	scalarSectionStart = 32 - BaseFeeScalarSlotOffset - 4
 )
 
@@ -56,7 +56,7 @@ var (
 	// EcotoneL1AttributesSelector is the selector indicating Ecotone style L1 gas attributes.
 	EcotoneL1AttributesSelector = []byte{0x44, 0x0a, 0x5e, 0x20}
 	// IsthmusL1AttributesSelector is the selector indicating Isthmus style L1 gas attributes.
-	IsthmusL1AttributesSelector = []byte{0xd1, 0xfb, 0xe1, 0x5b}
+	IsthmusL1AttributesSelector = []byte{0x09, 0x89, 0x99, 0xbe}
 
 	// L1BlockAddr is the address of the L1Block contract which stores the L1 gas attributes.
 	L1BlockAddr = common.HexToAddress("0x4200000000000000000000000000000000000015")
@@ -107,12 +107,15 @@ type StateGetter interface {
 type L1CostFunc func(rcd RollupCostData, blockTime uint64) *big.Int
 
 // OperatorCostFunc is used in the state transition to determine the operator fee charged to the
-// sender of non-Deposit transactions. It returns 0 if no data availability fee is charged.
-type OperatorCostFunc func(gasUsed *big.Int, blockTime uint64) *uint256.Int
+// sender of non-Deposit transactions. It returns 0 if no operator fee is charged.
+type OperatorCostFunc func(gasUsed uint64, blockTime uint64) *uint256.Int
 
 // l1CostFunc is an internal version of L1CostFunc that also returns the gasUsed for use in
 // receipts.
 type l1CostFunc func(rcd RollupCostData) (fee, gasUsed *big.Int)
+
+// operatorCostFunc is an internal version of OperatorCostFunc that is used for caching.
+type operatorCostFunc func(gasUsed uint64) *uint256.Int
 
 func NewRollupCostData(data []byte) (out RollupCostData) {
 	for _, b := range data {
@@ -196,16 +199,37 @@ func NewOperatorCostFunc(config *params.ChainConfig, statedb StateGetter) Operat
 	if config.Optimism == nil {
 		return nil
 	}
-	return func(gas *big.Int, blockTime uint64) *uint256.Int {
+	forBlock := ^uint64(0)
+	var cachedFunc operatorCostFunc
+
+	selectFunc := func(blockTime uint64) operatorCostFunc {
 		if !config.IsOptimismIsthmus(blockTime) {
-			return uint256.NewInt(0)
+			return func(gas uint64) *uint256.Int {
+				return uint256.NewInt(0)
+			}
 		}
 		operatorFeeParams := statedb.GetState(L1BlockAddr, OperatorFeeParamsSlot).Bytes()
-
 		operatorFeeScalar, operatorFeeConstant := extractOperatorFeeParams(operatorFeeParams)
-		product := operatorFeeScalar.Mul(gas, operatorFeeScalar)
-		product = product.Div(product, oneMillion)
-		fee := product.Add(product, operatorFeeConstant)
+
+		return newOperatorCostFunc(operatorFeeScalar, operatorFeeConstant)
+	}
+
+	return func(gas uint64, blockTime uint64) *uint256.Int {
+		if forBlock != blockTime {
+			forBlock = blockTime
+			cachedFunc = selectFunc(blockTime)
+		}
+
+		return cachedFunc(gas)
+	}
+}
+
+func newOperatorCostFunc(operatorFeeScalar *big.Int, operatorFeeConstant *big.Int) operatorCostFunc {
+	return func(gas uint64) *uint256.Int {
+		fee := new(big.Int).SetUint64(gas)
+		fee = fee.Mul(fee, operatorFeeScalar)
+		fee = fee.Div(fee, oneMillion)
+		fee = fee.Add(fee, operatorFeeConstant)
 
 		feeU256, overflow := uint256.FromBig(fee)
 		if overflow {

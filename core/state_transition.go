@@ -284,7 +284,7 @@ func (st *stateTransition) buyGas() error {
 			}
 		}
 		if st.evm.Context.OperatorCostFunc != nil {
-			operatorCost = st.evm.Context.OperatorCostFunc(new(big.Int).SetUint64(st.msg.GasLimit), st.evm.Context.Time)
+			operatorCost = st.evm.Context.OperatorCostFunc(st.msg.GasLimit, st.evm.Context.Time)
 			mgval = mgval.Add(mgval, operatorCost.ToBig())
 		}
 	}
@@ -693,7 +693,7 @@ func (st *stateTransition) innerExecute() (*ExecutionResult, error) {
 				st.state.AddBalance(params.OptimismL1FeeRecipient, amtU256, tracing.BalanceIncreaseRewardTransactionFee)
 			}
 			if rules.IsOptimismIsthmus {
-				operatorFeeCost := st.evm.Context.OperatorCostFunc(new(big.Int).SetUint64(st.gasUsed()), st.evm.Context.Time)
+				operatorFeeCost := st.evm.Context.OperatorCostFunc(st.gasUsed(), st.evm.Context.Time)
 				st.state.AddBalance(params.OptimismOperatorFeeRecipient, operatorFeeCost, tracing.BalanceIncreaseRewardTransactionFee)
 			}
 		}
@@ -790,8 +790,8 @@ func (st *stateTransition) returnGas(isIsthmus bool) {
 
 	if optimismConfig := st.evm.ChainConfig().Optimism; optimismConfig != nil && !st.msg.IsDepositTx && isIsthmus {
 		// Return ETH to transaction sender for operator cost overcharge.
-		operatorCostGasLimit := st.evm.Context.OperatorCostFunc(new(big.Int).SetUint64(st.msg.GasLimit), st.evm.Context.Time)
-		operatorCostGasUsed := st.evm.Context.OperatorCostFunc(new(big.Int).SetUint64(st.gasUsed()), st.evm.Context.Time)
+		operatorCostGasLimit := st.evm.Context.OperatorCostFunc(st.msg.GasLimit, st.evm.Context.Time)
+		operatorCostGasUsed := st.evm.Context.OperatorCostFunc(st.gasUsed(), st.evm.Context.Time)
 
 		if operatorCostGasUsed.Cmp(operatorCostGasLimit) > 0 { // Sanity check.
 			panic(fmt.Sprintf("operator cost gas used (%d) > operator cost gas limit (%d)", operatorCostGasUsed, operatorCostGasLimit))
