@@ -44,14 +44,14 @@ func testSetupGenesis(t *testing.T, scheme string) {
 	var (
 		customghash = common.HexToHash("0x89c99d90b79719238d2645c7642f2c9295246e80775b38cfd162b696817fbd50")
 		customg     = Genesis{
-			Config: &params.ChainConfig{HomesteadBlock: big.NewInt(3)},
+			Config: &params.ChainConfig{HomesteadBlock: big.NewInt(3), Ethash: &params.EthashConfig{}},
 			Alloc: types.GenesisAlloc{
 				{1}: {Balance: big.NewInt(1), Storage: map[common.Hash]common.Hash{{1}: {1}}},
 			},
 		}
 		oldcustomg = customg
 	)
-	oldcustomg.Config = &params.ChainConfig{HomesteadBlock: big.NewInt(2)}
+	oldcustomg.Config = &params.ChainConfig{HomesteadBlock: big.NewInt(2), Ethash: &params.EthashConfig{}}
 
 	tests := []struct {
 		name           string
@@ -191,7 +191,7 @@ func TestGenesisHashes(t *testing.T) {
 	}
 }
 
-func TestGenesis_Commit(t *testing.T) {
+func TestGenesisCommit(t *testing.T) {
 	genesis := &Genesis{
 		BaseFee: big.NewInt(params.InitialBaseFee),
 		Config:  params.TestChainConfig,
@@ -208,13 +208,6 @@ func TestGenesis_Commit(t *testing.T) {
 	// This value should have been set as default in the ToBlock method.
 	if genesisBlock.Difficulty().Cmp(params.GenesisDifficulty) != 0 {
 		t.Errorf("assumption wrong: want: %d, got: %v", params.GenesisDifficulty, genesisBlock.Difficulty())
-	}
-
-	// Expect the stored total difficulty to be the difficulty of the genesis block.
-	stored := rawdb.ReadTd(db, genesisBlock.Hash(), genesisBlock.NumberU64())
-
-	if stored.Cmp(genesisBlock.Difficulty()) != 0 {
-		t.Errorf("inequal difficulty; stored: %v, genesisBlock: %v", stored, genesisBlock.Difficulty())
 	}
 }
 
@@ -282,11 +275,17 @@ func TestVerkleGenesisCommit(t *testing.T) {
 		ShanghaiTime:            &verkleTime,
 		CancunTime:              &verkleTime,
 		PragueTime:              &verkleTime,
+		OsakaTime:               &verkleTime,
 		VerkleTime:              &verkleTime,
 		TerminalTotalDifficulty: big.NewInt(0),
 		EnableVerkleAtGenesis:   true,
 		Ethash:                  nil,
 		Clique:                  nil,
+		BlobScheduleConfig: &params.BlobScheduleConfig{
+			Cancun: params.DefaultCancunBlobConfig,
+			Prague: params.DefaultPragueBlobConfig,
+			Verkle: params.DefaultPragueBlobConfig,
+		},
 	}
 
 	genesis := &Genesis{

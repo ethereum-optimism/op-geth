@@ -81,6 +81,19 @@ type Genesis struct {
 	StateHash *common.Hash `json:"stateHash,omitempty"`
 }
 
+// copy copies the genesis.
+func (g *Genesis) copy() *Genesis {
+	if g != nil {
+		cpy := *g
+		if g.Config != nil {
+			conf := *g.Config
+			cpy.Config = &conf
+		}
+		return &cpy
+	}
+	return nil
+}
+
 func ReadGenesis(db ethdb.Database) (*Genesis, error) {
 	var genesis Genesis
 	stored := rawdb.ReadCanonicalHash(db, 0)
@@ -156,7 +169,7 @@ func hashAlloc(ga *types.GenesisAlloc, isVerkle, isIsthmus bool) (common.Hash, c
 			statedb.AddBalance(addr, uint256.MustFromBig(account.Balance), tracing.BalanceIncreaseGenesisBalance)
 		}
 		statedb.SetCode(addr, account.Code)
-		statedb.SetNonce(addr, account.Nonce)
+		statedb.SetNonce(addr, account.Nonce, tracing.NonceChangeGenesis)
 		for key, value := range account.Storage {
 			statedb.SetState(addr, key, value)
 		}
@@ -194,7 +207,7 @@ func flushAlloc(ga *types.GenesisAlloc, triedb *triedb.Database, isIsthmus bool)
 			statedb.AddBalance(addr, uint256.MustFromBig(account.Balance), tracing.BalanceIncreaseGenesisBalance)
 		}
 		statedb.SetCode(addr, account.Code)
-		statedb.SetNonce(addr, account.Nonce)
+		statedb.SetNonce(addr, account.Nonce, tracing.NonceChangeGenesis)
 		for key, value := range account.Storage {
 			statedb.SetState(addr, key, value)
 		}
@@ -291,11 +304,10 @@ type ChainOverrides struct {
 }
 
 // apply applies the chain overrides on the supplied chain config.
-func (o *ChainOverrides) apply(cfg *params.ChainConfig) (*params.ChainConfig, error) {
+func (o *ChainOverrides) apply(cfg *params.ChainConfig) error {
 	if o == nil || cfg == nil {
-		return cfg, nil
+		return nil
 	}
-	cpy := *cfg
 
 	// OP-Stack: If applying the superchain-registry to a known OP-Stack chain,
 	// then override the local chain-config with that from the registry.
@@ -317,56 +329,53 @@ func (o *ChainOverrides) apply(cfg *params.ChainConfig) (*params.ChainConfig, er
 		}
 
 		if genConf, err := getChainConfig(); err == nil {
-			cpy = *genConf
+			*cfg = *genConf
 		} else {
 			log.Warn("failed to load chain config from superchain-registry, skipping override", "err", err, "chain_id", cfg.ChainID)
 		}
 	}
 
 	if o.OverrideCancun != nil {
-		cpy.CancunTime = o.OverrideCancun
+		cfg.CancunTime = o.OverrideCancun
 	}
 	if o.OverrideVerkle != nil {
-		cpy.VerkleTime = o.OverrideVerkle
+		cfg.VerkleTime = o.OverrideVerkle
 	}
 
 	// OP-Stack overrides
 	if o.OverrideOptimismCanyon != nil {
-		cpy.CanyonTime = o.OverrideOptimismCanyon
-		cpy.ShanghaiTime = o.OverrideOptimismCanyon
+		cfg.CanyonTime = o.OverrideOptimismCanyon
+		cfg.ShanghaiTime = o.OverrideOptimismCanyon
 		if cfg.Optimism != nil && (cfg.Optimism.EIP1559DenominatorCanyon == nil || *cfg.Optimism.EIP1559DenominatorCanyon == 0) {
 			eip1559DenominatorCanyon := uint64(250)
-			cpy.Optimism.EIP1559DenominatorCanyon = &eip1559DenominatorCanyon
+			cfg.Optimism.EIP1559DenominatorCanyon = &eip1559DenominatorCanyon
 		}
 	}
 	if o.OverrideOptimismEcotone != nil {
-		cpy.EcotoneTime = o.OverrideOptimismEcotone
-		cpy.CancunTime = o.OverrideOptimismEcotone
+		cfg.EcotoneTime = o.OverrideOptimismEcotone
+		cfg.CancunTime = o.OverrideOptimismEcotone
 	}
 	if o.OverrideOptimismFjord != nil {
-		cpy.FjordTime = o.OverrideOptimismFjord
+		cfg.FjordTime = o.OverrideOptimismFjord
 	}
 	if o.OverrideOptimismGranite != nil {
-		cpy.GraniteTime = o.OverrideOptimismGranite
+		cfg.GraniteTime = o.OverrideOptimismGranite
 	}
 	if o.OverrideOptimismHolocene != nil {
-		cpy.HoloceneTime = o.OverrideOptimismHolocene
+		cfg.HoloceneTime = o.OverrideOptimismHolocene
 	}
 	if o.OverrideOptimismIsthmus != nil {
-		cpy.IsthmusTime = o.OverrideOptimismIsthmus
-		cpy.PragueTime = o.OverrideOptimismIsthmus
+		cfg.IsthmusTime = o.OverrideOptimismIsthmus
+		cfg.PragueTime = o.OverrideOptimismIsthmus
 	}
 	if o.OverrideOptimismJovian != nil {
-		cpy.JovianTime = o.OverrideOptimismJovian
+		cfg.JovianTime = o.OverrideOptimismJovian
 	}
 	if o.OverrideOptimismInterop != nil {
-		cpy.InteropTime = o.OverrideOptimismInterop
+		cfg.InteropTime = o.OverrideOptimismInterop
 	}
 
-	if err := cpy.CheckConfigForkOrder(); err != nil {
-		return nil, err
-	}
-	return &cpy, nil
+	return cfg.CheckConfigForkOrder()
 }
 
 // SetupGenesisBlock writes or updates the genesis block in db.
@@ -385,6 +394,8 @@ func SetupGenesisBlock(db ethdb.Database, triedb *triedb.Database, genesis *Gene
 }
 
 func SetupGenesisBlockWithOverride(db ethdb.Database, triedb *triedb.Database, genesis *Genesis, overrides *ChainOverrides) (*params.ChainConfig, common.Hash, *params.ConfigCompatError, error) {
+	// Copy the genesis, so we can operate on a copy.
+	genesis = genesis.copy()
 	// Sanitize the supplied genesis, ensuring it has the associated chain
 	// config attached.
 	if genesis != nil && genesis.Config == nil {
@@ -399,17 +410,15 @@ func SetupGenesisBlockWithOverride(db ethdb.Database, triedb *triedb.Database, g
 		} else {
 			log.Info("Writing custom genesis block")
 		}
-		chainCfg, err := overrides.apply(genesis.Config)
-		if err != nil {
+		if err := overrides.apply(genesis.Config); err != nil {
 			return nil, common.Hash{}, nil, err
 		}
-		genesis.Config = chainCfg
 
 		block, err := genesis.Commit(db, triedb)
 		if err != nil {
 			return nil, common.Hash{}, nil, err
 		}
-		return chainCfg, block.Hash(), nil, nil
+		return genesis.Config, block.Hash(), nil, nil
 	}
 	log.Info("Genesis hash", "hash", ghash)
 	// OP-Stack note: the OP-Mainnet bedrock-migration snapshot has a genesis hash, header and storedCfg.
@@ -432,11 +441,9 @@ func SetupGenesisBlockWithOverride(db ethdb.Database, triedb *triedb.Database, g
 		} else {
 			log.Info("Writing custom genesis block")
 		}
-		chainCfg, err := overrides.apply(genesis.Config)
-		if err != nil {
+		if err := overrides.apply(genesis.Config); err != nil {
 			return nil, common.Hash{}, nil, err
 		}
-		genesis.Config = chainCfg
 
 		if hash := genesis.ToBlock().Hash(); hash != ghash {
 			return nil, common.Hash{}, nil, &GenesisMismatchError{ghash, hash}
@@ -445,17 +452,15 @@ func SetupGenesisBlockWithOverride(db ethdb.Database, triedb *triedb.Database, g
 		if err != nil {
 			return nil, common.Hash{}, nil, err
 		}
-		return chainCfg, block.Hash(), nil, nil
+		return genesis.Config, block.Hash(), nil, nil
 	}
 	// The genesis block has already been committed previously. Verify that the
 	// provided genesis with chain overrides matches the existing one, and update
 	// the stored chain config if necessary.
 	if genesis != nil {
-		chainCfg, err := overrides.apply(genesis.Config)
-		if err != nil {
+		if err := overrides.apply(genesis.Config); err != nil {
 			return nil, common.Hash{}, nil, err
 		}
-		genesis.Config = chainCfg
 
 		if hash := genesis.ToBlock().Hash(); hash != ghash {
 			return nil, common.Hash{}, nil, &GenesisMismatchError{ghash, hash}
@@ -476,11 +481,9 @@ func SetupGenesisBlockWithOverride(db ethdb.Database, triedb *triedb.Database, g
 	// OP-Stack note: Always apply overrides.
 	// The genesis function arg may be nil, and stored-config may be non-nil at the same time.
 	// This is important to apply superchain-upgrades to existing DBs, where the network CLI flag is not used.
-	chainCfg, err := overrides.apply(newCfg)
-	if err != nil {
+	if err := overrides.apply(newCfg); err != nil {
 		return nil, common.Hash{}, nil, err
 	}
-	newCfg = chainCfg
 
 	var genesisTimestamp *uint64
 	if genesis != nil {
@@ -605,8 +608,12 @@ func (g *Genesis) toBlockWithRoot(stateRoot, storageRootMessagePasser common.Has
 	if g.GasLimit == 0 {
 		head.GasLimit = params.GenesisGasLimit
 	}
-	if g.Difficulty == nil && g.Mixhash == (common.Hash{}) {
-		head.Difficulty = params.GenesisDifficulty
+	if g.Difficulty == nil {
+		if g.Config != nil && g.Config.Ethash == nil {
+			head.Difficulty = big.NewInt(0)
+		} else if g.Mixhash == (common.Hash{}) {
+			head.Difficulty = params.GenesisDifficulty
+		}
 	}
 	if g.Config != nil && g.Config.IsLondon(common.Big0) {
 		if g.BaseFee != nil {
@@ -692,7 +699,6 @@ func (g *Genesis) Commit(db ethdb.Database, triedb *triedb.Database) (*types.Blo
 	}
 	batch := db.NewBatch()
 	rawdb.WriteGenesisStateSpec(batch, block.Hash(), blob)
-	rawdb.WriteTd(batch, block.Hash(), block.NumberU64(), block.Difficulty())
 	rawdb.WriteBlock(batch, block)
 	rawdb.WriteReceipts(batch, block.Hash(), block.NumberU64(), nil)
 	rawdb.WriteCanonicalHash(batch, block.Hash(), block.NumberU64())

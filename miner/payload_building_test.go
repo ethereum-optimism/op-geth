@@ -12,7 +12,7 @@
 // GNU Lesser General Public License for more details.
 //
 // You should have received a copy of the GNU Lesser General Public License
-// along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>
+// along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
 package miner
 
@@ -152,7 +152,7 @@ func (b *testWorkerBackend) TxPool() *txpool.TxPool       { return b.txPool }
 
 func newTestWorker(t *testing.T, chainConfig *params.ChainConfig, engine consensus.Engine, db ethdb.Database, blocks int) (*Miner, *testWorkerBackend) {
 	backend := newTestWorkerBackend(t, chainConfig, engine, db, blocks)
-	backend.txPool.Add(pendingTxs, false, true)
+	backend.txPool.Add(pendingTxs, true)
 	w := New(backend, testConfig, engine)
 	return w, backend
 }
@@ -238,7 +238,7 @@ func testBuildPayload(t *testing.T, noTxPool, interrupt bool, params1559 []byte)
 		// when doing interrupt testing, create a large pool so interruption will
 		// definitely be visible.
 		txs := genTxs(1, numInterruptTxs)
-		b.txPool.Add(txs, false, false)
+		b.txPool.Add(txs, false)
 	}
 
 	args := newPayloadArgs(b.chain.CurrentBlock().Hash(), params1559)
@@ -273,6 +273,11 @@ func testBuildPayload(t *testing.T, noTxPool, interrupt bool, params1559 []byte)
 		} else if interrupt && len(payload.Transactions) >= txs {
 			t.Fatalf("Unexpect transaction set: got %d, expected less than %d", len(payload.Transactions), txs)
 		}
+	}
+	// OP-Stack: we only build the empty payload if noTxPool is set.
+	if args.NoTxPool {
+		empty := payload.ResolveEmpty()
+		verify(empty, 0)
 	}
 
 	// make sure the 1559 params we've specied (if any) ends up in both the full and empty block headers
@@ -324,7 +329,7 @@ func testDAFilters(t *testing.T, maxDATxSize, maxDABlockSize *big.Int, expectedT
 	w, b := newTestWorker(t, config, ethash.NewFaker(), db, 0)
 	w.SetMaxDASize(maxDATxSize, maxDABlockSize)
 	txs := genTxs(1, numDAFilterTxs)
-	b.txPool.Add(txs, false, false)
+	b.txPool.Add(txs, false)
 
 	params1559 := []byte{0, 1, 2, 3, 4, 5, 6, 7}
 	args := newPayloadArgs(b.chain.CurrentBlock().Hash(), params1559)

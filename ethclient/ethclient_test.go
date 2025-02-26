@@ -29,14 +29,13 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/consensus"
-	"github.com/ethereum/go-ethereum/consensus/beacon"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/internal/ethapi/override"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/consensus/beacon"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -73,7 +72,7 @@ var (
 )
 
 var genesis = &core.Genesis{
-	Config: params.AllEthashProtocolChanges,
+	Config: params.AllDevChainProtocolChanges,
 	Alloc: types.GenesisAlloc{
 		testAddr:           {Balance: testBalance},
 		revertContractAddr: {Code: revertCode},
@@ -168,21 +167,18 @@ func newMockHistoricalBackend(t *testing.T) string {
 }
 
 func newTestBackend(t *testing.T, config *node.Config, enableHistoricalState bool) (*node.Node, []*types.Block, error) {
-	var consensusEngine consensus.Engine
 	var actualGenesis *core.Genesis
 	var chainLength int
 	if enableHistoricalState {
 		actualGenesis = genesisForHistorical
-		consensusEngine = beacon.New(ethash.NewFaker())
 		chainLength = 10
 	} else {
 		actualGenesis = genesis
-		consensusEngine = ethash.NewFaker()
 		chainLength = 2
 	}
 
 	// Generate test chain.
-	blocks := generateTestChain(consensusEngine, actualGenesis, chainLength)
+	blocks := generateTestChain(actualGenesis, chainLength)
 
 	// Create node
 	if config == nil {
@@ -231,7 +227,7 @@ func newTestBackend(t *testing.T, config *node.Config, enableHistoricalState boo
 	return n, blocks, nil
 }
 
-func generateTestChain(consensusEngine consensus.Engine, genesis *core.Genesis, length int) []*types.Block {
+func generateTestChain(genesis *core.Genesis, length int) []*types.Block {
 	generate := func(i int, g *core.BlockGen) {
 		g.OffsetTime(5)
 		g.SetExtra([]byte("test"))
@@ -244,12 +240,15 @@ func generateTestChain(consensusEngine consensus.Engine, genesis *core.Genesis, 
 			g.AddTx(testTx2)
 		}
 	}
-	_, blocks, _ := core.GenerateChainWithGenesis(genesis, consensusEngine, length, generate)
+	_, blocks, _ := core.GenerateChainWithGenesis(genesis, beacon.New(ethash.NewFaker()), length, generate)
 	return append([]*types.Block{genesis.ToBlock()}, blocks...)
 }
 
 func TestEthClientHistoricalBackend(t *testing.T) {
-	backend, _, _ := newTestBackend(t, nil, true)
+	backend, _, err := newTestBackend(t, nil, true)
+	if err != nil {
+		t.Fatal(err)
+	}
 	client := backend.Attach()
 	defer backend.Close()
 	defer client.Close()
@@ -344,7 +343,7 @@ func testHeader(t *testing.T, chain []*types.Block, client *rpc.Client) {
 			if got != nil && got.Number != nil && got.Number.Sign() == 0 {
 				got.Number = big.NewInt(0) // hack to make DeepEqual work
 			}
-			if !reflect.DeepEqual(got, tt.want) {
+			if got.Hash() != tt.want.Hash() {
 				t.Fatalf("HeaderByNumber(%v) got = %v, want %v", tt.block, got, tt.want)
 			}
 		})
@@ -435,7 +434,7 @@ func testChainID(t *testing.T, client *rpc.Client) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if id == nil || id.Cmp(params.AllEthashProtocolChanges.ChainID) != 0 {
+	if id == nil || id.Cmp(params.AllDevChainProtocolChanges.ChainID) != 0 {
 		t.Fatalf("ChainID returned wrong number: %+v", id)
 	}
 }
