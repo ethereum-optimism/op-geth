@@ -1283,7 +1283,7 @@ func (api *BlockChainAPI) CreateAccessList(ctx context.Context, args Transaction
 		bNrOrHash = *blockNrOrHash
 	}
 
-	header, err := headerByNumberOrHash(ctx, api.b, bNrOrHash)
+	state, header, err := api.b.StateAndHeaderByNumberOrHash(ctx, bNrOrHash)
 	if err == nil && header != nil && api.b.ChainConfig().IsOptimismPreBedrock(header.Number) {
 		if api.b.HistoricalRPCService() != nil {
 			var res accessListResult
@@ -1297,7 +1297,7 @@ func (api *BlockChainAPI) CreateAccessList(ctx context.Context, args Transaction
 		}
 	}
 
-	acl, gasUsed, vmerr, err := AccessList(ctx, api.b, bNrOrHash, args, nil)
+	acl, gasUsed, vmerr, err := AccessList(ctx, api.b, bNrOrHash, args, state)
 	if err != nil {
 		return nil, err
 	}
