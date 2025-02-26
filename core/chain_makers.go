@@ -332,6 +332,11 @@ func (b *BlockGen) collectRequests(readonly bool) (requests [][]byte) {
 		// EIP-7251
 		ProcessConsolidationQueue(&requests, evm)
 	}
+
+	if b.cm.config.IsIsthmus(b.header.Time) {
+		requests = [][]byte{}
+	}
+
 	return requests
 }
 

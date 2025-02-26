@@ -249,6 +249,9 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 	if config.OverrideOptimismIsthmus != nil {
 		overrides.OverrideOptimismIsthmus = config.OverrideOptimismIsthmus
 	}
+	if config.OverrideOptimismJovian != nil {
+		overrides.OverrideOptimismJovian = config.OverrideOptimismJovian
+	}
 	if config.OverrideOptimismInterop != nil {
 		overrides.OverrideOptimismInterop = config.OverrideOptimismInterop
 	}

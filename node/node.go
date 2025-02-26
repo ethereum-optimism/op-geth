@@ -434,6 +434,9 @@ func (n *Node) startRPC() error {
 		if slices.Contains(n.config.HTTPModules, "miner") {
 			authModules = append(authModules, "miner")
 		}
+		if slices.Contains(n.config.HTTPModules, "debug") {
+			authModules = append(authModules, "debug")
+		}
 
 		// Enable auth via HTTP
 		server := n.httpAuth

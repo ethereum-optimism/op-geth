@@ -118,6 +118,10 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 		ProcessConsolidationQueue(&requests, evm)
 	}
 
+	if p.config.IsIsthmus(block.Time()) {
+		requests = [][]byte{}
+	}
+
 	// Finalize the block, applying any consensus engine specific extras (e.g. block rewards)
 	p.chain.engine.Finalize(p.chain, header, tracingStateDB, block.Body())
 

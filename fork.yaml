@@ -212,6 +212,12 @@ def:
           globs:
             - "eth/downloader/downloader.go"
             - "eth/downloader/receiptreference.go"
+        - title: PathDB diff-layers limit
+          description: |
+            Prevent the write-buffer to grow too large, to keep the journal optional,
+            and not restart on top of unavailable state.
+          globs:
+            - "triedb/pathdb/buffer.go"
         - title: Discv5 node discovery
           description: Fix discv5 option to allow discv5 to be an active source for node-discovery.
           globs:
