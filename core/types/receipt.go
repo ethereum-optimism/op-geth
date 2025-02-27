@@ -594,8 +594,13 @@ func (rs Receipts) DeriveFields(config *params.ChainConfig, hash common.Hash, nu
 			rs[i].FeeScalar = gasParams.feeScalar
 			rs[i].L1BaseFeeScalar = u32ptrTou64ptr(gasParams.l1BaseFeeScalar)
 			rs[i].L1BlobBaseFeeScalar = u32ptrTou64ptr(gasParams.l1BlobBaseFeeScalar)
-			rs[i].OperatorFeeScalar = u32ptrTou64ptr(gasParams.operatorFeeScalar)
-			rs[i].OperatorFeeConstant = gasParams.operatorFeeConstant
+			if gasParams.operatorFeeScalar != nil && gasParams.operatorFeeConstant != nil && *gasParams.operatorFeeScalar != 0 && *gasParams.operatorFeeConstant != 0 {
+				rs[i].OperatorFeeScalar = u32ptrTou64ptr(gasParams.operatorFeeScalar)
+				rs[i].OperatorFeeConstant = gasParams.operatorFeeConstant
+			} else {
+				rs[i].OperatorFeeScalar = nil
+				rs[i].OperatorFeeConstant = nil
+			}
 		}
 	}
 	return nil

@@ -967,13 +967,37 @@ func TestDeriveOptimismEcotoneTxReceipts(t *testing.T) {
 
 func TestDeriveOptimismIsthmusTxReceipts(t *testing.T) {
 	// Isthmus style l1 attributes with baseFeeScalar=2, blobBaseFeeScalar=3, baseFee=1000*1e6, blobBaseFee=10*1e6, operatorFeeScalar=7, operatorFeeConstant=9
-	payload := common.Hex2Bytes("098999be000000020000000300000000000004d200000000000004d200000000000004d2000000000000000000000000000000000000000000000000000000003b9aca00000000000000000000000000000000000000000000000000000000000098968000000000000000000000000000000000000000000000000000000000000004d200000000000000000000000000000000000000000000000000000000000004d2000000070000000000000009")
+	payload := common.Hex2Bytes("098999be000000020000000300000000000004d200000000000004d200000000000004d2000000000000000000000000000000000000000000000000000000003b9aca00000000000000000000000000000000000000000000000000000000000098968000000000000000000000000000000000000000000000000000000000000004d200000000000000000000000000000000000000000000000000000000000004d2001e84800000000000001388")
 	// the parameters we use below are defined in rollup_test.go
 	baseFeeScalarUint64 := baseFeeScalar.Uint64()
 	blobBaseFeeScalarUint64 := blobBaseFeeScalar.Uint64()
 	operatorFeeScalarUint64 := operatorFeeScalar.Uint64()
 	operatorFeeConstantUint64 := operatorFeeConstant.Uint64()
 	txs, receipts := getOptimismIsthmusTxReceipts(payload, baseFee, blobBaseFee, minimumFjordGas, fjordFee, &baseFeeScalarUint64, &blobBaseFeeScalarUint64, &operatorFeeScalarUint64, &operatorFeeConstantUint64)
+
+	// Re-derive receipts.
+	baseFee := big.NewInt(1000)
+	derivedReceipts := clearComputedFieldsOnReceipts(receipts)
+	// Should error out if we try to process this with a pre-Isthmus config
+	err := Receipts(derivedReceipts).DeriveFields(bedrockGenesisTestConfig, blockHash, blockNumber.Uint64(), 0, baseFee, nil, txs)
+	if err == nil {
+		t.Fatalf("expected error from deriving isthmus receipts with pre-isthmus config, got none")
+	}
+
+	err = Receipts(derivedReceipts).DeriveFields(isthmusTestConfig, blockHash, blockNumber.Uint64(), 0, baseFee, nil, txs)
+	if err != nil {
+		t.Fatalf("DeriveFields(...) = %v, want <nil>", err)
+	}
+	diffReceipts(t, receipts, derivedReceipts)
+}
+
+func TestDeriveOptimismIsthmusTxReceiptsNoOperatorFee(t *testing.T) {
+	// Isthmus style l1 attributes with baseFeeScalar=2, blobBaseFeeScalar=3, baseFee=1000*1e6, blobBaseFee=10*1e6, operatorFeeScalar=7, operatorFeeConstant=9
+	payload := common.Hex2Bytes("098999be000000020000000300000000000004d200000000000004d200000000000004d2000000000000000000000000000000000000000000000000000000003b9aca00000000000000000000000000000000000000000000000000000000000098968000000000000000000000000000000000000000000000000000000000000004d200000000000000000000000000000000000000000000000000000000000004d2000000000000000000000000")
+	// the parameters we use below are defined in rollup_test.go
+	baseFeeScalarUint64 := baseFeeScalar.Uint64()
+	blobBaseFeeScalarUint64 := blobBaseFeeScalar.Uint64()
+	txs, receipts := getOptimismIsthmusTxReceipts(payload, baseFee, blobBaseFee, minimumFjordGas, fjordFee, &baseFeeScalarUint64, &blobBaseFeeScalarUint64, nil, nil)
 
 	// Re-derive receipts.
 	baseFee := big.NewInt(1000)
