@@ -639,7 +639,9 @@ func (st *stateTransition) innerExecute() (*ExecutionResult, error) {
 		}
 	}
 	if rules.IsOptimismIsthmus {
-		st.refundOperatorCost()
+		// Calling st.refundOperatorCost() after st.gasRemaining is updated above,
+		// so that state refunds are taken into account when calculating operator fees.
+		st.refundIsthmusOperatorCost()
 	}
 	st.returnGas()
 
@@ -803,7 +805,7 @@ func (st *stateTransition) returnGas() {
 	st.gp.AddGas(st.gasRemaining)
 }
 
-func (st *stateTransition) refundOperatorCost() {
+func (st *stateTransition) refundIsthmusOperatorCost() {
 	// Return ETH to transaction sender for operator cost overcharge.
 	operatorCostGasLimit := st.evm.Context.OperatorCostFunc(st.msg.GasLimit, st.evm.Context.Time)
 	operatorCostGasUsed := st.evm.Context.OperatorCostFunc(st.gasUsed(), st.evm.Context.Time)
