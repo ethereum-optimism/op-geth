@@ -638,7 +638,9 @@ func (st *stateTransition) innerExecute() (*ExecutionResult, error) {
 			}
 		}
 	}
-	st.refundOperatorCost()
+	if rules.IsOptimismIsthmus {
+		st.refundOperatorCost()
+	}
 	st.returnGas()
 
 	// OP-Stack: Note for deposit tx there is no ETH refunded for unused gas, but that's taken care of by the fact that gasPrice
@@ -802,20 +804,18 @@ func (st *stateTransition) returnGas() {
 }
 
 func (st *stateTransition) refundOperatorCost() {
-	if optimismConfig := st.evm.ChainConfig().Optimism; optimismConfig != nil && !st.msg.IsDepositTx && st.evm.ChainConfig().IsOptimismIsthmus(st.evm.Context.Time) {
-		// Return ETH to transaction sender for operator cost overcharge.
-		operatorCostGasLimit := st.evm.Context.OperatorCostFunc(st.msg.GasLimit, st.evm.Context.Time)
-		operatorCostGasUsed := st.evm.Context.OperatorCostFunc(st.gasUsed(), st.evm.Context.Time)
+	// Return ETH to transaction sender for operator cost overcharge.
+	operatorCostGasLimit := st.evm.Context.OperatorCostFunc(st.msg.GasLimit, st.evm.Context.Time)
+	operatorCostGasUsed := st.evm.Context.OperatorCostFunc(st.gasUsed(), st.evm.Context.Time)
 
-		if operatorCostGasUsed.Cmp(operatorCostGasLimit) > 0 { // Sanity check.
-			panic(fmt.Sprintf("operator cost gas used (%d) > operator cost gas limit (%d)", operatorCostGasUsed, operatorCostGasLimit))
-		}
+	if operatorCostGasUsed.Cmp(operatorCostGasLimit) > 0 { // Sanity check.
+		panic(fmt.Sprintf("operator cost gas used (%d) > operator cost gas limit (%d)", operatorCostGasUsed, operatorCostGasLimit))
+	}
 
-		diff := new(uint256.Int).Sub(operatorCostGasLimit, operatorCostGasUsed)
+	diff := new(uint256.Int).Sub(operatorCostGasLimit, operatorCostGasUsed)
 
-		if diff.Uint64() > 0 {
-			st.state.AddBalance(st.msg.From, diff, tracing.BalanceIncreaseGasReturn)
-		}
+	if diff.Uint64() > 0 {
+		st.state.AddBalance(st.msg.From, diff, tracing.BalanceIncreaseGasReturn)
 	}
 }
 

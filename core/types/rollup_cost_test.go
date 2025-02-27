@@ -22,8 +22,8 @@ var (
 	blobBaseFee         = big.NewInt(10 * 1e6)
 	baseFeeScalar       = big.NewInt(2)
 	blobBaseFeeScalar   = big.NewInt(3)
-	operatorFeeScalar   = big.NewInt(2000000)
-	operatorFeeConstant = big.NewInt(5000)
+	operatorFeeScalar   = big.NewInt(1439103868)
+	operatorFeeConstant = big.NewInt(1256417826609331460)
 
 	// below are the expected cost func outcomes for the above parameter settings on the emptyTx
 	// which is defined in transaction_test.go
@@ -31,8 +31,8 @@ var (
 	regolithFee = big.NewInt(3710000000000)
 	ecotoneFee  = big.NewInt(960900) // (480/16)*(2*16*1000 + 3*10) == 960900
 	// the emptyTx is out of bounds for the linear regression so it uses the minimum size
-	fjordFee          = big.NewInt(3203000)  // 100_000_000 * (2 * 1000 * 1e6 * 16 + 3 * 10 * 1e6) / 1e12
-	ithmusOperatorFee = uint256.NewInt(8236) // 1618 * 2000000 / 1e6 + 5000
+	fjordFee          = big.NewInt(3203000)                 // 100_000_000 * (2 * 1000 * 1e6 * 16 + 3 * 10 * 1e6) / 1e12
+	ithmusOperatorFee = uint256.NewInt(1256417826611659930) // 1618 * 1439103868 / 1e6 + 1256417826609331460
 
 	bedrockGas      = big.NewInt(1618)
 	regolithGas     = big.NewInt(530) // 530  = 1618 - (16*68)

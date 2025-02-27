@@ -208,14 +208,13 @@ func NewOperatorCostFunc(config *params.ChainConfig, statedb StateGetter) Operat
 				return uint256.NewInt(0)
 			}
 		}
-		operatorFeeParams := statedb.GetState(L1BlockAddr, OperatorFeeParamsSlot).Bytes()
-		operatorFeeScalar, operatorFeeConstant := extractOperatorFeeParams(operatorFeeParams)
-
-		if operatorFeeScalar.BitLen() == 0 && operatorFeeConstant.BitLen() == 0 {
+		operatorFeeParams := statedb.GetState(L1BlockAddr, OperatorFeeParamsSlot)
+		if operatorFeeParams == (common.Hash{}) {
 			return func(gas uint64) *uint256.Int {
 				return uint256.NewInt(0)
 			}
 		}
+		operatorFeeScalar, operatorFeeConstant := extractOperatorFeeParams(operatorFeeParams)
 
 		return newOperatorCostFunc(operatorFeeScalar, operatorFeeConstant)
 	}
@@ -523,7 +522,7 @@ func extractEcotoneFeeParams(l1FeeParams []byte) (l1BaseFeeScalar, l1BlobBaseFee
 	return
 }
 
-func extractOperatorFeeParams(operatorFeeParams []byte) (operatorFeeScalar, operatorFeeConstant *big.Int) {
+func extractOperatorFeeParams(operatorFeeParams common.Hash) (operatorFeeScalar, operatorFeeConstant *big.Int) {
 	operatorFeeScalar = new(big.Int).SetBytes(operatorFeeParams[20:24])
 	operatorFeeConstant = new(big.Int).SetBytes(operatorFeeParams[24:32])
 	return
