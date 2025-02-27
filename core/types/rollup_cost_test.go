@@ -206,6 +206,35 @@ func TestExtractFjordGasParams(t *testing.T) {
 	require.Equal(t, fjordFee, c)
 }
 
+func TestExtractJovianGasParams(t *testing.T) {
+	zeroTime := uint64(0)
+	// create a config where jovian is active
+	config := &params.ChainConfig{
+		Optimism:     params.OptimismTestConfig.Optimism,
+		RegolithTime: &zeroTime,
+		EcotoneTime:  &zeroTime,
+		FjordTime:    &zeroTime,
+		JovianTime:   &zeroTime,
+	}
+	require.True(t, config.IsOptimismJovian(zeroTime))
+
+	data := getJovianL1Attributes(
+		baseFee,
+		blobBaseFee,
+		baseFeeScalar,
+		blobBaseFeeScalar,
+	)
+
+	gasparams, err := extractL1GasParams(config, zeroTime, data)
+	require.NoError(t, err)
+	costFunc := gasparams.costFunc
+
+	c, g := costFunc(emptyTx.RollupCostData())
+
+	require.Equal(t, minimumFjordGas, g)
+	require.Equal(t, fjordFee, c)
+}
+
 // make sure the first block of the ecotone upgrade is properly detected, and invokes the bedrock
 // cost function appropriately
 func TestFirstBlockEcotoneGasParams(t *testing.T) {
@@ -228,11 +257,41 @@ func TestFirstBlockEcotoneGasParams(t *testing.T) {
 	require.Equal(t, regolithFee, c)
 }
 
+// make sure the first block of the jovian upgrade is properly detected, and invokes the ecotone
+// cost function appropriately
+func TestFirstBlockJovianGasParams(t *testing.T) {
+	zeroTime := uint64(0)
+	// create a config where jovian upgrade is active
+	config := &params.ChainConfig{
+		Optimism:     params.OptimismTestConfig.Optimism,
+		RegolithTime: &zeroTime,
+		EcotoneTime:  &zeroTime,
+		FjordTime:    &zeroTime,
+		JovianTime:   &zeroTime,
+	}
+	require.True(t, config.IsOptimismEcotone(0))
+	require.True(t, config.IsOptimismJovian(0))
+
+	data := getEcotoneL1Attributes(
+		baseFee,
+		blobBaseFee,
+		baseFeeScalar,
+		blobBaseFeeScalar,
+	)
+
+	gasparams, err := extractL1GasParams(config, zeroTime, data)
+	require.NoError(t, err)
+	oldCostFunc := gasparams.costFunc
+	c, g := oldCostFunc(emptyTx.RollupCostData())
+	require.Equal(t, minimumFjordGas, g)
+	require.Equal(t, fjordFee, c)
+}
+
 func getBedrockL1Attributes(baseFee, overhead, scalar *big.Int) []byte {
 	uint256 := make([]byte, 32)
 	ignored := big.NewInt(1234)
 	data := []byte{}
-	data = append(data, BedrockL1AttributesSelector...)
+	data = append(data, BedrockL1AttributesSelector[:]...)
 	data = append(data, ignored.FillBytes(uint256)...)  // arg 0
 	data = append(data, ignored.FillBytes(uint256)...)  // arg 1
 	data = append(data, baseFee.FillBytes(uint256)...)  // arg 2
@@ -250,7 +309,7 @@ func getEcotoneL1Attributes(baseFee, blobBaseFee, baseFeeScalar, blobBaseFeeScal
 	uint256Slice := make([]byte, 32)
 	uint64Slice := make([]byte, 8)
 	uint32Slice := make([]byte, 4)
-	data = append(data, EcotoneL1AttributesSelector...)
+	data = append(data, EcotoneL1AttributesSelector[:]...)
 	data = append(data, baseFeeScalar.FillBytes(uint32Slice)...)
 	data = append(data, blobBaseFeeScalar.FillBytes(uint32Slice)...)
 	data = append(data, ignored.FillBytes(uint64Slice)...)
@@ -260,6 +319,27 @@ func getEcotoneL1Attributes(baseFee, blobBaseFee, baseFeeScalar, blobBaseFeeScal
 	data = append(data, blobBaseFee.FillBytes(uint256Slice)...)
 	data = append(data, ignored.FillBytes(uint256Slice)...)
 	data = append(data, ignored.FillBytes(uint256Slice)...)
+	return data
+}
+
+func getJovianL1Attributes(baseFee, blobBaseFee, baseFeeScalar, blobBaseFeeScalar *big.Int) []byte {
+	ignored := big.NewInt(1234)
+	data := []byte{}
+	uint256Slice := make([]byte, 32)
+	uint64Slice := make([]byte, 8)
+	uint32Slice := make([]byte, 4)
+	data = append(data, JovianL1AttributesSelector[:]...)
+	data = append(data, baseFeeScalar.FillBytes(uint32Slice)...)
+	data = append(data, blobBaseFeeScalar.FillBytes(uint32Slice)...)
+	data = append(data, ignored.FillBytes(uint64Slice)...)
+	data = append(data, ignored.FillBytes(uint64Slice)...)
+	data = append(data, ignored.FillBytes(uint64Slice)...)
+	data = append(data, baseFee.FillBytes(uint256Slice)...)
+	data = append(data, blobBaseFee.FillBytes(uint256Slice)...)
+	data = append(data, ignored.FillBytes(uint256Slice)...)
+	data = append(data, ignored.FillBytes(uint256Slice)...)
+	data = append(data, ignored.FillBytes(uint64Slice)...)
+	data = append(data, ignored.FillBytes(uint64Slice)...)
 	return data
 }
 
