@@ -7,6 +7,7 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/holiman/uint256"
 	"github.com/stretchr/testify/require"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -18,9 +19,11 @@ var (
 	overhead = big.NewInt(50)
 	scalar   = big.NewInt(7 * 1e6)
 
-	blobBaseFee       = big.NewInt(10 * 1e6)
-	baseFeeScalar     = big.NewInt(2)
-	blobBaseFeeScalar = big.NewInt(3)
+	blobBaseFee         = big.NewInt(10 * 1e6)
+	baseFeeScalar       = big.NewInt(2)
+	blobBaseFeeScalar   = big.NewInt(3)
+	operatorFeeScalar   = big.NewInt(1439103868)
+	operatorFeeConstant = big.NewInt(1256417826609331460)
 
 	// below are the expected cost func outcomes for the above parameter settings on the emptyTx
 	// which is defined in transaction_test.go
@@ -28,7 +31,8 @@ var (
 	regolithFee = big.NewInt(3710000000000)
 	ecotoneFee  = big.NewInt(960900) // (480/16)*(2*16*1000 + 3*10) == 960900
 	// the emptyTx is out of bounds for the linear regression so it uses the minimum size
-	fjordFee = big.NewInt(3203000) // 100_000_000 * (2 * 1000 * 1e6 * 16 + 3 * 10 * 1e6) / 1e12
+	fjordFee          = big.NewInt(3203000)                 // 100_000_000 * (2 * 1000 * 1e6 * 16 + 3 * 10 * 1e6) / 1e12
+	ithmusOperatorFee = uint256.NewInt(1256417826611659930) // 1618 * 1439103868 / 1e6 + 1256417826609331460
 
 	bedrockGas      = big.NewInt(1618)
 	regolithGas     = big.NewInt(530) // 530  = 1618 - (16*68)
@@ -206,6 +210,40 @@ func TestExtractFjordGasParams(t *testing.T) {
 	require.Equal(t, fjordFee, c)
 }
 
+func TestExtractIsthmusGasParams(t *testing.T) {
+	zeroTime := uint64(0)
+	// create a config where isthmus is active
+	config := &params.ChainConfig{
+		Optimism:     params.OptimismTestConfig.Optimism,
+		RegolithTime: &zeroTime,
+		EcotoneTime:  &zeroTime,
+		FjordTime:    &zeroTime,
+		HoloceneTime: &zeroTime,
+		IsthmusTime:  &zeroTime,
+	}
+	require.True(t, config.IsOptimismIsthmus(zeroTime))
+
+	data := getIsthmusL1Attributes(
+		baseFee,
+		blobBaseFee,
+		baseFeeScalar,
+		blobBaseFeeScalar,
+		operatorFeeScalar,
+		operatorFeeConstant,
+	)
+
+	gasparams, err := extractL1GasParams(config, zeroTime, data)
+	require.NoError(t, err)
+	costFunc := gasparams.costFunc
+
+	c, g := costFunc(emptyTx.RollupCostData())
+
+	require.Equal(t, minimumFjordGas, g)
+	require.Equal(t, fjordFee, c)
+	require.Equal(t, operatorFeeScalar.Uint64(), uint64(*gasparams.operatorFeeScalar))
+	require.Equal(t, operatorFeeConstant.Uint64(), *gasparams.operatorFeeConstant)
+}
+
 // make sure the first block of the ecotone upgrade is properly detected, and invokes the bedrock
 // cost function appropriately
 func TestFirstBlockEcotoneGasParams(t *testing.T) {
@@ -263,9 +301,32 @@ func getEcotoneL1Attributes(baseFee, blobBaseFee, baseFeeScalar, blobBaseFeeScal
 	return data
 }
 
+func getIsthmusL1Attributes(baseFee, blobBaseFee, baseFeeScalar, blobBaseFeeScalar, operatorFeeScalar, operatorFeeConstant *big.Int) []byte {
+	ignored := big.NewInt(1234)
+	data := []byte{}
+	uint256Slice := make([]byte, 32)
+	uint64Slice := make([]byte, 8)
+	uint32Slice := make([]byte, 4)
+	data = append(data, IsthmusL1AttributesSelector...)
+	data = append(data, baseFeeScalar.FillBytes(uint32Slice)...)
+	data = append(data, blobBaseFeeScalar.FillBytes(uint32Slice)...)
+	data = append(data, ignored.FillBytes(uint64Slice)...)
+	data = append(data, ignored.FillBytes(uint64Slice)...)
+	data = append(data, ignored.FillBytes(uint64Slice)...)
+	data = append(data, baseFee.FillBytes(uint256Slice)...)
+	data = append(data, blobBaseFee.FillBytes(uint256Slice)...)
+	data = append(data, ignored.FillBytes(uint256Slice)...)
+	data = append(data, ignored.FillBytes(uint256Slice)...)
+	data = append(data, operatorFeeScalar.FillBytes(uint32Slice)...)
+	data = append(data, operatorFeeConstant.FillBytes(uint64Slice)...)
+	return data
+}
+
 type testStateGetter struct {
 	baseFee, blobBaseFee, overhead, scalar *big.Int
 	baseFeeScalar, blobBaseFeeScalar       uint32
+	operatorFeeScalar                      uint32
+	operatorFeeConstant                    uint64
 }
 
 func (sg *testStateGetter) GetState(addr common.Address, slot common.Hash) common.Hash {
@@ -280,10 +341,14 @@ func (sg *testStateGetter) GetState(addr common.Address, slot common.Hash) commo
 	case L1BlobBaseFeeSlot:
 		sg.blobBaseFee.FillBytes(buf[:])
 	case L1FeeScalarsSlot:
-		// fetch Ecotone fee sclars
+		// fetch Ecotone fee scalars
 		offset := scalarSectionStart
 		binary.BigEndian.PutUint32(buf[offset:offset+4], sg.baseFeeScalar)
 		binary.BigEndian.PutUint32(buf[offset+4:offset+8], sg.blobBaseFeeScalar)
+	case OperatorFeeParamsSlot:
+		// fetch operator fee scalars
+		binary.BigEndian.PutUint32(buf[20:24], sg.operatorFeeScalar)
+		binary.BigEndian.PutUint64(buf[24:32], sg.operatorFeeConstant)
 	default:
 		panic("unknown slot")
 	}
@@ -363,6 +428,39 @@ func TestNewL1CostFunc(t *testing.T) {
 	fee = costFunc(emptyTx.RollupCostData(), time)
 	require.NotNil(t, fee)
 	require.Equal(t, regolithFee, fee)
+}
+
+// TestNewL1CostFunc tests that the appropriate cost function is selected based on the
+// configuration and statedb values.
+func TestNewOperatorCostFunc(t *testing.T) {
+	time := uint64(10)
+	config := &params.ChainConfig{
+		Optimism: params.OptimismTestConfig.Optimism,
+	}
+	statedb := &testStateGetter{
+		baseFee:             baseFee,
+		overhead:            overhead,
+		scalar:              scalar,
+		blobBaseFee:         blobBaseFee,
+		baseFeeScalar:       uint32(baseFeeScalar.Uint64()),
+		blobBaseFeeScalar:   uint32(blobBaseFeeScalar.Uint64()),
+		operatorFeeScalar:   uint32(operatorFeeScalar.Uint64()),
+		operatorFeeConstant: operatorFeeConstant.Uint64(),
+	}
+
+	// emptyTx fee w/ fjord config, operator fee should be 0
+	config.FjordTime = &time
+	costFunc := NewOperatorCostFunc(config, statedb)
+	fee := costFunc(bedrockGas.Uint64(), time)
+	require.NotNil(t, fee)
+	require.Equal(t, uint256.NewInt(0), fee)
+
+	// emptyTx fee w/ isthmus config should be not 0
+	config.IsthmusTime = &time
+	costFunc = NewOperatorCostFunc(config, statedb)
+	fee = costFunc(bedrockGas.Uint64(), time)
+	require.NotNil(t, fee)
+	require.Equal(t, ithmusOperatorFee, fee)
 }
 
 func TestFlzCompressLen(t *testing.T) {

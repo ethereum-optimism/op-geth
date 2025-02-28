@@ -275,10 +275,17 @@ func (st *stateTransition) buyGas() error {
 	mgval := new(big.Int).SetUint64(st.msg.GasLimit)
 	mgval.Mul(mgval, st.msg.GasPrice)
 	var l1Cost *big.Int
-	if st.evm.Context.L1CostFunc != nil && !st.msg.SkipNonceChecks && !st.msg.SkipFromEOACheck {
-		l1Cost = st.evm.Context.L1CostFunc(st.msg.RollupCostData, st.evm.Context.Time)
-		if l1Cost != nil {
-			mgval = mgval.Add(mgval, l1Cost)
+	var operatorCost *uint256.Int
+	if !st.msg.SkipNonceChecks && !st.msg.SkipFromEOACheck {
+		if st.evm.Context.L1CostFunc != nil {
+			l1Cost = st.evm.Context.L1CostFunc(st.msg.RollupCostData, st.evm.Context.Time)
+			if l1Cost != nil {
+				mgval = mgval.Add(mgval, l1Cost)
+			}
+		}
+		if st.evm.Context.OperatorCostFunc != nil {
+			operatorCost = st.evm.Context.OperatorCostFunc(st.msg.GasLimit, st.evm.Context.Time)
+			mgval = mgval.Add(mgval, operatorCost.ToBig())
 		}
 	}
 	balanceCheck := new(big.Int).Set(mgval)
@@ -287,6 +294,9 @@ func (st *stateTransition) buyGas() error {
 		balanceCheck = balanceCheck.Mul(balanceCheck, st.msg.GasFeeCap)
 		if l1Cost != nil {
 			balanceCheck.Add(balanceCheck, l1Cost)
+		}
+		if operatorCost != nil {
+			balanceCheck.Add(balanceCheck, operatorCost.ToBig())
 		}
 	}
 	balanceCheck.Add(balanceCheck, st.msg.Value)
@@ -628,6 +638,11 @@ func (st *stateTransition) innerExecute() (*ExecutionResult, error) {
 			}
 		}
 	}
+	if rules.IsOptimismIsthmus {
+		// Calling st.refundOperatorCost() after st.gasRemaining is updated above,
+		// so that state refunds are taken into account when calculating operator fees.
+		st.refundIsthmusOperatorCost()
+	}
 	st.returnGas()
 
 	// OP-Stack: Note for deposit tx there is no ETH refunded for unused gas, but that's taken care of by the fact that gasPrice
@@ -681,6 +696,10 @@ func (st *stateTransition) innerExecute() (*ExecutionResult, error) {
 					return nil, fmt.Errorf("optimism l1 cost overflows U256: %d", l1Cost)
 				}
 				st.state.AddBalance(params.OptimismL1FeeRecipient, amtU256, tracing.BalanceIncreaseRewardTransactionFee)
+			}
+			if rules.IsOptimismIsthmus {
+				operatorFeeCost := st.evm.Context.OperatorCostFunc(st.gasUsed(), st.evm.Context.Time)
+				st.state.AddBalance(params.OptimismOperatorFeeRecipient, operatorFeeCost, tracing.BalanceIncreaseRewardTransactionFee)
 			}
 		}
 	}
@@ -784,6 +803,18 @@ func (st *stateTransition) returnGas() {
 	// Also return remaining gas to the block gas counter so it is
 	// available for the next transaction.
 	st.gp.AddGas(st.gasRemaining)
+}
+
+func (st *stateTransition) refundIsthmusOperatorCost() {
+	// Return ETH to transaction sender for operator cost overcharge.
+	operatorCostGasLimit := st.evm.Context.OperatorCostFunc(st.msg.GasLimit, st.evm.Context.Time)
+	operatorCostGasUsed := st.evm.Context.OperatorCostFunc(st.gasUsed(), st.evm.Context.Time)
+
+	if operatorCostGasUsed.Cmp(operatorCostGasLimit) > 0 { // Sanity check.
+		panic(fmt.Sprintf("operator cost gas used (%d) > operator cost gas limit (%d)", operatorCostGasUsed, operatorCostGasLimit))
+	}
+
+	st.state.AddBalance(st.msg.From, new(uint256.Int).Sub(operatorCostGasLimit, operatorCostGasUsed), tracing.BalanceIncreaseGasReturn)
 }
 
 // gasUsed returns the amount of gas used up by the state transition.

@@ -25,6 +25,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/holiman/uint256"
 )
 
 const (
@@ -54,6 +55,8 @@ var (
 	BedrockL1AttributesSelector = []byte{0x01, 0x5d, 0x8e, 0xb9}
 	// EcotoneL1AttributesSelector is the selector indicating Ecotone style L1 gas attributes.
 	EcotoneL1AttributesSelector = []byte{0x44, 0x0a, 0x5e, 0x20}
+	// IsthmusL1AttributesSelector is the selector indicating Isthmus style L1 gas attributes.
+	IsthmusL1AttributesSelector = []byte{0x09, 0x89, 0x99, 0xbe}
 
 	// L1BlockAddr is the address of the L1Block contract which stores the L1 gas attributes.
 	L1BlockAddr = common.HexToAddress("0x4200000000000000000000000000000000000015")
@@ -69,6 +72,10 @@ var (
 	// blobBaseFeeScalar L1 gas attributes at offsets `BaseFeeScalarSlotOffset` and
 	// `BlobBaseFeeScalarSlotOffset` respectively.
 	L1FeeScalarsSlot = common.BigToHash(big.NewInt(3))
+
+	// OperatorFeeParamsSlot stores the operatorFeeScalar and operatorFeeConstant L1 gas
+	// attributes
+	OperatorFeeParamsSlot = common.BigToHash(big.NewInt(8))
 
 	oneMillion     = big.NewInt(1_000_000)
 	ecotoneDivisor = big.NewInt(1_000_000 * 16)
@@ -99,9 +106,16 @@ type StateGetter interface {
 // sender of non-Deposit transactions.  It returns nil if no data availability fee is charged.
 type L1CostFunc func(rcd RollupCostData, blockTime uint64) *big.Int
 
+// OperatorCostFunc is used in the state transition to determine the operator fee charged to the
+// sender of non-Deposit transactions. It returns 0 if no operator fee is charged.
+type OperatorCostFunc func(gasUsed uint64, blockTime uint64) *uint256.Int
+
 // l1CostFunc is an internal version of L1CostFunc that also returns the gasUsed for use in
 // receipts.
 type l1CostFunc func(rcd RollupCostData) (fee, gasUsed *big.Int)
+
+// operatorCostFunc is an internal version of OperatorCostFunc that is used for caching.
+type operatorCostFunc func(gasUsed uint64) *uint256.Int
 
 func NewRollupCostData(data []byte) (out RollupCostData) {
 	for _, b := range data {
@@ -179,6 +193,59 @@ func NewL1CostFunc(config *params.ChainConfig, statedb StateGetter) L1CostFunc {
 	}
 }
 
+// NewOperatorCostFunc returns a function used for calculating operator fees, or nil if this is
+// not an op-stack chain.
+func NewOperatorCostFunc(config *params.ChainConfig, statedb StateGetter) OperatorCostFunc {
+	if config.Optimism == nil {
+		return nil
+	}
+	forBlock := ^uint64(0)
+	var cachedFunc operatorCostFunc
+
+	selectFunc := func(blockTime uint64) operatorCostFunc {
+		if !config.IsOptimismIsthmus(blockTime) {
+			return func(gas uint64) *uint256.Int {
+				return uint256.NewInt(0)
+			}
+		}
+		operatorFeeParams := statedb.GetState(L1BlockAddr, OperatorFeeParamsSlot)
+		if operatorFeeParams == (common.Hash{}) {
+			return func(gas uint64) *uint256.Int {
+				return uint256.NewInt(0)
+			}
+		}
+		operatorFeeScalar, operatorFeeConstant := extractOperatorFeeParams(operatorFeeParams)
+
+		return newOperatorCostFunc(operatorFeeScalar, operatorFeeConstant)
+	}
+
+	return func(gas uint64, blockTime uint64) *uint256.Int {
+		if forBlock != blockTime {
+			forBlock = blockTime
+			cachedFunc = selectFunc(blockTime)
+		}
+
+		return cachedFunc(gas)
+	}
+}
+
+func newOperatorCostFunc(operatorFeeScalar *big.Int, operatorFeeConstant *big.Int) operatorCostFunc {
+	return func(gas uint64) *uint256.Int {
+		fee := new(big.Int).SetUint64(gas)
+		fee = fee.Mul(fee, operatorFeeScalar)
+		fee = fee.Div(fee, oneMillion)
+		fee = fee.Add(fee, operatorFeeConstant)
+
+		feeU256, overflow := uint256.FromBig(fee)
+		if overflow {
+			// This should never happen, as (u64.max * u32.max / 1e6) + u64.max is an int of bit length 77
+			panic("overflow in operator cost calculation")
+		}
+
+		return feeU256
+	}
+}
+
 // newL1CostFuncBedrock returns an L1 cost function suitable for Bedrock, Regolith, and the first
 // block only of the Ecotone upgrade.
 func newL1CostFuncBedrock(config *params.ChainConfig, statedb StateGetter, blockTime uint64) l1CostFunc {
@@ -248,6 +315,8 @@ type gasParams struct {
 	feeScalar           *big.Float // pre-ecotone
 	l1BaseFeeScalar     *uint32    // post-ecotone
 	l1BlobBaseFeeScalar *uint32    // post-ecotone
+	operatorFeeScalar   *uint32    // post-Isthmus
+	operatorFeeConstant *uint64    // post-Isthmus
 }
 
 // intToScaledFloat returns scalar/10e6 as a float
@@ -259,11 +328,26 @@ func intToScaledFloat(scalar *big.Int) *big.Float {
 
 // extractL1GasParams extracts the gas parameters necessary to compute gas costs from L1 block info
 func extractL1GasParams(config *params.ChainConfig, time uint64, data []byte) (gasParams, error) {
-	// edge case: for the very first Ecotone block we still need to use the Bedrock
-	// function. We detect this edge case by seeing if the function selector is the old one
-	// If so, fall through to the pre-ecotone format
-	// Both Ecotone and Fjord use the same function selector
-	if config.IsEcotone(time) && len(data) >= 4 && !bytes.Equal(data[0:4], BedrockL1AttributesSelector) {
+	if config.IsIsthmus(time) && len(data) >= 4 && !bytes.Equal(data[0:4], EcotoneL1AttributesSelector) {
+		// edge case: for the very first Isthmus block we still need to use the Ecotone
+		// function. We detect this edge case by seeing if the function selector is the old one
+		// If so, fall through to the pre-isthmus format
+		p, err := extractL1GasParamsPostIsthmus(data)
+		if err != nil {
+			return gasParams{}, err
+		}
+		p.costFunc = NewL1CostFuncFjord(
+			p.l1BaseFee,
+			p.l1BlobBaseFee,
+			big.NewInt(int64(*p.l1BaseFeeScalar)),
+			big.NewInt(int64(*p.l1BlobBaseFeeScalar)),
+		)
+		return p, nil
+	} else if config.IsEcotone(time) && len(data) >= 4 && !bytes.Equal(data[0:4], BedrockL1AttributesSelector) {
+		// edge case: for the very first Ecotone block we still need to use the Bedrock
+		// function. We detect this edge case by seeing if the function selector is the old one
+		// If so, fall through to the pre-ecotone format
+		// Both Ecotone and Fjord use the same function selector
 		p, err := extractL1GasParamsPostEcotone(data)
 		if err != nil {
 			return gasParams{}, err
@@ -338,6 +422,43 @@ func extractL1GasParamsPostEcotone(data []byte) (gasParams, error) {
 	}, nil
 }
 
+// extractL1GasParamsPostIsthmus extracts the gas parameters necessary to compute gas from L1 attribute
+// info calldata after the Isthmus upgrade, but not for the very first Isthmus block.
+func extractL1GasParamsPostIsthmus(data []byte) (gasParams, error) {
+	if len(data) != 176 {
+		return gasParams{}, fmt.Errorf("expected 176 L1 info bytes, got %d", len(data))
+	}
+	// data layout assumed for Isthmus:
+	// offset type varname
+	// 0     <selector>
+	// 4     uint32 _basefeeScalar
+	// 8     uint32 _blobBaseFeeScalar
+	// 12    uint64 _sequenceNumber,
+	// 20    uint64 _timestamp,
+	// 28    uint64 _l1BlockNumber
+	// 36    uint256 _basefee,
+	// 68    uint256 _blobBaseFee,
+	// 100   bytes32 _hash,
+	// 132   bytes32 _batcherHash,
+	// 164   uint32  _operatorFeeScalar
+	// 168   uint64  _operatorFeeConstant
+	l1BaseFee := new(big.Int).SetBytes(data[36:68])
+	l1BlobBaseFee := new(big.Int).SetBytes(data[68:100])
+	l1BaseFeeScalar := binary.BigEndian.Uint32(data[4:8])
+	l1BlobBaseFeeScalar := binary.BigEndian.Uint32(data[8:12])
+	operatorFeeScalar := binary.BigEndian.Uint32(data[164:168])
+	operatorFeeConstant := binary.BigEndian.Uint64(data[168:176])
+
+	return gasParams{
+		l1BaseFee:           l1BaseFee,
+		l1BlobBaseFee:       l1BlobBaseFee,
+		l1BaseFeeScalar:     &l1BaseFeeScalar,
+		l1BlobBaseFeeScalar: &l1BlobBaseFeeScalar,
+		operatorFeeScalar:   &operatorFeeScalar,
+		operatorFeeConstant: &operatorFeeConstant,
+	}, nil
+}
+
 // L1Cost computes the the data availability fee for transactions in blocks prior to the Ecotone
 // upgrade. It is used by e2e tests so must remain exported.
 func L1Cost(rollupDataGas uint64, l1BaseFee, overhead, scalar *big.Int) *big.Int {
@@ -398,6 +519,12 @@ func extractEcotoneFeeParams(l1FeeParams []byte) (l1BaseFeeScalar, l1BlobBaseFee
 	offset := scalarSectionStart
 	l1BaseFeeScalar = new(big.Int).SetBytes(l1FeeParams[offset : offset+4])
 	l1BlobBaseFeeScalar = new(big.Int).SetBytes(l1FeeParams[offset+4 : offset+8])
+	return
+}
+
+func extractOperatorFeeParams(operatorFeeParams common.Hash) (operatorFeeScalar, operatorFeeConstant *big.Int) {
+	operatorFeeScalar = new(big.Int).SetBytes(operatorFeeParams[20:24])
+	operatorFeeConstant = new(big.Int).SetBytes(operatorFeeParams[24:32])
 	return
 }
 
