@@ -814,11 +814,7 @@ func (st *stateTransition) refundIsthmusOperatorCost() {
 		panic(fmt.Sprintf("operator cost gas used (%d) > operator cost gas limit (%d)", operatorCostGasUsed, operatorCostGasLimit))
 	}
 
-	diff := new(uint256.Int).Sub(operatorCostGasLimit, operatorCostGasUsed)
-
-	if diff.Uint64() > 0 {
-		st.state.AddBalance(st.msg.From, diff, tracing.BalanceIncreaseGasReturn)
-	}
+	st.state.AddBalance(st.msg.From, new(uint256.Int).Sub(operatorCostGasLimit, operatorCostGasUsed), tracing.BalanceIncreaseGasReturn)
 }
 
 // gasUsed returns the amount of gas used up by the state transition.
