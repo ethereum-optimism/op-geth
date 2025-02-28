@@ -67,7 +67,7 @@ func NewEVMBlockContext(header *types.Header, chain ChainContext, author *common
 	if header.Difficulty.Sign() == 0 {
 		random = &header.MixDigest
 	}
-	if chain.Config().IsOptimismIsthmus(header.Time) {
+	if config.IsOptimismIsthmus(header.Time) {
 		operatorCostFn = types.NewOperatorCostFunc(config, statedb)
 	}
 	return vm.BlockContext{
