@@ -569,7 +569,7 @@ func TestTypedReceiptEncodingDecoding(t *testing.T) {
 
 func TestReceiptMarshalBinary(t *testing.T) {
 	// Legacy Receipt
-	legacyReceipt.Bloom = CreateBloom(Receipts{legacyReceipt})
+	legacyReceipt.Bloom = CreateBloom(legacyReceipt)
 	have, err := legacyReceipt.MarshalBinary()
 	if err != nil {
 		t.Fatalf("marshal binary error: %v", err)
@@ -596,7 +596,7 @@ func TestReceiptMarshalBinary(t *testing.T) {
 
 	// 2930 Receipt
 	buf.Reset()
-	accessListReceipt.Bloom = CreateBloom(Receipts{accessListReceipt})
+	accessListReceipt.Bloom = CreateBloom(accessListReceipt)
 	have, err = accessListReceipt.MarshalBinary()
 	if err != nil {
 		t.Fatalf("marshal binary error: %v", err)
@@ -614,7 +614,7 @@ func TestReceiptMarshalBinary(t *testing.T) {
 
 	// 1559 Receipt
 	buf.Reset()
-	eip1559Receipt.Bloom = CreateBloom(Receipts{eip1559Receipt})
+	eip1559Receipt.Bloom = CreateBloom(eip1559Receipt)
 	have, err = eip1559Receipt.MarshalBinary()
 	if err != nil {
 		t.Fatalf("marshal binary error: %v", err)
@@ -638,7 +638,7 @@ func TestReceiptUnmarshalBinary(t *testing.T) {
 	if err := gotLegacyReceipt.UnmarshalBinary(legacyBinary); err != nil {
 		t.Fatalf("unmarshal binary error: %v", err)
 	}
-	legacyReceipt.Bloom = CreateBloom(Receipts{legacyReceipt})
+	legacyReceipt.Bloom = CreateBloom(legacyReceipt)
 	if !reflect.DeepEqual(gotLegacyReceipt, legacyReceipt) {
 		t.Errorf("receipt unmarshalled from binary mismatch, got %v want %v", gotLegacyReceipt, legacyReceipt)
 	}
@@ -649,7 +649,7 @@ func TestReceiptUnmarshalBinary(t *testing.T) {
 	if err := gotAccessListReceipt.UnmarshalBinary(accessListBinary); err != nil {
 		t.Fatalf("unmarshal binary error: %v", err)
 	}
-	accessListReceipt.Bloom = CreateBloom(Receipts{accessListReceipt})
+	accessListReceipt.Bloom = CreateBloom(accessListReceipt)
 	if !reflect.DeepEqual(gotAccessListReceipt, accessListReceipt) {
 		t.Errorf("receipt unmarshalled from binary mismatch, got %v want %v", gotAccessListReceipt, accessListReceipt)
 	}
@@ -660,7 +660,7 @@ func TestReceiptUnmarshalBinary(t *testing.T) {
 	if err := got1559Receipt.UnmarshalBinary(eip1559RctBinary); err != nil {
 		t.Fatalf("unmarshal binary error: %v", err)
 	}
-	eip1559Receipt.Bloom = CreateBloom(Receipts{eip1559Receipt})
+	eip1559Receipt.Bloom = CreateBloom(eip1559Receipt)
 	if !reflect.DeepEqual(got1559Receipt, eip1559Receipt) {
 		t.Errorf("receipt unmarshalled from binary mismatch, got %v want %v", got1559Receipt, eip1559Receipt)
 	}

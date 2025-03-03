@@ -94,9 +94,12 @@ var (
 		MergeNetsplitBlock:      nil,
 		ShanghaiTime:            newUint64(1696000704),
 		CancunTime:              newUint64(1707305664),
+		PragueTime:              newUint64(1740434112),
+		DepositContractAddress:  common.HexToAddress("0x4242424242424242424242424242424242424242"),
 		Ethash:                  new(EthashConfig),
 		BlobScheduleConfig: &BlobScheduleConfig{
 			Cancun: DefaultCancunBlobConfig,
+			Prague: DefaultPragueBlobConfig,
 		},
 	}
 	// SepoliaChainConfig contains the chain parameters to run a node on the Sepolia test network.
@@ -121,9 +124,12 @@ var (
 		MergeNetsplitBlock:      big.NewInt(1735371),
 		ShanghaiTime:            newUint64(1677557088),
 		CancunTime:              newUint64(1706655072),
+		PragueTime:              newUint64(1741159776),
+		DepositContractAddress:  common.HexToAddress("0x7f02c3e3c98b133055b8b348b2ac625669ed295d"),
 		Ethash:                  new(EthashConfig),
 		BlobScheduleConfig: &BlobScheduleConfig{
 			Cancun: DefaultCancunBlobConfig,
+			Prague: DefaultPragueBlobConfig,
 		},
 	}
 	// AllEthashProtocolChanges contains every protocol change (EIPs) introduced
@@ -329,10 +335,17 @@ var (
 		Max:            9,
 		UpdateFraction: 5007716,
 	}
+	// DefaultOsakaBlobConfig is the default blob configuration for the Osaka fork.
+	DefaultOsakaBlobConfig = &BlobConfig{
+		Target:         6,
+		Max:            9,
+		UpdateFraction: 5007716,
+	}
 	// DefaultBlobSchedule is the latest configured blob schedule for test chains.
 	DefaultBlobSchedule = &BlobScheduleConfig{
 		Cancun: DefaultCancunBlobConfig,
 		Prague: DefaultPragueBlobConfig,
+		Osaka:  DefaultOsakaBlobConfig,
 	}
 )
 
@@ -570,6 +583,7 @@ type BlobConfig struct {
 type BlobScheduleConfig struct {
 	Cancun *BlobConfig `json:"cancun,omitempty"`
 	Prague *BlobConfig `json:"prague,omitempty"`
+	Osaka  *BlobConfig `json:"osaka,omitempty"`
 	Verkle *BlobConfig `json:"verkle,omitempty"`
 }
 
@@ -899,16 +913,17 @@ func (c *ChainConfig) CheckConfigForkOrder() error {
 	}{
 		{name: "cancun", timestamp: c.CancunTime, config: bsc.Cancun},
 		{name: "prague", timestamp: c.PragueTime, config: bsc.Prague},
+		{name: "osaka", timestamp: c.OsakaTime, config: bsc.Osaka},
 	} {
 		if cur.config != nil {
 			if err := cur.config.validate(); err != nil {
-				return fmt.Errorf("invalid blob configuration for fork %s: %v", cur.name, err)
+				return fmt.Errorf("invalid chain configuration in blobSchedule for fork %q: %v", cur.name, err)
 			}
 		}
 		if cur.timestamp != nil {
 			// If the fork is configured, a blob schedule must be defined for it.
 			if cur.config == nil {
-				return fmt.Errorf("unsupported fork configuration: missing blob configuration entry for %v in schedule", cur.name)
+				return fmt.Errorf("invalid chain configuration: missing entry for fork %q in blobSchedule", cur.name)
 			}
 		}
 	}

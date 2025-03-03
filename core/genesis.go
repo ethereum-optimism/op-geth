@@ -478,6 +478,16 @@ func SetupGenesisBlockWithOverride(db ethdb.Database, triedb *triedb.Database, g
 	// Returns genesis.Config if genesis is not nil. Falls back to storedCfg otherwise. And some special L1 cases.
 	newCfg := genesis.chainConfigOrDefault(ghash, storedCfg)
 
+	// Sanity-check the new configuration.
+	if err := newCfg.CheckConfigForkOrder(); err != nil {
+		return nil, common.Hash{}, nil, err
+	}
+
+	// Sanity-check the new configuration.
+	if err := newCfg.CheckConfigForkOrder(); err != nil {
+		return nil, common.Hash{}, nil, err
+	}
+
 	// OP-Stack note: Always apply overrides.
 	// The genesis function arg may be nil, and stored-config may be non-nil at the same time.
 	// This is important to apply superchain-upgrades to existing DBs, where the network CLI flag is not used.

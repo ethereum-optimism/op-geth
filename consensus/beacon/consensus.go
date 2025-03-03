@@ -62,8 +62,7 @@ var (
 // engine implements the consensus interface (except the beacon itself).
 type Beacon struct {
 	// For migrated OP chains (OP mainnet, OP Goerli), ethone is a dummy legacy pre-Bedrock consensus
-	ethone   consensus.Engine // Original consensus engine used in eth1, e.g. ethash or clique
-	ttdblock *uint64          // Merge block-number for testchain generation without TTDs
+	ethone consensus.Engine // Original consensus engine used in eth1, e.g. ethash or clique
 }
 
 // New creates a consensus engine with the given embedded eth1 engine.
@@ -74,16 +73,16 @@ func New(ethone consensus.Engine) *Beacon {
 	return &Beacon{ethone: ethone}
 }
 
-// TestingTTDBlock is a replacement mechanism for TTD-based pre-/post-merge
-// splitting. With chain history deletion, TD calculations become impossible.
-// This is fine for progressing the live chain, but to be able to generate test
-// chains, we do need a split point. This method supports setting an explicit
-// block number to use as the splitter *for testing*, instead of having to keep
-// the notion of TDs in the client just for testing.
-//
-// The block with supplied number is regarded as the last pre-merge block.
-func (beacon *Beacon) TestingTTDBlock(number uint64) {
-	beacon.ttdblock = &number
+// isPostMerge reports whether the given block number is assumed to be post-merge.
+// Here we check the MergeNetsplitBlock to allow configuring networks with a PoW or
+// PoA chain for unit testing purposes.
+func isPostMerge(config *params.ChainConfig, blockNum uint64, timestamp uint64) bool {
+	mergedAtGenesis := config.TerminalTotalDifficulty != nil && config.TerminalTotalDifficulty.Sign() == 0
+	return mergedAtGenesis ||
+		config.MergeNetsplitBlock != nil && blockNum >= config.MergeNetsplitBlock.Uint64() ||
+		config.ShanghaiTime != nil && timestamp >= *config.ShanghaiTime ||
+		// If OP-Stack then bedrock activation number determines when TTD (eth Merge) has been reached.
+		config.IsOptimismBedrock(new(big.Int).SetUint64(blockNum))
 }
 
 // Author implements consensus.Engine, returning the verified author of the block.
@@ -126,7 +125,7 @@ func (beacon *Beacon) VerifyHeader(chain consensus.ChainHeaderReader, header *ty
 	// Check >0 TDs with pre-merge, --0 TDs with post-merge rules
 	if header.Difficulty.Sign() > 0 ||
 		// OP-Stack: transitioned networks must use legacy consensus pre-Bedrock
-		(cfg.IsOptimism() && !cfg.IsBedrock(header.Number)) {
+		cfg.IsOptimismBedrock(header.Number) {
 		return beacon.ethone.VerifyHeader(chain, header)
 	}
 	return beacon.verifyHeader(chain, header, parent)
@@ -352,15 +351,7 @@ func (beacon *Beacon) verifyHeaders(chain consensus.ChainHeaderReader, headers [
 // Prepare implements consensus.Engine, initializing the difficulty field of a
 // header to conform to the beacon protocol. The changes are done inline.
 func (beacon *Beacon) Prepare(chain consensus.ChainHeaderReader, header *types.Header) error {
-	// The beacon engine requires access to total difficulties to be able to
-	// seal pre-merge and post-merge blocks. With the transition to removing
-	// old blocks, TDs become unaccessible, thus making TTD based pre-/post-
-	// merge decisions impossible.
-	//
-	// We do not need to seal non-merge blocks anymore live, but we do need
-	// to be able to generate test chains, thus we're reverting to a testing-
-	// settable field to direct that.
-	if beacon.ttdblock != nil && *beacon.ttdblock >= header.Number.Uint64() {
+	if !isPostMerge(chain.Config(), header.Number.Uint64(), header.Time) {
 		return beacon.ethone.Prepare(chain, header)
 	}
 	header.Difficulty = beaconDifficulty
@@ -491,10 +482,7 @@ func (beacon *Beacon) CalcDifficulty(chain consensus.ChainHeaderReader, time uin
 	// We do not need to seal non-merge blocks anymore live, but we do need
 	// to be able to generate test chains, thus we're reverting to a testing-
 	// settable field to direct that.
-	cfg := chain.Config()
-	if beacon.ttdblock != nil && *beacon.ttdblock > parent.Number.Uint64() ||
-		// OP-Stack: transitioned networks must use legacy consensus pre-Bedrock
-		(cfg.IsOptimism() && !cfg.IsBedrock(new(big.Int).Add(parent.Number, common.Big1))) {
+	if !isPostMerge(chain.Config(), parent.Number.Uint64()+1, time) {
 		return beacon.ethone.CalcDifficulty(chain, time, parent)
 	}
 	return beaconDifficulty
