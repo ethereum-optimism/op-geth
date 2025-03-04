@@ -183,9 +183,11 @@ func (miner *Miner) generateWork(params *generateParams, witness bool) *newPaylo
 		allLogs = append(allLogs, r.Logs...)
 	}
 
+	isIsthmus := miner.chainConfig.IsIsthmus(work.header.Time)
+
 	// Collect consensus-layer requests if Prague is enabled.
 	var requests [][]byte
-	if miner.chainConfig.IsPrague(work.header.Number, work.header.Time) {
+	if miner.chainConfig.IsPrague(work.header.Number, work.header.Time) && !isIsthmus {
 		requests = [][]byte{}
 		// EIP-6110 deposits
 		if err := core.ParseDepositLogs(&requests, allLogs, miner.chainConfig); err != nil {
@@ -197,7 +199,7 @@ func (miner *Miner) generateWork(params *generateParams, witness bool) *newPaylo
 		core.ProcessConsolidationQueue(&requests, work.evm)
 	}
 
-	if miner.chainConfig.IsIsthmus(work.header.Time) {
+	if isIsthmus {
 		requests = [][]byte{}
 	}
 
