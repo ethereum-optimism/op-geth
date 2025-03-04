@@ -314,7 +314,9 @@ func (b *BlockGen) collectRequests(readonly bool) (requests [][]byte) {
 		statedb = statedb.Copy()
 	}
 
-	if b.cm.config.IsPrague(b.header.Number, b.header.Time) {
+	isIsthmus := b.cm.config.IsIsthmus(b.header.Time)
+
+	if b.cm.config.IsPrague(b.header.Number, b.header.Time) && !isIsthmus {
 		requests = [][]byte{}
 		// EIP-6110 deposits
 		var blockLogs []*types.Log
@@ -333,7 +335,7 @@ func (b *BlockGen) collectRequests(readonly bool) (requests [][]byte) {
 		ProcessConsolidationQueue(&requests, evm)
 	}
 
-	if b.cm.config.IsIsthmus(b.header.Time) {
+	if isIsthmus {
 		requests = [][]byte{}
 	}
 
