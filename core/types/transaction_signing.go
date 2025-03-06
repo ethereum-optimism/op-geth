@@ -282,40 +282,17 @@ func (s isthmusSigner) Equal(s2 Signer) bool {
 }
 
 func (s isthmusSigner) SignatureValues(tx *Transaction, sig []byte) (R, S, V *big.Int, err error) {
-	txdata, ok := tx.inner.(*SetCodeTx)
-	if !ok {
-		return s.londonSigner.SignatureValues(tx, sig)
+	if tx.Type() == BlobTxType {
+		return nil, nil, nil, fmt.Errorf("isthmus does not support blob txs: %w", ErrTxTypeNotSupported)
 	}
-	// Check that chain ID of tx matches the signer. We also accept ID zero here,
-	// because it indicates that the chain ID was not specified in the tx.
-	if txdata.ChainID.Sign() != 0 && txdata.ChainID.CmpBig(s.chainId) != 0 {
-		return nil, nil, nil, fmt.Errorf("%w: have %d want %d", ErrInvalidChainId, txdata.ChainID, s.chainId)
-	}
-	R, S, _ = decodeSignature(sig)
-	V = big.NewInt(int64(sig[64]))
-	return R, S, V, nil
+
+	return s.pragueSigner.SignatureValues(tx, sig)
 }
 
 // Hash returns the hash to be signed by the sender.
 // It does not uniquely identify the transaction.
 func (s isthmusSigner) Hash(tx *Transaction) common.Hash {
-	if tx.Type() != SetCodeTxType {
-		return s.londonSigner.Hash(tx)
-	}
-	return prefixedRlpHash(
-		tx.Type(),
-		[]interface{}{
-			s.chainId,
-			tx.Nonce(),
-			tx.GasTipCap(),
-			tx.GasFeeCap(),
-			tx.Gas(),
-			tx.To(),
-			tx.Value(),
-			tx.Data(),
-			tx.AccessList(),
-			tx.SetCodeAuthorizations(),
-		})
+	return s.pragueSigner.Hash(tx)
 }
 
 type cancunSigner struct{ londonSigner }
