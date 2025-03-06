@@ -73,9 +73,10 @@ func (bc *testBlockChain) Config() *params.ChainConfig {
 
 func (bc *testBlockChain) CurrentBlock() *types.Header {
 	return &types.Header{
-		Number:   new(big.Int),
-		GasLimit: bc.gasLimit,
-		BaseFee:  big.NewInt(params.InitialBaseFee),
+		Number:     new(big.Int),
+		GasLimit:   bc.gasLimit,
+		BaseFee:    big.NewInt(params.InitialBaseFee),
+		Difficulty: common.Big0,
 	}
 }
 

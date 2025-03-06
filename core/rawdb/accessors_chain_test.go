@@ -343,7 +343,7 @@ func TestBlockReceiptStorage(t *testing.T) {
 		ContractAddress: common.BytesToAddress([]byte{0x01, 0x11, 0x11}),
 		GasUsed:         111111,
 	}
-	receipt1.Bloom = types.CreateBloom(types.Receipts{receipt1})
+	receipt1.Bloom = types.CreateBloom(receipt1)
 
 	receipt2 := &types.Receipt{
 		PostState:         common.Hash{2}.Bytes(),
@@ -356,7 +356,7 @@ func TestBlockReceiptStorage(t *testing.T) {
 		ContractAddress: common.BytesToAddress([]byte{0x02, 0x22, 0x22}),
 		GasUsed:         222222,
 	}
-	receipt2.Bloom = types.CreateBloom(types.Receipts{receipt2})
+	receipt2.Bloom = types.CreateBloom(receipt2)
 	receipts := []*types.Receipt{receipt1, receipt2}
 
 	// Check that no receipt entries are in a pristine database
@@ -691,7 +691,7 @@ func TestReadLogs(t *testing.T) {
 		DepositNonce:          &depositNonce,
 		DepositReceiptVersion: nil,
 	}
-	depositReceipt.Bloom = types.CreateBloom(types.Receipts{&depositReceipt})
+	depositReceipt.Bloom = types.CreateBloom(&depositReceipt)
 
 	receiptVersion := types.CanyonDepositReceiptVersion
 	versionedDepositReceipt := types.Receipt{
@@ -707,7 +707,7 @@ func TestReadLogs(t *testing.T) {
 		DepositNonce:          &depositNonce,
 		DepositReceiptVersion: &receiptVersion,
 	}
-	versionedDepositReceipt.Bloom = types.CreateBloom(types.Receipts{&versionedDepositReceipt})
+	versionedDepositReceipt.Bloom = types.CreateBloom(&versionedDepositReceipt)
 
 	receipt := types.Receipt{
 		PostState:         common.Hash{3}.Bytes(),
@@ -720,7 +720,7 @@ func TestReadLogs(t *testing.T) {
 		ContractAddress: common.BytesToAddress([]byte{0x03, 0x33, 0x33}),
 		GasUsed:         333333,
 	}
-	receipt.Bloom = types.CreateBloom(types.Receipts{&receipt})
+	receipt.Bloom = types.CreateBloom(&receipt)
 	receipts := []*types.Receipt{&receipt, &depositReceipt, &versionedDepositReceipt}
 
 	hash := common.BytesToHash([]byte{0x03, 0x14})

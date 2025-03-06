@@ -5,7 +5,7 @@ footer: |
 base:
   name: go-ethereum
   url: https://github.com/ethereum/go-ethereum
-  hash: 756cca7c6f1324a5acf6d39d94033a6a5c7ce4c4 # v1.15.0
+  hash: 612c9e0f4ae483f180ef96ace86effec6dc9bb0e # v1.15.3
 fork:
   name: op-geth
   url: https://github.com/ethereum-optimism/op-geth
@@ -270,6 +270,10 @@ def:
           globs:
             - "internal/ethapi/api.go"
             - "rpc/errors.go"
+        - title: eth_simulateV1 API fix
+          description: Add deposit-nonce tx metadata to results of `eth_simulateV1` API to match rpc block format.
+          globs:
+            - "internal/ethapi/simulate.go"
         - title: Tracer RPC daisy-chain
           description: Forward pre-bedrock tracing calls to legacy node.
           globs:
