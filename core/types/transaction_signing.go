@@ -254,7 +254,7 @@ func (s pragueSigner) Hash(tx *Transaction) common.Hash {
 }
 
 // isthmusSigner skips cancun because blob txs are not supported on OP
-type isthmusSigner struct{ londonSigner }
+type isthmusSigner struct{ pragueSigner }
 
 // NewIsthmusSigner returns a signer that accepts
 // - EIP-7702 set code transactions
@@ -264,23 +264,16 @@ type isthmusSigner struct{ londonSigner }
 // - EIP-155 replay protected transactions, and
 // - legacy Homestead transactions.
 func NewIsthmusSigner(chainId *big.Int) Signer {
-	signer, _ := NewLondonSigner(chainId).(londonSigner)
+	signer, _ := NewPragueSigner(chainId).(pragueSigner)
 	return isthmusSigner{signer}
 }
 
 func (s isthmusSigner) Sender(tx *Transaction) (common.Address, error) {
-	if tx.Type() != SetCodeTxType {
-		return s.londonSigner.Sender(tx)
+	if tx.Type() == BlobTxType {
+		return common.Address{}, fmt.Errorf("isthmus does not support blob txs: %w", ErrTxTypeNotSupported)
 	}
-	V, R, S := tx.RawSignatureValues()
 
-	// Set code txs are defined to use 0 and 1 as their recovery
-	// id, add 27 to become equivalent to unprotected Homestead signatures.
-	V = new(big.Int).Add(V, big.NewInt(27))
-	if tx.ChainId().Cmp(s.chainId) != 0 {
-		return common.Address{}, fmt.Errorf("%w: have %d want %d", ErrInvalidChainId, tx.ChainId(), s.chainId)
-	}
-	return recoverPlain(s.Hash(tx), R, S, V, true)
+	return s.pragueSigner.Sender(tx)
 }
 
 func (s isthmusSigner) Equal(s2 Signer) bool {
