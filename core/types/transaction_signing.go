@@ -42,9 +42,9 @@ func MakeSigner(config *params.ChainConfig, blockNumber *big.Int, blockTime uint
 	switch {
 	case config.IsIsthmus(blockTime):
 		signer = NewIsthmusSigner(config.ChainID)
-	case config.IsPrague(blockNumber, blockTime):
+	case config.IsPrague(blockNumber, blockTime) && !config.IsOptimism():
 		signer = NewPragueSigner(config.ChainID)
-	case config.IsCancun(blockNumber, blockTime):
+	case config.IsCancun(blockNumber, blockTime) && !config.IsOptimism():
 		signer = NewCancunSigner(config.ChainID)
 	case config.IsLondon(blockNumber):
 		signer = NewLondonSigner(config.ChainID)
@@ -73,9 +73,9 @@ func LatestSigner(config *params.ChainConfig) Signer {
 		switch {
 		case config.IsthmusTime != nil:
 			signer = NewIsthmusSigner(config.ChainID)
-		case config.PragueTime != nil:
+		case config.PragueTime != nil && !config.IsOptimism():
 			signer = NewPragueSigner(config.ChainID)
-		case config.CancunTime != nil:
+		case config.CancunTime != nil && !config.IsOptimism():
 			signer = NewCancunSigner(config.ChainID)
 		case config.LondonBlock != nil:
 			signer = NewLondonSigner(config.ChainID)
@@ -284,7 +284,7 @@ func (s isthmusSigner) Sender(tx *Transaction) (common.Address, error) {
 }
 
 func (s isthmusSigner) Equal(s2 Signer) bool {
-	x, ok := s2.(pragueSigner)
+	x, ok := s2.(isthmusSigner)
 	return ok && x.chainId.Cmp(s.chainId) == 0
 }
 
