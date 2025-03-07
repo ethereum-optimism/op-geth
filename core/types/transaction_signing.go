@@ -40,6 +40,8 @@ type sigCache struct {
 func MakeSigner(config *params.ChainConfig, blockNumber *big.Int, blockTime uint64) Signer {
 	var signer Signer
 	switch {
+	case config.IsIsthmus(blockTime):
+		signer = NewIsthmusSigner(config.ChainID)
 	case config.IsPrague(blockNumber, blockTime) && !config.IsOptimism():
 		signer = NewPragueSigner(config.ChainID)
 	case config.IsCancun(blockNumber, blockTime) && !config.IsOptimism():
@@ -69,6 +71,8 @@ func LatestSigner(config *params.ChainConfig) Signer {
 	var signer Signer
 	if config.ChainID != nil {
 		switch {
+		case config.IsthmusTime != nil:
+			signer = NewIsthmusSigner(config.ChainID)
 		case config.PragueTime != nil && !config.IsOptimism():
 			signer = NewPragueSigner(config.ChainID)
 		case config.CancunTime != nil && !config.IsOptimism():
@@ -247,6 +251,48 @@ func (s pragueSigner) Hash(tx *Transaction) common.Hash {
 			tx.AccessList(),
 			tx.SetCodeAuthorizations(),
 		})
+}
+
+// isthmusSigner skips cancun because blob txs are not supported on OP
+type isthmusSigner struct{ pragueSigner }
+
+// NewIsthmusSigner returns a signer that accepts
+// - EIP-7702 set code transactions
+// - NOT EIP-4844 blob transactions
+// - EIP-1559 dynamic fee transactions
+// - EIP-2930 access list transactions,
+// - EIP-155 replay protected transactions, and
+// - legacy Homestead transactions.
+func NewIsthmusSigner(chainId *big.Int) Signer {
+	signer, _ := NewPragueSigner(chainId).(pragueSigner)
+	return isthmusSigner{signer}
+}
+
+func (s isthmusSigner) Sender(tx *Transaction) (common.Address, error) {
+	if tx.Type() == BlobTxType {
+		return common.Address{}, fmt.Errorf("isthmus does not support blob txs: %w", ErrTxTypeNotSupported)
+	}
+
+	return s.pragueSigner.Sender(tx)
+}
+
+func (s isthmusSigner) Equal(s2 Signer) bool {
+	x, ok := s2.(isthmusSigner)
+	return ok && x.chainId.Cmp(s.chainId) == 0
+}
+
+func (s isthmusSigner) SignatureValues(tx *Transaction, sig []byte) (R, S, V *big.Int, err error) {
+	if tx.Type() == BlobTxType {
+		return nil, nil, nil, fmt.Errorf("isthmus does not support blob txs: %w", ErrTxTypeNotSupported)
+	}
+
+	return s.pragueSigner.SignatureValues(tx, sig)
+}
+
+// Hash returns the hash to be signed by the sender.
+// It does not uniquely identify the transaction.
+func (s isthmusSigner) Hash(tx *Transaction) common.Hash {
+	return s.pragueSigner.Hash(tx)
 }
 
 type cancunSigner struct{ londonSigner }
