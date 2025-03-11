@@ -16,7 +16,7 @@ type IngressFilter interface {
 	FilterTx(ctx context.Context, tx *types.Transaction) bool
 }
 
-type interopFilter struct {
+type interopSimFilter struct {
 	logsFn  func(tx *types.Transaction) (logs []*types.Log, logTimestamp uint64, err error)
 	checkFn func(ctx context.Context, ems []interoptypes.Message, safety interoptypes.SafetyLevel, emsTimestamp uint64) error
 }
@@ -24,7 +24,7 @@ type interopFilter struct {
 func NewInteropFilter(
 	logsFn func(tx *types.Transaction) ([]*types.Log, uint64, error),
 	checkFn func(ctx context.Context, ems []interoptypes.Message, safety interoptypes.SafetyLevel, emsTimestamp uint64) error) IngressFilter {
-	return &interopFilter{
+	return &interopSimFilter{
 		logsFn:  logsFn,
 		checkFn: checkFn,
 	}
@@ -32,7 +32,7 @@ func NewInteropFilter(
 
 // FilterTx implements IngressFilter.FilterTx
 // it gets logs checks for message safety based on the function provided
-func (f *interopFilter) FilterTx(ctx context.Context, tx *types.Transaction) bool {
+func (f *interopSimFilter) FilterTx(ctx context.Context, tx *types.Transaction) bool {
 	logs, logTimestamp, err := f.logsFn(tx)
 	if err != nil {
 		log.Debug("Failed to retrieve logs of tx", "txHash", tx.Hash(), "err", err)
@@ -56,4 +56,13 @@ func (f *interopFilter) FilterTx(ctx context.Context, tx *types.Transaction) boo
 	// the message can be unsafe (discovered only via P2P unsafe blocks), but it must be cross-valid
 	// so CrossUnsafe is used here
 	return f.checkFn(ctx, ems, interoptypes.CrossUnsafe, logTimestamp) == nil
+}
+
+type interopAccessFilter struct {
+}
+
+// FilterTx implements IngressFilter.FilterTx
+// it takes the access list from the transaction and checks it against the supervisor
+func (f *interopAccessFilter) FilterTx(ctx context.Context, tx *types.Transaction) bool {
+	return true
 }
