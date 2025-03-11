@@ -2,11 +2,10 @@ package txpool
 
 import (
 	"context"
-	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/types/interoptypes"
-	"github.com/ethereum/go-ethereum/log"
 )
 
 // IngressFilter is an interface that allows filtering of transactions before they are added to the transaction pool.
@@ -16,53 +15,36 @@ type IngressFilter interface {
 	FilterTx(ctx context.Context, tx *types.Transaction) bool
 }
 
-type interopSimFilter struct {
-	logsFn  func(tx *types.Transaction) (logs []*types.Log, logTimestamp uint64, err error)
-	checkFn func(ctx context.Context, ems []interoptypes.Message, safety interoptypes.SafetyLevel, emsTimestamp uint64) error
-}
+type checkFn func(context.Context, []common.Hash, interoptypes.SafetyLevel, uint64) error
 
-func NewInteropFilter(
-	logsFn func(tx *types.Transaction) ([]*types.Log, uint64, error),
-	checkFn func(ctx context.Context, ems []interoptypes.Message, safety interoptypes.SafetyLevel, emsTimestamp uint64) error) IngressFilter {
-	return &interopSimFilter{
-		logsFn:  logsFn,
-		checkFn: checkFn,
+func NewInteropFilter(fn checkFn) IngressFilter {
+	return &interopAccessFilter{
+		checkAccess: fn,
 	}
-}
-
-// FilterTx implements IngressFilter.FilterTx
-// it gets logs checks for message safety based on the function provided
-func (f *interopSimFilter) FilterTx(ctx context.Context, tx *types.Transaction) bool {
-	logs, logTimestamp, err := f.logsFn(tx)
-	if err != nil {
-		log.Debug("Failed to retrieve logs of tx", "txHash", tx.Hash(), "err", err)
-		return false // default to deny if logs cannot be retrieved
-	}
-	if len(logs) == 0 {
-		return true // default to allow if there are no logs
-	}
-	ems, err := interoptypes.ExecutingMessagesFromLogs(logs)
-	if err != nil {
-		log.Debug("Failed to parse executing messages of tx", "txHash", tx.Hash(), "err", err)
-		return false // default to deny if logs cannot be parsed
-	}
-	if len(ems) == 0 {
-		return true // default to allow if there are no executing messages
-	}
-
-	ctx, cancel := context.WithTimeout(ctx, time.Second*2)
-	defer cancel()
-	// check with the supervisor if the transaction should be allowed given the executing messages
-	// the message can be unsafe (discovered only via P2P unsafe blocks), but it must be cross-valid
-	// so CrossUnsafe is used here
-	return f.checkFn(ctx, ems, interoptypes.CrossUnsafe, logTimestamp) == nil
 }
 
 type interopAccessFilter struct {
+	checkAccess checkFn
 }
 
 // FilterTx implements IngressFilter.FilterTx
 // it takes the access list from the transaction and checks it against the supervisor
 func (f *interopAccessFilter) FilterTx(ctx context.Context, tx *types.Transaction) bool {
-	return true
+	al := tx.AccessList()
+
+	if len(al) == 0 {
+		return true
+	}
+
+	// I don't really think this is the right way to turn an access list into a list of hashes
+	// I'm just plugging it in for now since it returns the correct type.
+	hashes := make([]common.Hash, 0, len(al))
+	for i := range al {
+		hashes[i] = al[i].StorageKeys[0]
+	}
+
+	// Note - the ExecutingDescriptor is not used here, but it is required by the interop client
+	// I'm just passing in 0 for now since it's not used. Not sure what the effect of this will be.
+	err := f.checkAccess(ctx, hashes, interoptypes.CrossUnsafe, 0)
+	return err == nil
 }
