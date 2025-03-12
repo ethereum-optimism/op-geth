@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net"
 	"testing"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -42,7 +43,7 @@ func (m *mockInteropFilterAPI) CheckAccessList(ctx context.Context, inboxEntries
 func TestInteropFilter(t *testing.T) {
 	api := &mockInteropFilterAPI{}
 	filter := NewInteropFilter(api)
-	tx := &types.Transaction{}
+	tx := types.NewTx(&types.DynamicFeeTx{})
 
 	t.Run("Tx has no access list", func(t *testing.T) {
 		api.accessListFn = func(tx *types.Transaction) []common.Hash {
@@ -58,7 +59,7 @@ func TestInteropFilter(t *testing.T) {
 	})
 	t.Run("Tx has valid executing message", func(t *testing.T) {
 		api.timeFn = func() (uint64, error) {
-			return 1, nil
+			return 0, nil
 		}
 		api.accessListFn = func(tx *types.Transaction) []common.Hash {
 			return []common.Hash{{0xaa}}
@@ -79,6 +80,34 @@ func TestInteropFilter(t *testing.T) {
 		api.checkFn = func(ctx context.Context, inboxEntries []common.Hash, minSafety interoptypes.SafetyLevel, ed interoptypes.ExecutingDescriptor) error {
 			require.Equal(t, common.Hash{0xaa}, inboxEntries[0])
 			return errors.New("error")
+		}
+		require.False(t, filter.FilterTx(context.Background(), tx))
+	})
+	t.Run("Tx has valid executing message equal to than expiry", func(t *testing.T) {
+		api.timeFn = func() (uint64, error) {
+			expiredT := tx.Time().Add(86400 * time.Second)
+			return uint64(expiredT.Unix()), nil
+		}
+		api.accessListFn = func(tx *types.Transaction) []common.Hash {
+			return []common.Hash{{0xaa}}
+		}
+		api.checkFn = func(ctx context.Context, inboxEntries []common.Hash, minSafety interoptypes.SafetyLevel, ed interoptypes.ExecutingDescriptor) error {
+			require.Equal(t, common.Hash{0xaa}, inboxEntries[0])
+			return nil
+		}
+		require.True(t, filter.FilterTx(context.Background(), tx))
+	})
+	t.Run("Tx has valid executing message older than expiry", func(t *testing.T) {
+		api.timeFn = func() (uint64, error) {
+			expiredT := tx.Time().Add(86401 * time.Second)
+			return uint64(expiredT.Unix()), nil
+		}
+		api.accessListFn = func(tx *types.Transaction) []common.Hash {
+			return []common.Hash{{0xaa}}
+		}
+		api.checkFn = func(ctx context.Context, inboxEntries []common.Hash, minSafety interoptypes.SafetyLevel, ed interoptypes.ExecutingDescriptor) error {
+			require.Equal(t, common.Hash{0xaa}, inboxEntries[0])
+			return nil
 		}
 		require.False(t, filter.FilterTx(context.Background(), tx))
 	})

@@ -2,6 +2,7 @@ package txpool
 
 import (
 	"context"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -44,12 +45,17 @@ func (f *interopAccessFilter) FilterTx(ctx context.Context, tx *types.Transactio
 	if len(hashes) == 0 {
 		return true
 	}
-	time, err := f.api.CurrentInteropBlockTime()
+	t, err := f.api.CurrentInteropBlockTime()
 	// if there are interop access list entries, but the interop API is not available, reject the transaction
 	if err != nil {
 		return false
 	}
-	exDesc := interoptypes.ExecutingDescriptor{Timestamp: time, Timeout: f.timeout}
+	// if the transaction is older than the preverifier window, reject it eagerly
+	expireTime := time.Unix(int64(t), 0).Add(time.Duration(-f.timeout) * time.Second)
+	if tx.Time().Compare(expireTime) < 0 {
+		return false
+	}
+	exDesc := interoptypes.ExecutingDescriptor{Timestamp: t, Timeout: f.timeout}
 	// perform the interop check
 	return f.api.CheckAccessList(ctx, hashes, interoptypes.CrossUnsafe, exDesc) == nil
 }
