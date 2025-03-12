@@ -15,36 +15,34 @@ type IngressFilter interface {
 	FilterTx(ctx context.Context, tx *types.Transaction) bool
 }
 
-type checkFn func(context.Context, []common.Hash, interoptypes.SafetyLevel, uint64) error
-
-func NewInteropFilter(fn checkFn) IngressFilter {
-	return &interopAccessFilter{
-		checkAccess: fn,
-	}
+type interopFilterAPI interface {
+	CurrentInteropBlockTime() (uint64, error)
+	TxToInteropAccessList(tx *types.Transaction) []common.Hash
+	CheckAccessList(ctx context.Context, inboxEntries []common.Hash, minSafety interoptypes.SafetyLevel, executingTimestamp uint64) error
+}
+type interopAccessFilter struct {
+	api interopFilterAPI
 }
 
-type interopAccessFilter struct {
-	checkAccess checkFn
+func NewInteropFilter(api interopFilterAPI) IngressFilter {
+	return &interopAccessFilter{
+		api: api,
+	}
 }
 
 // FilterTx implements IngressFilter.FilterTx
-// it takes the access list from the transaction and checks it against the supervisor
+// it uses provided functions to get the access list from the transaction
+// and check it against the supervisor
 func (f *interopAccessFilter) FilterTx(ctx context.Context, tx *types.Transaction) bool {
-	al := tx.AccessList()
-
-	if len(al) == 0 {
+	// if CurrentInteropBlockTime returns an error, we assume that the chain is not set up for interop
+	// in which case we allow all transactions
+	time, err := f.api.CurrentInteropBlockTime()
+	if err != nil {
 		return true
 	}
-
-	// I don't really think this is the right way to turn an access list into a list of hashes
-	// I'm just plugging it in for now since it returns the correct type.
-	hashes := make([]common.Hash, 0, len(al))
-	for i := range al {
-		hashes[i] = al[i].StorageKeys[0]
+	hashes := f.api.TxToInteropAccessList(tx)
+	if len(hashes) == 0 {
+		return true
 	}
-
-	// Note - the ExecutingDescriptor is not used here, but it is required by the interop client
-	// I'm just passing in 0 for now since it's not used. Not sure what the effect of this will be.
-	err := f.checkAccess(ctx, hashes, interoptypes.CrossUnsafe, 0)
-	return err == nil
+	return f.api.CheckAccessList(ctx, hashes, interoptypes.CrossUnsafe, time) == nil
 }
