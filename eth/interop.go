@@ -8,7 +8,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/types/interoptypes"
 	"github.com/ethereum/go-ethereum/miner"
-	"github.com/ethereum/go-ethereum/params"
 )
 
 func (s *Ethereum) CheckMessages(ctx context.Context, messages []interoptypes.Message, minSafety interoptypes.SafetyLevel, executingTimestamp uint64) error {
@@ -37,24 +36,7 @@ func (s *Ethereum) CurrentInteropBlockTime() (uint64, error) {
 
 // TxToInteropAccessList returns the interop specific access list storage keys for a transaction.
 func (s *Ethereum) TxToInteropAccessList(tx *types.Transaction) []common.Hash {
-	return txToInteropAccessList(tx)
-}
-
-func txToInteropAccessList(tx *types.Transaction) []common.Hash {
-	if tx == nil {
-		return nil
-	}
-	al := tx.AccessList()
-	if len(al) == 0 {
-		return nil
-	}
-	var hashes []common.Hash
-	for i := range al {
-		if al[i].Address == params.InteropCrossL2InboxAddress {
-			hashes = append(hashes, al[i].StorageKeys...)
-		}
-	}
-	return hashes
+	return interoptypes.TxToInteropAccessList(tx)
 }
 
 var _ miner.BackendWithInterop = (*Ethereum)(nil)

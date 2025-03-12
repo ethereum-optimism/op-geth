@@ -194,3 +194,20 @@ func (ed *ExecutingDescriptor) UnmarshalJSON(input []byte) error {
 	ed.Timeout = uint64(dec.Timeout)
 	return nil
 }
+
+func TxToInteropAccessList(tx *types.Transaction) []common.Hash {
+	if tx == nil {
+		return nil
+	}
+	al := tx.AccessList()
+	if len(al) == 0 {
+		return nil
+	}
+	var hashes []common.Hash
+	for i := range al {
+		if al[i].Address == params.InteropCrossL2InboxAddress {
+			hashes = append(hashes, al[i].StorageKeys...)
+		}
+	}
+	return hashes
+}
