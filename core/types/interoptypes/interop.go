@@ -170,15 +170,18 @@ const (
 
 type ExecutingDescriptor struct {
 	Timestamp uint64
+	Timeout   uint64
 }
 
 type executingDescriptorMarshaling struct {
 	Timestamp hexutil.Uint64 `json:"timestamp"`
+	Timeout   hexutil.Uint64 `json:"timeout"`
 }
 
 func (ed ExecutingDescriptor) MarshalJSON() ([]byte, error) {
 	var enc executingDescriptorMarshaling
 	enc.Timestamp = hexutil.Uint64(ed.Timestamp)
+	enc.Timeout = hexutil.Uint64(ed.Timeout)
 	return json.Marshal(&enc)
 }
 
@@ -188,5 +191,6 @@ func (ed *ExecutingDescriptor) UnmarshalJSON(input []byte) error {
 		return err
 	}
 	ed.Timestamp = uint64(dec.Timestamp)
+	ed.Timeout = uint64(dec.Timeout)
 	return nil
 }

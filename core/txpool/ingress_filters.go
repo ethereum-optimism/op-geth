@@ -18,15 +18,20 @@ type IngressFilter interface {
 type interopFilterAPI interface {
 	CurrentInteropBlockTime() (uint64, error)
 	TxToInteropAccessList(tx *types.Transaction) []common.Hash
-	CheckAccessList(ctx context.Context, inboxEntries []common.Hash, minSafety interoptypes.SafetyLevel, executingTimestamp uint64) error
-}
-type interopAccessFilter struct {
-	api interopFilterAPI
+	CheckAccessList(ctx context.Context, inboxEntries []common.Hash, minSafety interoptypes.SafetyLevel, execDesc interoptypes.ExecutingDescriptor) error
 }
 
+type interopAccessFilter struct {
+	api     interopFilterAPI
+	timeout uint64
+}
+
+// NewInteropFilter creates a new IngressFilter that filters transactions based on the interop access list.
+// the timeout is set to 1 day, the specified preverifier window
 func NewInteropFilter(api interopFilterAPI) IngressFilter {
 	return &interopAccessFilter{
-		api: api,
+		api:     api,
+		timeout: 86400,
 	}
 }
 
@@ -34,15 +39,17 @@ func NewInteropFilter(api interopFilterAPI) IngressFilter {
 // it uses provided functions to get the access list from the transaction
 // and check it against the supervisor
 func (f *interopAccessFilter) FilterTx(ctx context.Context, tx *types.Transaction) bool {
-	// if CurrentInteropBlockTime returns an error, we assume that the chain is not set up for interop
-	// in which case we allow all transactions
-	time, err := f.api.CurrentInteropBlockTime()
-	if err != nil {
-		return true
-	}
 	hashes := f.api.TxToInteropAccessList(tx)
+	// if there are no interop access list entries, allow the transaction (there is no interop check to perform)
 	if len(hashes) == 0 {
 		return true
 	}
-	return f.api.CheckAccessList(ctx, hashes, interoptypes.CrossUnsafe, time) == nil
+	time, err := f.api.CurrentInteropBlockTime()
+	// if there are interop access list entries, but the interop API is not available, reject the transaction
+	if err != nil {
+		return false
+	}
+	exDesc := interoptypes.ExecutingDescriptor{Timestamp: time, Timeout: f.timeout}
+	// perform the interop check
+	return f.api.CheckAccessList(ctx, hashes, interoptypes.CrossUnsafe, exDesc) == nil
 }

@@ -41,5 +41,4 @@ func TestTxToInteropAccessList(t *testing.T) {
 		})
 		require.Equal(t, []common.Hash{{0xaa}, {0xbb}}, txToInteropAccessList(tx))
 	})
-
 }

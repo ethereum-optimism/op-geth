@@ -15,7 +15,7 @@ import (
 type mockInteropFilterAPI struct {
 	timeFn       func() (uint64, error)
 	accessListFn func(tx *types.Transaction) []common.Hash
-	checkFn      func(ctx context.Context, inboxEntries []common.Hash, minSafety interoptypes.SafetyLevel, executingTimestamp uint64) error
+	checkFn      func(ctx context.Context, inboxEntries []common.Hash, minSafety interoptypes.SafetyLevel, ed interoptypes.ExecutingDescriptor) error
 }
 
 func (m *mockInteropFilterAPI) CurrentInteropBlockTime() (uint64, error) {
@@ -32,9 +32,9 @@ func (m *mockInteropFilterAPI) TxToInteropAccessList(tx *types.Transaction) []co
 	return nil
 }
 
-func (m *mockInteropFilterAPI) CheckAccessList(ctx context.Context, inboxEntries []common.Hash, minSafety interoptypes.SafetyLevel, executingTimestamp uint64) error {
+func (m *mockInteropFilterAPI) CheckAccessList(ctx context.Context, inboxEntries []common.Hash, minSafety interoptypes.SafetyLevel, ed interoptypes.ExecutingDescriptor) error {
 	if m.checkFn != nil {
-		return m.checkFn(ctx, inboxEntries, minSafety, executingTimestamp)
+		return m.checkFn(ctx, inboxEntries, minSafety, ed)
 	}
 	return nil
 }
@@ -63,7 +63,7 @@ func TestInteropFilter(t *testing.T) {
 		api.accessListFn = func(tx *types.Transaction) []common.Hash {
 			return []common.Hash{{0xaa}}
 		}
-		api.checkFn = func(ctx context.Context, inboxEntries []common.Hash, minSafety interoptypes.SafetyLevel, executingTimestamp uint64) error {
+		api.checkFn = func(ctx context.Context, inboxEntries []common.Hash, minSafety interoptypes.SafetyLevel, ed interoptypes.ExecutingDescriptor) error {
 			require.Equal(t, common.Hash{0xaa}, inboxEntries[0])
 			return nil
 		}
@@ -76,7 +76,7 @@ func TestInteropFilter(t *testing.T) {
 		api.accessListFn = func(tx *types.Transaction) []common.Hash {
 			return []common.Hash{{0xaa}}
 		}
-		api.checkFn = func(ctx context.Context, inboxEntries []common.Hash, minSafety interoptypes.SafetyLevel, executingTimestamp uint64) error {
+		api.checkFn = func(ctx context.Context, inboxEntries []common.Hash, minSafety interoptypes.SafetyLevel, ed interoptypes.ExecutingDescriptor) error {
 			require.Equal(t, common.Hash{0xaa}, inboxEntries[0])
 			return errors.New("error")
 		}
@@ -112,7 +112,7 @@ func TestInteropFilterRPCFailures(t *testing.T) {
 			api.accessListFn = func(tx *types.Transaction) []common.Hash {
 				return []common.Hash{{0xaa}}
 			}
-			api.checkFn = func(ctx context.Context, inboxEntries []common.Hash, minSafety interoptypes.SafetyLevel, executingTimestamp uint64) error {
+			api.checkFn = func(ctx context.Context, inboxEntries []common.Hash, minSafety interoptypes.SafetyLevel, ed interoptypes.ExecutingDescriptor) error {
 				if tt.networkErr {
 					return &net.OpError{Op: "dial", Err: errors.New("connection refused")}
 				}
