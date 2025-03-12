@@ -442,12 +442,7 @@ func (miner *Miner) applyTransaction(env *environment, tx *types.Transaction) (*
 		// after the tx is deemed successful and the journal has been cleared already.
 		extraOpts = &core.ApplyTransactionOpts{
 			PostValidation: func(evm *vm.EVM, result *core.ExecutionResult) error {
-				logInspector, ok := evm.StateDB.(LogInspector)
-				if !ok {
-					return fmt.Errorf("cannot get logs from StateDB type %T", evm.StateDB)
-				}
-				logs := logInspector.GetLogs(tx.Hash(), env.header.Number.Uint64(), common.Hash{})
-				return miner.checkInterop(env.rpcCtx, tx, result.Failed(), logs, env.header.Time)
+				return miner.checkInterop(env.rpcCtx, tx, result.Failed(), env.header.Time)
 			},
 		}
 	}
@@ -459,7 +454,7 @@ func (miner *Miner) applyTransaction(env *environment, tx *types.Transaction) (*
 	return receipt, err
 }
 
-func (miner *Miner) checkInterop(ctx context.Context, tx *types.Transaction, failed bool, logs []*types.Log, logTimestamp uint64) error {
+func (miner *Miner) checkInterop(ctx context.Context, tx *types.Transaction, failed bool, logTimestamp uint64) error {
 	if tx.Type() == types.DepositTxType {
 		return nil // deposit-txs are always safe
 	}
@@ -476,14 +471,11 @@ func (miner *Miner) checkInterop(ctx context.Context, tx *types.Transaction, fai
 	if ctx == nil { // check if the miner was set up correctly to interact with an RPC
 		return errors.New("need RPC context to check executing messages")
 	}
-	executingMessages, err := interoptypes.ExecutingMessagesFromLogs(logs)
-	if err != nil {
-		return fmt.Errorf("cannot parse interop messages from receipt of %s: %w", tx.Hash(), err)
-	}
-	if len(executingMessages) == 0 {
+	accessList := interoptypes.TxToInteropAccessList(tx)
+	if len(accessList) == 0 {
 		return nil // avoid an RPC check if there are no executing messages to verify.
 	}
-	if err := b.CheckMessages(ctx, executingMessages, interoptypes.CrossUnsafe, logTimestamp); err != nil {
+	if err := b.CheckAccessList(ctx, accessList, interoptypes.CrossUnsafe, interoptypes.ExecutingDescriptor{Timestamp: logTimestamp, Timeout: 0}); err != nil {
 		if ctx.Err() != nil { // don't reject transactions permanently on RPC timeouts etc.
 			log.Debug("CheckMessages timed out", "err", ctx.Err())
 			return err

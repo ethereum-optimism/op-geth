@@ -47,7 +47,6 @@ type BackendWithHistoricalState interface {
 }
 
 type BackendWithInterop interface {
-	CheckMessages(ctx context.Context, messages []interoptypes.Message, minSafety interoptypes.SafetyLevel, executingTimestamp uint64) error
 	CheckAccessList(ctx context.Context, inboxEntries []common.Hash, minSafety interoptypes.SafetyLevel, executingDescriptor interoptypes.ExecutingDescriptor) error
 }
 
