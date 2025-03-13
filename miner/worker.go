@@ -421,32 +421,17 @@ func (miner *Miner) commitBlobTransaction(env *environment, tx *types.Transactio
 	return nil
 }
 
-type LogInspector interface {
-	GetLogs(hash common.Hash, blockNumber uint64, blockHash common.Hash) []*types.Log
-}
-
 // applyTransaction runs the transaction. If execution fails, state and gas pool are reverted.
 func (miner *Miner) applyTransaction(env *environment, tx *types.Transaction) (*types.Receipt, error) {
 	var (
 		snap = env.state.Snapshot()
 		gp   = env.gasPool.Gas()
 	)
-	var extraOpts *core.ApplyTransactionOpts
-	// If not just reproducing the block, check the interop executing messages.
-	if !env.noTxs && miner.chain.Config().IsInterop(env.header.Time) {
-		// Whenever there are `noTxs` it means we are building a block from pre-determined txs. There are two cases:
-		//	(1) it's derived from L1, and will be verified asynchronously by the op-node.
-		//	(2) it is a deposits-only empty-block by the sequencer, in which case there are no interop-txs to verify (as deposits do not emit any).
-
-		// We have to insert as call-back, since we cannot revert the snapshot
-		// after the tx is deemed successful and the journal has been cleared already.
-		extraOpts = &core.ApplyTransactionOpts{
-			PostValidation: func(evm *vm.EVM, result *core.ExecutionResult) error {
-				return miner.checkInterop(env.rpcCtx, tx, result.Failed(), env.header.Time)
-			},
-		}
+	// avoid execution if the interop check fails
+	if err := miner.checkInterop(env.rpcCtx, tx, env.header.Time); err != nil {
+		return nil, err
 	}
-	receipt, err := core.ApplyTransactionExtended(env.evm, env.gasPool, env.state, env.header, tx, &env.header.GasUsed, extraOpts)
+	receipt, err := core.ApplyTransaction(env.evm, env.gasPool, env.state, env.header, tx, &env.header.GasUsed)
 	if err != nil {
 		env.state.RevertToSnapshot(snap)
 		env.gasPool.SetGas(gp)
@@ -454,12 +439,9 @@ func (miner *Miner) applyTransaction(env *environment, tx *types.Transaction) (*
 	return receipt, err
 }
 
-func (miner *Miner) checkInterop(ctx context.Context, tx *types.Transaction, failed bool, logTimestamp uint64) error {
+func (miner *Miner) checkInterop(ctx context.Context, tx *types.Transaction, logTimestamp uint64) error {
 	if tx.Type() == types.DepositTxType {
 		return nil // deposit-txs are always safe
-	}
-	if failed {
-		return nil // failed txs don't persist any logs
 	}
 	if tx.Rejected() {
 		return errors.New("transaction was previously rejected")
