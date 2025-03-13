@@ -26,6 +26,15 @@ import (
 )
 
 func TestFeeHistory(t *testing.T) {
+	t.Run("L1", func(t *testing.T) {
+		testFeeHistory(t, false)
+	})
+	t.Run("OP-Stack", func(t *testing.T) {
+		testFeeHistory(t, true)
+	})
+}
+
+func testFeeHistory(t *testing.T, opStack bool) {
 	var cases = []struct {
 		pending             bool
 		maxHeader, maxBlock uint64
@@ -58,7 +67,7 @@ func TestFeeHistory(t *testing.T) {
 			MaxHeaderHistory: c.maxHeader,
 			MaxBlockHistory:  c.maxBlock,
 		}
-		backend := newTestBackend(t, big.NewInt(16), big.NewInt(28), c.pending)
+		backend := newTestBackend(t, big.NewInt(16), big.NewInt(28), c.pending, opStack)
 		oracle := NewOracle(backend, config, nil)
 
 		first, reward, baseFee, ratio, blobBaseFee, blobRatio, err := oracle.FeeHistory(context.Background(), c.count, c.last, c.percent)
@@ -89,6 +98,18 @@ func TestFeeHistory(t *testing.T) {
 		}
 		if len(blobBaseFee) != len(baseFee) {
 			t.Fatalf("Test case %d: blobBaseFee array length mismatch, want %d, got %d", i, len(baseFee), len(blobBaseFee))
+		}
+		if opStack { // check that we do not get unexpected NaN values for blobs, due to the missing blob schedule and effective 0 blob limit
+			for _, v := range blobRatio {
+				if v != 0 {
+					t.Fatalf("Expected 0 blob ratio, but got %f", v)
+				}
+			}
+			for _, v := range blobBaseFee {
+				if v.Cmp(big.NewInt(0)) != 0 && v.Cmp(big.NewInt(1)) != 0 {
+					t.Fatalf("Expected 0 (pre-cancun) or 1 (post-cancun) wei blob basefee, got %s", v)
+				}
+			}
 		}
 		if err != c.expErr && !errors.Is(err, c.expErr) {
 			t.Fatalf("Test case %d: error mismatch, want %v, got %v", i, c.expErr, err)
