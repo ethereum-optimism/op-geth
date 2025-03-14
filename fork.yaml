@@ -331,6 +331,9 @@ def:
           globs:
             - "accounts/abi/bind/backends/simulated.go"
             - "ethclient/simulated/backend.go"
+        - title: Fix ABI bindings gas-estimation to use access-list
+          globs:
+            - "accounts/abi/bind/base.go"
         - title: Live tracer update
           description: |
             Track L1-deposited native currency that is coming into the L2 supply.
