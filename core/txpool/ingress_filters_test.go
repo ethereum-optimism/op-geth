@@ -3,126 +3,113 @@ package txpool
 import (
 	"context"
 	"errors"
-	"math/big"
 	"net"
 	"testing"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/types/interoptypes"
-	"github.com/ethereum/go-ethereum/params"
 	"github.com/stretchr/testify/require"
 )
 
+type mockInteropFilterAPI struct {
+	timeFn       func() (uint64, error)
+	accessListFn func(tx *types.Transaction) []common.Hash
+	checkFn      func(ctx context.Context, inboxEntries []common.Hash, minSafety interoptypes.SafetyLevel, ed interoptypes.ExecutingDescriptor) error
+}
+
+func (m *mockInteropFilterAPI) CurrentInteropBlockTime() (uint64, error) {
+	if m.timeFn != nil {
+		return m.timeFn()
+	}
+	return 0, nil
+}
+
+func (m *mockInteropFilterAPI) TxToInteropAccessList(tx *types.Transaction) []common.Hash {
+	if m.accessListFn != nil {
+		return m.accessListFn(tx)
+	}
+	return nil
+}
+
+func (m *mockInteropFilterAPI) CheckAccessList(ctx context.Context, inboxEntries []common.Hash, minSafety interoptypes.SafetyLevel, ed interoptypes.ExecutingDescriptor) error {
+	if m.checkFn != nil {
+		return m.checkFn(ctx, inboxEntries, minSafety, ed)
+	}
+	return nil
+}
+
 func TestInteropFilter(t *testing.T) {
-	// some placeholder transaction to test with
-	tx := types.NewTx(&types.DynamicFeeTx{
-		ChainID: big.NewInt(1),
-		Nonce:   1,
-		To:      &common.Address{},
-		Value:   big.NewInt(1),
-		Data:    []byte{},
-	})
-	t.Run("Tx has no logs", func(t *testing.T) {
-		logFn := func(tx *types.Transaction) ([]*types.Log, uint64, error) {
-			return []*types.Log{}, 0, nil
+	api := &mockInteropFilterAPI{}
+	filter := NewInteropFilter(api)
+	tx := types.NewTx(&types.DynamicFeeTx{})
+
+	t.Run("Tx has no access list", func(t *testing.T) {
+		api.accessListFn = func(tx *types.Transaction) []common.Hash {
+			return nil
 		}
-		checkFn := func(ctx context.Context, ems []interoptypes.Message, safety interoptypes.SafetyLevel, emsTimestamp uint64) error {
-			// make this return error, but it won't be called because logs are empty
-			return errors.New("error")
-		}
-		// when there are no logs to process, the transaction should be allowed
-		filter := NewInteropFilter(logFn, checkFn)
 		require.True(t, filter.FilterTx(context.Background(), tx))
 	})
-	t.Run("Tx errored when getting logs", func(t *testing.T) {
-		logFn := func(tx *types.Transaction) ([]*types.Log, uint64, error) {
-			return []*types.Log{}, 0, errors.New("error")
+	t.Run("Tx errored when checking current interop block time", func(t *testing.T) {
+		api.timeFn = func() (uint64, error) {
+			return 0, errors.New("error")
 		}
-		checkFn := func(ctx context.Context, ems []interoptypes.Message, safety interoptypes.SafetyLevel, emsTimestamp uint64) error {
-			// make this return error, but it won't be called because logs retrieval errored
-			return errors.New("error")
-		}
-		// when log retrieval errors, the transaction should be denied
-		filter := NewInteropFilter(logFn, checkFn)
-		require.False(t, filter.FilterTx(context.Background(), tx))
-	})
-	t.Run("Tx has no executing messages", func(t *testing.T) {
-		logFn := func(tx *types.Transaction) ([]*types.Log, uint64, error) {
-			l1 := &types.Log{
-				Topics: []common.Hash{common.BytesToHash([]byte("topic1"))},
-			}
-			return []*types.Log{l1}, 0, nil
-		}
-		checkFn := func(ctx context.Context, ems []interoptypes.Message, safety interoptypes.SafetyLevel, emsTimestamp uint64) error {
-			// make this return error, but it won't be called because logs retrieval doesn't have executing messages
-			return errors.New("error")
-		}
-		// when no executing messages are included, the transaction should be allowed
-		filter := NewInteropFilter(logFn, checkFn)
 		require.True(t, filter.FilterTx(context.Background(), tx))
 	})
 	t.Run("Tx has valid executing message", func(t *testing.T) {
-		// build a basic executing message
-		// the executing message must pass basic decode validation,
-		// but the validity check is done by the checkFn
-		l1 := &types.Log{
-			Address: params.InteropCrossL2InboxAddress,
-			Topics: []common.Hash{
-				common.BytesToHash(interoptypes.ExecutingMessageEventTopic[:]),
-				common.BytesToHash([]byte("payloadHash")),
-			},
-			Data: []byte{},
+		api.timeFn = func() (uint64, error) {
+			return 0, nil
 		}
-		// using all 0s for data allows all takeZeros to pass
-		for i := 0; i < 32*5; i++ {
-			l1.Data = append(l1.Data, 0)
+		api.accessListFn = func(tx *types.Transaction) []common.Hash {
+			return []common.Hash{{0xaa}}
 		}
-		logFn := func(tx *types.Transaction) ([]*types.Log, uint64, error) {
-			return []*types.Log{l1}, 0, nil
-		}
-		var spyEMs []interoptypes.Message
-		checkFn := func(ctx context.Context, ems []interoptypes.Message, safety interoptypes.SafetyLevel, emsTimestamp uint64) error {
-			spyEMs = ems
+		api.checkFn = func(ctx context.Context, inboxEntries []common.Hash, minSafety interoptypes.SafetyLevel, ed interoptypes.ExecutingDescriptor) error {
+			require.Equal(t, common.Hash{0xaa}, inboxEntries[0])
 			return nil
 		}
-		// when there is one executing message, the transaction should be allowed
-		// if the checkFn returns nil
-		filter := NewInteropFilter(logFn, checkFn)
 		require.True(t, filter.FilterTx(context.Background(), tx))
-		// confirm that one executing message was passed to the checkFn
-		require.Equal(t, 1, len(spyEMs))
 	})
 	t.Run("Tx has invalid executing message", func(t *testing.T) {
-		// build a basic executing message
-		// the executing message must pass basic decode validation,
-		// but the validity check is done by the checkFn
-		l1 := &types.Log{
-			Address: params.InteropCrossL2InboxAddress,
-			Topics: []common.Hash{
-				common.BytesToHash(interoptypes.ExecutingMessageEventTopic[:]),
-				common.BytesToHash([]byte("payloadHash")),
-			},
-			Data: []byte{},
+		api.timeFn = func() (uint64, error) {
+			return 1, nil
 		}
-		// using all 0s for data allows all takeZeros to pass
-		for i := 0; i < 32*5; i++ {
-			l1.Data = append(l1.Data, 0)
+		api.accessListFn = func(tx *types.Transaction) []common.Hash {
+			return []common.Hash{{0xaa}}
 		}
-		logFn := func(tx *types.Transaction) ([]*types.Log, uint64, error) {
-			return []*types.Log{l1}, 0, nil
-		}
-		var spyEMs []interoptypes.Message
-		checkFn := func(ctx context.Context, ems []interoptypes.Message, safety interoptypes.SafetyLevel, emsTimestamp uint64) error {
-			spyEMs = ems
+		api.checkFn = func(ctx context.Context, inboxEntries []common.Hash, minSafety interoptypes.SafetyLevel, ed interoptypes.ExecutingDescriptor) error {
+			require.Equal(t, common.Hash{0xaa}, inboxEntries[0])
 			return errors.New("error")
 		}
-		// when there is one executing message, and the checkFn returns an error,
-		// (ie the supervisor rejects the transaction) the transaction should be denied
-		filter := NewInteropFilter(logFn, checkFn)
 		require.False(t, filter.FilterTx(context.Background(), tx))
-		// confirm that one executing message was passed to the checkFn
-		require.Equal(t, 1, len(spyEMs))
+	})
+	t.Run("Tx has valid executing message equal to than expiry", func(t *testing.T) {
+		api.timeFn = func() (uint64, error) {
+			expiredT := tx.Time().Add(86400 * time.Second)
+			return uint64(expiredT.Unix()), nil
+		}
+		api.accessListFn = func(tx *types.Transaction) []common.Hash {
+			return []common.Hash{{0xaa}}
+		}
+		api.checkFn = func(ctx context.Context, inboxEntries []common.Hash, minSafety interoptypes.SafetyLevel, ed interoptypes.ExecutingDescriptor) error {
+			require.Equal(t, common.Hash{0xaa}, inboxEntries[0])
+			return nil
+		}
+		require.True(t, filter.FilterTx(context.Background(), tx))
+	})
+	t.Run("Tx has valid executing message older than expiry", func(t *testing.T) {
+		api.timeFn = func() (uint64, error) {
+			expiredT := tx.Time().Add(86401 * time.Second)
+			return uint64(expiredT.Unix()), nil
+		}
+		api.accessListFn = func(tx *types.Transaction) []common.Hash {
+			return []common.Hash{{0xaa}}
+		}
+		api.checkFn = func(ctx context.Context, inboxEntries []common.Hash, minSafety interoptypes.SafetyLevel, ed interoptypes.ExecutingDescriptor) error {
+			require.Equal(t, common.Hash{0xaa}, inboxEntries[0])
+			return nil
+		}
+		require.False(t, filter.FilterTx(context.Background(), tx))
 	})
 }
 
@@ -149,38 +136,24 @@ func TestInteropFilterRPCFailures(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Create mock log function that always returns our test log
-			logFn := func(tx *types.Transaction) ([]*types.Log, uint64, error) {
-				log := &types.Log{
-					Address: params.InteropCrossL2InboxAddress,
-					Topics: []common.Hash{
-						common.BytesToHash(interoptypes.ExecutingMessageEventTopic[:]),
-						common.BytesToHash([]byte("payloadHash")),
-					},
-					Data: make([]byte, 32*5),
-				}
-				return []*types.Log{log}, 0, nil
+			api := &mockInteropFilterAPI{}
+			filter := NewInteropFilter(api)
+			api.accessListFn = func(tx *types.Transaction) []common.Hash {
+				return []common.Hash{{0xaa}}
 			}
-
-			// Create mock check function that simulates RPC failures
-			checkFn := func(ctx context.Context, ems []interoptypes.Message, safety interoptypes.SafetyLevel, emsTimestamp uint64) error {
+			api.checkFn = func(ctx context.Context, inboxEntries []common.Hash, minSafety interoptypes.SafetyLevel, ed interoptypes.ExecutingDescriptor) error {
 				if tt.networkErr {
 					return &net.OpError{Op: "dial", Err: errors.New("connection refused")}
 				}
-
 				if tt.timeout {
 					return context.DeadlineExceeded
 				}
-
 				if tt.invalidResp {
 					return errors.New("invalid response format")
 				}
-
 				return nil
 			}
 
-			// Create and test filter
-			filter := NewInteropFilter(logFn, checkFn)
 			result := filter.FilterTx(context.Background(), &types.Transaction{})
 			require.Equal(t, false, result, "FilterTx result mismatch")
 		})

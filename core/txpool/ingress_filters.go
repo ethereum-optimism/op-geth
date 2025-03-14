@@ -4,9 +4,9 @@ import (
 	"context"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/types/interoptypes"
-	"github.com/ethereum/go-ethereum/log"
 )
 
 // IngressFilter is an interface that allows filtering of transactions before they are added to the transaction pool.
@@ -16,44 +16,46 @@ type IngressFilter interface {
 	FilterTx(ctx context.Context, tx *types.Transaction) bool
 }
 
-type interopFilter struct {
-	logsFn  func(tx *types.Transaction) (logs []*types.Log, logTimestamp uint64, err error)
-	checkFn func(ctx context.Context, ems []interoptypes.Message, safety interoptypes.SafetyLevel, emsTimestamp uint64) error
+type interopFilterAPI interface {
+	CurrentInteropBlockTime() (uint64, error)
+	TxToInteropAccessList(tx *types.Transaction) []common.Hash
+	CheckAccessList(ctx context.Context, inboxEntries []common.Hash, minSafety interoptypes.SafetyLevel, execDesc interoptypes.ExecutingDescriptor) error
 }
 
-func NewInteropFilter(
-	logsFn func(tx *types.Transaction) ([]*types.Log, uint64, error),
-	checkFn func(ctx context.Context, ems []interoptypes.Message, safety interoptypes.SafetyLevel, emsTimestamp uint64) error) IngressFilter {
-	return &interopFilter{
-		logsFn:  logsFn,
-		checkFn: checkFn,
+type interopAccessFilter struct {
+	api     interopFilterAPI
+	timeout uint64
+}
+
+// NewInteropFilter creates a new IngressFilter that filters transactions based on the interop access list.
+// the timeout is set to 1 day, the specified preverifier window
+func NewInteropFilter(api interopFilterAPI) IngressFilter {
+	return &interopAccessFilter{
+		api:     api,
+		timeout: 86400,
 	}
 }
 
 // FilterTx implements IngressFilter.FilterTx
-// it gets logs checks for message safety based on the function provided
-func (f *interopFilter) FilterTx(ctx context.Context, tx *types.Transaction) bool {
-	logs, logTimestamp, err := f.logsFn(tx)
+// it uses provided functions to get the access list from the transaction
+// and check it against the supervisor
+func (f *interopAccessFilter) FilterTx(ctx context.Context, tx *types.Transaction) bool {
+	hashes := f.api.TxToInteropAccessList(tx)
+	// if there are no interop access list entries, allow the transaction (there is no interop check to perform)
+	if len(hashes) == 0 {
+		return true
+	}
+	t, err := f.api.CurrentInteropBlockTime()
+	// if there are interop access list entries, but the interop API is not available, reject the transaction
 	if err != nil {
-		log.Debug("Failed to retrieve logs of tx", "txHash", tx.Hash(), "err", err)
-		return false // default to deny if logs cannot be retrieved
+		return false
 	}
-	if len(logs) == 0 {
-		return true // default to allow if there are no logs
+	// if the transaction is older than the preverifier window, reject it eagerly
+	expireTime := time.Unix(int64(t), 0).Add(time.Duration(-f.timeout) * time.Second)
+	if tx.Time().Compare(expireTime) < 0 {
+		return false
 	}
-	ems, err := interoptypes.ExecutingMessagesFromLogs(logs)
-	if err != nil {
-		log.Debug("Failed to parse executing messages of tx", "txHash", tx.Hash(), "err", err)
-		return false // default to deny if logs cannot be parsed
-	}
-	if len(ems) == 0 {
-		return true // default to allow if there are no executing messages
-	}
-
-	ctx, cancel := context.WithTimeout(ctx, time.Second*2)
-	defer cancel()
-	// check with the supervisor if the transaction should be allowed given the executing messages
-	// the message can be unsafe (discovered only via P2P unsafe blocks), but it must be cross-valid
-	// so CrossUnsafe is used here
-	return f.checkFn(ctx, ems, interoptypes.CrossUnsafe, logTimestamp) == nil
+	exDesc := interoptypes.ExecutingDescriptor{Timestamp: t, Timeout: f.timeout}
+	// perform the interop check
+	return f.api.CheckAccessList(ctx, hashes, interoptypes.CrossUnsafe, exDesc) == nil
 }

@@ -287,7 +287,7 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 	// simulated logs and message safety check functions
 	poolFilters := []txpool.IngressFilter{}
 	if config.InteropMessageRPC != "" && config.InteropMempoolFiltering {
-		poolFilters = append(poolFilters, txpool.NewInteropFilter(eth.SimLogs, eth.CheckMessages))
+		poolFilters = append(poolFilters, txpool.NewInteropFilter(eth))
 	}
 	eth.txPool, err = txpool.New(config.TxPool.PriceLimit, eth.blockchain, txPools, poolFilters)
 	if err != nil {
