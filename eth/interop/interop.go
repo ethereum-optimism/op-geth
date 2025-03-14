@@ -48,11 +48,6 @@ func NewInteropClient(rpcEndpoint string) *InteropClient {
 	return &InteropClient{endpoint: rpcEndpoint}
 }
 
-// CheckMessages checks if the given messages meet the given minimum safety level.
-func (cl *InteropClient) CheckMessages(ctx context.Context, messages []interoptypes.Message, minSafety interoptypes.SafetyLevel, executingDescriptor interoptypes.ExecutingDescriptor) error {
-	return errors.New("deprecated. use CheckAccessList")
-}
-
 func (cl *InteropClient) CheckAccessList(ctx context.Context, inboxEntries []common.Hash, minSafety interoptypes.SafetyLevel, executingDescriptor interoptypes.ExecutingDescriptor) error {
 	if err := cl.maybeDial(ctx); err != nil {
 		return err
