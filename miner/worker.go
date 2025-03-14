@@ -427,9 +427,11 @@ func (miner *Miner) applyTransaction(env *environment, tx *types.Transaction) (*
 		snap = env.state.Snapshot()
 		gp   = env.gasPool.Gas()
 	)
-	// avoid execution if the interop check fails
-	if err := miner.checkInterop(env.rpcCtx, tx, env.header.Time); err != nil {
-		return nil, err
+	if !env.noTxs && miner.chain.Config().IsInterop(env.header.Time) {
+		// avoid execution if the interop check fails
+		if err := miner.checkInterop(env.rpcCtx, tx, env.header.Time); err != nil {
+			return nil, err
+		}
 	}
 	receipt, err := core.ApplyTransaction(env.evm, env.gasPool, env.state, env.header, tx, &env.header.GasUsed)
 	if err != nil {
