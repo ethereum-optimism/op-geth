@@ -641,6 +641,7 @@ func (st *stateTransition) innerExecute() (*ExecutionResult, error) {
 		}, nil
 	}
 
+	// Operator Fee refunds are only applied if isthmus is active and the transaction is *not* a deposit.
 	if rules.IsOptimismIsthmus {
 		// Calling st.refundOperatorCost() after st.gasRemaining is updated above,
 		// so that state refunds are taken into account when calculating operator fees.
