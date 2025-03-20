@@ -681,13 +681,11 @@ func (st *stateTransition) innerExecute() (*ExecutionResult, error) {
 				st.state.AddBalance(params.OptimismL1FeeRecipient, amtU256, tracing.BalanceIncreaseRewardTransactionFee)
 			}
 			if rules.IsOptimismIsthmus {
+				// Operator Fee refunds are only applied if Isthmus is active and the transaction is *not* a deposit.
+				st.refundIsthmusOperatorCost()
+
 				operatorFeeCost := st.evm.Context.OperatorCostFunc(st.gasUsed(), st.evm.Context.Time)
 				st.state.AddBalance(params.OptimismOperatorFeeRecipient, operatorFeeCost, tracing.BalanceIncreaseRewardTransactionFee)
-
-				// Calling st.refundOperatorCost() after st.gasRemaining is updated above,
-				// so that state refunds are taken into account when calculating operator fees.
-				// Operator Fee refunds are only applied if isthmus is active and the transaction is *not* a deposit.
-				st.refundIsthmusOperatorCost()
 			}
 		}
 	}
