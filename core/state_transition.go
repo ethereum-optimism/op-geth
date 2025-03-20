@@ -626,11 +626,6 @@ func (st *stateTransition) innerExecute() (*ExecutionResult, error) {
 			}
 		}
 	}
-	if rules.IsOptimismIsthmus {
-		// Calling st.refundOperatorCost() after st.gasRemaining is updated above,
-		// so that state refunds are taken into account when calculating operator fees.
-		st.refundIsthmusOperatorCost()
-	}
 	st.returnGas()
 
 	// OP-Stack: Note for deposit tx there is no ETH refunded for unused gas, but that's taken care of by the fact that gasPrice
@@ -686,6 +681,9 @@ func (st *stateTransition) innerExecute() (*ExecutionResult, error) {
 				st.state.AddBalance(params.OptimismL1FeeRecipient, amtU256, tracing.BalanceIncreaseRewardTransactionFee)
 			}
 			if rules.IsOptimismIsthmus {
+				// Operator Fee refunds are only applied if Isthmus is active and the transaction is *not* a deposit.
+				st.refundIsthmusOperatorCost()
+
 				operatorFeeCost := st.evm.Context.OperatorCostFunc(st.gasUsed(), st.evm.Context.Time)
 				st.state.AddBalance(params.OptimismOperatorFeeRecipient, operatorFeeCost, tracing.BalanceIncreaseRewardTransactionFee)
 			}
