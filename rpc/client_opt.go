@@ -41,6 +41,8 @@ type clientConfig struct {
 	idgen              func() ID
 	batchItemLimit     int
 	batchResponseLimit int
+
+	recorder Recorder
 }
 
 func (cfg *clientConfig) initHeaders() {
