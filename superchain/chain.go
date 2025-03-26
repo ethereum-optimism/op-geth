@@ -31,6 +31,46 @@ type ChainConfigLoader struct {
 	mtx                  sync.Mutex
 }
 
+func NewChainConfigLoader(configData []byte) (*ChainConfigLoader, error) {
+	configDataReader, err := zip.NewReader(bytes.NewReader(configData), int64(len(configData)))
+	if err != nil {
+		return nil, fmt.Errorf("opening zip reader: %w", err)
+	}
+	dictR, err := configDataReader.Open("dictionary")
+	if err != nil {
+		return nil, fmt.Errorf("error opening dictionary: %w", err)
+	}
+	defer dictR.Close()
+	genesisZstdDict, err := io.ReadAll(dictR)
+	if err != nil {
+		return nil, fmt.Errorf("error reading dictionary: %w", err)
+	}
+	chainFile, err := configDataReader.Open("chains.json")
+	if err != nil {
+		return nil, fmt.Errorf("error opening chains file: %w", err)
+	}
+	defer chainFile.Close()
+	chains := make(map[uint64]*Chain)
+	if err := json.NewDecoder(chainFile).Decode(&chains); err != nil {
+		return nil, fmt.Errorf("error decoding chains file: %w", err)
+	}
+	for _, chain := range chains {
+		chain.configDataReader = configDataReader
+		chain.genesisZstdDict = genesisZstdDict
+	}
+
+	idsByName := make(map[string]uint64)
+	for chainID, chain := range chains {
+		idsByName[chain.Name+"-"+chain.Network] = chainID
+	}
+	return &ChainConfigLoader{
+		superchainsByNetwork: make(map[string]Superchain),
+		configDataReader:     configDataReader,
+		Chains:               chains,
+		idsByName:            idsByName,
+	}, nil
+}
+
 func ChainIDByName(name string) (uint64, error) {
 	return BuiltInConfigs.ChainIDByName(name)
 }
@@ -137,49 +177,9 @@ func (c *Chain) populateGenesis() {
 
 func init() {
 	var err error
-	BuiltInConfigs, err = NewChainConfigReader(builtInConfigData)
+	BuiltInConfigs, err = NewChainConfigLoader(builtInConfigData)
 	if err != nil {
 		panic(err)
 	}
 	Chains = BuiltInConfigs.Chains
-}
-
-func NewChainConfigReader(configData []byte) (*ChainConfigLoader, error) {
-	configDataReader, err := zip.NewReader(bytes.NewReader(configData), int64(len(configData)))
-	if err != nil {
-		return nil, fmt.Errorf("opening zip reader: %w", err)
-	}
-	dictR, err := configDataReader.Open("dictionary")
-	if err != nil {
-		return nil, fmt.Errorf("error opening dictionary: %w", err)
-	}
-	defer dictR.Close()
-	genesisZstdDict, err := io.ReadAll(dictR)
-	if err != nil {
-		return nil, fmt.Errorf("error reading dictionary: %w", err)
-	}
-	chainFile, err := configDataReader.Open("chains.json")
-	if err != nil {
-		return nil, fmt.Errorf("error opening chains file: %w", err)
-	}
-	defer chainFile.Close()
-	chains := make(map[uint64]*Chain)
-	if err := json.NewDecoder(chainFile).Decode(&chains); err != nil {
-		return nil, fmt.Errorf("error decoding chains file: %w", err)
-	}
-	for _, chain := range chains {
-		chain.configDataReader = configDataReader
-		chain.genesisZstdDict = genesisZstdDict
-	}
-
-	idsByName := make(map[string]uint64)
-	for chainID, chain := range chains {
-		idsByName[chain.Name+"-"+chain.Network] = chainID
-	}
-	return &ChainConfigLoader{
-		superchainsByNetwork: make(map[string]Superchain),
-		configDataReader:     configDataReader,
-		Chains:               chains,
-		idsByName:            idsByName,
-	}, nil
 }
