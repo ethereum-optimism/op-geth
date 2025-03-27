@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/fs"
 	"path"
 	"sort"
 	"sync"
@@ -16,18 +17,66 @@ import (
 )
 
 //go:embed superchain-configs.zip
-var configData []byte
+var builtInConfigData []byte
 
-var configDataReader *zip.Reader
+var BuiltInConfigs *ChainConfigLoader
 
-var genesisZstdDict []byte
+var Chains map[uint64]*Chain
 
-var Chains = make(map[uint64]*Chain)
+type ChainConfigLoader struct {
+	configDataReader     fs.FS
+	Chains               map[uint64]*Chain
+	idsByName            map[string]uint64
+	superchainsByNetwork map[string]Superchain
+	mtx                  sync.Mutex
+}
 
-var idsByName = make(map[string]uint64)
+func NewChainConfigLoader(configData []byte) (*ChainConfigLoader, error) {
+	configDataReader, err := zip.NewReader(bytes.NewReader(configData), int64(len(configData)))
+	if err != nil {
+		return nil, fmt.Errorf("opening zip reader: %w", err)
+	}
+	dictR, err := configDataReader.Open("dictionary")
+	if err != nil {
+		return nil, fmt.Errorf("error opening dictionary: %w", err)
+	}
+	defer dictR.Close()
+	genesisZstdDict, err := io.ReadAll(dictR)
+	if err != nil {
+		return nil, fmt.Errorf("error reading dictionary: %w", err)
+	}
+	chainFile, err := configDataReader.Open("chains.json")
+	if err != nil {
+		return nil, fmt.Errorf("error opening chains file: %w", err)
+	}
+	defer chainFile.Close()
+	chains := make(map[uint64]*Chain)
+	if err := json.NewDecoder(chainFile).Decode(&chains); err != nil {
+		return nil, fmt.Errorf("error decoding chains file: %w", err)
+	}
+	for _, chain := range chains {
+		chain.configDataReader = configDataReader
+		chain.genesisZstdDict = genesisZstdDict
+	}
+
+	idsByName := make(map[string]uint64)
+	for chainID, chain := range chains {
+		idsByName[chain.Name+"-"+chain.Network] = chainID
+	}
+	return &ChainConfigLoader{
+		superchainsByNetwork: make(map[string]Superchain),
+		configDataReader:     configDataReader,
+		Chains:               chains,
+		idsByName:            idsByName,
+	}, nil
+}
 
 func ChainIDByName(name string) (uint64, error) {
-	id, ok := idsByName[name]
+	return BuiltInConfigs.ChainIDByName(name)
+}
+
+func (c *ChainConfigLoader) ChainIDByName(name string) (uint64, error) {
+	id, ok := c.idsByName[name]
 	if !ok {
 		return 0, fmt.Errorf("unknown chain %q", name)
 	}
@@ -35,8 +84,12 @@ func ChainIDByName(name string) (uint64, error) {
 }
 
 func ChainNames() []string {
+	return BuiltInConfigs.ChainNames()
+}
+
+func (c *ChainConfigLoader) ChainNames() []string {
 	var out []string
-	for _, ch := range Chains {
+	for _, ch := range c.Chains {
 		out = append(out, ch.Name+"-"+ch.Network)
 	}
 	sort.Strings(out)
@@ -44,7 +97,11 @@ func ChainNames() []string {
 }
 
 func GetChain(chainID uint64) (*Chain, error) {
-	chain, ok := Chains[chainID]
+	return BuiltInConfigs.GetChain(chainID)
+}
+
+func (c *ChainConfigLoader) GetChain(chainID uint64) (*Chain, error) {
+	chain, ok := c.Chains[chainID]
 	if !ok {
 		return nil, fmt.Errorf("unknown chain ID: %d", chainID)
 	}
@@ -54,6 +111,9 @@ func GetChain(chainID uint64) (*Chain, error) {
 type Chain struct {
 	Name    string `json:"name"`
 	Network string `json:"network"`
+
+	configDataReader fs.FS
+	genesisZstdDict  []byte
 
 	config  *ChainConfig
 	genesis []byte
@@ -78,7 +138,7 @@ func (c *Chain) GenesisData() ([]byte, error) {
 }
 
 func (c *Chain) populateConfig() {
-	configFile, err := configDataReader.Open(path.Join("configs", c.Network, c.Name+".toml"))
+	configFile, err := c.configDataReader.Open(path.Join("configs", c.Network, c.Name+".toml"))
 	if err != nil {
 		c.err = fmt.Errorf("error opening chain config file %s/%s: %w", c.Network, c.Name, err)
 		return
@@ -94,13 +154,13 @@ func (c *Chain) populateConfig() {
 }
 
 func (c *Chain) populateGenesis() {
-	genesisFile, err := configDataReader.Open(path.Join("genesis", c.Network, c.Name+".json.zst"))
+	genesisFile, err := c.configDataReader.Open(path.Join("genesis", c.Network, c.Name+".json.zst"))
 	if err != nil {
 		c.err = fmt.Errorf("error opening compressed genesis file %s/%s: %w", c.Network, c.Name, err)
 		return
 	}
 	defer genesisFile.Close()
-	zstdR, err := zstd.NewReader(genesisFile, zstd.WithDecoderDicts(genesisZstdDict))
+	zstdR, err := zstd.NewReader(genesisFile, zstd.WithDecoderDicts(c.genesisZstdDict))
 	if err != nil {
 		c.err = fmt.Errorf("error creating zstd reader for %s/%s: %w", c.Network, c.Name, err)
 		return
@@ -117,29 +177,9 @@ func (c *Chain) populateGenesis() {
 
 func init() {
 	var err error
-	configDataReader, err = zip.NewReader(bytes.NewReader(configData), int64(len(configData)))
+	BuiltInConfigs, err = NewChainConfigLoader(builtInConfigData)
 	if err != nil {
-		panic(fmt.Errorf("opening zip reader: %w", err))
+		panic(err)
 	}
-	dictR, err := configDataReader.Open("dictionary")
-	if err != nil {
-		panic(fmt.Errorf("error opening dictionary: %w", err))
-	}
-	defer dictR.Close()
-	genesisZstdDict, err = io.ReadAll(dictR)
-	if err != nil {
-		panic(fmt.Errorf("error reading dictionary: %w", err))
-	}
-	chainFile, err := configDataReader.Open("chains.json")
-	if err != nil {
-		panic(fmt.Errorf("error opening chains file: %w", err))
-	}
-	defer chainFile.Close()
-	if err := json.NewDecoder(chainFile).Decode(&Chains); err != nil {
-		panic(fmt.Errorf("error decoding chains file: %w", err))
-	}
-
-	for chainID, chain := range Chains {
-		idsByName[chain.Name+"-"+chain.Network] = chainID
-	}
+	Chains = BuiltInConfigs.Chains
 }
