@@ -1,5 +1,5 @@
 language: go
-go_import_path: github.com/ethereum/go-ethereum
+go_import_path: github.com/IgorFilipovich/op-geth
 sudo: false
 jobs:
   allow_failures:
@@ -67,7 +67,7 @@ jobs:
       if: type = push
       os: osx
       osx_image: xcode14.2
-      go: 1.23.1 # See https://github.com/ethereum/go-ethereum/pull/30478
+      go: 1.23.1 # See https://github.com/IgorFilipovich/op-geth/pull/30478
       env:
         - azure-osx
       git:

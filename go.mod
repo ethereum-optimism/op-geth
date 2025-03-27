@@ -1,4 +1,4 @@
-module github.com/ethereum/go-ethereum
+module github.com/IgorFilipovich/op-geth
 
 go 1.22.0
 
