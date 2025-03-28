@@ -537,12 +537,12 @@ func TestTotalRollupCostFunc(t *testing.T) {
 	}
 
 	costFunc := NewTotalRollupCostFunc(config, statedb)
-	cost := costFunc(emptyTxWithGas, later/2)
+	cost := costFunc(emptyTxWithGas, later-1)
 	require.NotNil(t, cost)
 	expCost := uint256.MustFromBig(fjordFee)
 	require.Equal(t, expCost, cost, "pre-Isthmus total rollup cost should only contain L1 cost")
 
-	cost = costFunc(emptyTxWithGas, later*2)
+	cost = costFunc(emptyTxWithGas, later+1)
 	require.NotNil(t, cost)
 	expCost.Add(expCost, ithmusOperatorFee)
 	require.Equal(t, expCost, cost, "Isthmus total rollup cost should contain L1 cost and operator cost")
