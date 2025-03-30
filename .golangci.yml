@@ -8,17 +8,13 @@ run:
 linters:
   disable-all: true
   enable:
-    - goimports
-    - gosimple
     - govet
     - ineffassign
     - misspell
     - unconvert
-    - typecheck
     - unused
     - staticcheck
     - bidichk
-    - durationcheck
     - copyloopvar
     - whitespace
     - revive # only certain checks enabled
