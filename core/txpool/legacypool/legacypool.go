@@ -330,6 +330,9 @@ func (pool *LegacyPool) Init(gasTip uint64, head *types.Header, reserve txpool.A
 	pool.currentState = statedb
 	pool.pendingNonces = newNoncer(statedb)
 
+	// OP-Stack addition
+	pool.resetRollupCostFn(head.Time, statedb)
+
 	pool.wg.Add(1)
 	go pool.scheduleReorgLoop()
 
@@ -523,6 +526,10 @@ func (pool *LegacyPool) ToJournal() map[common.Address]types.Transactions {
 		txs[addr] = append(txs[addr], queued.Flatten()...)
 	}
 	return txs
+}
+
+func (pool *LegacyPool) RollupCostFunc() txpool.RollupCostFunc {
+	return pool.rollupCostFn
 }
 
 // Pending retrieves all currently processable transactions, grouped by origin
@@ -860,7 +867,7 @@ func (pool *LegacyPool) enqueueTx(hash common.Hash, tx *types.Transaction, addAl
 	// Try to insert the transaction into the future queue
 	from, _ := types.Sender(pool.signer, tx) // already validated
 	if pool.queue[from] == nil {
-		pool.queue[from] = newRollupList(false, &pool.rollupCostFn)
+		pool.queue[from] = newRollupList(false, pool)
 	}
 	inserted, old := pool.queue[from].Add(tx, pool.config.PriceBump)
 	if !inserted {
@@ -900,7 +907,7 @@ func (pool *LegacyPool) enqueueTx(hash common.Hash, tx *types.Transaction, addAl
 func (pool *LegacyPool) promoteTx(addr common.Address, hash common.Hash, tx *types.Transaction) bool {
 	// Try to insert the transaction into the pending queue
 	if pool.pending[addr] == nil {
-		pool.pending[addr] = newRollupList(true, &pool.rollupCostFn)
+		pool.pending[addr] = newRollupList(true, pool)
 	}
 	list := pool.pending[addr]
 
@@ -1415,16 +1422,21 @@ func (pool *LegacyPool) reset(oldHead, newHead *types.Header) {
 	pool.currentState = statedb
 	pool.pendingNonces = newNoncer(statedb)
 
-	if costFn := types.NewTotalRollupCostFunc(pool.chainconfig, statedb); costFn != nil {
-		pool.rollupCostFn = func(tx types.RollupTransaction) *uint256.Int {
-			return costFn(tx, newHead.Time)
-		}
-	}
+	// OP-Stack addition
+	pool.resetRollupCostFn(newHead.Time, statedb)
 
 	// Inject any transactions discarded due to reorgs
 	log.Debug("Reinjecting stale transactions", "count", len(reinject))
 	core.SenderCacher().Recover(pool.signer, reinject)
 	pool.addTxsLocked(reinject)
+}
+
+func (pool *LegacyPool) resetRollupCostFn(ts uint64, statedb *state.StateDB) {
+	if costFn := types.NewTotalRollupCostFunc(pool.chainconfig, statedb); costFn != nil {
+		pool.rollupCostFn = func(tx types.RollupTransaction) *uint256.Int {
+			return costFn(tx, ts)
+		}
+	}
 }
 
 // promoteExecutables moves transactions that have become processable from the

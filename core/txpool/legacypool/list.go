@@ -291,7 +291,7 @@ type list struct {
 	// A list always belongs to a fixed pool, so it's ok to use a reference instead of
 	// always passing the rollup cost function as an argument to every function.
 	// It should not be accessed directly, but through the rollupCostFn method.
-	rollupCostFnPtr *txpool.RollupCostFunc
+	rollupCostFnPrv rollupCostFuncProvider
 }
 
 // newList creates a new transaction list for maintaining nonce-indexable fast,
@@ -305,21 +305,25 @@ func newList(strict bool) *list {
 	}
 }
 
+type rollupCostFuncProvider interface {
+	RollupCostFunc() txpool.RollupCostFunc
+}
+
 // newRollupList creates a new transaction list with a rollup cost function pointer
 // that must point back to the pool's rollup cost function this list belongs to.
-func newRollupList(strict bool, rollupCostFn *txpool.RollupCostFunc) *list {
+func newRollupList(strict bool, rollupCostFnPrv rollupCostFuncProvider) *list {
 	l := newList(strict)
-	l.rollupCostFnPtr = rollupCostFn
+	l.rollupCostFnPrv = rollupCostFnPrv
 	return l
 }
 
 func (l *list) rollupCostFn() txpool.RollupCostFunc {
-	if l.rollupCostFnPtr == nil {
+	if l.rollupCostFnPrv == nil {
 		return nil
 	}
 	// This can still return nil, but we won't dereference a nil pointer of lists
 	// that got regularly created using newList instead of newRollupList.
-	return *l.rollupCostFnPtr
+	return l.rollupCostFnPrv.RollupCostFunc()
 }
 
 // Contains returns whether the  list contains a transaction

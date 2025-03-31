@@ -82,7 +82,6 @@ func testInvalidRollupTransactions(t *testing.T, stateMod func(t *testing.T, poo
 
 	// base fee is 1
 	testAddBalance(pool, from, new(big.Int).Add(big.NewInt(gasLimit), tx.Value()))
-	pool.reset(nil, nil) // initiates rollup cost func
 	// we add the test variant with zero rollup cost as a sanity check that the tx would indeed be valid
 	if stateMod == nil {
 		require.NoError(t, pool.addRemote(tx))
@@ -124,7 +123,6 @@ func testRollupTransactionCostAccounting(t *testing.T, stateMod func(t *testing.
 	tx1 := pricedTransaction(0, gasLimit, gasPrice1, key)
 	from, _ := deriveSender(tx0)
 
-	pool.reset(nil, nil) // initiates rollup cost func
 	require.NotNil(t, pool.rollupCostFn)
 
 	if stateMod != nil {
