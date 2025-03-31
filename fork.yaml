@@ -327,6 +327,18 @@ def:
     - title: "Geth extras"
       description: Extend the tools available in geth to improve external testing and tooling.
       sub:
+        - title: JSON-RPC recording
+          description: |
+            Extend server and client with configurable JSON-RPC message recording.
+            This enables loggers and advanced metrics to be attached to server and client sides.
+          globs:
+            - "rpc/client.go"
+            - "rpc/client_opt.go"
+            - "rpc/handler.go"
+            - "rpc/inproc.go"
+            - "rpc/recording.go"
+            - "rpc/server.go"
+            - "rpc/subscription.go"
         - title: Simulated Backend
           globs:
             - "accounts/abi/bind/backends/simulated.go"
