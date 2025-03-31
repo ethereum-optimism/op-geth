@@ -26,6 +26,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/txpool"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/holiman/uint256"
 	"github.com/stretchr/testify/require"
 )
 
@@ -33,11 +34,11 @@ func setupOPStackPool() (*LegacyPool, *ecdsa.PrivateKey) {
 	return setupPoolWithConfig(params.OptimismTestConfig)
 }
 
-func setupTestL1FeeParams(t *testing.T, pool *LegacyPool) {
-	l1FeeScalars := common.Hash{19: 1} // smallest possible base fee scalar
+func setupTestL1FeeParams(t *testing.T, pool *LegacyPool, l1FeeScalar byte) {
+	l1FeeScalars := common.Hash{19: l1FeeScalar}
 	// sanity check
 	l1BaseFeeScalar, l1BlobBaseFeeScalar := types.ExtractEcotoneFeeParams(l1FeeScalars[:])
-	require.EqualValues(t, 1, l1BaseFeeScalar.Uint64())
+	require.EqualValues(t, l1FeeScalar, l1BaseFeeScalar.Uint64())
 	require.Zero(t, l1BlobBaseFeeScalar.Sign())
 	pool.currentState.SetState(types.L1BlockAddr, types.L1FeeScalarsSlot, l1FeeScalars)
 	l1BaseFee := big.NewInt(1e6) // to account for division by 1e12 in L1 cost
@@ -46,15 +47,13 @@ func setupTestL1FeeParams(t *testing.T, pool *LegacyPool) {
 	require.Equal(t, l1BaseFee, pool.currentState.GetState(types.L1BlockAddr, types.L1BaseFeeSlot).Big())
 }
 
-func setupTestOperatorFeeParams(opFeeConst byte) func(t *testing.T, pool *LegacyPool) {
-	return func(t *testing.T, pool *LegacyPool) {
-		opFeeParams := common.Hash{31: opFeeConst} // 0 scalar
-		// sanity check
-		s, c := types.ExtractOperatorFeeParams(opFeeParams)
-		require.Zero(t, s.Sign())
-		require.EqualValues(t, opFeeConst, c.Uint64())
-		pool.currentState.SetState(types.L1BlockAddr, types.OperatorFeeParamsSlot, opFeeParams)
-	}
+func setupTestOperatorFeeParams(t *testing.T, pool *LegacyPool, opFeeConst byte) {
+	opFeeParams := common.Hash{31: opFeeConst} // 0 scalar
+	// sanity check
+	s, c := types.ExtractOperatorFeeParams(opFeeParams)
+	require.Zero(t, s.Sign())
+	require.EqualValues(t, opFeeConst, c.Uint64())
+	pool.currentState.SetState(types.L1BlockAddr, types.OperatorFeeParamsSlot, opFeeParams)
 }
 
 func TestInvalidRollupTransactions(t *testing.T) {
@@ -67,11 +66,11 @@ func TestInvalidRollupTransactions(t *testing.T) {
 	})
 
 	t.Run("operator-cost", func(t *testing.T) {
-		testInvalidRollupTransactions(t, setupTestOperatorFeeParams(1))
+		testInvalidRollupTransactions(t, setupTestOperatorFeeParams)
 	})
 }
 
-func testInvalidRollupTransactions(t *testing.T, stateMod func(t *testing.T, pool *LegacyPool)) {
+func testInvalidRollupTransactions(t *testing.T, stateMod func(t *testing.T, pool *LegacyPool, x byte)) {
 	t.Parallel()
 
 	pool, key := setupOPStackPool()
@@ -90,7 +89,7 @@ func testInvalidRollupTransactions(t *testing.T, stateMod func(t *testing.T, poo
 	}
 
 	// Now we cause insufficient funds error due to rollup cost
-	stateMod(t, pool)
+	stateMod(t, pool, 1)
 
 	rcost := pool.rollupCostFn(tx)
 	require.Equal(t, 1, rcost.Sign(), "rollup cost must be >0")
@@ -108,11 +107,11 @@ func TestRollupTransactionCostAccounting(t *testing.T) {
 	})
 
 	t.Run("operator-cost", func(t *testing.T) {
-		testRollupTransactionCostAccounting(t, setupTestOperatorFeeParams(1))
+		testRollupTransactionCostAccounting(t, setupTestOperatorFeeParams)
 	})
 }
 
-func testRollupTransactionCostAccounting(t *testing.T, stateMod func(t *testing.T, pool *LegacyPool)) {
+func testRollupTransactionCostAccounting(t *testing.T, stateMod func(t *testing.T, pool *LegacyPool, x byte)) {
 	t.Parallel()
 
 	pool, key := setupOPStackPool()
@@ -127,12 +126,10 @@ func testRollupTransactionCostAccounting(t *testing.T, stateMod func(t *testing.
 	require.NotNil(t, pool.rollupCostFn)
 
 	if stateMod != nil {
-		stateMod(t, pool)
+		stateMod(t, pool, 1)
 	}
 
 	cost0, of := txpool.TotalTxCost(tx0, pool.rollupCostFn)
-	require.False(t, of)
-	cost1, of := txpool.TotalTxCost(tx1, pool.rollupCostFn)
 	require.False(t, of)
 
 	if stateMod != nil {
@@ -140,7 +137,7 @@ func testRollupTransactionCostAccounting(t *testing.T, stateMod func(t *testing.
 	}
 
 	// we add the initial tx to the pool
-	testAddBalance(pool, from, cost1.ToBig()) // already give enough funds for tx1
+	testAddBalance(pool, from, cost0.ToBig())
 	require.NoError(t, pool.addRemoteSync(tx0))
 	_, ok := pool.queue[from]
 	require.False(t, ok, "tx0 should not be in queue, but pending")
@@ -148,7 +145,18 @@ func testRollupTransactionCostAccounting(t *testing.T, stateMod func(t *testing.
 	require.True(t, ok, "tx0 should be pending")
 	require.Equal(t, cost0, pending.totalcost, "tx0 total pending cost should match")
 
-	// now we add a replacement and check the accounting
+	pool.reset(nil, nil) // reset the rollup cost function, simulates a head change
+	if stateMod != nil {
+		stateMod(t, pool, 2) // change rollup params to cause higher cost
+		cost0r, of := txpool.TotalTxCost(tx0, pool.rollupCostFn)
+		require.False(t, of)
+		require.Greater(t, cost0r.Uint64(), cost0.Uint64(), "new tx0 cost should be larger")
+	}
+	cost1, of := txpool.TotalTxCost(tx1, pool.rollupCostFn)
+	require.False(t, of)
+	// add just enough for the replacement tx
+	testAddBalance(pool, from, new(uint256.Int).Sub(cost1, cost0).ToBig())
+	// now we add the replacement and check the accounting
 	require.NoError(t, pool.addRemoteSync(tx1))
 	_, ok = pool.queue[from]
 	require.False(t, ok, "tx1 should not be in queue, but pending")
@@ -173,7 +181,7 @@ func TestRollupCostFuncChange(t *testing.T) {
 
 	require.NotNil(t, pool.rollupCostFn)
 
-	setupTestOperatorFeeParams(10)(t, pool)
+	setupTestOperatorFeeParams(t, pool, 10)
 
 	cost0, of := txpool.TotalTxCost(tx0, pool.rollupCostFn)
 	require.False(t, of)
@@ -186,7 +194,7 @@ func TestRollupCostFuncChange(t *testing.T) {
 	// so adding 2nd tx should fail with 10 missing.
 	testAddBalance(pool, from, cost0.ToBig())
 	pool.reset(nil, nil) // reset the rollup cost function, simulates a head change
-	setupTestOperatorFeeParams(20)(t, pool)
+	setupTestOperatorFeeParams(t, pool, 20)
 	require.ErrorContains(t, pool.addRemoteSync(tx1), "overshot 10")
 
 	// 3rd now add missing 10, adding tx1 should succeed
