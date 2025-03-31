@@ -249,8 +249,8 @@ type ValidationOptionsWithState struct {
 	// transaction's cost with the given nonce to check for overdrafts.
 	ExistingCost func(addr common.Address, nonce uint64) *big.Int
 
-	// L1CostFn is an optional extension, to validate L1 rollup costs of a tx
-	L1CostFn L1CostFunc
+	// RollupCostFn is an optional extension, to validate total rollup costs of a tx
+	RollupCostFn RollupCostFunc
 }
 
 // ValidateTransactionWithState is a helper method to check whether a transaction
@@ -278,14 +278,13 @@ func ValidateTransactionWithState(tx *types.Transaction, signer types.Signer, op
 	}
 	// Ensure the transactor has enough funds to cover the transaction costs
 	var (
-		balance = opts.State.GetBalance(from).ToBig()
-		cost    = tx.Cost()
+		balance           = opts.State.GetBalance(from).ToBig()
+		cost256, overflow = TotalTxCost(tx, opts.RollupCostFn)
 	)
-	if opts.L1CostFn != nil {
-		if l1Cost := opts.L1CostFn(tx.RollupCostData()); l1Cost != nil { // add rollup cost
-			cost = cost.Add(cost, l1Cost)
-		}
+	if overflow {
+		return fmt.Errorf("%w: total tx cost overflow", core.ErrInsufficientFunds)
 	}
+	cost := cost256.ToBig()
 	if balance.Cmp(cost) < 0 {
 		return fmt.Errorf("%w: balance %v, tx cost %v, overshot %v", core.ErrInsufficientFunds, balance, cost, new(big.Int).Sub(cost, balance))
 	}

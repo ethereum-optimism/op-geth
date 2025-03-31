@@ -503,3 +503,47 @@ func TestFlzCompressLen(t *testing.T) {
 		require.Equal(t, tc.expectedLen, output)
 	}
 }
+
+// copy of emptyTx with non-zero gas
+var emptyTxWithGas = NewTransaction(
+	0,
+	common.HexToAddress("095e7baea6a6c7c4c2dfeb977efac326af552d87"),
+	big.NewInt(0), bedrockGas.Uint64(), big.NewInt(0),
+	nil,
+)
+
+// TestTotalRollupCostFunc tests that the total rollup cost function correctly
+// combines the L1 cost and operator cost.
+func TestTotalRollupCostFunc(t *testing.T) {
+	zero := uint64(0)
+	later := uint64(10)
+	config := &params.ChainConfig{
+		Optimism:     params.OptimismTestConfig.Optimism,
+		RegolithTime: &zero,
+		EcotoneTime:  &zero,
+		FjordTime:    &zero,
+		HoloceneTime: &zero,
+		IsthmusTime:  &later,
+	}
+	statedb := &testStateGetter{
+		baseFee:             baseFee,
+		overhead:            overhead,
+		scalar:              scalar,
+		blobBaseFee:         blobBaseFee,
+		baseFeeScalar:       uint32(baseFeeScalar.Uint64()),
+		blobBaseFeeScalar:   uint32(blobBaseFeeScalar.Uint64()),
+		operatorFeeScalar:   uint32(operatorFeeScalar.Uint64()),
+		operatorFeeConstant: operatorFeeConstant.Uint64(),
+	}
+
+	costFunc := NewTotalRollupCostFunc(config, statedb)
+	cost := costFunc(emptyTxWithGas, later-1)
+	require.NotNil(t, cost)
+	expCost := uint256.MustFromBig(fjordFee)
+	require.Equal(t, expCost, cost, "pre-Isthmus total rollup cost should only contain L1 cost")
+
+	cost = costFunc(emptyTxWithGas, later+1)
+	require.NotNil(t, cost)
+	expCost.Add(expCost, ithmusOperatorFee)
+	require.Equal(t, expCost, cost, "Isthmus total rollup cost should contain L1 cost and operator cost")
+}
