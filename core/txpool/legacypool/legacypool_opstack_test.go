@@ -46,14 +46,15 @@ func setupTestL1FeeParams(t *testing.T, pool *LegacyPool) {
 	require.Equal(t, l1BaseFee, pool.currentState.GetState(types.L1BlockAddr, types.L1BaseFeeSlot).Big())
 }
 
-func setupTestOperatorFeeParams(t *testing.T, pool *LegacyPool) {
-	const opFeeConst = 1                       // smallest possible operator fee constant
-	opFeeParams := common.Hash{31: opFeeConst} // const of 1, scalar of 0
-	// sanity check
-	s, c := types.ExtractOperatorFeeParams(opFeeParams)
-	require.Zero(t, s.Sign())
-	require.EqualValues(t, opFeeConst, c.Uint64())
-	pool.currentState.SetState(types.L1BlockAddr, types.OperatorFeeParamsSlot, opFeeParams)
+func setupTestOperatorFeeParams(opFeeConst byte) func(t *testing.T, pool *LegacyPool) {
+	return func(t *testing.T, pool *LegacyPool) {
+		opFeeParams := common.Hash{31: opFeeConst} // 0 scalar
+		// sanity check
+		s, c := types.ExtractOperatorFeeParams(opFeeParams)
+		require.Zero(t, s.Sign())
+		require.EqualValues(t, opFeeConst, c.Uint64())
+		pool.currentState.SetState(types.L1BlockAddr, types.OperatorFeeParamsSlot, opFeeParams)
+	}
 }
 
 func TestInvalidRollupTransactions(t *testing.T) {
@@ -66,7 +67,7 @@ func TestInvalidRollupTransactions(t *testing.T) {
 	})
 
 	t.Run("operator-cost", func(t *testing.T) {
-		testInvalidRollupTransactions(t, setupTestOperatorFeeParams)
+		testInvalidRollupTransactions(t, setupTestOperatorFeeParams(1))
 	})
 }
 
@@ -107,7 +108,7 @@ func TestRollupTransactionCostAccounting(t *testing.T) {
 	})
 
 	t.Run("operator-cost", func(t *testing.T) {
-		testRollupTransactionCostAccounting(t, setupTestOperatorFeeParams)
+		testRollupTransactionCostAccounting(t, setupTestOperatorFeeParams(1))
 	})
 }
 
@@ -154,4 +155,41 @@ func testRollupTransactionCostAccounting(t *testing.T, stateMod func(t *testing.
 	pending, ok = pool.pending[from]
 	require.True(t, ok, "tx1 should be pending")
 	require.Equal(t, cost1, pending.totalcost, "tx1 total pending cost should match")
+}
+
+// TestRollupCostFuncChange tests that changes in the underlying rollup cost parameters
+// are correctly picked up by the transaction pool and the underlying list implementation.
+func TestRollupCostFuncChange(t *testing.T) {
+	t.Parallel()
+
+	pool, key := setupOPStackPool()
+	defer pool.Close()
+
+	const gasLimit = 100_000
+	gasPrice := big.NewInt(100)
+	tx0 := pricedTransaction(0, gasLimit, gasPrice, key)
+	tx1 := pricedTransaction(1, gasLimit, gasPrice, key)
+	from, _ := deriveSender(tx0)
+
+	require.NotNil(t, pool.rollupCostFn)
+
+	setupTestOperatorFeeParams(10)(t, pool)
+
+	cost0, of := txpool.TotalTxCost(tx0, pool.rollupCostFn)
+	require.False(t, of)
+
+	// 1st add tx0, consuming all balance
+	testAddBalance(pool, from, cost0.ToBig())
+	require.NoError(t, pool.addRemoteSync(tx0))
+
+	// 2nd add same balance but increase op fee const by 10
+	// so adding 2nd tx should fail with 10 missing.
+	testAddBalance(pool, from, cost0.ToBig())
+	pool.reset(nil, nil) // reset the rollup cost function, simulates a head change
+	setupTestOperatorFeeParams(20)(t, pool)
+	require.ErrorContains(t, pool.addRemoteSync(tx1), "overshot 10")
+
+	// 3rd now add missing 10, adding tx1 should succeed
+	testAddBalance(pool, from, big.NewInt(10))
+	require.NoError(t, pool.addRemoteSync(tx1))
 }

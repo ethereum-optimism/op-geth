@@ -33,6 +33,7 @@ type RollupTransaction interface {
 
 // TotalTxCost returns the transaction's total cost, including the regular execution cost and
 // the rollup costs (L1 costs and operator costs).
+// Only regular costs apply if rollupCostFn is nil.
 func TotalTxCost(tx RollupTransaction, rollupCostFn RollupCostFunc) (*uint256.Int, bool) {
 	cost, overflow := uint256.FromBig(tx.Cost())
 	if overflow {
