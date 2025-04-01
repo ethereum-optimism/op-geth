@@ -29,7 +29,7 @@ type RecordedMsg interface {
 	MsgID() json.RawMessage
 	MsgMethod() string
 	MsgParams() json.RawMessage
-	MsgError() Error
+	MsgError() *JsonError
 	MsgResult() json.RawMessage
 }
 
@@ -52,7 +52,7 @@ func (msg *jsonrpcMessage) MsgMethod() string {
 func (msg *jsonrpcMessage) MsgParams() json.RawMessage {
 	return msg.Params
 }
-func (msg *jsonrpcMessage) MsgError() Error {
+func (msg *jsonrpcMessage) MsgError() *JsonError {
 	return msg.Error
 }
 func (msg *jsonrpcMessage) MsgResult() json.RawMessage {
@@ -82,7 +82,7 @@ func (notif *jsonrpcSubscriptionNotification) MsgParams() json.RawMessage {
 	return data
 }
 
-func (notif *jsonrpcSubscriptionNotification) MsgError() Error {
+func (notif *jsonrpcSubscriptionNotification) MsgError() *JsonError {
 	return nil
 }
 
