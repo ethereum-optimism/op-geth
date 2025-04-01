@@ -292,6 +292,10 @@ type list struct {
 	// always passing the rollup cost function as an argument to every function.
 	// It should not be accessed directly, but through the rollupCostFn method.
 	rollupCostFnPrv rollupCostFuncProvider
+
+	// OP-Stack needs to cache the total cost of transactions because the rollup costs
+	// can vary from block to block.
+	txCosts map[common.Hash]*uint256.Int
 }
 
 // newList creates a new transaction list for maintaining nonce-indexable fast,
@@ -302,6 +306,9 @@ func newList(strict bool) *list {
 		txs:       NewSortedMap(),
 		costcap:   new(uint256.Int),
 		totalcost: new(uint256.Int),
+
+		// OP-Stack addition
+		txCosts: make(map[common.Hash]*uint256.Int),
 	}
 }
 
@@ -368,6 +375,7 @@ func (l *list) Add(tx *types.Transaction, priceBump uint64) (bool, *types.Transa
 	if overflow {
 		return false, nil
 	}
+	l.txCosts[tx.Hash()] = cost // OP-Stack addition
 	l.totalcost.Add(l.totalcost, cost)
 	// Otherwise overwrite the old transaction with the current one
 	l.txs.Put(tx)
@@ -503,14 +511,15 @@ func (l *list) LastElement() *types.Transaction {
 // total cost of all transactions.
 func (l *list) subTotalCost(txs []*types.Transaction) {
 	for _, tx := range txs {
-		cost, overflow := txpool.TotalTxCost(tx, l.rollupCostFn())
-		if overflow {
-			panic("tx total cost overflow")
-		}
+		h := tx.Hash()
+		// OP-Stack diff: read cached cost
+		// Note that subTotalCost is always called after Add, so the cached cost must be present.
+		cost := l.txCosts[h]
 		_, underflow := l.totalcost.SubOverflow(l.totalcost, cost)
 		if underflow {
 			panic("totalcost underflow")
 		}
+		delete(l.txCosts, h) // OP-Stack addition: sanitize cache
 	}
 }
 
