@@ -461,7 +461,7 @@ func (miner *Miner) checkInterop(ctx context.Context, tx *types.Transaction, log
 	}
 	if err := b.CheckAccessList(ctx, accessList, interoptypes.CrossUnsafe, interoptypes.ExecutingDescriptor{Timestamp: logTimestamp, Timeout: 0}); err != nil {
 		if ctx.Err() != nil { // don't reject transactions permanently on RPC timeouts etc.
-			log.Debug("CheckMessages timed out", "err", ctx.Err())
+			log.Debug("CheckAccessList timed out", "err", ctx.Err())
 			return err
 		}
 		txInteropRejectedCounter.Inc(1)
