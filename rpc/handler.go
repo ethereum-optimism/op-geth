@@ -68,6 +68,9 @@ type handler struct {
 
 	subLock    sync.Mutex
 	serverSubs map[ID]*Subscription
+
+	// optional, may be nil
+	recorder Recorder
 }
 
 type callProc struct {
@@ -450,6 +453,12 @@ func (h *handler) handleResponses(batch []*jsonrpcMessage, handleCall func(*json
 
 // handleSubscriptionResult processes subscription notifications.
 func (h *handler) handleSubscriptionResult(msg *jsonrpcMessage) {
+	if h.recorder != nil {
+		recordDone := h.recorder.RecordIncoming(h.rootCtx, msg)
+		if recordDone != nil {
+			defer recordDone(h.rootCtx, msg, nil)
+		}
+	}
 	var result subscriptionResult
 	if err := json.Unmarshal(msg.Params, &result); err != nil {
 		h.log.Debug("Dropping invalid subscription message")
@@ -461,7 +470,19 @@ func (h *handler) handleSubscriptionResult(msg *jsonrpcMessage) {
 }
 
 // handleCallMsg executes a call message and returns the answer.
-func (h *handler) handleCallMsg(ctx *callProc, msg *jsonrpcMessage) *jsonrpcMessage {
+func (h *handler) handleCallMsg(cp *callProc, msg *jsonrpcMessage) *jsonrpcMessage {
+	var recordDone RecordDone
+	if h.recorder != nil {
+		recordDone = h.recorder.RecordIncoming(cp.ctx, msg)
+	}
+	out := h.handleCallMsgInner(cp, msg)
+	if recordDone != nil {
+		recordDone(cp.ctx, msg, out)
+	}
+	return out
+}
+
+func (h *handler) handleCallMsgInner(ctx *callProc, msg *jsonrpcMessage) *jsonrpcMessage {
 	start := time.Now()
 	switch {
 	case msg.isNotification():
