@@ -348,6 +348,10 @@ func (p *BlobPool) Filter(tx *types.Transaction) bool {
 	return tx.Type() == types.BlobTxType
 }
 
+func (p *BlobPool) SetIngressFilters(filters []txpool.IngressFilter) {
+	// No-op, ingress filters are not supported in the blob pool
+}
+
 // Init sets the gas price needed to keep a transaction in the pool and the chain
 // head to allow balance / nonce checks. The transaction journal will be loaded
 // from disk and filtered based on the provided starting settings.

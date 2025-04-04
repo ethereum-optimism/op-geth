@@ -18,6 +18,7 @@
 package legacypool
 
 import (
+	"context"
 	"errors"
 	"math"
 	"math/big"
@@ -261,6 +262,10 @@ type LegacyPool struct {
 	changesSinceReorg int // A counter for how many drops we've performed in-between reorg.
 
 	rollupCostFn txpool.RollupCostFunc // Additional rollup cost function, optional field, may be nil.
+
+	ingressFilters []txpool.IngressFilter // Filters to apply to incoming transactions
+	filterCtx      context.Context        // Filters may use this context with external resources
+	filterCancel   context.CancelFunc     // Cancel function for the filter context
 }
 
 type txpoolResetRequest struct {
@@ -397,6 +402,10 @@ func (pool *LegacyPool) loop() {
 
 // Close terminates the transaction pool.
 func (pool *LegacyPool) Close() error {
+	// Cancel the filter context if it exists
+	if pool.filterCancel != nil {
+		pool.filterCancel()
+	}
 	// Terminate the pool reorger and return
 	close(pool.reorgShutdownCh)
 	pool.wg.Wait()
@@ -475,6 +484,13 @@ func (pool *LegacyPool) stats() (int, int) {
 		queued += list.Len()
 	}
 	return pending, queued
+}
+
+func (pool *LegacyPool) SetIngressFilters(filters []txpool.IngressFilter) {
+	pool.mu.Lock()
+	defer pool.mu.Unlock()
+	pool.filterCtx, pool.filterCancel = context.WithCancel(context.Background())
+	pool.ingressFilters = filters
 }
 
 // Content retrieves the data content of the transaction pool, returning all the
@@ -985,6 +1001,20 @@ func (pool *LegacyPool) Add(txs []*types.Transaction, sync bool) []error {
 			errs[i] = err
 			log.Trace("Discarding invalid transaction", "hash", tx.Hash(), "err", err)
 			invalidTxMeter.Mark(1)
+			continue
+		}
+		// Exclude transactions which fail the ingress filters
+		filtered := false
+		for _, filter := range pool.ingressFilters {
+			if !filter.FilterTx(pool.filterCtx, tx) {
+				errs[i] = core.ErrTxFilteredOut
+				log.Trace("Discarding filtered transaction", "hash", tx.Hash())
+				invalidTxMeter.Mark(1)
+				filtered = true
+				break
+			}
+		}
+		if filtered {
 			continue
 		}
 		// Accumulate all unknown transactions for deeper processing
