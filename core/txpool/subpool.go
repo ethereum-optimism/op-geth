@@ -111,6 +111,8 @@ type SubPool interface {
 	// one another.
 	Init(gasTip uint64, head *types.Header, reserve AddressReserver) error
 
+	SetIngressFilters([]IngressFilter)
+
 	// Close terminates any background processing threads and releases any held
 	// resources.
 	Close() error
