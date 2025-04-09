@@ -6,7 +6,7 @@ set -euo pipefail
 
 # Constants
 REGISTRY_COMMIT=$(cat superchain-registry-commit.txt)
-SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
 
 repodir=$(mktemp -d)
 workdir=$(mktemp -d)
@@ -30,7 +30,11 @@ echo "Using $workdir as workdir..."
 # Create a simple mapping of chain id -> config name to make looking up chains by their ID easier.
 echo "Generating index of configs..."
 
-echo "{}" > chains.json
+echo "{}" >chains.json
+
+# List of chain IDs to exclude
+declare -A EXCLUDE_CHAIN_IDS
+EXCLUDE_CHAIN_IDS=(["28882"]=1) # Boba
 
 # Function to process each network directory
 process_network_dir() {
@@ -49,8 +53,8 @@ process_network_dir() {
         # Extract chain_id from TOML file using dasel
         chain_id=$(dasel -f "$toml_file" -r toml "chain_id" | tr -d '"')
 
-        # Skip if chain_id is empty
-        if [ -z "$chain_id" ]; then
+        # Skip if chain_id is empty or in the exclusion list
+        if [[ -z "$chain_id" || -v EXCLUDE_CHAIN_IDS["$chain_id"] ]]; then
             continue
         fi
 
@@ -65,8 +69,8 @@ process_network_dir() {
 
         # Add this config to the result JSON using the chain_id as the key
         jq --argjson config "$config_json" \
-           --arg chain_id "$chain_id" \
-           '. + {($chain_id): $config}' chains.json > temp.json
+            --arg chain_id "$chain_id" \
+            '. + {($chain_id): $config}' chains.json >temp.json
         mv temp.json chains.json
     done
 }
@@ -80,7 +84,7 @@ done
 
 # Archive the genesis configs as a ZIP file. ZIP is used since it can be efficiently used as a filesystem.
 echo "Archiving configs..."
-echo "$REGISTRY_COMMIT" > COMMIT
+echo "$REGISTRY_COMMIT" >COMMIT
 # We need to normalize the lastmod dates and permissions to ensure the ZIP file is deterministic.
 find . -exec touch -t 198001010000.00 {} +
 chmod -R 755 ./*
