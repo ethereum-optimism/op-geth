@@ -52,15 +52,19 @@ process_network_dir() {
         echo "Processing $toml_file..."
         # Extract chain_id from TOML file using dasel
         chain_id=$(dasel -f "$toml_file" -r toml "chain_id" | tr -d '"')
+        chain_name="$(basename "${toml_file%.*}")"
 
         # Skip if chain_id is empty or in the exclusion list
         if [[ -z "$chain_id" || -v EXCLUDE_CHAIN_IDS["$chain_id"] ]]; then
+            echo "Skipping $network_name/$chain_name ($chain_id)"
+            rm "$toml_file"
+            rm "genesis/$network_name/$chain_name.json.zst"
             continue
         fi
 
         # Create JSON object for this config
         config_json=$(jq -n \
-            --arg name "$(basename "${toml_file%.*}")" \
+            --arg name "$chain_name" \
             --arg network "$network_name" \
             '{
                 "name": $name,
