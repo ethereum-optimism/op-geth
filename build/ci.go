@@ -186,6 +186,7 @@ func doInstall(cmdline []string) {
 		arch       = flag.String("arch", "", "Architecture to cross build for")
 		cc         = flag.String("cc", "", "C compiler to cross build with")
 		staticlink = flag.Bool("static", false, "Create statically-linked executable")
+		debugging  = flag.Bool("debugging", false, "Leave debugging info in build")
 	)
 	flag.CommandLine.Parse(cmdline)
 	env := build.Env()
@@ -205,7 +206,7 @@ func doInstall(cmdline []string) {
 	}
 
 	// Configure the build.
-	gobuild := tc.Go("build", buildFlags(env, *staticlink, buildTags)...)
+	gobuild := tc.Go("build", buildFlags(env, *staticlink, *debugging, buildTags)...)
 
 	// We use -trimpath to avoid leaking local paths into the built executables.
 	gobuild.Args = append(gobuild.Args, "-trimpath")
@@ -230,7 +231,7 @@ func doInstall(cmdline []string) {
 }
 
 // buildFlags returns the go tool flags for building.
-func buildFlags(env build.Environment, staticLinking bool, buildTags []string) (flags []string) {
+func buildFlags(env build.Environment, staticLinking bool, debugging bool, buildTags []string) (flags []string) {
 	var ld []string
 	// See https://github.com/golang/go/issues/33772#issuecomment-528176001
 	// We need to set --buildid to the linker here, and also pass --build-id to the
@@ -243,10 +244,12 @@ func buildFlags(env build.Environment, staticLinking bool, buildTags []string) (
 	if env.Tag != "" {
 		ld = append(ld, "-X", "github.com/ethereum/go-ethereum/version.gitTag="+env.Tag)
 	}
-	// Strip DWARF on darwin. This used to be required for certain things,
-	// and there is no downside to this, so we just keep doing it.
+
 	if runtime.GOOS == "darwin" {
-		ld = append(ld, "-s")
+		if !debugging {
+			// Strip DWARF on darwin if we have debugging disabled.
+			ld = append(ld, "-s")
+		}
 	}
 	if runtime.GOOS == "linux" {
 		// Enforce the stacksize to 8M, which is the case on most platforms apart from
