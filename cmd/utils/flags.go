@@ -1915,6 +1915,11 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 	cfg.RollupSequencerTxConditionalCostRateLimit = ctx.Int(RollupSequencerTxConditionalCostRateLimitFlag.Name)
 	cfg.RollupMaxCodeSize = ctx.Int(RollupMaxCodeSizeFlag.Name)
 
+	if ctx.IsSet(RollupMaxCodeSizeFlag.Name) {
+		params.MaxCodeSize = cfg.RollupMaxCodeSize
+		params.MaxInitCodeSize = 2 * params.MaxCodeSize
+	}
+
 	// Override any default configs for hard coded networks.
 	switch {
 	case ctx.Bool(MainnetFlag.Name):
@@ -2386,7 +2391,6 @@ func MakeChain(ctx *cli.Context, stack *node.Node, readonly bool) (*core.BlockCh
 	}
 	vmcfg := vm.Config{
 		EnablePreimageRecording: ctx.Bool(VMEnableDebugFlag.Name),
-		MaxCodeSize:             ctx.Int(RollupMaxCodeSizeFlag.Name),
 	}
 	if ctx.IsSet(VMTraceFlag.Name) {
 		if name := ctx.String(VMTraceFlag.Name); name != "" {
