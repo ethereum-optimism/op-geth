@@ -588,12 +588,6 @@ var (
 		Value:    "{}",
 		Category: flags.VMCategory,
 	}
-	VMMaxCodeSizeFlag = &cli.IntFlag{
-		Name:     "vmmaxcodesize",
-		Usage:    "Maximum size of contract code (in bytes) to accept, 0 = default (24kB)",
-		Category: flags.VMCategory,
-		Value:    params.MaxCodeSize,
-	}
 	// API options.
 	RPCGlobalGasCapFlag = &cli.Uint64Flag{
 		Name:     "rpc.gascap",
@@ -983,6 +977,12 @@ var (
 		Usage:    "Maximum cost -- storage lookups -- allowed for conditional transactions in a given second",
 		Category: flags.RollupCategory,
 		Value:    5000,
+	}
+	RollupMaxCodeSizeFlag = &cli.IntFlag{
+		Name:     "rollup.maxcodesize",
+		Usage:    "Maximum size of contract code (in bytes) to accept, 0 = default (24kB)",
+		Category: flags.RollupCategory,
+		Value:    params.MaxCodeSize,
 	}
 	// Metrics flags
 	MetricsEnabledFlag = &cli.BoolFlag{
@@ -1913,6 +1913,7 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 	cfg.ApplySuperchainUpgrades = ctx.Bool(RollupSuperchainUpgradesFlag.Name)
 	cfg.RollupSequencerTxConditionalEnabled = ctx.Bool(RollupSequencerTxConditionalEnabledFlag.Name)
 	cfg.RollupSequencerTxConditionalCostRateLimit = ctx.Int(RollupSequencerTxConditionalCostRateLimitFlag.Name)
+	cfg.RollupMaxCodeSize = ctx.Int(RollupMaxCodeSizeFlag.Name)
 
 	// Override any default configs for hard coded networks.
 	switch {
@@ -2035,10 +2036,6 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 			cfg.VMTrace = name
 			cfg.VMTraceJsonConfig = ctx.String(VMTraceJsonConfigFlag.Name)
 		}
-	}
-	// VM max code size config.
-	if ctx.IsSet(VMMaxCodeSizeFlag.Name) {
-		cfg.VMMaxCodeSize = ctx.Int(VMMaxCodeSizeFlag.Name)
 	}
 }
 
@@ -2389,7 +2386,7 @@ func MakeChain(ctx *cli.Context, stack *node.Node, readonly bool) (*core.BlockCh
 	}
 	vmcfg := vm.Config{
 		EnablePreimageRecording: ctx.Bool(VMEnableDebugFlag.Name),
-		MaxCodeSize:             ctx.Int(VMMaxCodeSizeFlag.Name),
+		MaxCodeSize:             ctx.Int(RollupMaxCodeSizeFlag.Name),
 	}
 	if ctx.IsSet(VMTraceFlag.Name) {
 		if name := ctx.String(VMTraceFlag.Name); name != "" {

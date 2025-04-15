@@ -45,7 +45,6 @@ func (c Config) MarshalTOML() (interface{}, error) {
 		EnablePreimageRecording                   bool
 		VMTrace                                   string
 		VMTraceJsonConfig                         string
-		VMMaxCodeSize                             int
 		RPCGasCap                                 uint64
 		RPCEVMTimeout                             time.Duration
 		RPCTxFeeCap                               float64
@@ -68,6 +67,7 @@ func (c Config) MarshalTOML() (interface{}, error) {
 		RollupDisableTxPoolGossip                 bool
 		RollupDisableTxPoolAdmission              bool
 		RollupHaltOnIncompatibleProtocolVersion   string
+		RollupMaxCodeSize						  int
 		InteropMessageRPC                         string `toml:",omitempty"`
 		InteropMempoolFiltering                   bool   `toml:",omitempty"`
 	}
@@ -101,7 +101,6 @@ func (c Config) MarshalTOML() (interface{}, error) {
 	enc.EnablePreimageRecording = c.EnablePreimageRecording
 	enc.VMTrace = c.VMTrace
 	enc.VMTraceJsonConfig = c.VMTraceJsonConfig
-	enc.VMMaxCodeSize = c.VMMaxCodeSize
 	enc.RPCGasCap = c.RPCGasCap
 	enc.RPCEVMTimeout = c.RPCEVMTimeout
 	enc.RPCTxFeeCap = c.RPCTxFeeCap
@@ -124,6 +123,7 @@ func (c Config) MarshalTOML() (interface{}, error) {
 	enc.RollupDisableTxPoolGossip = c.RollupDisableTxPoolGossip
 	enc.RollupDisableTxPoolAdmission = c.RollupDisableTxPoolAdmission
 	enc.RollupHaltOnIncompatibleProtocolVersion = c.RollupHaltOnIncompatibleProtocolVersion
+	enc.RollupMaxCodeSize = c.RollupMaxCodeSize
 	enc.InteropMessageRPC = c.InteropMessageRPC
 	enc.InteropMempoolFiltering = c.InteropMempoolFiltering
 	return &enc, nil
@@ -161,7 +161,6 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 		EnablePreimageRecording                   *bool
 		VMTrace                                   *string
 		VMTraceJsonConfig                         *string
-		VMMaxCodeSize                             *int
 		RPCGasCap                                 *uint64
 		RPCEVMTimeout                             *time.Duration
 		RPCTxFeeCap                               *float64
@@ -184,6 +183,7 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 		RollupDisableTxPoolGossip                 *bool
 		RollupDisableTxPoolAdmission              *bool
 		RollupHaltOnIncompatibleProtocolVersion   *string
+		RollupMaxCodeSize                         *int
 		InteropMessageRPC                         *string `toml:",omitempty"`
 		InteropMempoolFiltering                   *bool   `toml:",omitempty"`
 	}
@@ -278,9 +278,6 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 	if dec.VMTraceJsonConfig != nil {
 		c.VMTraceJsonConfig = *dec.VMTraceJsonConfig
 	}
-	if dec.VMMaxCodeSize != nil {
-		c.VMMaxCodeSize = *dec.VMMaxCodeSize
-	}
 	if dec.RPCGasCap != nil {
 		c.RPCGasCap = *dec.RPCGasCap
 	}
@@ -346,6 +343,9 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 	}
 	if dec.RollupHaltOnIncompatibleProtocolVersion != nil {
 		c.RollupHaltOnIncompatibleProtocolVersion = *dec.RollupHaltOnIncompatibleProtocolVersion
+	}
+	if dec.RollupMaxCodeSize != nil {
+		c.RollupMaxCodeSize = *dec.RollupMaxCodeSize
 	}
 	if dec.InteropMessageRPC != nil {
 		c.InteropMessageRPC = *dec.InteropMessageRPC

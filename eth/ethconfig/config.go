@@ -139,9 +139,6 @@ type Config struct {
 	VMTrace           string
 	VMTraceJsonConfig string
 
-	// Changes code size limits for the VM
-	VMMaxCodeSize int
-
 	// RPCGasCap is the global gas cap for eth-call variants.
 	RPCGasCap uint64
 
@@ -185,6 +182,7 @@ type Config struct {
 	RollupDisableTxPoolGossip                 bool
 	RollupDisableTxPoolAdmission              bool
 	RollupHaltOnIncompatibleProtocolVersion   string
+	RollupMaxCodeSize                         int
 
 	InteropMessageRPC       string `toml:",omitempty"`
 	InteropMempoolFiltering bool   `toml:",omitempty"`
