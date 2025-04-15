@@ -588,6 +588,12 @@ var (
 		Value:    "{}",
 		Category: flags.VMCategory,
 	}
+	VMMaxCodeSizeFlag = &cli.IntFlag{
+		Name:     "maxcodesize",
+		Usage:    "Maximum size of contract code (in bytes) to accept, 0 = default (24kB)",
+		Category: flags.VMCategory,
+		Value:    params.MaxCodeSize,
+	}
 	// API options.
 	RPCGlobalGasCapFlag = &cli.Uint64Flag{
 		Name:     "rpc.gascap",
@@ -978,7 +984,6 @@ var (
 		Category: flags.RollupCategory,
 		Value:    5000,
 	}
-
 	// Metrics flags
 	MetricsEnabledFlag = &cli.BoolFlag{
 		Name:     "metrics",
@@ -2031,6 +2036,10 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 			cfg.VMTraceJsonConfig = ctx.String(VMTraceJsonConfigFlag.Name)
 		}
 	}
+	// VM max code size config.
+	if ctx.IsSet(VMMaxCodeSizeFlag.Name) {
+		cfg.VMMaxCodeSize = ctx.Int(VMMaxCodeSizeFlag.Name)
+	}
 }
 
 // MakeBeaconLightConfig constructs a beacon light client config based on the
@@ -2380,6 +2389,7 @@ func MakeChain(ctx *cli.Context, stack *node.Node, readonly bool) (*core.BlockCh
 	}
 	vmcfg := vm.Config{
 		EnablePreimageRecording: ctx.Bool(VMEnableDebugFlag.Name),
+		MaxCodeSize:             ctx.Int(VMMaxCodeSizeFlag.Name),
 	}
 	if ctx.IsSet(VMTraceFlag.Name) {
 		if name := ctx.String(VMTraceFlag.Name); name != "" {

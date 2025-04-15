@@ -139,6 +139,9 @@ type Config struct {
 	VMTrace           string
 	VMTraceJsonConfig string
 
+	// Changes code size limits for the VM
+	VMMaxCodeSize int
+
 	// RPCGasCap is the global gas cap for eth-call variants.
 	RPCGasCap uint64
 
