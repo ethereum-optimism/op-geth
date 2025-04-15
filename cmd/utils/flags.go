@@ -589,7 +589,7 @@ var (
 		Category: flags.VMCategory,
 	}
 	VMMaxCodeSizeFlag = &cli.IntFlag{
-		Name:     "maxcodesize",
+		Name:     "vmmaxcodesize",
 		Usage:    "Maximum size of contract code (in bytes) to accept, 0 = default (24kB)",
 		Category: flags.VMCategory,
 		Value:    params.MaxCodeSize,
