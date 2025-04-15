@@ -42,7 +42,7 @@ type Config struct {
 	StatelessSelfValidation bool // Generate execution witnesses and self-check against them (testing purpose)
 
 	PrecompileOverrides PrecompileOverrides                   // Precompiles can be swapped / changed / wrapped as needed
-	NoMaxCodeSize       bool                                  // Ignore Max code size and max init code size limits
+	MaxCodeSize         int                                   // Configure max code size for contract creation, 0 to use default
 	CallerOverride      func(v common.Address) common.Address // Swap the caller as needed, for VM prank functionality.
 }
 

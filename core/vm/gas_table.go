@@ -314,7 +314,14 @@ func gasCreateEip3860(evm *EVM, contract *Contract, stack *Stack, mem *Memory, m
 	if overflow {
 		return 0, ErrGasUintOverflow
 	}
-	if size > params.MaxInitCodeSize && !evm.Config.NoMaxCodeSize {
+
+	maxCodeSize := evm.Config.MaxCodeSize
+	maxInitCodeSize := params.MaxInitCodeSize
+	if maxCodeSize > 0 {
+		maxInitCodeSize = 2 * maxCodeSize
+	}
+
+	if size > uint64(maxInitCodeSize) {
 		return 0, fmt.Errorf("%w: size %d", ErrMaxInitCodeSizeExceeded, size)
 	}
 	// Since size <= params.MaxInitCodeSize, these multiplication cannot overflow
@@ -333,7 +340,13 @@ func gasCreate2Eip3860(evm *EVM, contract *Contract, stack *Stack, mem *Memory, 
 	if overflow {
 		return 0, ErrGasUintOverflow
 	}
-	if size > params.MaxInitCodeSize && !evm.Config.NoMaxCodeSize {
+	maxCodeSize := evm.Config.MaxCodeSize
+	maxInitCodeSize := uint64(params.MaxInitCodeSize)
+	if maxCodeSize > 0 {
+		maxInitCodeSize = uint64(2 * maxCodeSize)
+	}
+
+	if size > maxInitCodeSize {
 		return 0, fmt.Errorf("%w: size %d", ErrMaxInitCodeSizeExceeded, size)
 	}
 	// Since size <= params.MaxInitCodeSize, these multiplication cannot overflow
