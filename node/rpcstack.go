@@ -74,6 +74,7 @@ type httpServer struct {
 	server   *http.Server
 	listener net.Listener // non-nil when server is running
 	ready    bool
+	shutdown chan struct{} // Channel to wait for termination notifications
 
 	// HTTP RPC handler things.
 	httpConfig  httpConfig
@@ -140,6 +141,7 @@ func (h *httpServer) start() error {
 	if h.endpoint == "" || h.listener != nil {
 		return nil // already running or not configured
 	}
+	h.shutdown = make(chan struct{})
 
 	// Initialize the server.
 	h.server = &http.Server{Handler: h}
@@ -170,6 +172,7 @@ func (h *httpServer) start() error {
 		}
 		h.log.Info("WebSocket enabled", "url", url)
 	}
+	h.ready = true
 	// if server is websocket only, return after logging
 	if !h.rpcAllowed() {
 		return nil
@@ -181,7 +184,6 @@ func (h *httpServer) start() error {
 		"cors", strings.Join(h.httpConfig.CorsAllowedOrigins, ","),
 		"vhosts", strings.Join(h.httpConfig.Vhosts, ","),
 	)
-	h.ready = true
 
 	// Log all handlers mounted on server.
 	var paths []string
@@ -274,18 +276,25 @@ func validatePrefix(what, path string) error {
 
 // stop shuts down the HTTP server.
 func (h *httpServer) stop() {
+	h.mu.Lock()
 	h.ready = false
 	time.AfterFunc(stopPendingRequestTimeout, func() {
-		h.mu.Lock()
 		defer h.mu.Unlock()
 		h.doStop()
+		if h.shutdown != nil {
+			func() {
+				// Avoid panic when closing closed channel
+				defer func() { recover() }()
+				close(h.shutdown)
+			}()
+		}
 	})
 }
 
 // ShutdownWait waits for the server to shutdown.
-func (h *httpServer) shutdownWait() {
-	for h.listener != nil {
-		time.Sleep(100 * time.Millisecond)
+func (h *httpServer) wait() {
+	if h.shutdown != nil {
+		<-h.shutdown
 	}
 }
 
