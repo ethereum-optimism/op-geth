@@ -96,7 +96,7 @@ const (
 	shutdownTimeout = 5 * time.Second
 	// give pending requests stopPendingRequestTimeout the time to finish when the server is stopped
 	// if readiness probe period is 5 seconds, this is enough time for health check to be triggered
-	stopPendingRequestTimeout = 6 * time.Second
+	stopPendingRequestTimeout = 7 * time.Second
 )
 
 func newHTTPServer(log log.Logger, timeouts rpc.HTTPTimeouts) *httpServer {
