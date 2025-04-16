@@ -73,9 +73,9 @@ type httpServer struct {
 	mu       sync.Mutex
 	server   *http.Server
 	listener net.Listener // non-nil when server is running
+	ready    bool
 
 	// HTTP RPC handler things.
-
 	httpConfig  httpConfig
 	httpHandler atomic.Value // *rpcHandler
 
@@ -93,6 +93,9 @@ type httpServer struct {
 
 const (
 	shutdownTimeout = 5 * time.Second
+	// give pending requests stopPendingRequestTimeout the time to finish when the server is stopped
+	// if readiness probe period is 5 seconds, this is enough time for health check to be triggered
+	stopPendingRequestTimeout = 6 * time.Second
 )
 
 func newHTTPServer(log log.Logger, timeouts rpc.HTTPTimeouts) *httpServer {
@@ -178,6 +181,7 @@ func (h *httpServer) start() error {
 		"cors", strings.Join(h.httpConfig.CorsAllowedOrigins, ","),
 		"vhosts", strings.Join(h.httpConfig.Vhosts, ","),
 	)
+	h.ready = true
 
 	// Log all handlers mounted on server.
 	var paths []string
@@ -197,6 +201,20 @@ func (h *httpServer) start() error {
 }
 
 func (h *httpServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// Permit dumb empty requests for remote health-checks (AWS)
+	if r.Method == http.MethodGet && r.ContentLength == 0 && r.URL.RawQuery == "" {
+		if r.URL.Path == "/readyz" {
+			if h.ready {
+				w.WriteHeader(http.StatusNoContent)
+			} else {
+				w.WriteHeader(http.StatusServiceUnavailable)
+			}
+			return
+		} else if r.URL.Path == "/livez" {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+	}
 	// check if ws request and serve if ws enabled
 	ws := h.wsHandler.Load().(*rpcHandler)
 	if ws != nil && isWebsocket(r) {
@@ -256,9 +274,19 @@ func validatePrefix(what, path string) error {
 
 // stop shuts down the HTTP server.
 func (h *httpServer) stop() {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	h.doStop()
+	h.ready = false
+	time.AfterFunc(stopPendingRequestTimeout, func() {
+		h.mu.Lock()
+		defer h.mu.Unlock()
+		h.doStop()
+	})
+}
+
+// ShutdownWait waits for the server to shutdown.
+func (h *httpServer) shutdownWait() {
+	for h.listener != nil {
+		time.Sleep(100 * time.Millisecond)
+	}
 }
 
 func (h *httpServer) doStop() {
