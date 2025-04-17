@@ -375,6 +375,13 @@ func (o *ChainOverrides) apply(cfg *params.ChainConfig) error {
 		cfg.InteropTime = o.OverrideOptimismInterop
 	}
 
+	// We check for validity after applying the overrides, even if there weren't any.
+	// This has the added benefit that the check always happens when
+	// applying overrides, which is at the right places during genesis setup.
+	if verr := cfg.CheckOptimismValidity(); verr != nil {
+		return fmt.Errorf("OP-Stack invalidity after applying overrides: %w", verr)
+	}
+
 	return cfg.CheckConfigForkOrder()
 }
 
