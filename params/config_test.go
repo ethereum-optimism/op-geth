@@ -235,3 +235,132 @@ func TestConfigRulesRegolith(t *testing.T) {
 		t.Errorf("expected %v to be regolith", stamp)
 	}
 }
+
+func TestCheckOptimismValidity(t *testing.T) {
+	validOpConfig := &OptimismConfig{
+		EIP1559Denominator:       10,
+		EIP1559Elasticity:        50,
+		EIP1559DenominatorCanyon: newUint64(250),
+	}
+
+	tests := []struct {
+		name    string
+		config  *ChainConfig
+		wantErr *string
+	}{
+		{
+			name: "valid",
+			config: &ChainConfig{
+				Optimism:     validOpConfig,
+				CanyonTime:   newUint64(100),
+				ShanghaiTime: newUint64(100),
+				CancunTime:   newUint64(200),
+				EcotoneTime:  newUint64(200),
+				PragueTime:   newUint64(300),
+				IsthmusTime:  newUint64(300),
+			},
+			wantErr: nil,
+		},
+		{
+			name: "zero EIP1559Denominator",
+			config: &ChainConfig{
+				Optimism: &OptimismConfig{
+					EIP1559Denominator: 0,
+					EIP1559Elasticity:  50,
+				},
+			},
+			wantErr: ptr("zero EIP1559Denominator"),
+		},
+		{
+			name: "zero EIP1559Elasticity",
+			config: &ChainConfig{
+				Optimism: &OptimismConfig{
+					EIP1559Denominator: 10,
+					EIP1559Elasticity:  0,
+				},
+			},
+			wantErr: ptr("zero EIP1559Elasticity"),
+		},
+		{
+			name: "missing EIP1559DenominatorCanyon",
+			config: &ChainConfig{
+				Optimism: &OptimismConfig{
+					EIP1559Denominator: 10,
+					EIP1559Elasticity:  50,
+				},
+				CanyonTime: newUint64(100),
+			},
+			wantErr: ptr("missing or zero EIP1559DenominatorCanyon"),
+		},
+		{
+			name: "ShanghaiTime not equal to CanyonTime",
+			config: &ChainConfig{
+				Optimism:     validOpConfig,
+				ShanghaiTime: newUint64(100),
+				CanyonTime:   newUint64(200),
+			},
+			wantErr: ptr("ShanghaiTime (100) must equal CanyonTime (200)"),
+		},
+		{
+			name: "CancunTime not equal to EcotoneTime",
+			config: &ChainConfig{
+				Optimism:    validOpConfig,
+				CancunTime:  newUint64(200),
+				EcotoneTime: newUint64(300),
+			},
+			wantErr: ptr("CancunTime (200) must equal EcotoneTime (300)"),
+		},
+		{
+			name: "PragueTime not equal to IsthmusTime",
+			config: &ChainConfig{
+				Optimism:    validOpConfig,
+				PragueTime:  newUint64(300),
+				IsthmusTime: newUint64(400),
+			},
+			wantErr: ptr("PragueTime (300) must equal IsthmusTime (400)"),
+		},
+		{
+			name: "nil ShanghaiTime",
+			config: &ChainConfig{
+				Optimism:   validOpConfig,
+				CanyonTime: newUint64(200),
+			},
+			wantErr: ptr("ShanghaiTime (<nil>) must equal CanyonTime (200)"),
+		},
+		{
+			name: "nil CancunTime",
+			config: &ChainConfig{
+				Optimism:    validOpConfig,
+				EcotoneTime: newUint64(300),
+			},
+			wantErr: ptr("CancunTime (<nil>) must equal EcotoneTime (300)"),
+		},
+		{
+			name: "nil PragueTime",
+			config: &ChainConfig{
+				Optimism: &OptimismConfig{
+					EIP1559Denominator:       10,
+					EIP1559Elasticity:        50,
+					EIP1559DenominatorCanyon: newUint64(250),
+				},
+				IsthmusTime: newUint64(400),
+			},
+			wantErr: ptr("PragueTime (<nil>) must equal IsthmusTime (400)"),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.config.CheckOptimismValidity()
+			if tt.wantErr != nil {
+				require.EqualError(t, err, *tt.wantErr)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+func ptr[T any](t T) *T {
+	return &t
+}

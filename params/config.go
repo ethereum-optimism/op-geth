@@ -1306,3 +1306,46 @@ func (c *ChainConfig) Rules(num *big.Int, isMerge bool, timestamp uint64) Rules 
 func (c *ChainConfig) HasOptimismWithdrawalsRoot(blockTime uint64) bool {
 	return c.IsOptimismIsthmus(blockTime)
 }
+
+// CheckOptimismValidity checks for OP Stack chains:
+// - the EIP159 params are set
+// - the Ethereum forks are set to the same time as the OP Stack forks that imply them
+func (c *ChainConfig) CheckOptimismValidity() error {
+	if c.Optimism == nil {
+		return nil
+	}
+
+	if c.Optimism.EIP1559Denominator == 0 {
+		return errors.New("zero EIP1559Denominator")
+	}
+	if c.Optimism.EIP1559Elasticity == 0 {
+		return errors.New("zero EIP1559Elasticity")
+	}
+	if c.CanyonTime != nil && (c.Optimism.EIP1559DenominatorCanyon == nil || *c.Optimism.EIP1559DenominatorCanyon == 0) {
+		return errors.New("missing or zero EIP1559DenominatorCanyon")
+	}
+
+	if !equalPtrValues(c.ShanghaiTime, c.CanyonTime) {
+		return fmt.Errorf("ShanghaiTime (%s) must equal CanyonTime (%s)", ptrValueString(c.ShanghaiTime), ptrValueString(c.CanyonTime))
+	}
+	if !equalPtrValues(c.CancunTime, c.EcotoneTime) {
+		return fmt.Errorf("CancunTime (%s) must equal EcotoneTime (%s)", ptrValueString(c.CancunTime), ptrValueString(c.EcotoneTime))
+	}
+	if !equalPtrValues(c.PragueTime, c.IsthmusTime) {
+		return fmt.Errorf("PragueTime (%s) must equal IsthmusTime (%s)", ptrValueString(c.PragueTime), ptrValueString(c.IsthmusTime))
+	}
+
+	return nil
+}
+
+func equalPtrValues[T comparable](a, b *T) bool {
+	// also captures nil == nil
+	return a == b || (a != nil && b != nil && *a == *b)
+}
+
+func ptrValueString[T any](t *T) string {
+	if t == nil {
+		return "<nil>"
+	}
+	return fmt.Sprintf("%v", *t)
+}
