@@ -70,11 +70,11 @@ type httpServer struct {
 	timeouts rpc.HTTPTimeouts
 	mux      http.ServeMux // registered handlers go here
 
-	mu       sync.Mutex
-	server   *http.Server
-	listener net.Listener // non-nil when server is running
-	ready    bool
-	shutdown chan struct{} // Channel to wait for termination notifications
+	mu         sync.Mutex
+	server     *http.Server
+	listener   net.Listener // non-nil when server is running
+	ready      bool
+	shutdownWG sync.WaitGroup // WG to wait for shutdown
 
 	// HTTP RPC handler things.
 	httpConfig  httpConfig
@@ -141,7 +141,6 @@ func (h *httpServer) start() error {
 	if h.endpoint == "" || h.listener != nil {
 		return nil // already running or not configured
 	}
-	h.shutdown = make(chan struct{})
 
 	// Initialize the server.
 	h.server = &http.Server{Handler: h}
@@ -203,8 +202,9 @@ func (h *httpServer) start() error {
 }
 
 func (h *httpServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	// Permit dumb empty requests for remote health-checks (AWS)
-	if r.Method == http.MethodGet && r.ContentLength == 0 && r.URL.RawQuery == "" {
+	// server health probe endpoints
+	if r.Method == http.MethodGet {
+		// readiness probe fails during shutdown
 		if r.URL.Path == "/readyz" {
 			if h.ready {
 				w.WriteHeader(http.StatusNoContent)
@@ -212,6 +212,7 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusServiceUnavailable)
 			}
 			return
+			// liveness probe always succeeds
 		} else if r.URL.Path == "/livez" {
 			w.WriteHeader(http.StatusNoContent)
 			return
@@ -277,25 +278,20 @@ func validatePrefix(what, path string) error {
 // stop shuts down the HTTP server.
 func (h *httpServer) stop() {
 	h.mu.Lock()
+	// unit test executes stop multiple times, so we cannot increment the WG in the start method
+	h.shutdownWG = sync.WaitGroup{}
+	h.shutdownWG.Add(1)
 	h.ready = false
 	time.AfterFunc(stopPendingRequestTimeout, func() {
 		defer h.mu.Unlock()
 		h.doStop()
-		if h.shutdown != nil {
-			func() {
-				// Avoid panic when closing closed channel
-				defer func() { recover() }()
-				close(h.shutdown)
-			}()
-		}
+		h.shutdownWG.Done()
 	})
 }
 
-// ShutdownWait waits for the server to shutdown.
+// wait waits for the server to shutdown.
 func (h *httpServer) wait() {
-	if h.shutdown != nil {
-		<-h.shutdown
-	}
+	h.shutdownWG.Wait()
 }
 
 func (h *httpServer) doStop() {
