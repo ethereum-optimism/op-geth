@@ -669,7 +669,7 @@ func (g *Genesis) toBlockWithRoot(stateRoot, storageRootMessagePasser common.Has
 			if storageRootMessagePasser == (common.Hash{}) {
 				// if there was no MessagePasser contract storage, something is wrong
 				// (it should at least store an implementation address and owner address)
-				panic("isthmus: no storage root for L2ToL1MessagePasser contract")
+				log.Warn("isthmus: no storage root for L2ToL1MessagePasser contract")
 			}
 			head.WithdrawalsHash = &storageRootMessagePasser
 		}
