@@ -667,8 +667,9 @@ func (g *Genesis) toBlockWithRoot(stateRoot, storageRootMessagePasser common.Has
 		// If Isthmus is active at genesis, set the WithdrawalRoot to the storage root of the L2ToL1MessagePasser contract.
 		if g.Config.IsOptimismIsthmus(g.Timestamp) {
 			if storageRootMessagePasser == (common.Hash{}) {
-				// if there was no MessagePasser contract storage, set the WithdrawalsHash to the empty hash
-				storageRootMessagePasser = types.EmptyWithdrawalsHash
+				// if there was no MessagePasser contract storage, something is wrong
+				// (it should at least store an implementation address and owner address)
+				log.Warn("isthmus: no storage root for L2ToL1MessagePasser contract")
 			}
 			head.WithdrawalsHash = &storageRootMessagePasser
 		}
