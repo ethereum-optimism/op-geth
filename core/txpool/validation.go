@@ -282,7 +282,7 @@ func ValidateTransactionWithState(tx *types.Transaction, signer types.Signer, op
 		cost256, overflow = TotalTxCost(tx, opts.RollupCostFn)
 	)
 	if overflow {
-		return fmt.Errorf("%w: total tx cost overflow", core.ErrInsufficientFunds)
+		return fmt.Errorf("total tx cost overflow")
 	}
 	cost := cost256.ToBig()
 	if balance.Cmp(cost) < 0 {
