@@ -31,11 +31,11 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/history"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/eth/ethconfig"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/internal/debug"
 	"github.com/ethereum/go-ethereum/internal/era"
@@ -79,11 +79,15 @@ if one is set.  Otherwise it prints the genesis from the datadir.`,
 		Usage:     "Import a blockchain file",
 		ArgsUsage: "<filename> (<filename 2> ... <filename N>) ",
 		Flags: slices.Concat([]cli.Flag{
-			utils.CacheFlag,
 			utils.GCModeFlag,
 			utils.SnapshotFlag,
+			utils.CacheFlag,
 			utils.CacheDatabaseFlag,
+			utils.CacheTrieFlag,
 			utils.CacheGCFlag,
+			utils.CacheSnapshotFlag,
+			utils.CacheNoPrefetchFlag,
+			utils.CachePreimagesFlag,
 			utils.NoCompactionFlag,
 			utils.MetricsEnabledFlag,
 			utils.MetricsEnabledExpensiveFlag,
@@ -457,7 +461,7 @@ func importHistory(ctx *cli.Context) error {
 		network = networks[0]
 	}
 
-	if err := utils.ImportHistory(chain, db, dir, network); err != nil {
+	if err := utils.ImportHistory(chain, dir, network); err != nil {
 		return err
 	}
 	fmt.Printf("Import done in %v\n", time.Since(start))
@@ -621,7 +625,7 @@ func pruneHistory(ctx *cli.Context) error {
 	defer chain.Stop()
 
 	// Determine the prune point. This will be the first PoS block.
-	prunePoint, ok := ethconfig.HistoryPrunePoints[chain.Genesis().Hash()]
+	prunePoint, ok := history.PrunePoints[chain.Genesis().Hash()]
 	if !ok || prunePoint == nil {
 		return errors.New("prune point not found")
 	}

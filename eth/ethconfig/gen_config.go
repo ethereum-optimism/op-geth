@@ -7,6 +7,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/history"
 	"github.com/ethereum/go-ethereum/core/txpool/blobpool"
 	"github.com/ethereum/go-ethereum/core/txpool/legacypool"
 	"github.com/ethereum/go-ethereum/eth/gasprice"
@@ -19,7 +20,7 @@ func (c Config) MarshalTOML() (interface{}, error) {
 		Genesis                                   *core.Genesis `toml:",omitempty"`
 		NetworkId                                 uint64
 		SyncMode                                  SyncMode
-		HistoryMode                               HistoryMode
+		HistoryMode                               history.HistoryMode
 		EthDiscoveryURLs                          []string
 		SnapDiscoveryURLs                         []string
 		NoPruning                                 bool
@@ -141,7 +142,7 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 		Genesis                                   *core.Genesis `toml:",omitempty"`
 		NetworkId                                 *uint64
 		SyncMode                                  *SyncMode
-		HistoryMode                               *HistoryMode
+		HistoryMode                               *history.HistoryMode
 		EthDiscoveryURLs                          []string
 		SnapDiscoveryURLs                         []string
 		NoPruning                                 *bool

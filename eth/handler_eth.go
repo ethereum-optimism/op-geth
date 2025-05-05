@@ -22,6 +22,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/txpool"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth/protocols/eth"
 	"github.com/ethereum/go-ethereum/p2p/enode"
@@ -37,8 +38,9 @@ func (h *ethHandler) Chain() *core.BlockChain { return h.chain }
 // pool. It is used to disable transaction gossip.
 type NilPool struct{}
 
-func (n NilPool) Get(common.Hash) *types.Transaction { return nil }
-func (n NilPool) GetRLP(common.Hash) []byte          { return nil }
+func (n NilPool) Get(common.Hash) *types.Transaction              { return nil }
+func (n NilPool) GetRLP(common.Hash) []byte                       { return nil }
+func (n NilPool) GetMetadata(hash common.Hash) *txpool.TxMetadata { return nil }
 
 func (h *ethHandler) TxPool() eth.TxPool {
 	if h.noTxGossip {
