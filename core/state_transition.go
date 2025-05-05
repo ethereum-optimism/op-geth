@@ -276,12 +276,12 @@ func (st *stateTransition) buyGas() error {
 		if st.evm.Context.L1CostFunc != nil {
 			l1Cost = st.evm.Context.L1CostFunc(st.msg.RollupCostData, st.evm.Context.Time)
 			if l1Cost != nil {
-				mgval = mgval.Add(mgval, l1Cost)
+				mgval.Add(mgval, l1Cost)
 			}
 		}
 		if st.evm.Context.OperatorCostFunc != nil {
 			operatorCost = st.evm.Context.OperatorCostFunc(st.msg.GasLimit, st.evm.Context.Time)
-			mgval = mgval.Add(mgval, operatorCost.ToBig())
+			mgval.Add(mgval, operatorCost.ToBig())
 		}
 	}
 	balanceCheck := new(big.Int).Set(mgval)
