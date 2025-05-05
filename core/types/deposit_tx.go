@@ -86,6 +86,10 @@ func (tx *DepositTx) effectiveGasPrice(dst *big.Int, baseFee *big.Int) *big.Int 
 
 func (tx *DepositTx) effectiveNonce() *uint64 { return nil }
 
+func (tx *DepositTx) sigHash(*big.Int) common.Hash {
+	panic("deposit cannot be signed")
+}
+
 func (tx *DepositTx) rawSignatureValues() (v, r, s *big.Int) {
 	return common.Big0, common.Big0, common.Big0
 }

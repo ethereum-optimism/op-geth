@@ -67,6 +67,10 @@ type txPool interface {
 	// tx hash.
 	Get(hash common.Hash) *types.Transaction
 
+	// GetRLP retrieves the RLP-encoded transaction from local txpool
+	// with given tx hash.
+	GetRLP(hash common.Hash) []byte
+
 	// Add should add the given transactions to the pool.
 	Add(txs []*types.Transaction, sync bool) []error
 
@@ -410,7 +414,7 @@ func (h *handler) unregisterPeer(id string) {
 	// Abort if the peer does not exist
 	peer := h.peers.peer(id)
 	if peer == nil {
-		logger.Error("Ethereum peer removal failed", "err", errPeerNotRegistered)
+		logger.Warn("Ethereum peer removal failed", "err", errPeerNotRegistered)
 		return
 	}
 	// Remove the `eth` peer if it exists

@@ -440,7 +440,7 @@ func TestTraceCall(t *testing.T) {
 			},
 			config:    nil,
 			expectErr: nil,
-			expect:    `{"gas":21000,"failed":false,"returnValue":"","structLogs":[]}`,
+			expect:    `{"gas":21000,"failed":false,"returnValue":"0x","structLogs":[]}`,
 		},
 		// Standard JSON trace upon the head, plain transfer.
 		{
@@ -452,7 +452,7 @@ func TestTraceCall(t *testing.T) {
 			},
 			config:    nil,
 			expectErr: nil,
-			expect:    `{"gas":21000,"failed":false,"returnValue":"","structLogs":[]}`,
+			expect:    `{"gas":21000,"failed":false,"returnValue":"0x","structLogs":[]}`,
 		},
 		// Upon the last state, default to the post block's state
 		{
@@ -463,7 +463,7 @@ func TestTraceCall(t *testing.T) {
 				Value: (*hexutil.Big)(new(big.Int).Add(big.NewInt(params.Ether), big.NewInt(100))),
 			},
 			config: nil,
-			expect: `{"gas":21000,"failed":false,"returnValue":"","structLogs":[]}`,
+			expect: `{"gas":21000,"failed":false,"returnValue":"0x","structLogs":[]}`,
 		},
 		// Before the first transaction, should be failed
 		{
@@ -497,7 +497,7 @@ func TestTraceCall(t *testing.T) {
 			},
 			config:    &TraceCallConfig{TxIndex: uintPtr(2)},
 			expectErr: nil,
-			expect:    `{"gas":21000,"failed":false,"returnValue":"","structLogs":[]}`,
+			expect:    `{"gas":21000,"failed":false,"returnValue":"0x","structLogs":[]}`,
 		},
 		// Standard JSON trace upon the non-existent block, error expects
 		{
@@ -521,7 +521,7 @@ func TestTraceCall(t *testing.T) {
 			},
 			config:    nil,
 			expectErr: nil,
-			expect:    `{"gas":21000,"failed":false,"returnValue":"","structLogs":[]}`,
+			expect:    `{"gas":21000,"failed":false,"returnValue":"0x","structLogs":[]}`,
 		},
 		// Tracing on 'pending' should fail:
 		{
@@ -544,7 +544,7 @@ func TestTraceCall(t *testing.T) {
 				BlockOverrides: &override.BlockOverrides{Number: (*hexutil.Big)(big.NewInt(0x1337))},
 			},
 			expectErr: nil,
-			expect: ` {"gas":53018,"failed":false,"returnValue":"","structLogs":[
+			expect: ` {"gas":53018,"failed":false,"returnValue":"0x","structLogs":[
 		{"pc":0,"op":"NUMBER","gas":24946984,"gasCost":2,"depth":1,"stack":[]},
 		{"pc":1,"op":"STOP","gas":24946982,"gasCost":0,"depth":1,"stack":["0x1337"]}]}`,
 		},
@@ -622,7 +622,7 @@ func TestTraceTransaction(t *testing.T) {
 	if !reflect.DeepEqual(have, &logger.ExecutionResult{
 		Gas:         params.TxGas,
 		Failed:      false,
-		ReturnValue: "",
+		ReturnValue: []byte{},
 		StructLogs:  []json.RawMessage{},
 	}) {
 		t.Error("Transaction tracing result is different")
@@ -659,7 +659,7 @@ func TestTraceTransactionHistorical(t *testing.T) {
 		logger.ExecutionResult{
 			Gas:         params.TxGas,
 			Failed:      false,
-			ReturnValue: "",
+			ReturnValue: []byte{},
 			StructLogs:  []json.RawMessage{},
 		},
 		nil)
@@ -676,7 +676,7 @@ func TestTraceTransactionHistorical(t *testing.T) {
 	if !reflect.DeepEqual(have, &logger.ExecutionResult{
 		Gas:         params.TxGas,
 		Failed:      false,
-		ReturnValue: "",
+		ReturnValue: []byte{},
 		StructLogs:  []json.RawMessage{},
 	}) {
 		t.Error("Transaction tracing result is different")
@@ -732,7 +732,7 @@ func TestTraceBlock(t *testing.T) {
 		// Trace head block
 		{
 			blockNumber: rpc.BlockNumber(genBlocks),
-			want:        fmt.Sprintf(`[{"txHash":"%v","result":{"gas":21000,"failed":false,"returnValue":"","structLogs":[]}}]`, txHash),
+			want:        fmt.Sprintf(`[{"txHash":"%v","result":{"gas":21000,"failed":false,"returnValue":"0x","structLogs":[]}}]`, txHash),
 		},
 		// Trace non-existent block
 		{
@@ -742,12 +742,12 @@ func TestTraceBlock(t *testing.T) {
 		// Trace latest block
 		{
 			blockNumber: rpc.LatestBlockNumber,
-			want:        fmt.Sprintf(`[{"txHash":"%v","result":{"gas":21000,"failed":false,"returnValue":"","structLogs":[]}}]`, txHash),
+			want:        fmt.Sprintf(`[{"txHash":"%v","result":{"gas":21000,"failed":false,"returnValue":"0x","structLogs":[]}}]`, txHash),
 		},
 		// Trace pending block
 		{
 			blockNumber: rpc.PendingBlockNumber,
-			want:        fmt.Sprintf(`[{"txHash":"%v","result":{"gas":21000,"failed":false,"returnValue":"","structLogs":[]}}]`, txHash),
+			want:        fmt.Sprintf(`[{"txHash":"%v","result":{"gas":21000,"failed":false,"returnValue":"0x","structLogs":[]}}]`, txHash),
 		},
 	}
 	for i, tc := range testSuite {
@@ -831,6 +831,7 @@ func TestTracingWithOverrides(t *testing.T) {
 	t.Parallel()
 	// Initialize test accounts
 	accounts := newAccounts(3)
+	ecRecoverAddress := common.HexToAddress("0x0000000000000000000000000000000000000001")
 	storageAccount := common.Address{0x13, 37}
 	genesis := &core.Genesis{
 		Config: params.TestChainConfig,
@@ -893,7 +894,7 @@ func TestTracingWithOverrides(t *testing.T) {
 					randomAccounts[0].addr: override.OverrideAccount{Balance: newRPCBalance(new(big.Int).Mul(big.NewInt(1), big.NewInt(params.Ether)))},
 				},
 			},
-			want: `{"gas":21000,"failed":false,"returnValue":""}`,
+			want: `{"gas":21000,"failed":false,"returnValue":"0x"}`,
 		},
 		// Invalid call without state overriding
 		{
@@ -938,7 +939,7 @@ func TestTracingWithOverrides(t *testing.T) {
 					},
 				},
 			},
-			want: `{"gas":23347,"failed":false,"returnValue":"000000000000000000000000000000000000000000000000000000000000007b"}`,
+			want: `{"gas":23347,"failed":false,"returnValue":"0x000000000000000000000000000000000000000000000000000000000000007b"}`,
 		},
 		{ // Override blocknumber
 			blockNumber: rpc.LatestBlockNumber,
@@ -950,7 +951,7 @@ func TestTracingWithOverrides(t *testing.T) {
 			config: &TraceCallConfig{
 				BlockOverrides: &override.BlockOverrides{Number: (*hexutil.Big)(big.NewInt(0x1337))},
 			},
-			want: `{"gas":59537,"failed":false,"returnValue":"0000000000000000000000000000000000000000000000000000000000001337"}`,
+			want: `{"gas":59537,"failed":false,"returnValue":"0x0000000000000000000000000000000000000000000000000000000000001337"}`,
 		},
 		{ // Override blocknumber, and query a blockhash
 			blockNumber: rpc.LatestBlockNumber,
@@ -970,7 +971,7 @@ func TestTracingWithOverrides(t *testing.T) {
 			config: &TraceCallConfig{
 				BlockOverrides: &override.BlockOverrides{Number: (*hexutil.Big)(big.NewInt(0x1337))},
 			},
-			want: `{"gas":72666,"failed":false,"returnValue":"000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"}`,
+			want: `{"gas":72666,"failed":false,"returnValue":"0x000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"}`,
 		},
 		/*
 			pragma solidity =0.8.12;
@@ -1004,7 +1005,7 @@ func TestTracingWithOverrides(t *testing.T) {
 					},
 				},
 			},
-			want: `{"gas":44100,"failed":false,"returnValue":"0000000000000000000000000000000000000000000000000000000000000001"}`,
+			want: `{"gas":44100,"failed":false,"returnValue":"0x0000000000000000000000000000000000000000000000000000000000000001"}`,
 		},
 		{ // Same again, this time with storage override
 			blockNumber: rpc.LatestBlockNumber,
@@ -1021,8 +1022,8 @@ func TestTracingWithOverrides(t *testing.T) {
 					},
 				},
 			},
-			// want: `{"gas":46900,"failed":false,"returnValue":"0000000000000000000000000000000000000000000000000000000000000539"}`,
-			want: `{"gas":44100,"failed":false,"returnValue":"0000000000000000000000000000000000000000000000000000000000000001"}`,
+			//want: `{"gas":46900,"failed":false,"returnValue":"0000000000000000000000000000000000000000000000000000000000000539"}`,
+			want: `{"gas":44100,"failed":false,"returnValue":"0x0000000000000000000000000000000000000000000000000000000000000001"}`,
 		},
 		{ // No state override
 			blockNumber: rpc.LatestBlockNumber,
@@ -1052,7 +1053,7 @@ func TestTracingWithOverrides(t *testing.T) {
 					},
 				},
 			},
-			want: `{"gas":25288,"failed":false,"returnValue":"0000000000000000000000000000000000000000000000000000000000000077"}`,
+			want: `{"gas":25288,"failed":false,"returnValue":"0x0000000000000000000000000000000000000000000000000000000000000077"}`,
 		},
 		{ // Full state override
 			// The original storage is
@@ -1090,7 +1091,7 @@ func TestTracingWithOverrides(t *testing.T) {
 					},
 				},
 			},
-			want: `{"gas":25288,"failed":false,"returnValue":"0000000000000000000000000000000000000000000000000000000000000011"}`,
+			want: `{"gas":25288,"failed":false,"returnValue":"0x0000000000000000000000000000000000000000000000000000000000000011"}`,
 		},
 		{ // Partial state override
 			// The original storage is
@@ -1128,7 +1129,49 @@ func TestTracingWithOverrides(t *testing.T) {
 					},
 				},
 			},
-			want: `{"gas":25288,"failed":false,"returnValue":"0000000000000000000000000000000000000000000000000000000000000055"}`,
+			want: `{"gas":25288,"failed":false,"returnValue":"0x0000000000000000000000000000000000000000000000000000000000000055"}`,
+		},
+		{ // Call to precompile ECREC (0x01), but code was modified to add 1 to input
+			blockNumber: rpc.LatestBlockNumber,
+			call: ethapi.TransactionArgs{
+				From: &randomAccounts[0].addr,
+				To:   &ecRecoverAddress,
+				Data: newRPCBytes(common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000001")),
+			},
+			config: &TraceCallConfig{
+				StateOverrides: &override.StateOverride{
+					randomAccounts[0].addr: override.OverrideAccount{
+						Balance: newRPCBalance(new(big.Int).Mul(big.NewInt(1), big.NewInt(params.Ether))),
+					},
+					ecRecoverAddress: override.OverrideAccount{
+						// The code below adds one to input
+						Code:             newRPCBytes(common.Hex2Bytes("60003560010160005260206000f3")),
+						MovePrecompileTo: &randomAccounts[2].addr,
+					},
+				},
+			},
+			want: `{"gas":21167,"failed":false,"returnValue":"0x0000000000000000000000000000000000000000000000000000000000000002"}`,
+		},
+		{ // Call to ECREC Precompiled on a different address, expect the original behaviour of ECREC precompile
+			blockNumber: rpc.LatestBlockNumber,
+			call: ethapi.TransactionArgs{
+				From: &randomAccounts[0].addr,
+				To:   &randomAccounts[2].addr, // Moved EcRecover
+				Data: newRPCBytes(common.Hex2Bytes("82f3df49d3645876de6313df2bbe9fbce593f21341a7b03acdb9423bc171fcc9000000000000000000000000000000000000000000000000000000000000001cba13918f50da910f2d55a7ea64cf716ba31dad91856f45908dde900530377d8a112d60f36900d18eb8f9d3b4f85a697b545085614509e3520e4b762e35d0d6bd")),
+			},
+			config: &TraceCallConfig{
+				StateOverrides: &override.StateOverride{
+					randomAccounts[0].addr: override.OverrideAccount{
+						Balance: newRPCBalance(new(big.Int).Mul(big.NewInt(1), big.NewInt(params.Ether))),
+					},
+					ecRecoverAddress: override.OverrideAccount{
+						// The code below adds one to input
+						Code:             newRPCBytes(common.Hex2Bytes("60003560010160005260206000f3")),
+						MovePrecompileTo: &randomAccounts[2].addr, // Move EcRecover to this address
+					},
+				},
+			},
+			want: `{"gas":25664,"failed":false,"returnValue":"0x000000000000000000000000c6e93f4c1920eaeaa1e699f76a7a8c18e3056074"}`,
 		},
 	}
 	for i, tc := range testSuite {
@@ -1231,8 +1274,8 @@ func TestTraceChain(t *testing.T) {
 	backend.relHook = func() { rel.Add(1) }
 	api := NewAPI(backend)
 
-	single := `{"txHash":"0x0000000000000000000000000000000000000000000000000000000000000000","result":{"gas":21000,"failed":false,"returnValue":"","structLogs":[]}}`
-	cases := []struct {
+	single := `{"txHash":"0x0000000000000000000000000000000000000000000000000000000000000000","result":{"gas":21000,"failed":false,"returnValue":"0x","structLogs":[]}}`
+	var cases = []struct {
 		start  uint64
 		end    uint64
 		config *TraceConfig
@@ -1346,7 +1389,7 @@ func TestTraceBlockWithBasefee(t *testing.T) {
 		// Trace head block
 		{
 			blockNumber: rpc.BlockNumber(genBlocks),
-			want:        fmt.Sprintf(`[{"txHash":"%#x","result":{"gas":21002,"failed":false,"returnValue":"","structLogs":[{"pc":0,"op":"BASEFEE","gas":84000,"gasCost":2,"depth":1,"stack":[]},{"pc":1,"op":"STOP","gas":83998,"gasCost":0,"depth":1,"stack":["%#x"]}]}}]`, txHash, baseFee),
+			want:        fmt.Sprintf(`[{"txHash":"%#x","result":{"gas":21002,"failed":false,"returnValue":"0x","structLogs":[{"pc":0,"op":"BASEFEE","gas":84000,"gasCost":2,"depth":1,"stack":[]},{"pc":1,"op":"STOP","gas":83998,"gasCost":0,"depth":1,"stack":["%#x"]}]}}]`, txHash, baseFee),
 		},
 	}
 	for i, tc := range testSuite {

@@ -1089,19 +1089,24 @@ func (p *BlobPool) SetGasTip(tip *big.Int) {
 	p.updateStorageMetrics()
 }
 
-// validateTx checks whether a transaction is valid according to the consensus
-// rules and adheres to some heuristic limits of the local node (price and size).
-func (p *BlobPool) validateTx(tx *types.Transaction) error {
-	// Ensure the transaction adheres to basic pool filters (type, size, tip) and
-	// consensus rules
-	baseOpts := &txpool.ValidationOptions{
+// ValidateTxBasics checks whether a transaction is valid according to the consensus
+// rules, but does not check state-dependent validation such as sufficient balance.
+// This check is meant as an early check which only needs to be performed once,
+// and does not require the pool mutex to be held.
+func (p *BlobPool) ValidateTxBasics(tx *types.Transaction) error {
+	opts := &txpool.ValidationOptions{
 		Config:  p.chain.Config(),
 		Accept:  1 << types.BlobTxType,
 		MaxSize: txMaxSize,
 		MinTip:  p.gasTip.ToBig(),
 	}
+	return txpool.ValidateTransaction(tx, p.head, p.signer, opts)
+}
 
-	if err := p.txValidationFn(tx, p.head, p.signer, baseOpts); err != nil {
+// validateTx checks whether a transaction is valid according to the consensus
+// rules and adheres to some heuristic limits of the local node (price and size).
+func (p *BlobPool) validateTx(tx *types.Transaction) error {
+	if err := p.ValidateTxBasics(tx); err != nil {
 		return err
 	}
 	// Ensure the transaction adheres to the stateful pool filters (nonce, balance)
@@ -1188,8 +1193,7 @@ func (p *BlobPool) Has(hash common.Hash) bool {
 	return p.lookup.exists(hash)
 }
 
-// Get returns a transaction if it is contained in the pool, or nil otherwise.
-func (p *BlobPool) Get(hash common.Hash) *types.Transaction {
+func (p *BlobPool) getRLP(hash common.Hash) []byte {
 	// Track the amount of time waiting to retrieve a fully resolved blob tx from
 	// the pool and the amount of time actually spent on pulling the data from disk.
 	getStart := time.Now()
@@ -1211,12 +1215,29 @@ func (p *BlobPool) Get(hash common.Hash) *types.Transaction {
 		log.Error("Tracked blob transaction missing from store", "hash", hash, "id", id, "err", err)
 		return nil
 	}
+	return data
+}
+
+// Get returns a transaction if it is contained in the pool, or nil otherwise.
+func (p *BlobPool) Get(hash common.Hash) *types.Transaction {
+	data := p.getRLP(hash)
+	if len(data) == 0 {
+		return nil
+	}
 	item := new(types.Transaction)
-	if err = rlp.DecodeBytes(data, item); err != nil {
-		log.Error("Blobs corrupted for traced transaction", "hash", hash, "id", id, "err", err)
+	if err := rlp.DecodeBytes(data, item); err != nil {
+		id, _ := p.lookup.storeidOfTx(hash)
+
+		log.Error("Blobs corrupted for traced transaction",
+			"hash", hash, "id", id, "err", err)
 		return nil
 	}
 	return item
+}
+
+// GetRLP returns a RLP-encoded transaction if it is contained in the pool.
+func (p *BlobPool) GetRLP(hash common.Hash) []byte {
+	return p.getRLP(hash)
 }
 
 // GetBlobs returns a number of blobs are proofs for the given versioned hashes.

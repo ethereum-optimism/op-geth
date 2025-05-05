@@ -19,12 +19,16 @@ func (c Config) MarshalTOML() (interface{}, error) {
 		Genesis                                   *core.Genesis `toml:",omitempty"`
 		NetworkId                                 uint64
 		SyncMode                                  SyncMode
+		HistoryMode                               HistoryMode
 		EthDiscoveryURLs                          []string
 		SnapDiscoveryURLs                         []string
 		NoPruning                                 bool
 		NoPrefetch                                bool
-		TxLookupLimit                             uint64                 `toml:",omitempty"`
-		TransactionHistory                        uint64                 `toml:",omitempty"`
+		TxLookupLimit                             uint64 `toml:",omitempty"`
+		TransactionHistory                        uint64 `toml:",omitempty"`
+		LogHistory                                uint64 `toml:",omitempty"`
+		LogNoHistory                              bool   `toml:",omitempty"`
+		LogExportCheckpoints                      string
 		StateHistory                              uint64                 `toml:",omitempty"`
 		StateScheme                               string                 `toml:",omitempty"`
 		RequiredBlocks                            map[uint64]common.Hash `toml:"-"`
@@ -48,7 +52,7 @@ func (c Config) MarshalTOML() (interface{}, error) {
 		RPCGasCap                                 uint64
 		RPCEVMTimeout                             time.Duration
 		RPCTxFeeCap                               float64
-		OverrideCancun                            *uint64 `toml:",omitempty"`
+		OverridePrague                            *uint64 `toml:",omitempty"`
 		OverrideVerkle                            *uint64 `toml:",omitempty"`
 		OverrideOptimismCanyon                    *uint64 `toml:",omitempty"`
 		OverrideOptimismEcotone                   *uint64 `toml:",omitempty"`
@@ -74,12 +78,16 @@ func (c Config) MarshalTOML() (interface{}, error) {
 	enc.Genesis = c.Genesis
 	enc.NetworkId = c.NetworkId
 	enc.SyncMode = c.SyncMode
+	enc.HistoryMode = c.HistoryMode
 	enc.EthDiscoveryURLs = c.EthDiscoveryURLs
 	enc.SnapDiscoveryURLs = c.SnapDiscoveryURLs
 	enc.NoPruning = c.NoPruning
 	enc.NoPrefetch = c.NoPrefetch
 	enc.TxLookupLimit = c.TxLookupLimit
 	enc.TransactionHistory = c.TransactionHistory
+	enc.LogHistory = c.LogHistory
+	enc.LogNoHistory = c.LogNoHistory
+	enc.LogExportCheckpoints = c.LogExportCheckpoints
 	enc.StateHistory = c.StateHistory
 	enc.StateScheme = c.StateScheme
 	enc.RequiredBlocks = c.RequiredBlocks
@@ -103,7 +111,7 @@ func (c Config) MarshalTOML() (interface{}, error) {
 	enc.RPCGasCap = c.RPCGasCap
 	enc.RPCEVMTimeout = c.RPCEVMTimeout
 	enc.RPCTxFeeCap = c.RPCTxFeeCap
-	enc.OverrideCancun = c.OverrideCancun
+	enc.OverridePrague = c.OverridePrague
 	enc.OverrideVerkle = c.OverrideVerkle
 	enc.OverrideOptimismCanyon = c.OverrideOptimismCanyon
 	enc.OverrideOptimismEcotone = c.OverrideOptimismEcotone
@@ -133,12 +141,16 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 		Genesis                                   *core.Genesis `toml:",omitempty"`
 		NetworkId                                 *uint64
 		SyncMode                                  *SyncMode
+		HistoryMode                               *HistoryMode
 		EthDiscoveryURLs                          []string
 		SnapDiscoveryURLs                         []string
 		NoPruning                                 *bool
 		NoPrefetch                                *bool
-		TxLookupLimit                             *uint64                `toml:",omitempty"`
-		TransactionHistory                        *uint64                `toml:",omitempty"`
+		TxLookupLimit                             *uint64 `toml:",omitempty"`
+		TransactionHistory                        *uint64 `toml:",omitempty"`
+		LogHistory                                *uint64 `toml:",omitempty"`
+		LogNoHistory                              *bool   `toml:",omitempty"`
+		LogExportCheckpoints                      *string
 		StateHistory                              *uint64                `toml:",omitempty"`
 		StateScheme                               *string                `toml:",omitempty"`
 		RequiredBlocks                            map[uint64]common.Hash `toml:"-"`
@@ -162,7 +174,7 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 		RPCGasCap                                 *uint64
 		RPCEVMTimeout                             *time.Duration
 		RPCTxFeeCap                               *float64
-		OverrideCancun                            *uint64 `toml:",omitempty"`
+		OverridePrague                            *uint64 `toml:",omitempty"`
 		OverrideVerkle                            *uint64 `toml:",omitempty"`
 		OverrideOptimismCanyon                    *uint64 `toml:",omitempty"`
 		OverrideOptimismEcotone                   *uint64 `toml:",omitempty"`
@@ -197,6 +209,9 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 	if dec.SyncMode != nil {
 		c.SyncMode = *dec.SyncMode
 	}
+	if dec.HistoryMode != nil {
+		c.HistoryMode = *dec.HistoryMode
+	}
 	if dec.EthDiscoveryURLs != nil {
 		c.EthDiscoveryURLs = dec.EthDiscoveryURLs
 	}
@@ -214,6 +229,15 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 	}
 	if dec.TransactionHistory != nil {
 		c.TransactionHistory = *dec.TransactionHistory
+	}
+	if dec.LogHistory != nil {
+		c.LogHistory = *dec.LogHistory
+	}
+	if dec.LogNoHistory != nil {
+		c.LogNoHistory = *dec.LogNoHistory
+	}
+	if dec.LogExportCheckpoints != nil {
+		c.LogExportCheckpoints = *dec.LogExportCheckpoints
 	}
 	if dec.StateHistory != nil {
 		c.StateHistory = *dec.StateHistory
@@ -284,8 +308,8 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 	if dec.RPCTxFeeCap != nil {
 		c.RPCTxFeeCap = *dec.RPCTxFeeCap
 	}
-	if dec.OverrideCancun != nil {
-		c.OverrideCancun = dec.OverrideCancun
+	if dec.OverridePrague != nil {
+		c.OverridePrague = dec.OverridePrague
 	}
 	if dec.OverrideVerkle != nil {
 		c.OverrideVerkle = dec.OverrideVerkle
