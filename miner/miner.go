@@ -38,8 +38,8 @@ import (
 )
 
 var (
-	maxDATxSizeGuage    = metrics.NewRegisteredGauge("miner/maxDATxSize", nil)
-	maxDABlockSizeGuage = metrics.NewRegisteredGauge("miner/maxDABlockSize", nil)
+	maxDATxSizeGauge    = metrics.NewRegisteredGauge("miner/maxDATxSize", nil)
+	maxDABlockSizeGauge = metrics.NewRegisteredGauge("miner/maxDABlockSize", nil)
 )
 
 // Backend wraps all methods required for mining. Only full node is capable
@@ -199,8 +199,8 @@ func (miner *Miner) SetMaxDASize(maxTxSize, maxBlockSize *big.Int) {
 	miner.config.MaxDABlockSize = convertZeroToNil(maxBlockSize)
 	miner.confMu.Unlock()
 
-	maxDATxSizeGuage.Update(convertNilToZero(maxTxSize))
-	maxDABlockSizeGuage.Update(convertNilToZero(maxBlockSize))
+	maxDATxSizeGauge.Update(convertNilToZero(maxTxSize))
+	maxDABlockSizeGauge.Update(convertNilToZero(maxBlockSize))
 }
 
 // BuildPayload builds the payload according to the provided parameters.
