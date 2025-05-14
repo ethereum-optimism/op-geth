@@ -63,7 +63,7 @@ func opConfig() *params.ChainConfig {
 	config.CanyonTime = &ct
 	ht := uint64(12)
 	config.HoloceneTime = &ht
-	config.Optimism = &params.OptimismConfig{
+	config.FeeParams = &params.FeeParamsConfig{
 		EIP1559Elasticity:        6,
 		EIP1559Denominator:       50,
 		EIP1559DenominatorCanyon: &eip1559DenominatorCanyon,

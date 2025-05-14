@@ -96,7 +96,7 @@ func TestCalcBlobFeeOPStack(t *testing.T) {
 	zero := uint64(0)
 	header := &types.Header{ExcessBlobGas: &zero}
 	// any non-nil optimism confic should do
-	config := &params.ChainConfig{Optimism: new(params.OptimismConfig)}
+	config := &params.ChainConfig{FeeParams: new(params.FeeParamsConfig)}
 	bfee := CalcBlobFee(config, header)
 	require.Equal(t, int64(1), bfee.Int64())
 

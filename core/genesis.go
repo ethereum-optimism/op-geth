@@ -346,9 +346,9 @@ func (o *ChainOverrides) apply(cfg *params.ChainConfig) error {
 	if o.OverrideOptimismCanyon != nil {
 		cfg.CanyonTime = o.OverrideOptimismCanyon
 		cfg.ShanghaiTime = o.OverrideOptimismCanyon
-		if cfg.Optimism != nil && (cfg.Optimism.EIP1559DenominatorCanyon == nil || *cfg.Optimism.EIP1559DenominatorCanyon == 0) {
+		if cfg.FeeParams != nil && (cfg.FeeParams.EIP1559DenominatorCanyon == nil || *cfg.FeeParams.EIP1559DenominatorCanyon == 0) {
 			eip1559DenominatorCanyon := uint64(250)
-			cfg.Optimism.EIP1559DenominatorCanyon = &eip1559DenominatorCanyon
+			cfg.FeeParams.EIP1559DenominatorCanyon = &eip1559DenominatorCanyon
 		}
 	}
 	if o.OverrideOptimismEcotone != nil {

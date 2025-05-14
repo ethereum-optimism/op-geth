@@ -257,7 +257,7 @@ func (miner *Miner) prepareWork(genParams *generateParams, witness bool) (*envir
 		Coinbase:   genParams.coinbase,
 	}
 	// Set the extra field.
-	if len(miner.config.ExtraData) != 0 && miner.chainConfig.Optimism == nil {
+	if len(miner.config.ExtraData) != 0 && miner.chainConfig.FeeParams == nil {
 		// Optimism chains have their own ExtraData handling rules
 		header.Extra = miner.config.ExtraData
 	}
@@ -275,7 +275,7 @@ func (miner *Miner) prepareWork(genParams *generateParams, witness bool) (*envir
 	}
 	if genParams.gasLimit != nil { // override gas limit if specified
 		header.GasLimit = *genParams.gasLimit
-	} else if miner.chain.Config().Optimism != nil && miner.config.GasCeil != 0 {
+	} else if miner.chain.Config().FeeParams != nil && miner.config.GasCeil != 0 {
 		// configure the gas limit of pending blocks with the miner gas limit config when using optimism
 		header.GasLimit = miner.config.GasCeil
 	}
@@ -335,7 +335,7 @@ func (miner *Miner) makeEnv(parent *types.Header, header *types.Header, coinbase
 	if err != nil {
 		return nil, err
 	}
-	if miner.chainConfig.Optimism != nil { // Allow the miner to reorg its own chain arbitrarily deep
+	if miner.chainConfig.FeeParams != nil { // Allow the miner to reorg its own chain arbitrarily deep
 		if historicalBackend, ok := miner.backend.(BackendWithHistoricalState); ok {
 			var release tracers.StateReleaseFunc
 			parentBlock := miner.backend.BlockChain().GetBlockByHash(parent.Hash())

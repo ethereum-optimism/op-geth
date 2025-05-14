@@ -191,7 +191,7 @@ type Config struct {
 // Clique is allowed for now to live standalone, but ethash is forbidden and can
 // only exist on already merged networks.
 func CreateConsensusEngine(config *params.ChainConfig, db ethdb.Database) (consensus.Engine, error) {
-	if config.Optimism != nil {
+	if config.FeeParams != nil {
 		return beacon.New(&beacon.OpLegacy{}), nil
 	}
 	if config.TerminalTotalDifficulty == nil {

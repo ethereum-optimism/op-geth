@@ -61,13 +61,13 @@ func LoadOPStackChainConfig(chConfig *superchain.ChainConfig) (*ChainConfig, err
 		Clique:                  nil,
 	}
 
-	if chConfig.Optimism != nil {
-		out.Optimism = &OptimismConfig{
-			EIP1559Elasticity:  chConfig.Optimism.EIP1559Elasticity,
-			EIP1559Denominator: chConfig.Optimism.EIP1559Denominator,
+	if chConfig.Genesis.FeeParams != nil {
+		out.FeeParams = &FeeParamsConfig{
+			EIP1559Elasticity:  chConfig.Genesis.FeeParams.EIP1559Elasticity,
+			EIP1559Denominator: chConfig.Genesis.FeeParams.EIP1559Denominator,
 		}
-		if chConfig.Optimism.EIP1559DenominatorCanyon != nil {
-			out.Optimism.EIP1559DenominatorCanyon = uint64ptr(*chConfig.Optimism.EIP1559DenominatorCanyon)
+		if chConfig.Genesis.FeeParams.EIP1559DenominatorCanyon != nil {
+			out.FeeParams.EIP1559DenominatorCanyon = uint64ptr(*chConfig.Genesis.FeeParams.EIP1559DenominatorCanyon)
 		}
 	}
 

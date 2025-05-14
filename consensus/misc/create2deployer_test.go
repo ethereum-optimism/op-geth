@@ -62,7 +62,7 @@ func TestEnsureCreate2Deployer(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			cfg := params.ChainConfig{
 				ChainID:    big.NewInt(params.BaseMainnetChainID),
-				Optimism:   &params.OptimismConfig{},
+				FeeParams:  &params.FeeParamsConfig{},
 				CanyonTime: &canyonTime,
 			}
 			if tt.override != nil {

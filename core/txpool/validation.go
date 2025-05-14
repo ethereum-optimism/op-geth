@@ -47,7 +47,7 @@ func EffectiveGasLimit(chainConfig *params.ChainConfig, gasLimit uint64, effecti
 	if effectiveLimit != 0 && effectiveLimit < gasLimit {
 		gasLimit = effectiveLimit
 	}
-	if chainConfig.Optimism != nil {
+	if chainConfig.FeeParams != nil {
 		if l1InfoGasOverhead < gasLimit {
 			gasLimit -= l1InfoGasOverhead
 		} else {

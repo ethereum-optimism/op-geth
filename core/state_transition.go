@@ -666,7 +666,7 @@ func (st *stateTransition) innerExecute() (*ExecutionResult, error) {
 
 		// Check that we are post bedrock to enable op-geth to be able to create pseudo pre-bedrock blocks (these are pre-bedrock, but don't follow l2 geth rules)
 		// Note optimismConfig will not be nil if rules.IsOptimismBedrock is true
-		if optimismConfig := st.evm.ChainConfig().Optimism; optimismConfig != nil && rules.IsOptimismBedrock && !st.msg.IsDepositTx {
+		if optimismConfig := st.evm.ChainConfig().FeeParams; optimismConfig != nil && rules.IsOptimismBedrock && !st.msg.IsDepositTx {
 			gasCost := new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), st.evm.Context.BaseFee)
 			amtU256, overflow := uint256.FromBig(gasCost)
 			if overflow {

@@ -148,7 +148,7 @@ func newTestBackend(t *testing.T, londonBlock *big.Int, cancunBlock *big.Int, pe
 	if opStack {
 		config.BlobScheduleConfig = nil
 		denom := uint64(250)
-		config.Optimism = &params.OptimismConfig{
+		config.FeeParams = &params.FeeParamsConfig{
 			EIP1559Elasticity:        6,
 			EIP1559Denominator:       50,
 			EIP1559DenominatorCanyon: &denom,
@@ -215,7 +215,7 @@ func newTestBackend(t *testing.T, londonBlock *big.Int, cancunBlock *big.Int, pe
 			b.SetPoS()
 		}
 		if gspec.Config.IsOptimismHolocene(b.Timestamp()) {
-			b.SetExtra(eip1559.EncodeHoloceneExtraData(*gspec.Config.Optimism.EIP1559DenominatorCanyon, gspec.Config.Optimism.EIP1559Elasticity))
+			b.SetExtra(eip1559.EncodeHoloceneExtraData(*gspec.Config.FeeParams.EIP1559DenominatorCanyon, gspec.Config.FeeParams.EIP1559Elasticity))
 		}
 		if cancunBlock != nil && b.Number().Cmp(cancunBlock) >= 0 && gspec.Config.BlobScheduleConfig != nil {
 			b.SetPoS()

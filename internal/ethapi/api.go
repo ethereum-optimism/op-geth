@@ -501,7 +501,7 @@ func (api *BlockChainAPI) GetHeaderByNumber(ctx context.Context, number rpc.Bloc
 	header, err := api.b.HeaderByNumber(ctx, number)
 	if header != nil && err == nil {
 		response := RPCMarshalHeader(header)
-		if number == rpc.PendingBlockNumber && api.b.ChainConfig().Optimism == nil {
+		if number == rpc.PendingBlockNumber && api.b.ChainConfig().FeeParams == nil {
 			// Pending header need to nil out a few fields
 			for _, field := range []string{"hash", "nonce", "miner"} {
 				response[field] = nil
@@ -532,7 +532,7 @@ func (api *BlockChainAPI) GetBlockByNumber(ctx context.Context, number rpc.Block
 	block, err := api.b.BlockByNumber(ctx, number)
 	if block != nil && err == nil {
 		response, err := RPCMarshalBlock(ctx, block, true, fullTx, api.b.ChainConfig(), api.b)
-		if err == nil && number == rpc.PendingBlockNumber && api.b.ChainConfig().Optimism == nil {
+		if err == nil && number == rpc.PendingBlockNumber && api.b.ChainConfig().FeeParams == nil {
 			// Pending blocks need to nil out a few fields
 			for _, field := range []string{"hash", "nonce", "miner"} {
 				response[field] = nil
@@ -1582,7 +1582,7 @@ func marshalReceipt(receipt *types.Receipt, blockHash common.Hash, blockNumber u
 		"effectiveGasPrice": (*hexutil.Big)(receipt.EffectiveGasPrice),
 	}
 
-	if chainConfig.Optimism != nil && !tx.IsDepositTx() {
+	if chainConfig.FeeParams != nil && !tx.IsDepositTx() {
 		fields["l1GasPrice"] = (*hexutil.Big)(receipt.L1GasPrice)
 		fields["l1GasUsed"] = (*hexutil.Big)(receipt.L1GasUsed)
 		fields["l1Fee"] = (*hexutil.Big)(receipt.L1Fee)
@@ -1608,7 +1608,7 @@ func marshalReceipt(receipt *types.Receipt, blockHash common.Hash, blockNumber u
 			fields["operatorFeeConstant"] = hexutil.Uint64(*receipt.OperatorFeeConstant)
 		}
 	}
-	if chainConfig.Optimism != nil && tx.IsDepositTx() && receipt.DepositNonce != nil {
+	if chainConfig.FeeParams != nil && tx.IsDepositTx() && receipt.DepositNonce != nil {
 		fields["depositNonce"] = hexutil.Uint64(*receipt.DepositNonce)
 		if receipt.DepositReceiptVersion != nil {
 			fields["depositReceiptVersion"] = hexutil.Uint64(*receipt.DepositReceiptVersion)

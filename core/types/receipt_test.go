@@ -38,7 +38,7 @@ var (
 		conf := *params.AllCliqueProtocolChanges // copy the config
 		conf.Clique = nil
 		conf.BedrockBlock = big.NewInt(0)
-		conf.Optimism = &params.OptimismConfig{EIP1559Elasticity: 50, EIP1559Denominator: 10}
+		conf.FeeParams = &params.FeeParamsConfig{EIP1559Elasticity: 50, EIP1559Denominator: 10}
 		return &conf
 	}()
 	ecotoneTestConfig = func() *params.ChainConfig {

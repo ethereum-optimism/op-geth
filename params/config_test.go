@@ -220,7 +220,7 @@ func TestConfigRulesRegolith(t *testing.T) {
 	c := &ChainConfig{
 		RegolithTime: newUint64(500),
 		LondonBlock:  new(big.Int),
-		Optimism:     &OptimismConfig{},
+		FeeParams:    &FeeParamsConfig{},
 	}
 	var stamp uint64
 	if r := c.Rules(big.NewInt(0), true, stamp); r.IsOptimismRegolith {

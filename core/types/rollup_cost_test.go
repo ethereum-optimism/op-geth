@@ -119,7 +119,7 @@ func TestFjordL1CostSolidityParity(t *testing.T) {
 func TestExtractBedrockGasParams(t *testing.T) {
 	regolithTime := uint64(1)
 	config := &params.ChainConfig{
-		Optimism:     params.OptimismTestConfig.Optimism,
+		FeeParams:    params.OptimismTestConfig.FeeParams,
 		RegolithTime: &regolithTime,
 	}
 
@@ -154,7 +154,7 @@ func TestExtractEcotoneGasParams(t *testing.T) {
 	zeroTime := uint64(0)
 	// create a config where ecotone upgrade is active
 	config := &params.ChainConfig{
-		Optimism:     params.OptimismTestConfig.Optimism,
+		FeeParams:    params.OptimismTestConfig.FeeParams,
 		RegolithTime: &zeroTime,
 		EcotoneTime:  &zeroTime,
 	}
@@ -186,7 +186,7 @@ func TestExtractFjordGasParams(t *testing.T) {
 	zeroTime := uint64(0)
 	// create a config where fjord is active
 	config := &params.ChainConfig{
-		Optimism:     params.OptimismTestConfig.Optimism,
+		FeeParams:    params.OptimismTestConfig.FeeParams,
 		RegolithTime: &zeroTime,
 		EcotoneTime:  &zeroTime,
 		FjordTime:    &zeroTime,
@@ -214,7 +214,7 @@ func TestExtractIsthmusGasParams(t *testing.T) {
 	zeroTime := uint64(0)
 	// create a config where isthmus is active
 	config := &params.ChainConfig{
-		Optimism:     params.OptimismTestConfig.Optimism,
+		FeeParams:    params.OptimismTestConfig.FeeParams,
 		RegolithTime: &zeroTime,
 		EcotoneTime:  &zeroTime,
 		FjordTime:    &zeroTime,
@@ -250,7 +250,7 @@ func TestFirstBlockEcotoneGasParams(t *testing.T) {
 	zeroTime := uint64(0)
 	// create a config where ecotone upgrade is active
 	config := &params.ChainConfig{
-		Optimism:     params.OptimismTestConfig.Optimism,
+		FeeParams:    params.OptimismTestConfig.FeeParams,
 		RegolithTime: &zeroTime,
 		EcotoneTime:  &zeroTime,
 	}
@@ -361,7 +361,7 @@ func TestNewL1CostFunc(t *testing.T) {
 	time := uint64(10)
 	timeInFuture := uint64(20)
 	config := &params.ChainConfig{
-		Optimism: params.OptimismTestConfig.Optimism,
+		FeeParams: params.OptimismTestConfig.FeeParams,
 	}
 	statedb := &testStateGetter{
 		baseFee:           baseFee,
@@ -435,7 +435,7 @@ func TestNewL1CostFunc(t *testing.T) {
 func TestNewOperatorCostFunc(t *testing.T) {
 	time := uint64(10)
 	config := &params.ChainConfig{
-		Optimism: params.OptimismTestConfig.Optimism,
+		FeeParams: params.OptimismTestConfig.FeeParams,
 	}
 	statedb := &testStateGetter{
 		baseFee:             baseFee,
@@ -518,7 +518,7 @@ func TestTotalRollupCostFunc(t *testing.T) {
 	zero := uint64(0)
 	later := uint64(10)
 	config := &params.ChainConfig{
-		Optimism:     params.OptimismTestConfig.Optimism,
+		FeeParams:    params.OptimismTestConfig.FeeParams,
 		RegolithTime: &zero,
 		EcotoneTime:  &zero,
 		FjordTime:    &zero,

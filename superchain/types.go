@@ -16,13 +16,11 @@ type ChainConfig struct {
 	DeploymentTxHash     *common.Hash `toml:"deployment_tx_hash"`
 
 	ChainID           uint64          `toml:"chain_id"`
-	BatchInboxAddr    common.Address  `toml:"batch_inbox_addr"`
 	BlockTime         uint64          `toml:"block_time"`
 	SeqWindowSize     uint64          `toml:"seq_window_size"`
 	MaxSequencerDrift uint64          `toml:"max_sequencer_drift"`
 	GasPayingToken    *common.Address `toml:"gas_paying_token"`
 	Hardforks         HardforkConfig  `toml:"hardforks"`
-	Optimism          *OptimismConfig `toml:"optimism,omitempty"`
 
 	AltDA *AltDAConfig `toml:"alt_da,omitempty"`
 
@@ -47,7 +45,7 @@ type HardforkConfig struct {
 	PectraBlobScheduleTime *uint64 `toml:"pectra_blob_schedule_time,omitempty"`
 }
 
-type OptimismConfig struct {
+type FeeParamsConfig struct {
 	EIP1559Elasticity        uint64  `toml:"eip1559_elasticity"`
 	EIP1559Denominator       uint64  `toml:"eip1559_denominator"`
 	EIP1559DenominatorCanyon *uint64 `toml:"eip1559_denominator_canyon"`
@@ -61,10 +59,11 @@ type AltDAConfig struct {
 }
 
 type GenesisConfig struct {
-	L2Time       uint64       `toml:"l2_time"`
-	L1           GenesisRef   `toml:"l1"`
-	L2           GenesisRef   `toml:"l2"`
-	SystemConfig SystemConfig `toml:"system_config"`
+	L2Time       uint64           `toml:"l2_time"`
+	L1           GenesisRef       `toml:"l1"`
+	L2           GenesisRef       `toml:"l2"`
+	SystemConfig SystemConfig     `toml:"system_config"`
+	FeeParams    *FeeParamsConfig `toml:"fee_params,omitempty"`
 }
 
 type GenesisRef struct {
@@ -74,6 +73,7 @@ type GenesisRef struct {
 
 type SystemConfig struct {
 	BatcherAddr       common.Address `json:"batcherAddr" toml:"batcherAddress"`
+	BatchInboxAddr    common.Address `json:"batchInboxAddr" toml:"batch_inbox_addr"`
 	Overhead          common.Hash    `json:"overhead" toml:"overhead"`
 	Scalar            common.Hash    `json:"scalar" toml:"scalar"`
 	GasLimit          uint64         `json:"gasLimit" toml:"gasLimit"`

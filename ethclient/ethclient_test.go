@@ -233,7 +233,7 @@ func generateTestChain(genesis *core.Genesis, length int) []*types.Block {
 		g.SetExtra([]byte("test"))
 		if i == 1 {
 			// Test transactions are included in block #2.
-			if genesis.Config.Optimism != nil && genesis.Config.IsBedrock(big.NewInt(1)) {
+			if genesis.Config.FeeParams != nil && genesis.Config.IsBedrock(big.NewInt(1)) {
 				g.AddTx(depositTx)
 			}
 			g.AddTx(testTx1)

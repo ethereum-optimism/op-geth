@@ -317,7 +317,7 @@ var (
 		conf := *AllCliqueProtocolChanges // copy the config
 		conf.Clique = nil
 		conf.BedrockBlock = big.NewInt(5)
-		conf.Optimism = &OptimismConfig{EIP1559Elasticity: 50, EIP1559Denominator: 10}
+		conf.FeeParams = &FeeParamsConfig{EIP1559Elasticity: 50, EIP1559Denominator: 10}
 		return &conf
 	}()
 
@@ -336,7 +336,7 @@ var (
 		conf.IsthmusTime = &zero
 		conf.InteropTime = nil
 		conf.JovianTime = nil
-		conf.Optimism = &OptimismConfig{EIP1559Elasticity: 50, EIP1559Denominator: 10, EIP1559DenominatorCanyon: uint64ptr(250)}
+		conf.FeeParams = &FeeParamsConfig{EIP1559Elasticity: 50, EIP1559Denominator: 10, EIP1559DenominatorCanyon: uint64ptr(250)}
 		return &conf
 	}()
 )
@@ -449,8 +449,8 @@ type ChainConfig struct {
 	Clique             *CliqueConfig       `json:"clique,omitempty"`
 	BlobScheduleConfig *BlobScheduleConfig `json:"blobSchedule,omitempty"`
 
-	// Optimism config, nil if not active
-	Optimism *OptimismConfig `json:"optimism,omitempty"`
+	// FeeParams config, nil if not active
+	FeeParams *FeeParamsConfig `json:"feeParams,omitempty"`
 }
 
 // EthashConfig is the consensus engine configs for proof-of-work based sealing.
@@ -472,15 +472,15 @@ func (c CliqueConfig) String() string {
 	return fmt.Sprintf("clique(period: %d, epoch: %d)", c.Period, c.Epoch)
 }
 
-// OptimismConfig is the optimism config.
-type OptimismConfig struct {
+// FeeParamsConfig is the optimism config.
+type FeeParamsConfig struct {
 	EIP1559Elasticity        uint64  `json:"eip1559Elasticity"`
 	EIP1559Denominator       uint64  `json:"eip1559Denominator"`
 	EIP1559DenominatorCanyon *uint64 `json:"eip1559DenominatorCanyon,omitempty"`
 }
 
 // String implements the stringer interface, returning the optimism fee config details.
-func (o *OptimismConfig) String() string {
+func (o *FeeParamsConfig) String() string {
 	return "optimism"
 }
 
@@ -495,7 +495,7 @@ func (c *ChainConfig) Description() string {
 	}
 	banner += fmt.Sprintf("Chain ID:  %v (%s)\n", c.ChainID, network)
 	switch {
-	case c.Optimism != nil:
+	case c.FeeParams != nil:
 		banner += "Consensus: Optimism\n"
 	case c.Ethash != nil:
 		banner += "Consensus: Beacon (proof-of-stake), merged from Ethash (proof-of-work)\n"
@@ -773,7 +773,7 @@ func (c *ChainConfig) IsInterop(time uint64) bool {
 
 // IsOptimism returns whether the node is an optimism node or not.
 func (c *ChainConfig) IsOptimism() bool {
-	return c.Optimism != nil
+	return c.FeeParams != nil
 }
 
 // IsOptimismBedrock returns true iff this is an optimism node & bedrock is active
@@ -1069,22 +1069,22 @@ func (c *ChainConfig) checkCompatible(newcfg *ChainConfig, headNumber *big.Int, 
 // BaseFeeChangeDenominator bounds the amount the base fee can change between blocks.
 // The time parameters is the timestamp of the block to determine if Canyon is active or not
 func (c *ChainConfig) BaseFeeChangeDenominator(time uint64) uint64 {
-	if c.Optimism != nil {
+	if c.FeeParams != nil {
 		if c.IsCanyon(time) {
-			if c.Optimism.EIP1559DenominatorCanyon == nil || *c.Optimism.EIP1559DenominatorCanyon == 0 {
+			if c.FeeParams.EIP1559DenominatorCanyon == nil || *c.FeeParams.EIP1559DenominatorCanyon == 0 {
 				panic("invalid ChainConfig.Optimism.EIP1559DenominatorCanyon value: '0' or 'nil'")
 			}
-			return *c.Optimism.EIP1559DenominatorCanyon
+			return *c.FeeParams.EIP1559DenominatorCanyon
 		}
-		return c.Optimism.EIP1559Denominator
+		return c.FeeParams.EIP1559Denominator
 	}
 	return DefaultBaseFeeChangeDenominator
 }
 
 // ElasticityMultiplier bounds the maximum gas limit an EIP-1559 block may have.
 func (c *ChainConfig) ElasticityMultiplier() uint64 {
-	if c.Optimism != nil {
-		return c.Optimism.EIP1559Elasticity
+	if c.FeeParams != nil {
+		return c.FeeParams.EIP1559Elasticity
 	}
 	return DefaultElasticityMultiplier
 }

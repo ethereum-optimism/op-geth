@@ -80,10 +80,10 @@ func TestRegistryChainConfigOverride(t *testing.T) {
 			rawdb.WriteCanonicalHash(db, bl.Hash(), 0)
 			rawdb.WriteBlock(db, bl)
 
-			if genesis.Config.Optimism == nil {
+			if genesis.Config.FeeParams == nil {
 				t.Fatal("expected non nil Optimism config")
 			}
-			genesis.Config.Optimism.EIP1559DenominatorCanyon = tt.setDenominator
+			genesis.Config.FeeParams.EIP1559DenominatorCanyon = tt.setDenominator
 			// create chain config, even with incomplete genesis input: the chain config should be corrected
 			chainConfig, _, _, err := SetupGenesisBlockWithOverride(db, tdb, genesis, tt.overrides)
 			if err != nil {
@@ -99,8 +99,8 @@ func TestRegistryChainConfigOverride(t *testing.T) {
 				t.Fatalf("expected regolith time to be %d, but got %d", *tt.expectedRegolithTime, *chainConfig.RegolithTime)
 			}
 
-			if *chainConfig.Optimism.EIP1559DenominatorCanyon != tt.expectedDenominator {
-				t.Fatalf("expected EIP1559DenominatorCanyon to be %d, but got %d", tt.expectedDenominator, *chainConfig.Optimism.EIP1559DenominatorCanyon)
+			if *chainConfig.FeeParams.EIP1559DenominatorCanyon != tt.expectedDenominator {
+				t.Fatalf("expected EIP1559DenominatorCanyon to be %d, but got %d", tt.expectedDenominator, *chainConfig.FeeParams.EIP1559DenominatorCanyon)
 			}
 		})
 	}

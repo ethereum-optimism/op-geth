@@ -388,7 +388,7 @@ func (api *ConsensusAPI) forkchoiceUpdated(update engine.ForkchoiceStateV1, payl
 		// If the specified head matches with our local head, do nothing and keep
 		// generating the payload. It's a special corner case that a few slots are
 		// missing and we are requested to generate the payload in slot.
-	} else if api.eth.BlockChain().Config().Optimism == nil { // minor Engine API divergence: allow proposers to reorg their own chain
+	} else if api.eth.BlockChain().Config().FeeParams == nil { // minor Engine API divergence: allow proposers to reorg their own chain
 		// If the head block is already in our canonical chain, the beacon client is
 		// probably resyncing. Ignore the update.
 		log.Info("Ignoring beacon update to old head", "number", block.NumberU64(), "hash", update.HeadBlockHash, "age", common.PrettyAge(time.Unix(int64(block.Time()), 0)), "have", api.eth.BlockChain().CurrentBlock().Number)
@@ -431,7 +431,7 @@ func (api *ConsensusAPI) forkchoiceUpdated(update engine.ForkchoiceStateV1, payl
 
 	if payloadAttributes != nil {
 		var eip1559Params []byte
-		if api.eth.BlockChain().Config().Optimism != nil {
+		if api.eth.BlockChain().Config().FeeParams != nil {
 			if payloadAttributes.GasLimit == nil {
 				return engine.STATUS_INVALID, engine.InvalidPayloadAttributes.With(errors.New("gasLimit parameter is required"))
 			}
@@ -1161,7 +1161,7 @@ func (api *ConsensusAPI) invalid(err error, latestValid *types.Header) engine.Pa
 //
 // TODO(karalabe): Spin this goroutine down somehow
 func (api *ConsensusAPI) heartbeat() {
-	if api.eth.BlockChain().Config().Optimism != nil { // don't start the api heartbeat, there is no transition
+	if api.eth.BlockChain().Config().FeeParams != nil { // don't start the api heartbeat, there is no transition
 		return
 	}
 	// Sleep a bit on startup since there's obviously no beacon client yet

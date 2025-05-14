@@ -142,7 +142,7 @@ func NewRollupCostData(data []byte) (out RollupCostData) {
 // NewL1CostFunc returns a function used for calculating data availability fees, or nil if this is
 // not an op-stack chain.
 func NewL1CostFunc(config *params.ChainConfig, statedb StateGetter) L1CostFunc {
-	if config.Optimism == nil {
+	if config.FeeParams == nil {
 		return nil
 	}
 	forBlock := ^uint64(0)
@@ -206,7 +206,7 @@ func NewL1CostFunc(config *params.ChainConfig, statedb StateGetter) L1CostFunc {
 // NewOperatorCostFunc returns a function used for calculating operator fees, or nil if this is
 // not an op-stack chain.
 func NewOperatorCostFunc(config *params.ChainConfig, statedb StateGetter) OperatorCostFunc {
-	if config.Optimism == nil {
+	if config.FeeParams == nil {
 		return nil
 	}
 	forBlock := ^uint64(0)
