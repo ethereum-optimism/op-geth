@@ -452,7 +452,7 @@ type ChainConfig struct {
 	// Optimism config, nil if not active
 	Optimism *OptimismConfig `json:"optimism,omitempty"`
 
-	// Seconds per L2 block
+	// OP-Stack diff: Seconds per L2 block
 	BlockTime uint64 `json:"blockTime,omitempty"`
 }
 
