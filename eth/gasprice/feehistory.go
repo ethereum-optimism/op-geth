@@ -107,9 +107,9 @@ func (oracle *Oracle) processBlock(bf *blockFees, percentiles []float64) {
 	// Compute gas used ratio for normal and blob gas.
 	bf.results.gasUsedRatio = float64(bf.header.GasUsed) / float64(bf.header.GasLimit)
 	if blobGasUsed := bf.header.BlobGasUsed; blobGasUsed != nil {
-		maxBlobs := eip4844.MaxBlobsPerBlock(config, bf.header.Time)
-		if maxBlobs != 0 {
-			bf.results.blobGasUsedRatio = float64(*blobGasUsed) / float64(maxBlobs)
+		maxBlobGas := eip4844.MaxBlobGasPerBlock(config, bf.header.Time)
+		if maxBlobGas != 0 {
+			bf.results.blobGasUsedRatio = float64(*blobGasUsed) / float64(maxBlobGas)
 		} else { // avoid NaN values, these cannot be JSON-encoded in the fee-history RPC
 			bf.results.blobGasUsedRatio = 0
 		}
