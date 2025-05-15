@@ -780,7 +780,7 @@ func (b *Block) NextBaseFeePerGas(ctx context.Context) (*hexutil.Big, error) {
 			return nil, nil
 		}
 	}
-	nextBaseFee := eip1559.CalcBaseFee(chaincfg, header, header.Time+1)
+	nextBaseFee := eip1559.CalcBaseFee(chaincfg, header, chaincfg.NextBlockTime(header.Time))
 	return (*hexutil.Big)(nextBaseFee), nil
 }
 

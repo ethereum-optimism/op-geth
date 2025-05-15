@@ -451,6 +451,9 @@ type ChainConfig struct {
 
 	// Optimism config, nil if not active
 	Optimism *OptimismConfig `json:"optimism,omitempty"`
+
+	// Seconds per L2 block
+	BlockTime uint64 `json:"blockTime,omitempty"`
 }
 
 // EthashConfig is the consensus engine configs for proof-of-work based sealing.
@@ -1348,4 +1351,13 @@ func ptrValueString[T any](t *T) string {
 		return "<nil>"
 	}
 	return fmt.Sprintf("%v", *t)
+}
+
+func (c *ChainConfig) NextBlockTime(currentBlockTime uint64) uint64 {
+	if c.BlockTime != 0 {
+		return currentBlockTime + c.BlockTime
+	}
+
+	// to be compatible with existing call sites
+	return currentBlockTime + 1
 }

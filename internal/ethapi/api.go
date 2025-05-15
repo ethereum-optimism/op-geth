@@ -1229,7 +1229,7 @@ func NewRPCPendingTransaction(tx *types.Transaction, current *types.Header, conf
 		blockTime   = uint64(0)
 	)
 	if current != nil {
-		baseFee = eip1559.CalcBaseFee(config, current, current.Time+1)
+		baseFee = eip1559.CalcBaseFee(config, current, config.NextBlockTime(current.Time))
 		blockNumber = current.Number.Uint64()
 		blockTime = current.Time
 	}
