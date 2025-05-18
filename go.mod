@@ -1,4 +1,4 @@
-module github.com/ethereum/go-ethereum
+module github.com/jilio/op-geth-for-base
 
 go 1.22.0
 
