@@ -22,6 +22,7 @@ type ChainConfig struct {
 	MaxSequencerDrift uint64          `toml:"max_sequencer_drift"`
 	GasPayingToken    *common.Address `toml:"gas_paying_token"`
 	Hardforks         HardforkConfig  `toml:"hardforks"`
+	Interop           *Interop        `toml:"interop,omitempty"`
 	Optimism          *OptimismConfig `toml:"optimism,omitempty"`
 
 	AltDA *AltDAConfig `toml:"alt_da,omitempty"`
@@ -33,6 +34,15 @@ type ChainConfig struct {
 	Addresses AddressesConfig `toml:"addresses"`
 }
 
+type Dependency struct {
+	ChainIndex     uint32 `json:"chainIndex" toml:"chain_index"`
+	ActivationTime uint64 `json:"activationTime" toml:"activation_time"`
+}
+
+type Interop struct {
+	Dependencies map[string]Dependency `json:"dependencies" toml:"dependencies"`
+}
+
 type HardforkConfig struct {
 	CanyonTime   *uint64 `toml:"canyon_time"`
 	DeltaTime    *uint64 `toml:"delta_time"`
@@ -42,7 +52,7 @@ type HardforkConfig struct {
 	HoloceneTime *uint64 `toml:"holocene_time"`
 	IsthmusTime  *uint64 `toml:"isthmus_time"`
 	JovianTime   *uint64 `toml:"jovian_time"`
-
+	InteropTime  *uint64 `toml:"interop_time"`
 	// Optional Forks
 	PectraBlobScheduleTime *uint64 `toml:"pectra_blob_schedule_time,omitempty"`
 }
