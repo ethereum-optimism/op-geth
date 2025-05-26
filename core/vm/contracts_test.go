@@ -46,7 +46,7 @@ type precompiledFailureTest struct {
 
 // allPrecompiles does not map to the actual set of precompiles, as it also contains
 // repriced versions of precompiles at certain slots
-var allPrecompiles = map[common.Address]PrecompiledContract{
+var allPrecompiles = PrecompiledContracts{
 	common.BytesToAddress([]byte{1}):    &ecrecover{},
 	common.BytesToAddress([]byte{2}):    &sha256hash{},
 	common.BytesToAddress([]byte{3}):    &ripemd160hash{},

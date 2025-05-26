@@ -128,7 +128,7 @@ type EVM struct {
 	callGasTemp uint64
 
 	// precompiles holds the precompiled contracts for the current epoch
-	precompiles map[common.Address]PrecompiledContract
+	precompiles PrecompiledContracts
 
 	// jumpDests is the aggregated result of JUMPDEST analysis made through
 	// the life cycle of EVM.

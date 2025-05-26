@@ -144,7 +144,7 @@ var PrecompiledContractsVerkle = PrecompiledContractsPrague
 
 // PrecompiledContractsFjord contains the default set of pre-compiled Ethereum
 // contracts used in the Fjord release.
-var PrecompiledContractsFjord = map[common.Address]PrecompiledContract{
+var PrecompiledContractsFjord = PrecompiledContracts{
 	common.BytesToAddress([]byte{1}):          &ecrecover{},
 	common.BytesToAddress([]byte{2}):          &sha256hash{},
 	common.BytesToAddress([]byte{3}):          &ripemd160hash{},
@@ -160,7 +160,7 @@ var PrecompiledContractsFjord = map[common.Address]PrecompiledContract{
 
 // PrecompiledContractsGranite contains the default set of pre-compiled Ethereum
 // contracts used in the Granite release.
-var PrecompiledContractsGranite = map[common.Address]PrecompiledContract{
+var PrecompiledContractsGranite = PrecompiledContracts{
 	common.BytesToAddress([]byte{1}):          &ecrecover{},
 	common.BytesToAddress([]byte{2}):          &sha256hash{},
 	common.BytesToAddress([]byte{3}):          &ripemd160hash{},
@@ -174,7 +174,7 @@ var PrecompiledContractsGranite = map[common.Address]PrecompiledContract{
 	common.BytesToAddress([]byte{0x01, 0x00}): &p256Verify{},
 }
 
-var PrecompiledContractsIsthmus = map[common.Address]PrecompiledContract{
+var PrecompiledContractsIsthmus = PrecompiledContracts{
 	common.BytesToAddress([]byte{1}):          &ecrecover{},
 	common.BytesToAddress([]byte{2}):          &sha256hash{},
 	common.BytesToAddress([]byte{3}):          &ripemd160hash{},
