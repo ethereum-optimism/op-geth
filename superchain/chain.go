@@ -100,7 +100,7 @@ func GetChain(chainID uint64) (*Chain, error) {
 	return BuiltInConfigs.GetChain(chainID)
 }
 
-func GetDepset(chainID uint64) (map[string]Dependency, error) {
+func GetDepset(chainID uint64) (map[string]StaticConfigDependency, error) {
 	chain, err := BuiltInConfigs.GetChain(chainID)
 	if err != nil {
 		return nil, err
@@ -117,14 +117,9 @@ func GetDepset(chainID uint64) (map[string]Dependency, error) {
 	// depset of 1 (self) is the default when no dependencies are specified but interop_time is set
 	if cfg.Interop == nil {
 		cfg.Interop = &Interop{
-			Dependencies: make(map[string]Dependency),
+			Dependencies: make(map[string]StaticConfigDependency),
 		}
-		self := Dependency{
-			ChainIndex:     1,
-			ActivationTime: *cfg.Hardforks.InteropTime,
-		}
-
-		cfg.Interop.Dependencies[fmt.Sprintf("%d", cfg.ChainID)] = self
+		cfg.Interop.Dependencies[fmt.Sprintf("%d", cfg.ChainID)] = StaticConfigDependency{}
 	}
 
 	return cfg.Interop.Dependencies, nil
