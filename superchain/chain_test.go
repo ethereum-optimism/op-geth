@@ -79,7 +79,7 @@ func TestGetDepset(t *testing.T) {
 		// Verify the default dependency was created
 		selfDep, exists := depset["42"]
 		require.True(t, exists)
-		require.Equal(t, selfDep, StaticConfigDependency{})
+		require.Equal(t, selfDep, Dependency{})
 	})
 
 	t.Run("existing Interop depset returned", func(t *testing.T) {
@@ -94,7 +94,7 @@ func TestGetDepset(t *testing.T) {
 					InteropTime: &activationTime,
 				},
 				Interop: &Interop{
-					Dependencies: map[string]StaticConfigDependency{
+					Dependencies: map[string]Dependency{
 						"42": {},
 						"43": {},
 					},
@@ -117,10 +117,10 @@ func TestGetDepset(t *testing.T) {
 
 		selfDep, exists := depset["42"]
 		require.True(t, exists)
-		require.Equal(t, selfDep, StaticConfigDependency{})
+		require.Equal(t, selfDep, Dependency{})
 
 		otherDep, exists := depset["43"]
 		require.True(t, exists)
-		require.Equal(t, otherDep, StaticConfigDependency{})
+		require.Equal(t, otherDep, Dependency{})
 	})
 }

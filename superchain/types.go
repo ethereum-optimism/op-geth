@@ -34,10 +34,10 @@ type ChainConfig struct {
 	Addresses AddressesConfig `toml:"addresses"`
 }
 
-type StaticConfigDependency struct{}
+type Dependency struct{}
 
 type Interop struct {
-	Dependencies map[string]StaticConfigDependency `json:"dependencies" toml:"dependencies"`
+	Dependencies map[string]Dependency `json:"dependencies" toml:"dependencies"`
 }
 
 type HardforkConfig struct {
