@@ -119,12 +119,7 @@ func GetDepset(chainID uint64) (map[string]Dependency, error) {
 		cfg.Interop = &Interop{
 			Dependencies: make(map[string]Dependency),
 		}
-		self := Dependency{
-			ChainIndex:     1,
-			ActivationTime: *cfg.Hardforks.InteropTime,
-		}
-
-		cfg.Interop.Dependencies[fmt.Sprintf("%d", cfg.ChainID)] = self
+		cfg.Interop.Dependencies[fmt.Sprintf("%d", cfg.ChainID)] = Dependency{}
 	}
 
 	return cfg.Interop.Dependencies, nil
