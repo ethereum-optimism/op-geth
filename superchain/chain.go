@@ -5,6 +5,7 @@ import (
 	"bytes"
 	_ "embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -22,6 +23,8 @@ var builtInConfigData []byte
 var BuiltInConfigs *ChainConfigLoader
 
 var Chains map[uint64]*Chain
+
+var ErrUnknownChain = errors.New("unknown chain")
 
 type ChainConfigLoader struct {
 	configDataReader     fs.FS
@@ -78,7 +81,7 @@ func ChainIDByName(name string) (uint64, error) {
 func (c *ChainConfigLoader) ChainIDByName(name string) (uint64, error) {
 	id, ok := c.idsByName[name]
 	if !ok {
-		return 0, fmt.Errorf("unknown chain %q", name)
+		return 0, fmt.Errorf("%w %q", ErrUnknownChain, name)
 	}
 	return id, nil
 }
@@ -110,10 +113,6 @@ func GetDepset(chainID uint64) (map[string]Dependency, error) {
 		return nil, err
 	}
 
-	if cfg.Hardforks.InteropTime == nil {
-		return nil, nil
-	}
-
 	// depset of 1 (self) is the default when no dependencies are specified but interop_time is set
 	if cfg.Interop == nil {
 		cfg.Interop = &Interop{
@@ -128,7 +127,7 @@ func GetDepset(chainID uint64) (map[string]Dependency, error) {
 func (c *ChainConfigLoader) GetChain(chainID uint64) (*Chain, error) {
 	chain, ok := c.Chains[chainID]
 	if !ok {
-		return nil, fmt.Errorf("unknown chain ID: %d", chainID)
+		return nil, fmt.Errorf("%w ID: %d", ErrUnknownChain, chainID)
 	}
 	return chain, nil
 }

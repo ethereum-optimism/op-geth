@@ -20,7 +20,7 @@ func TestGetDepset(t *testing.T) {
 
 		depset, err := GetDepset(999999)
 		require.Nil(t, depset)
-		require.Error(t, err)
+		require.ErrorIs(t, err, ErrUnknownChain)
 		require.Contains(t, err.Error(), "unknown chain ID")
 	})
 
@@ -45,8 +45,13 @@ func TestGetDepset(t *testing.T) {
 		}
 
 		depset, err := GetDepset(42)
-		require.Nil(t, depset)
 		require.NoError(t, err)
+		require.NotNil(t, depset)
+
+		// Verify the default dependency was created
+		selfDep, exists := depset["42"]
+		require.True(t, exists)
+		require.Equal(t, selfDep, Dependency{})
 	})
 
 	t.Run("nil Interop creates default depset", func(t *testing.T) {
