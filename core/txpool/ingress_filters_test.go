@@ -7,10 +7,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/holiman/uint256"
+	"github.com/stretchr/testify/require"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/types/interoptypes"
-	"github.com/stretchr/testify/require"
 )
 
 type mockInteropFilterAPI struct {
@@ -42,7 +44,7 @@ func (m *mockInteropFilterAPI) CheckAccessList(ctx context.Context, inboxEntries
 
 func TestInteropFilter(t *testing.T) {
 	api := &mockInteropFilterAPI{}
-	filter := NewInteropFilter(api)
+	filter := NewInteropFilter(api, *uint256.NewInt(123))
 	tx := types.NewTx(&types.DynamicFeeTx{})
 
 	t.Run("Tx has no access list", func(t *testing.T) {
@@ -137,7 +139,7 @@ func TestInteropFilterRPCFailures(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			api := &mockInteropFilterAPI{}
-			filter := NewInteropFilter(api)
+			filter := NewInteropFilter(api, *uint256.NewInt(123))
 			api.accessListFn = func(tx *types.Transaction) []common.Hash {
 				return []common.Hash{{0xaa}}
 			}
