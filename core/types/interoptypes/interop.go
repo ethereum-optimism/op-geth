@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/holiman/uint256"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -53,17 +55,20 @@ const (
 )
 
 type ExecutingDescriptor struct {
+	ChainID   uint256.Int
 	Timestamp uint64
 	Timeout   uint64
 }
 
 type executingDescriptorMarshaling struct {
+	ChainID   uint256.Int    `json:"chainID"`
 	Timestamp hexutil.Uint64 `json:"timestamp"`
 	Timeout   hexutil.Uint64 `json:"timeout"`
 }
 
 func (ed ExecutingDescriptor) MarshalJSON() ([]byte, error) {
 	var enc executingDescriptorMarshaling
+	enc.ChainID = ed.ChainID
 	enc.Timestamp = hexutil.Uint64(ed.Timestamp)
 	enc.Timeout = hexutil.Uint64(ed.Timeout)
 	return json.Marshal(&enc)
@@ -74,6 +79,7 @@ func (ed *ExecutingDescriptor) UnmarshalJSON(input []byte) error {
 	if err := json.Unmarshal(input, &dec); err != nil {
 		return err
 	}
+	ed.ChainID = dec.ChainID
 	ed.Timestamp = uint64(dec.Timestamp)
 	ed.Timeout = uint64(dec.Timeout)
 	return nil
