@@ -194,9 +194,13 @@ func (miner *Miner) generateWork(params *generateParams, witness bool) *newPaylo
 			return &newPayloadResult{err: err}
 		}
 		// EIP-7002
-		core.ProcessWithdrawalQueue(&requests, work.evm)
+		if err := core.ProcessWithdrawalQueue(&requests, work.evm); err != nil {
+			return &newPayloadResult{err: err}
+		}
 		// EIP-7251 consolidations
-		core.ProcessConsolidationQueue(&requests, work.evm)
+		if err := core.ProcessConsolidationQueue(&requests, work.evm); err != nil {
+			return &newPayloadResult{err: err}
+		}
 	}
 
 	if isIsthmus {
@@ -459,7 +463,12 @@ func (miner *Miner) checkInterop(ctx context.Context, tx *types.Transaction, log
 	if len(accessList) == 0 {
 		return nil // avoid an RPC check if there are no executing messages to verify.
 	}
-	if err := b.CheckAccessList(ctx, accessList, interoptypes.CrossUnsafe, interoptypes.ExecutingDescriptor{Timestamp: logTimestamp, Timeout: 0}); err != nil {
+	execDescr := interoptypes.ExecutingDescriptor{
+		Timestamp: logTimestamp,
+		Timeout:   0,
+		ChainID:   *uint256.MustFromBig(miner.chainConfig.ChainID),
+	}
+	if err := b.CheckAccessList(ctx, accessList, interoptypes.CrossUnsafe, execDescr); err != nil {
 		if ctx.Err() != nil { // don't reject transactions permanently on RPC timeouts etc.
 			log.Debug("CheckAccessList timed out", "err", ctx.Err())
 			return err
@@ -683,6 +692,7 @@ func totalFees(block *types.Block, receipts []*types.Receipt) *big.Int {
 	for i, tx := range block.Transactions() {
 		minerFee, _ := tx.EffectiveGasTip(block.BaseFee())
 		feesWei.Add(feesWei, new(big.Int).Mul(new(big.Int).SetUint64(receipts[i].GasUsed), minerFee))
+		// TODO (MariusVanDerWijden) add blob fees
 	}
 	return feesWei
 }

@@ -77,6 +77,7 @@ func (tx *DepositTx) gasTipCap() *big.Int    { return new(big.Int) }
 func (tx *DepositTx) gasPrice() *big.Int     { return new(big.Int) }
 func (tx *DepositTx) value() *big.Int        { return tx.Value }
 func (tx *DepositTx) nonce() uint64          { return 0 }
+func (tx *DepositTx) from() common.Address   { return tx.From }
 func (tx *DepositTx) to() *common.Address    { return tx.To }
 func (tx *DepositTx) isSystemTx() bool       { return tx.IsSystemTransaction }
 
@@ -85,6 +86,10 @@ func (tx *DepositTx) effectiveGasPrice(dst *big.Int, baseFee *big.Int) *big.Int 
 }
 
 func (tx *DepositTx) effectiveNonce() *uint64 { return nil }
+
+func (tx *DepositTx) sigHash(*big.Int) common.Hash {
+	panic("deposit cannot be signed")
+}
 
 func (tx *DepositTx) rawSignatureValues() (v, r, s *big.Int) {
 	return common.Big0, common.Big0, common.Big0
@@ -100,4 +105,15 @@ func (tx *DepositTx) encode(b *bytes.Buffer) error {
 
 func (tx *DepositTx) decode(input []byte) error {
 	return rlp.DecodeBytes(input, tx)
+}
+
+// From is an OP-Stack addition to the Transaction type to easily get a deposit
+// transaction sender address.
+// It can be difficult to create a correct signer just to extract the From field
+// from a deposit transaction if the chain ID is not known.
+func (tx *Transaction) From() common.Address {
+	if tx.Type() != DepositTxType {
+		panic("From() called on non-deposit transaction")
+	}
+	return tx.inner.(interface{ from() common.Address }).from()
 }
