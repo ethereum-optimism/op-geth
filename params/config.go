@@ -372,6 +372,50 @@ var (
 		conf.Optimism = &OptimismConfig{EIP1559Elasticity: 50, EIP1559Denominator: 10, EIP1559DenominatorCanyon: uint64ptr(250)}
 		return &conf
 	}()
+
+	// BasePIDConfig returns a base configuration for PID-enabled chains
+	BasePIDConfig = &ChainConfig{
+		ChainID:                 big.NewInt(8453), // Base Mainnet
+		HomesteadBlock:          big.NewInt(0),
+		EIP150Block:             big.NewInt(0),
+		EIP155Block:             big.NewInt(0),
+		EIP158Block:             big.NewInt(0),
+		ByzantiumBlock:          big.NewInt(0),
+		ConstantinopleBlock:     big.NewInt(0),
+		PetersburgBlock:         big.NewInt(0),
+		IstanbulBlock:           big.NewInt(0),
+		BerlinBlock:             big.NewInt(0),
+		LondonBlock:             big.NewInt(0),
+		PIDBlock:                big.NewInt(1000000), // TODO: this is just a placeholder, we need to find the correct block number
+		BedrockBlock:            big.NewInt(0),
+		TerminalTotalDifficulty: big.NewInt(0),
+		Optimism: &OptimismConfig{ // TODO: this is just a placeholder, we need to find the correct config
+			EIP1559Elasticity:  6,
+			EIP1559Denominator: 250,
+		},
+	}
+
+	// BaseSepoliaPIDConfig is the chain parameters to run a node on the Base Sepolia test network with PID enabled.
+	BaseSepoliaPIDConfig = &ChainConfig{
+		ChainID:                 big.NewInt(84532), // Base Sepolia
+		HomesteadBlock:          big.NewInt(0),
+		EIP150Block:             big.NewInt(0),
+		EIP155Block:             big.NewInt(0),
+		EIP158Block:             big.NewInt(0),
+		ByzantiumBlock:          big.NewInt(0),
+		ConstantinopleBlock:     big.NewInt(0),
+		PetersburgBlock:         big.NewInt(0),
+		IstanbulBlock:           big.NewInt(0),
+		BerlinBlock:             big.NewInt(0),
+		LondonBlock:             big.NewInt(0),
+		PIDBlock:                big.NewInt(100000), // TODO: this is just a placeholder, we need to find the correct block number
+		BedrockBlock:            big.NewInt(0),
+		TerminalTotalDifficulty: big.NewInt(0),
+		Optimism: &OptimismConfig{ // TODO: this is just a placeholder, we need to find the correct config
+			EIP1559Elasticity:  6,
+			EIP1559Denominator: 250,
+		},
+	}
 )
 
 var (
@@ -403,10 +447,12 @@ var (
 
 // NetworkNames are user friendly names to use in the chain spec banner.
 var NetworkNames = map[string]string{
-	MainnetChainConfig.ChainID.String(): "mainnet",
-	SepoliaChainConfig.ChainID.String(): "sepolia",
-	HoleskyChainConfig.ChainID.String(): "holesky",
-	HoodiChainConfig.ChainID.String():   "hoodi",
+	MainnetChainConfig.ChainID.String():   "mainnet",
+	SepoliaChainConfig.ChainID.String():   "sepolia",
+	HoleskyChainConfig.ChainID.String():   "holesky",
+	HoodiChainConfig.ChainID.String():     "hoodi",
+	BasePIDConfig.ChainID.String():        "base-pid",
+	BaseSepoliaPIDConfig.ChainID.String(): "base-sepolia-pid",
 }
 
 // ChainConfig is the core config which determines the blockchain settings.
@@ -437,7 +483,7 @@ type ChainConfig struct {
 	ArrowGlacierBlock   *big.Int `json:"arrowGlacierBlock,omitempty"`   // Eip-4345 (bomb delay) switch block (nil = no fork, 0 = already activated)
 	GrayGlacierBlock    *big.Int `json:"grayGlacierBlock,omitempty"`    // Eip-5133 (bomb delay) switch block (nil = no fork, 0 = already activated)
 	MergeNetsplitBlock  *big.Int `json:"mergeNetsplitBlock,omitempty"`  // Virtual fork after The Merge to use as a network splitter
-
+	PIDBlock            *big.Int `json:"pidBlock,omitempty"`            // PID switch block (nil = no fork, 0 = already on pid)
 	// Fork scheduling was switched from blocks to timestamps here
 
 	ShanghaiTime *uint64 `json:"shanghaiTime,omitempty"` // Shanghai switch time (nil = no fork, 0 = already on shanghai)
@@ -850,6 +896,11 @@ func (c *ChainConfig) IsOptimismJovian(time uint64) bool {
 // IsOptimismPreBedrock returns true iff this is an optimism node & bedrock is not yet active
 func (c *ChainConfig) IsOptimismPreBedrock(num *big.Int) bool {
 	return c.IsOptimism() && !c.IsBedrock(num)
+}
+
+// IsPID returns whether num represents a block number after the PID control fork
+func (c *ChainConfig) IsPID(num *big.Int) bool {
+	return isBlockForked(c.PIDBlock, num)
 }
 
 // CheckCompatible checks whether scheduled fork transitions have been imported

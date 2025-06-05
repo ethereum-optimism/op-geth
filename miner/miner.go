@@ -33,8 +33,10 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/types/interoptypes"
 	"github.com/ethereum/go-ethereum/eth/tracers"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/pid"
 )
 
 var (
@@ -71,6 +73,13 @@ type Config struct {
 	EffectiveGasCeil uint64   // if non-zero, a gas ceiling to apply independent of the header's gaslimit value
 	MaxDATxSize      *big.Int `toml:",omitempty"` // if non-nil, don't include any txs with data availability size larger than this in any built block
 	MaxDABlockSize   *big.Int `toml:",omitempty"` // if non-nil, then don't build a block requiring more than this amount of total data availability
+
+	// PID Controller configuration
+	PIDEnabled   bool    // Enable PID controller for advanced fee management
+	PIDKp        float64 // PID proportional gain
+	PIDKi        float64 // PID integral gain
+	PIDKd        float64 // PID derivative gain
+	PIDMaxChange float64 // Maximum fee change per block
 }
 
 // DefaultConfig contains default settings for miner.
@@ -83,6 +92,13 @@ var DefaultConfig = Config{
 	// for payload generation. It should be enough for Geth to
 	// run 3 rounds.
 	Recommit: 2 * time.Second,
+
+	// PID Controller defaults
+	PIDEnabled:   true,
+	PIDKp:        1.8,
+	PIDKi:        0.12,
+	PIDKd:        0.35,
+	PIDMaxChange: 0.12,
 }
 
 // Miner is the main object which takes care of submitting new work to consensus
@@ -102,15 +118,40 @@ type Miner struct {
 
 	lifeCtxCancel context.CancelFunc
 	lifeCtx       context.Context
+
+	// PID controller for advanced fee management
+	pidController *pid.FastPIDController
 }
 
 // New creates a new miner with provided config.
 func New(eth Backend, config Config, engine consensus.Engine) *Miner {
 	ctx, cancel := context.WithCancel(context.Background())
+
+	// Initialize PID controller for sequencer fee management
+	var pidController *pid.FastPIDController
+	chainConfig := eth.BlockChain().Config()
+
+	// Use gas ceiling from config as gas limit, and calculate target as 50% of limit
+	gasLimit := config.GasCeil
+	if gasLimit == 0 {
+		gasLimit = DefaultConfig.GasCeil // Use default if not set
+	}
+	gasTarget := gasLimit / 2 // Target is typically 50% of limit for EIP-1559
+
+	pidController = pid.NewFastPIDController(gasTarget, gasLimit, log.New("module", "miner-pid"))
+
+	// Apply PID configuration from command line flags
+	if config.PIDEnabled {
+		pidController.SetEnabled(true)
+		pidController.UpdateParameters(config.PIDKp, config.PIDKi, config.PIDKd, config.PIDMaxChange)
+	} else {
+		pidController.SetEnabled(false)
+	}
+
 	return &Miner{
 		backend:     eth,
 		config:      &config,
-		chainConfig: eth.BlockChain().Config(),
+		chainConfig: chainConfig,
 		engine:      engine,
 		txpool:      eth.TxPool(),
 		chain:       eth.BlockChain(),
@@ -118,6 +159,7 @@ func New(eth Backend, config Config, engine consensus.Engine) *Miner {
 		// To interrupt background tasks that may be attached to external processes
 		lifeCtxCancel: cancel,
 		lifeCtx:       ctx,
+		pidController: pidController,
 	}
 }
 
@@ -244,4 +286,38 @@ func (miner *Miner) getPending() *newPayloadResult {
 
 func (miner *Miner) Close() {
 	miner.lifeCtxCancel()
+}
+
+// GetPIDController returns the PID controller instance for external access
+func (miner *Miner) GetPIDController() *pid.FastPIDController {
+	return miner.pidController
+}
+
+// SetPIDEnabled enables or disables the PID controller
+func (miner *Miner) SetPIDEnabled(enabled bool) {
+	if miner.pidController != nil {
+		miner.pidController.SetEnabled(enabled)
+	}
+}
+
+// UpdatePIDParameters allows runtime adjustment of PID parameters
+func (miner *Miner) UpdatePIDParameters(kp, ki, kd, maxChange float64) {
+	if miner.pidController != nil {
+		miner.pidController.UpdateParameters(kp, ki, kd, maxChange)
+	}
+}
+
+// UpdatePIDExternalPressure updates external pressure signals from batcher
+func (miner *Miner) UpdatePIDExternalPressure(daPressure, l1Influence float64) {
+	if miner.pidController != nil {
+		miner.pidController.UpdateExternalPressure(daPressure, l1Influence)
+	}
+}
+
+// GetPIDStatus returns current PID controller status
+func (miner *Miner) GetPIDStatus() map[string]interface{} {
+	if miner.pidController != nil {
+		return miner.pidController.GetStatus()
+	}
+	return map[string]interface{}{"error": "PID controller not initialized"}
 }

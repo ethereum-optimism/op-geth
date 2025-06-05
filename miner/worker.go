@@ -271,7 +271,29 @@ func (miner *Miner) prepareWork(genParams *generateParams, witness bool) (*envir
 	}
 	// Set baseFee and GasLimit if we are on an EIP-1559 chain
 	if miner.chainConfig.IsLondon(header.Number) {
-		header.BaseFee = eip1559.CalcBaseFee(miner.chainConfig, parent, header.Time)
+		// Calculate base fee using standard EIP-1559 algorithm
+		standardBaseFee := eip1559.CalcBaseFee(miner.chainConfig, parent, header.Time)
+
+		// Apply PID controller adjustment if enabled
+		if miner.pidController != nil && miner.pidController.IsEnabled() {
+			// Get gas usage from parent block for PID calculation
+			gasUsed := parent.GasUsed
+			adjustedBaseFee := eip1559.CalcBaseFeeWithPID(miner.chainConfig, parent, gasUsed, miner.pidController)
+			header.BaseFee = adjustedBaseFee
+
+			// Get gas target from PID status for logging
+			status := miner.pidController.GetStatus()
+			gasTarget := status["gasTarget"]
+
+			log.Debug("PID controller applied to base fee",
+				"standard", standardBaseFee,
+				"adjusted", adjustedBaseFee,
+				"gasUsed", gasUsed,
+				"gasTarget", gasTarget)
+		} else {
+			header.BaseFee = standardBaseFee
+		}
+
 		if !miner.chainConfig.IsLondon(parent.Number) {
 			parentGasLimit := parent.GasLimit * miner.chainConfig.ElasticityMultiplier()
 			header.GasLimit = core.CalcGasLimit(parentGasLimit, miner.config.GasCeil)
