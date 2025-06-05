@@ -32,6 +32,7 @@ var (
 	MainnetGenesisHash = common.HexToHash("0xd4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3")
 	HoleskyGenesisHash = common.HexToHash("0xb5f7f912443c940f21fd611f12828d75b534364ed9e95ca4e307729a4661bde4")
 	SepoliaGenesisHash = common.HexToHash("0x25a5cc106eea7138acab33231d7160d69cb777ee0c2c553fcddf5138993e6dd9")
+	HoodiGenesisHash   = common.HexToHash("0xbbe312868b376a3001692a646dd2d7d1e4406380dfd86b98aa8a34d1557c971b")
 )
 
 const (
@@ -66,10 +67,12 @@ var (
 		TerminalTotalDifficulty: MainnetTerminalTotalDifficulty, // 58_750_000_000_000_000_000_000
 		ShanghaiTime:            newUint64(1681338455),
 		CancunTime:              newUint64(1710338135),
+		PragueTime:              newUint64(1746612311),
 		DepositContractAddress:  common.HexToAddress("0x00000000219ab540356cbb839cbe05303d7705fa"),
 		Ethash:                  new(EthashConfig),
 		BlobScheduleConfig: &BlobScheduleConfig{
 			Cancun: DefaultCancunBlobConfig,
+			Prague: DefaultPragueBlobConfig,
 		},
 	}
 	// HoleskyChainConfig contains the chain parameters to run a node on the Holesky test network.
@@ -126,6 +129,36 @@ var (
 		CancunTime:              newUint64(1706655072),
 		PragueTime:              newUint64(1741159776),
 		DepositContractAddress:  common.HexToAddress("0x7f02c3e3c98b133055b8b348b2ac625669ed295d"),
+		Ethash:                  new(EthashConfig),
+		BlobScheduleConfig: &BlobScheduleConfig{
+			Cancun: DefaultCancunBlobConfig,
+			Prague: DefaultPragueBlobConfig,
+		},
+	}
+	// HoodiChainConfig contains the chain parameters to run a node on the Hoodi test network.
+	HoodiChainConfig = &ChainConfig{
+		ChainID:                 big.NewInt(560048),
+		HomesteadBlock:          big.NewInt(0),
+		DAOForkBlock:            nil,
+		DAOForkSupport:          true,
+		EIP150Block:             big.NewInt(0),
+		EIP155Block:             big.NewInt(0),
+		EIP158Block:             big.NewInt(0),
+		ByzantiumBlock:          big.NewInt(0),
+		ConstantinopleBlock:     big.NewInt(0),
+		PetersburgBlock:         big.NewInt(0),
+		IstanbulBlock:           big.NewInt(0),
+		MuirGlacierBlock:        big.NewInt(0),
+		BerlinBlock:             big.NewInt(0),
+		LondonBlock:             big.NewInt(0),
+		ArrowGlacierBlock:       nil,
+		GrayGlacierBlock:        nil,
+		TerminalTotalDifficulty: big.NewInt(0),
+		MergeNetsplitBlock:      big.NewInt(0),
+		ShanghaiTime:            newUint64(0),
+		CancunTime:              newUint64(0),
+		PragueTime:              newUint64(1742999832),
+		DepositContractAddress:  common.HexToAddress("0x00000000219ab540356cBB839Cbe05303d7705Fa"),
 		Ethash:                  new(EthashConfig),
 		BlobScheduleConfig: &BlobScheduleConfig{
 			Cancun: DefaultCancunBlobConfig,
@@ -360,7 +393,7 @@ var (
 		Max:            9,
 		UpdateFraction: 5007716,
 	}
-	// DefaultBlobSchedule is the latest configured blob schedule for test chains.
+	// DefaultBlobSchedule is the latest configured blob schedule for Ethereum mainnet.
 	DefaultBlobSchedule = &BlobScheduleConfig{
 		Cancun: DefaultCancunBlobConfig,
 		Prague: DefaultPragueBlobConfig,
@@ -373,6 +406,7 @@ var NetworkNames = map[string]string{
 	MainnetChainConfig.ChainID.String(): "mainnet",
 	SepoliaChainConfig.ChainID.String(): "sepolia",
 	HoleskyChainConfig.ChainID.String(): "holesky",
+	HoodiChainConfig.ChainID.String():   "hoodi",
 }
 
 // ChainConfig is the core config which determines the blockchain settings.
@@ -1108,6 +1142,23 @@ func (c *ChainConfig) LatestFork(time uint64) forks.Fork {
 	}
 }
 
+// Timestamp returns the timestamp associated with the fork or returns nil if
+// the fork isn't defined or isn't a time-based fork.
+func (c *ChainConfig) Timestamp(fork forks.Fork) *uint64 {
+	switch {
+	case fork == forks.Osaka:
+		return c.OsakaTime
+	case fork == forks.Prague:
+		return c.PragueTime
+	case fork == forks.Cancun:
+		return c.CancunTime
+	case fork == forks.Shanghai:
+		return c.ShanghaiTime
+	default:
+		return nil
+	}
+}
+
 // isForkBlockIncompatible returns true if a fork scheduled at block s1 cannot be
 // rescheduled to block s2 because head is already past the fork and the fork was scheduled after genesis
 func isForkBlockIncompatible(s1, s2, head *big.Int) bool {
@@ -1305,4 +1356,47 @@ func (c *ChainConfig) Rules(num *big.Int, isMerge bool, timestamp uint64) Rules 
 
 func (c *ChainConfig) HasOptimismWithdrawalsRoot(blockTime uint64) bool {
 	return c.IsOptimismIsthmus(blockTime)
+}
+
+// CheckOptimismValidity checks for OP Stack chains:
+// - the EIP159 params are set
+// - the Ethereum forks are set to the same time as the OP Stack forks that imply them
+func (c *ChainConfig) CheckOptimismValidity() error {
+	if c.Optimism == nil {
+		return nil
+	}
+
+	if c.Optimism.EIP1559Denominator == 0 {
+		return errors.New("zero EIP1559Denominator")
+	}
+	if c.Optimism.EIP1559Elasticity == 0 {
+		return errors.New("zero EIP1559Elasticity")
+	}
+	if c.CanyonTime != nil && (c.Optimism.EIP1559DenominatorCanyon == nil || *c.Optimism.EIP1559DenominatorCanyon == 0) {
+		return errors.New("missing or zero EIP1559DenominatorCanyon")
+	}
+
+	if !equalPtrValues(c.ShanghaiTime, c.CanyonTime) {
+		return fmt.Errorf("ShanghaiTime (%s) must equal CanyonTime (%s)", ptrValueString(c.ShanghaiTime), ptrValueString(c.CanyonTime))
+	}
+	if !equalPtrValues(c.CancunTime, c.EcotoneTime) {
+		return fmt.Errorf("CancunTime (%s) must equal EcotoneTime (%s)", ptrValueString(c.CancunTime), ptrValueString(c.EcotoneTime))
+	}
+	if !equalPtrValues(c.PragueTime, c.IsthmusTime) {
+		return fmt.Errorf("PragueTime (%s) must equal IsthmusTime (%s)", ptrValueString(c.PragueTime), ptrValueString(c.IsthmusTime))
+	}
+
+	return nil
+}
+
+func equalPtrValues[T comparable](a, b *T) bool {
+	// also captures nil == nil
+	return a == b || (a != nil && b != nil && *a == *b)
+}
+
+func ptrValueString[T any](t *T) string {
+	if t == nil {
+		return "<nil>"
+	}
+	return fmt.Sprintf("%v", *t)
 }

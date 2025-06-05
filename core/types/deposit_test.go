@@ -22,6 +22,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/stretchr/testify/require"
 )
 
 var (
@@ -92,4 +93,19 @@ func FuzzUnpackIntoDeposit(f *testing.F) {
 			t.Errorf("roundtrip failed: want %x, got %x", enc, got)
 		}
 	})
+}
+
+func TestDepositTxFrom(t *testing.T) {
+	from := common.HexToAddress("0x1234567890123456789012345678901234567890")
+	dtx := &DepositTx{From: from}
+	tx := NewTx(dtx)
+	require.Equal(t, from, tx.From())
+
+	dtxwn := &depositTxWithNonce{DepositTx: *dtx}
+	tx = NewTx(dtxwn)
+	require.Equal(t, from, tx.From())
+
+	dftx := new(DynamicFeeTx)
+	tx = NewTx(dftx)
+	require.Panics(t, func() { tx.From() })
 }

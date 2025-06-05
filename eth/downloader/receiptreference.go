@@ -5,6 +5,7 @@ import (
 	"embed"
 	"encoding/gob"
 	"fmt"
+	"math/big"
 	"path"
 	"strings"
 
@@ -100,20 +101,22 @@ func correctReceipts(receipts types.Receipts, transactions types.Transactions, b
 		return receipts
 	}
 
+	signer := types.LatestSignerForChainID(big.NewInt(int64(chainID)))
 	// iterate through the receipts and transactions to correct the deposit nonce
 	// user deposits should always be at the front of the block, but we will check all transactions to be sure
 	udCount := 0
 	for i := 0; i < len(receipts); i++ {
 		r := receipts[i]
-		tx := transactions[i]
-		from, err := types.Sender(types.LatestSignerForChainID(tx.ChainId()), tx)
-		if err != nil {
-			log.Warn("Receipt Correction: Failed to determine sender", "err", err)
-			continue
-		}
 		// break as soon as a non deposit is found
 		if r.Type != types.DepositTxType {
 			break
+		}
+
+		tx := transactions[i]
+		from, err := types.Sender(signer, tx)
+		if err != nil {
+			log.Warn("Receipt Correction: Failed to determine sender", "err", err)
+			continue
 		}
 		// ignore any transactions from the system address
 		if from != systemAddress {
