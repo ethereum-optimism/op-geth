@@ -17,6 +17,7 @@
 package legacypool
 
 import (
+	"context"
 	"crypto/ecdsa"
 	crand "crypto/rand"
 	"errors"
