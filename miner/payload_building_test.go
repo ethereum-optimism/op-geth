@@ -329,7 +329,7 @@ func testDAFilters(t *testing.T, maxDATxSize, maxDABlockSize *big.Int, expectedT
 	w, b := newTestWorker(t, config, ethash.NewFaker(), db, 0)
 	w.SetMaxDASize(maxDATxSize, maxDABlockSize)
 	txs := genTxs(1, numDAFilterTxs)
-	b.txPool.Add(txs, false)
+	b.txPool.Add(txs, true)
 
 	params1559 := []byte{0, 1, 2, 3, 4, 5, 6, 7}
 	args := newPayloadArgs(b.chain.CurrentBlock().Hash(), params1559)
