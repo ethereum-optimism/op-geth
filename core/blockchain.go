@@ -553,29 +553,6 @@ func (bc *BlockChain) setupSnapshot() {
 		// Re-initialize the state database with snapshot
 		bc.statedb = state.NewDatabase(bc.triedb, bc.snaps)
 	}
-
-	// Rewind the chain in case of an incompatible config upgrade.
-	if compatErr != nil {
-		log.Warn("Rewinding chain to upgrade configuration", "err", compatErr)
-		if compatErr.RewindToTime > 0 {
-			bc.SetHeadWithTimestamp(compatErr.RewindToTime)
-		} else {
-			bc.SetHead(compatErr.RewindToBlock)
-		}
-		rawdb.WriteChainConfig(db, genesisHash, chainConfig)
-	}
-
-	// OP-Stack diff: deliberately only check header after reorg handling, to get un-stuck of degenerate reorg cases.
-	// The first thing the node will do is reconstruct the verification data for
-	// the head block (ethash cache or clique voting snapshot). Might as well do
-	// it in advance.
-	bc.engine.VerifyHeader(bc, bc.CurrentHeader())
-
-	// Start tx indexer if it's enabled.
-	if txLookupLimit != nil {
-		bc.txIndexer = newTxIndexer(*txLookupLimit, bc)
-	}
-	return bc, nil
 }
 
 // empty returns an indicator whether the blockchain is empty.

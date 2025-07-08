@@ -27,6 +27,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
 )
@@ -434,8 +435,8 @@ func (r *Receipt) DeriveFields(signer Signer, context DeriveReceiptContext) {
 		// Deriving the signer is expensive, only do if it's actually needed
 		from, _ := Sender(signer, context.Tx)
 		nonce := context.Tx.Nonce()
-		if context.Tx.DepositNonce != nil {
-			nonce = context.Tx.DepositNonce
+		if r.DepositNonce != nil {
+			nonce = *r.DepositNonce
 		}
 		r.ContractAddress = crypto.CreateAddress(from, nonce)
 	} else {
@@ -593,50 +594,26 @@ func (rs Receipts) DeriveFields(config *params.ChainConfig, blockHash common.Has
 		return errors.New("transaction and receipt count mismatch")
 	}
 	for i := 0; i < len(rs); i++ {
-		// The transaction type and hash can be retrieved from the transaction itself
-		rs[i].Type = txs[i].Type()
-		rs[i].TxHash = txs[i].Hash()
-		rs[i].EffectiveGasPrice = txs[i].inner.effectiveGasPrice(new(big.Int), baseFee)
-
-		// EIP-4844 blob transaction fields
-		if txs[i].Type() == BlobTxType {
-			rs[i].BlobGasUsed = txs[i].BlobGas()
-			rs[i].BlobGasPrice = blobGasPrice
+		var cumulativeGasUsed uint64
+		if i > 0 {
+			cumulativeGasUsed = rs[i-1].CumulativeGasUsed
 		}
-
-		// block location fields
-		rs[i].BlockHash = hash
-		rs[i].BlockNumber = new(big.Int).SetUint64(number)
-		rs[i].TransactionIndex = uint(i)
-
-		// The contract address can be derived from the transaction itself
-		if txs[i].To() == nil {
-			// Deriving the signer is expensive, only do if it's actually needed
-			from, _ := Sender(signer, txs[i])
-			rs[i].ContractAddress = crypto.CreateAddress(from, txs[i].Nonce())
-		} else {
-			rs[i].ContractAddress = common.Address{}
-		}
-
-		// The used gas can be calculated based on previous r
-		if i == 0 {
-			rs[i].GasUsed = rs[i].CumulativeGasUsed
-		} else {
-			rs[i].GasUsed = rs[i].CumulativeGasUsed - rs[i-1].CumulativeGasUsed
-		}
-
-		// The derived log fields can simply be set from the block and transaction
-		for j := 0; j < len(rs[i].Logs); j++ {
-			rs[i].Logs[j].BlockNumber = number
-			rs[i].Logs[j].BlockHash = hash
-			rs[i].Logs[j].TxHash = rs[i].TxHash
-			rs[i].Logs[j].TxIndex = uint(i)
-			rs[i].Logs[j].Index = logIndex
-			logIndex++
-		}
+		rs[i].DeriveFields(signer, DeriveReceiptContext{
+			BlockHash:    blockHash,
+			BlockNumber:  blockNumber,
+			BlockTime:    blockTime,
+			BaseFee:      baseFee,
+			BlobGasPrice: blobGasPrice,
+			GasUsed:      rs[i].CumulativeGasUsed - cumulativeGasUsed,
+			LogIndex:     logIndex,
+			Tx:           txs[i],
+			TxIndex:      uint(i),
+		})
+		logIndex += uint(len(rs[i].Logs))
 	}
-	if config.Optimism != nil && len(txs) >= 2 && config.IsBedrock(new(big.Int).SetUint64(number)) { // need at least an info tx and a non-info tx
-		gasParams, err := extractL1GasParams(config, time, txs[0].Data())
+
+	if config.Optimism != nil && len(txs) >= 2 && config.IsBedrock(new(big.Int).SetUint64(blockNumber)) {
+		gasParams, err := extractL1GasParams(config, blockTime, txs[0].Data())
 		if err != nil {
 			return err
 		}

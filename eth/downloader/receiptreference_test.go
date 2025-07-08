@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -104,5 +105,119 @@ func TestCorrectReceipts(t *testing.T) {
 	for _, tc := range testcases {
 		receipts, correctedReceipts := makeCorrection(tc.blockNum, tc.chainID, tc.nonces, tc.txTypes)
 		tc.validate(receipts, correctedReceipts)
+	}
+}
+
+func TestCorrectReceiptsRLP(t *testing.T) {
+	type testcase struct {
+		blockNum uint64
+		chainID  uint64
+		nonces   []uint64
+		txTypes  []uint8
+		validate func(rlp.RawValue, rlp.RawValue)
+	}
+
+	// Tests use the real reference data, so block numbers and chainIDs are selected for different test cases
+	testcases := []testcase{
+		// Test case 1: No receipts
+		{
+			blockNum: 6825767,
+			chainID:  420,
+			nonces:   []uint64{},
+			txTypes:  []uint8{},
+			validate: func(originalRLP rlp.RawValue, correctedRLP rlp.RawValue) {
+				var original, corrected types.Receipts
+				assert.NoError(t, rlp.DecodeBytes(originalRLP, &original))
+				assert.NoError(t, rlp.DecodeBytes(correctedRLP, &corrected))
+				assert.Empty(t, corrected)
+			},
+		},
+		// Test case 2: No deposits
+		{
+			blockNum: 6825767,
+			chainID:  420,
+			nonces:   []uint64{1, 2, 3},
+			txTypes:  []uint8{1, 1, 1},
+			validate: func(originalRLP rlp.RawValue, correctedRLP rlp.RawValue) {
+				var original, corrected types.Receipts
+				assert.NoError(t, rlp.DecodeBytes(originalRLP, &original))
+				assert.NoError(t, rlp.DecodeBytes(correctedRLP, &corrected))
+				assert.Equal(t, original, corrected)
+			},
+		},
+		// Test case 3: all deposits with no correction
+		{
+			blockNum: 8835769,
+			chainID:  420,
+			nonces:   []uint64{78756, 78757, 78758, 78759, 78760, 78761, 78762, 78763, 78764},
+			txTypes:  []uint8{126, 126, 126, 126, 126, 126, 126, 126, 126},
+			validate: func(originalRLP rlp.RawValue, correctedRLP rlp.RawValue) {
+				var original, corrected types.Receipts
+				assert.NoError(t, rlp.DecodeBytes(originalRLP, &original))
+				assert.NoError(t, rlp.DecodeBytes(correctedRLP, &corrected))
+				assert.Equal(t, original, corrected)
+			},
+		},
+		// Test case 4: all deposits with a correction
+		{
+			blockNum: 8835769,
+			chainID:  420,
+			nonces:   []uint64{78756, 78757, 78758, 12345, 78760, 78761, 78762, 78763, 78764},
+			txTypes:  []uint8{126, 126, 126, 126, 126, 126, 126, 126, 126},
+			validate: func(originalRLP rlp.RawValue, correctedRLP rlp.RawValue) {
+				var original, corrected types.Receipts
+				assert.NoError(t, rlp.DecodeBytes(originalRLP, &original))
+				assert.NoError(t, rlp.DecodeBytes(correctedRLP, &corrected))
+				assert.NotEqual(t, original[3], corrected[3])
+				for i := range original {
+					if i != 3 {
+						assert.Equal(t, original[i], corrected[i])
+					}
+				}
+			},
+		},
+		// Test case 5: deposits with several corrections and non-deposits
+		{
+			blockNum: 8835769,
+			chainID:  420,
+			nonces:   []uint64{0, 1, 2, 78759, 78760, 78761, 6, 78763, 78764, 9, 10, 11},
+			txTypes:  []uint8{126, 126, 126, 126, 126, 126, 126, 126, 126, 1, 1, 1},
+			validate: func(originalRLP rlp.RawValue, correctedRLP rlp.RawValue) {
+				var original, corrected types.Receipts
+				assert.NoError(t, rlp.DecodeBytes(originalRLP, &original))
+				assert.NoError(t, rlp.DecodeBytes(correctedRLP, &corrected))
+				// indexes 0, 1, 2, 6 were modified
+				// indexes 9, 10, 11 were added too, but they are not user deposits
+				assert.NotEqual(t, original[0], corrected[0])
+				assert.NotEqual(t, original[1], corrected[1])
+				assert.NotEqual(t, original[2], corrected[2])
+				assert.NotEqual(t, original[6], corrected[6])
+				for i := range original {
+					if i != 0 && i != 1 && i != 2 && i != 6 {
+						assert.Equal(t, original[i], corrected[i])
+					}
+				}
+			},
+		},
+	}
+
+	for _, tc := range testcases {
+		// Create original receipts and transactions
+		receipts := make(types.Receipts, len(tc.nonces))
+		transactions := make(types.Transactions, len(tc.nonces))
+		for i := range tc.nonces {
+			receipts[i] = &types.Receipt{Type: tc.txTypes[i], DepositNonce: &tc.nonces[i]}
+			transactions[i] = types.NewTx(&types.DepositTx{})
+		}
+
+		// Encode original receipts to RLP
+		originalRLP, err := rlp.EncodeToBytes(receipts)
+		assert.NoError(t, err)
+
+		// Call correctReceiptsRLP
+		correctedRLP := correctReceiptsRLP(originalRLP, transactions, tc.blockNum, tc.chainID)
+
+		// Validate the results
+		tc.validate(originalRLP, correctedRLP)
 	}
 }

@@ -19,6 +19,7 @@ package beacon
 import (
 	"errors"
 	"fmt"
+	"math"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -405,7 +406,7 @@ func (beacon *Beacon) FinalizeAndAssemble(chain consensus.ChainHeaderReader, hea
 		header.WithdrawalsHash = &h
 		sa := state.AccessEvents()
 		if sa != nil {
-			sa.AddAccount(params.OptimismL2ToL1MessagePasser, false) // include in execution witness
+			sa.AddAccount(params.OptimismL2ToL1MessagePasser, false, math.MaxUint64) // include in execution witness
 		}
 	}
 

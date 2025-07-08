@@ -29,6 +29,7 @@ import (
 	"time"
 
 	"github.com/holiman/uint256"
+	"golang.org/x/time/rate"
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
@@ -54,6 +55,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
+	"github.com/ethereum/go-ethereum/internal/sequencerapi"
 	"github.com/ethereum/go-ethereum/internal/shutdowncheck"
 	"github.com/ethereum/go-ethereum/internal/version"
 	"github.com/ethereum/go-ethereum/log"
@@ -66,26 +68,6 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
 	gethversion "github.com/ethereum/go-ethereum/version"
-)
-
-const (
-	// This is the fairness knob for the discovery mixer. When looking for peers, we'll
-	// wait this long for a single source of candidates before moving on and trying other
-	// sources. If this timeout expires, the source will be skipped in this round, but it
-	// will continue to fetch in the background and will have a chance with a new timeout
-	// in the next rounds, giving it overall more time but a proportionally smaller share.
-	// We expect a normal source to produce ~10 candidates per second.
-	discmixTimeout = 100 * time.Millisecond
-
-	// discoveryPrefetchBuffer is the number of peers to pre-fetch from a discovery
-	// source. It is useful to avoid the negative effects of potential longer timeouts
-	// in the discovery, keeping dial progress while waiting for the next batch of
-	// candidates.
-	discoveryPrefetchBuffer = 32
-
-	// maxParallelENRRequests is the maximum number of parallel ENR requests that can be
-	// performed by a disc/v4 source.
-	maxParallelENRRequests = 16
 )
 
 const (
@@ -481,9 +463,6 @@ func makeExtraData(extra []byte) []byte {
 // NOTE, some of these services probably need to be moved to somewhere else.
 func (s *Ethereum) APIs() []rpc.API {
 	apis := ethapi.GetAPIs(s.APIBackend)
-
-	// Append any APIs exposed explicitly by the consensus engine
-	apis = append(apis, s.engine.APIs(s.BlockChain())...)
 
 	// Append any Sequencer APIs as enabled
 	if s.config.RollupSequencerTxConditionalEnabled {

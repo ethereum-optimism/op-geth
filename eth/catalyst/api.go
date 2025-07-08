@@ -31,11 +31,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/consensus/misc/eip1559"
-	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/rawdb"
-	"github.com/ethereum/go-ethereum/core/stateless"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto/kzg4844"
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/eth/ethconfig"
@@ -614,6 +611,17 @@ func (api *ConsensusAPI) GetBlobsV2(hashes []common.Hash) ([]*engine.BlobAndProo
 	return res, nil
 }
 
+// Helper for NewPayload* methods.
+var invalidStatus = engine.PayloadStatusV1{Status: engine.INVALID}
+
+// NewPayloadV1 creates an Eth1 block, inserts it in the chain, and returns the status of the chain.
+func (api *ConsensusAPI) NewPayloadV1(params engine.ExecutableData) (engine.PayloadStatusV1, error) {
+	if params.Withdrawals != nil {
+		return invalidStatus, paramsErr("withdrawals not supported in V1")
+	}
+	return api.newPayload(params, nil, nil, nil, false)
+}
+
 // NewPayloadV2 creates an Eth1 block, inserts it in the chain, and returns the status of the chain.
 func (api *ConsensusAPI) NewPayloadV2(params engine.ExecutableData) (engine.PayloadStatusV1, error) {
 	if api.eth.BlockChain().Config().IsCancun(api.eth.BlockChain().Config().LondonBlock, params.Timestamp) {
@@ -693,82 +701,6 @@ func (api *ConsensusAPI) NewPayloadV4(params engine.ExecutableData, versionedHas
 		return engine.PayloadStatusV1{Status: engine.INVALID}, engine.InvalidParams.With(errors.New("nil withdrawalsRoot post-isthmus"))
 	}
 
-	requests := convertRequests(executionRequests)
-	if err := validateRequests(requests); err != nil {
-		return engine.PayloadStatusV1{Status: engine.INVALID}, engine.InvalidParams.With(err)
-	}
-	return res, nil
-}
-
-// Helper for NewPayload* methods.
-var invalidStatus = engine.PayloadStatusV1{Status: engine.INVALID}
-
-// NewPayloadV1 creates an Eth1 block, inserts it in the chain, and returns the status of the chain.
-func (api *ConsensusAPI) NewPayloadV1(params engine.ExecutableData) (engine.PayloadStatusV1, error) {
-	if params.Withdrawals != nil {
-		return invalidStatus, paramsErr("withdrawals not supported in V1")
-	}
-	return api.newPayload(params, nil, nil, nil, false)
-}
-
-// NewPayloadV2 creates an Eth1 block, inserts it in the chain, and returns the status of the chain.
-func (api *ConsensusAPI) NewPayloadV2(params engine.ExecutableData) (engine.PayloadStatusV1, error) {
-	var (
-		cancun   = api.config().IsCancun(api.config().LondonBlock, params.Timestamp)
-		shanghai = api.config().IsShanghai(api.config().LondonBlock, params.Timestamp)
-	)
-	switch {
-	case cancun:
-		return invalidStatus, paramsErr("can't use newPayloadV2 post-cancun")
-	case shanghai && params.Withdrawals == nil:
-		return invalidStatus, paramsErr("nil withdrawals post-shanghai")
-	case !shanghai && params.Withdrawals != nil:
-		return invalidStatus, paramsErr("non-nil withdrawals pre-shanghai")
-	case params.ExcessBlobGas != nil:
-		return invalidStatus, paramsErr("non-nil excessBlobGas pre-cancun")
-	case params.BlobGasUsed != nil:
-		return invalidStatus, paramsErr("non-nil blobGasUsed pre-cancun")
-	}
-	return api.newPayload(params, nil, nil, nil, false)
-}
-
-// NewPayloadV3 creates an Eth1 block, inserts it in the chain, and returns the status of the chain.
-func (api *ConsensusAPI) NewPayloadV3(params engine.ExecutableData, versionedHashes []common.Hash, beaconRoot *common.Hash) (engine.PayloadStatusV1, error) {
-	switch {
-	case params.Withdrawals == nil:
-		return invalidStatus, paramsErr("nil withdrawals post-shanghai")
-	case params.ExcessBlobGas == nil:
-		return invalidStatus, paramsErr("nil excessBlobGas post-cancun")
-	case params.BlobGasUsed == nil:
-		return invalidStatus, paramsErr("nil blobGasUsed post-cancun")
-	case versionedHashes == nil:
-		return invalidStatus, paramsErr("nil versionedHashes post-cancun")
-	case beaconRoot == nil:
-		return invalidStatus, paramsErr("nil beaconRoot post-cancun")
-	case !api.checkFork(params.Timestamp, forks.Cancun):
-		return invalidStatus, unsupportedForkErr("newPayloadV3 must only be called for cancun payloads")
-	}
-	return api.newPayload(params, versionedHashes, beaconRoot, nil, false)
-}
-
-// NewPayloadV4 creates an Eth1 block, inserts it in the chain, and returns the status of the chain.
-func (api *ConsensusAPI) NewPayloadV4(params engine.ExecutableData, versionedHashes []common.Hash, beaconRoot *common.Hash, executionRequests []hexutil.Bytes) (engine.PayloadStatusV1, error) {
-	switch {
-	case params.Withdrawals == nil:
-		return invalidStatus, paramsErr("nil withdrawals post-shanghai")
-	case params.ExcessBlobGas == nil:
-		return invalidStatus, paramsErr("nil excessBlobGas post-cancun")
-	case params.BlobGasUsed == nil:
-		return invalidStatus, paramsErr("nil blobGasUsed post-cancun")
-	case versionedHashes == nil:
-		return invalidStatus, paramsErr("nil versionedHashes post-cancun")
-	case beaconRoot == nil:
-		return invalidStatus, paramsErr("nil beaconRoot post-cancun")
-	case executionRequests == nil:
-		return invalidStatus, paramsErr("nil executionRequests post-prague")
-	case !api.checkFork(params.Timestamp, forks.Prague, forks.Osaka):
-		return invalidStatus, unsupportedForkErr("newPayloadV4 must only be called for prague payloads")
-	}
 	requests := convertRequests(executionRequests)
 	if err := validateRequests(requests); err != nil {
 		return engine.PayloadStatusV1{Status: engine.INVALID}, engine.InvalidParams.With(err)
@@ -900,63 +832,6 @@ func (api *ConsensusAPI) newPayload(params engine.ExecutableData, versionedHashe
 		*ow, _ = rlp.EncodeToBytes(proofs)
 	}
 	return engine.PayloadStatusV1{Status: engine.VALID, Witness: ow, LatestValidHash: &hash}, nil
-}
-
-func (api *ConsensusAPI) executeStatelessPayload(params engine.ExecutableData, versionedHashes []common.Hash, beaconRoot *common.Hash, requests [][]byte, opaqueWitness hexutil.Bytes) (engine.StatelessPayloadStatusV1, error) {
-	log.Trace("Engine API request received", "method", "ExecuteStatelessPayload", "number", params.Number, "hash", params.BlockHash)
-	block, err := engine.ExecutableDataToBlockNoHash(params, versionedHashes, beaconRoot, requests, api.eth.BlockChain().Config())
-	if err != nil {
-		bgu := "nil"
-		if params.BlobGasUsed != nil {
-			bgu = strconv.Itoa(int(*params.BlobGasUsed))
-		}
-		ebg := "nil"
-		if params.ExcessBlobGas != nil {
-			ebg = strconv.Itoa(int(*params.ExcessBlobGas))
-		}
-		log.Warn("Invalid ExecuteStatelessPayload params",
-			"params.Number", params.Number,
-			"params.ParentHash", params.ParentHash,
-			"params.BlockHash", params.BlockHash,
-			"params.StateRoot", params.StateRoot,
-			"params.FeeRecipient", params.FeeRecipient,
-			"params.LogsBloom", common.PrettyBytes(params.LogsBloom),
-			"params.Random", params.Random,
-			"params.GasLimit", params.GasLimit,
-			"params.GasUsed", params.GasUsed,
-			"params.Timestamp", params.Timestamp,
-			"params.ExtraData", common.PrettyBytes(params.ExtraData),
-			"params.BaseFeePerGas", params.BaseFeePerGas,
-			"params.BlobGasUsed", bgu,
-			"params.ExcessBlobGas", ebg,
-			"len(params.Transactions)", len(params.Transactions),
-			"len(params.Withdrawals)", len(params.Withdrawals),
-			"params.WithdrawalsRoot", params.WithdrawalsRoot,
-			"beaconRoot", beaconRoot,
-			"len(requests)", len(requests),
-			"error", err)
-		errorMsg := err.Error()
-		return engine.StatelessPayloadStatusV1{Status: engine.INVALID, ValidationError: &errorMsg}, nil
-	}
-	witness := new(stateless.Witness)
-	if err := rlp.DecodeBytes(opaqueWitness, witness); err != nil {
-		log.Warn("Invalid ExecuteStatelessPayload witness", "err", err)
-		errorMsg := err.Error()
-		return engine.StatelessPayloadStatusV1{Status: engine.INVALID, ValidationError: &errorMsg}, nil
-	}
-	// Stash away the last update to warn the user if the beacon client goes offline
-	api.lastNewPayloadLock.Lock()
-	api.lastNewPayloadUpdate = time.Now()
-	api.lastNewPayloadLock.Unlock()
-
-	log.Trace("Executing block statelessly", "number", block.Number(), "hash", params.BlockHash)
-	stateRoot, receiptRoot, err := core.ExecuteStateless(api.eth.BlockChain().Config(), vm.Config{}, block, witness)
-	if err != nil {
-		log.Warn("ExecuteStatelessPayload: execution failed", "err", err)
-		errorMsg := err.Error()
-		return engine.StatelessPayloadStatusV1{Status: engine.INVALID, ValidationError: &errorMsg}, nil
-	}
-	return engine.StatelessPayloadStatusV1{Status: engine.VALID, StateRoot: stateRoot, ReceiptsRoot: receiptRoot}, nil
 }
 
 // delayPayloadImport stashes the given block away for import at a later time,

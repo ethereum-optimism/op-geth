@@ -336,7 +336,6 @@ func doTest(cmdline []string) {
 func downloadSpecTestFixtures(csdb *download.ChecksumDB, cachedir string) string {
 	ext := ".tar.gz"
 	base := "fixtures_develop"
-	url := fmt.Sprintf("https://github.com/ethereum/execution-spec-tests/releases/download/%s/%s%s", executionSpecTestsVersion, base, ext)
 	archivePath := filepath.Join(cachedir, base+ext)
 	if err := csdb.DownloadFileFromKnownURL(archivePath); err != nil {
 		log.Fatal(err)

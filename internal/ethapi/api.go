@@ -1588,12 +1588,22 @@ func (api *TransactionAPI) GetTransactionReceipt(ctx context.Context, hash commo
 		// No such tx.
 		return nil, nil
 	}
-	receipt, err := api.b.GetCanonicalReceipt(tx, blockHash, blockNumber, index)
+	header, err := api.b.HeaderByHash(ctx, blockHash)
 	if err != nil {
 		return nil, err
 	}
+	receipts, err := api.b.GetReceipts(ctx, blockHash)
+	if err != nil {
+		return nil, err
+	}
+	if uint64(len(receipts)) <= index {
+		return nil, nil
+	}
+	receipt := receipts[index]
+
 	// Derive the sender.
-	return marshalReceipt(receipt, blockHash, blockNumber, api.signer, tx, int(index)), nil
+	signer := types.MakeSigner(api.b.ChainConfig(), header.Number, header.Time)
+	return marshalReceipt(receipt, blockHash, blockNumber, signer, tx, int(index), api.b.ChainConfig()), nil
 }
 
 // marshalReceipt marshals a transaction receipt into a JSON object.
