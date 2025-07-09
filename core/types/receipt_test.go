@@ -405,21 +405,23 @@ func getTestReceipts() Receipts {
 						Address: common.BytesToAddress([]byte{0x33}),
 						Topics:  []common.Hash{common.HexToHash("dead"), common.HexToHash("beef")},
 						// derived fields:
-						BlockNumber: blockNumber.Uint64(),
-						TxHash:      txs[7].Hash(),
-						TxIndex:     7,
-						BlockHash:   blockHash,
-						Index:       4,
+						BlockNumber:    blockNumber.Uint64(),
+						TxHash:         txs[7].Hash(),
+						TxIndex:        7,
+						BlockHash:      blockHash,
+						BlockTimestamp: blockTime,
+						Index:          4,
 					},
 					{
 						Address: common.BytesToAddress([]byte{0x03, 0x33}),
 						Topics:  []common.Hash{common.HexToHash("dead"), common.HexToHash("beef")},
 						// derived fields:
-						BlockNumber: blockNumber.Uint64(),
-						TxHash:      txs[7].Hash(),
-						TxIndex:     7,
-						BlockHash:   blockHash,
-						Index:       5,
+						BlockNumber:    blockNumber.Uint64(),
+						TxHash:         txs[7].Hash(),
+						TxIndex:        7,
+						BlockHash:      blockHash,
+						BlockTimestamp: blockTime,
+						Index:          5,
 					},
 				},
 				TxHash:                txs[7].Hash(),
@@ -441,21 +443,23 @@ func getTestReceipts() Receipts {
 						Address: common.BytesToAddress([]byte{0x33}),
 						Topics:  []common.Hash{common.HexToHash("dead"), common.HexToHash("beef")},
 						// derived fields:
-						BlockNumber: blockNumber.Uint64(),
-						TxHash:      txs[8].Hash(),
-						TxIndex:     8,
-						BlockHash:   blockHash,
-						Index:       6,
+						BlockNumber:    blockNumber.Uint64(),
+						TxHash:         txs[8].Hash(),
+						TxIndex:        8,
+						BlockHash:      blockHash,
+						BlockTimestamp: blockTime,
+						Index:          6,
 					},
 					{
 						Address: common.BytesToAddress([]byte{0x03, 0x33}),
 						Topics:  []common.Hash{common.HexToHash("dead"), common.HexToHash("beef")},
 						// derived fields:
-						BlockNumber: blockNumber.Uint64(),
-						TxHash:      txs[8].Hash(),
-						TxIndex:     8,
-						BlockHash:   blockHash,
-						Index:       7,
+						BlockNumber:    blockNumber.Uint64(),
+						TxHash:         txs[8].Hash(),
+						TxIndex:        8,
+						BlockHash:      blockHash,
+						BlockTimestamp: blockTime,
+						Index:          7,
 					},
 				},
 				TxHash:                txs[8].Hash(),
@@ -792,6 +796,10 @@ func getOptimismEcotoneTxReceipts(l1AttributesPayload []byte, l1GasPrice, l1Blob
 			L1BlobBaseFeeScalar: blobBaseFeeScalar,
 		},
 	}
+	for _, receipt := range receipts {
+		receipt.Bloom = CreateBloom(receipt)
+	}
+
 	return txs, receipts
 }
 
@@ -864,6 +872,10 @@ func getOptimismIsthmusTxReceipts(l1AttributesPayload []byte, l1GasPrice, l1Blob
 			OperatorFeeConstant: operatorFeeConstant,
 		},
 	}
+	for _, receipt := range receipts {
+		receipt.Bloom = CreateBloom(receipt)
+	}
+
 	return txs, receipts
 }
 
@@ -932,6 +944,10 @@ func getOptimismTxReceipts(l1AttributesPayload []byte, l1GasPrice, l1GasUsed, l1
 			FeeScalar:        feeScalar,
 		},
 	}
+	for _, receipt := range receipts {
+		receipt.Bloom = CreateBloom(receipt)
+	}
+
 	return txs, receipts
 }
 
