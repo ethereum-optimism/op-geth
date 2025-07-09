@@ -26,6 +26,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/holiman/uint256"
+
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -312,7 +314,8 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 	// simulated logs and message safety check functions
 	poolFilters := []txpool.IngressFilter{}
 	if config.InteropMessageRPC != "" && config.InteropMempoolFiltering {
-		poolFilters = append(poolFilters, txpool.NewInteropFilter(eth))
+		chainID := uint256.MustFromBig(chainConfig.ChainID)
+		poolFilters = append(poolFilters, txpool.NewInteropFilter(eth, *chainID))
 	}
 	eth.txPool, err = txpool.New(config.TxPool.PriceLimit, eth.blockchain, txPools, poolFilters)
 	if err != nil {

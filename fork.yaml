@@ -327,6 +327,13 @@ def:
     - title: "Geth extras"
       description: Extend the tools available in geth to improve external testing and tooling.
       sub:
+        - title: Logger improvements
+          description: |
+            Extend the logger with context-logging support. And improve testlog Crit handling.
+          globs:
+            - "log/logger.go"
+            - "log/root.go"
+            - "internal/testlog/testlog.go"
         - title: JSON-RPC recording
           description: |
             Extend server and client with configurable JSON-RPC message recording.

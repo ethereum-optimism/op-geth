@@ -6,10 +6,9 @@ import (
 	"math"
 	"os"
 	"runtime"
+	"sync/atomic"
 	"time"
 )
-
-const errorKey = "LOG_ERROR"
 
 const (
 	legacyLevelCrit = iota
@@ -102,34 +101,36 @@ func LevelString(l slog.Level) string {
 	}
 }
 
-// A Logger writes key/value pairs to a Handler
+// A Logger writes key/value pairs to a Handler.
+// Each key/value pair can be two consecutive references, or a slog.Attr, and both may occur in the same log call.
 type Logger interface {
 	// With returns a new Logger that has this logger's attributes plus the given attributes
-	With(ctx ...interface{}) Logger
+	With(args ...any) Logger
 
 	// New returns a new Logger that has this logger's attributes plus the given attributes. Identical to 'With'.
-	New(ctx ...interface{}) Logger
+	New(args ...any) Logger
 
-	// Log logs a message at the specified level with context key/value pairs
-	Log(level slog.Level, msg string, ctx ...interface{})
+	// Log logs a message at the specified level with context key/value pairs.
+	Log(level slog.Level, msg string, args ...any)
 
-	// Trace log a message at the trace level with context key/value pairs
-	Trace(msg string, ctx ...interface{})
+	// Trace log a message at the trace level with context key/value pairs.
+	Trace(msg string, args ...any)
 
 	// Debug logs a message at the debug level with context key/value pairs
-	Debug(msg string, ctx ...interface{})
+	Debug(msg string, args ...any)
 
 	// Info logs a message at the info level with context key/value pairs
-	Info(msg string, ctx ...interface{})
+	Info(msg string, args ...any)
 
 	// Warn logs a message at the warn level with context key/value pairs
-	Warn(msg string, ctx ...interface{})
+	Warn(msg string, args ...any)
 
 	// Error logs a message at the error level with context key/value pairs
-	Error(msg string, ctx ...interface{})
+	Error(msg string, args ...any)
 
-	// Crit logs a message at the crit level with context key/value pairs, and exits
-	Crit(msg string, ctx ...interface{})
+	// Crit logs a message at the crit level with context key/value pairs, and exits.
+	// Warning: for legacy compatibility this runs os.Exit(1).
+	Crit(msg string, args ...any)
 
 	// Write logs a message at the specified level
 	Write(level slog.Level, msg string, attrs ...any)
@@ -139,17 +140,51 @@ type Logger interface {
 
 	// Handler returns the underlying handler of the inner logger.
 	Handler() slog.Handler
+
+	// SetContext sets the default context: this is used for every log call without specified context.
+	// Sub-loggers inherit this context.
+	// Contexts may be used to filter log records before attributes processing: see slog.Handler.Enabled.
+	SetContext(ctx context.Context)
+
+	// WriteCtx logs a message at the specified level with attribute key/value pairs and/or slog.Attr pairs.
+	WriteCtx(ctx context.Context, level slog.Level, msg string, attrs ...any)
+
+	// LogAttrs is a more efficient version of [Logger.Log] that accepts only Attrs.
+	LogAttrs(ctx context.Context, level slog.Level, msg string, attrs ...slog.Attr)
+
+	// TraceContext logs at [LevelTrace] with the given context.
+	TraceContext(ctx context.Context, msg string, args ...any)
+
+	// DebugContext logs at [LevelDebug] with the given context.
+	DebugContext(ctx context.Context, msg string, args ...any)
+
+	// InfoContext logs at [LevelInfo] with the given context.
+	InfoContext(ctx context.Context, msg string, args ...any)
+
+	// WarnContext logs at [LevelWarn] with the given context.
+	WarnContext(ctx context.Context, msg string, args ...any)
+
+	// ErrorContext logs at [LevelError] with the given context.
+	ErrorContext(ctx context.Context, msg string, args ...any)
 }
 
 type logger struct {
-	inner *slog.Logger
+	inner      *slog.Logger
+	defaultCtx atomic.Pointer[context.Context] // used when no context is specified
 }
 
 // NewLogger returns a logger with the specified handler set
 func NewLogger(h slog.Handler) Logger {
-	return &logger{
-		slog.New(h),
-	}
+	out := &logger{inner: slog.New(h)}
+	ctx := context.Background()
+	out.defaultCtx.Store(&ctx)
+	return out
+}
+
+// SetContext sets the default context: this is used for every log call without specified context.
+// Sub-loggers inherit this context.
+func (l *logger) SetContext(ctx context.Context) {
+	l.defaultCtx.Store(&ctx)
 }
 
 func (l *logger) Handler() slog.Handler {
@@ -158,31 +193,54 @@ func (l *logger) Handler() slog.Handler {
 
 // Write logs a message at the specified level.
 func (l *logger) Write(level slog.Level, msg string, attrs ...any) {
-	if !l.inner.Enabled(context.Background(), level) {
+	l.writeCtx(*l.defaultCtx.Load(), level, msg, attrs...)
+}
+
+// WriteCtx logs a message at the specified level, with context.
+func (l *logger) WriteCtx(ctx context.Context, level slog.Level, msg string, attrs ...any) {
+	l.writeCtx(ctx, level, msg, attrs...)
+}
+
+// writeCtx basically does what the inner slog.Logger.log function would do,
+// but adjusts to PC, so call-site calculation is still accurate (see TestLoggingWithVmodule).
+func (l *logger) writeCtx(ctx context.Context, level slog.Level, msg string, attrs ...any) {
+	if !l.inner.Enabled(ctx, level) {
 		return
 	}
-
 	var pcs [1]uintptr
-	runtime.Callers(3, pcs[:])
+	// skip [runtime.Callers, this function, this function's caller (Write/WriteCtx), and the caller's caller]
+	runtime.Callers(4, pcs[:])
 
-	if len(attrs)%2 != 0 {
-		attrs = append(attrs, nil, errorKey, "Normalized odd number of arguments by adding nil")
-	}
 	r := slog.NewRecord(time.Now(), level, msg, pcs[0])
 	r.Add(attrs...)
-	l.inner.Handler().Handle(context.Background(), r)
+	_ = l.inner.Handler().Handle(ctx, r)
+}
+
+func (l *logger) writeCtxAttr(ctx context.Context, level slog.Level, msg string, attrs ...slog.Attr) {
+	if !l.inner.Enabled(ctx, level) {
+		return
+	}
+	var pcs [1]uintptr
+	// skip [runtime.Callers, this function, this function's caller]
+	runtime.Callers(3, pcs[:])
+
+	r := slog.NewRecord(time.Now(), level, msg, pcs[0])
+	r.AddAttrs(attrs...)
+	_ = l.inner.Handler().Handle(ctx, r)
 }
 
 func (l *logger) Log(level slog.Level, msg string, attrs ...any) {
 	l.Write(level, msg, attrs...)
 }
 
-func (l *logger) With(ctx ...interface{}) Logger {
-	return &logger{l.inner.With(ctx...)}
+func (l *logger) With(args ...interface{}) Logger {
+	out := &logger{inner: l.inner.With(args...)}
+	out.defaultCtx.Store(l.defaultCtx.Load())
+	return out
 }
 
-func (l *logger) New(ctx ...interface{}) Logger {
-	return l.With(ctx...)
+func (l *logger) New(args ...interface{}) Logger {
+	return l.With(args...)
 }
 
 // Enabled reports whether l emits log records at the given context and level.
@@ -213,4 +271,28 @@ func (l *logger) Error(msg string, ctx ...interface{}) {
 func (l *logger) Crit(msg string, ctx ...interface{}) {
 	l.Write(LevelCrit, msg, ctx...)
 	os.Exit(1)
+}
+
+func (l *logger) LogAttrs(ctx context.Context, level slog.Level, msg string, attrs ...slog.Attr) {
+	l.writeCtxAttr(ctx, level, msg, attrs...)
+}
+
+func (l *logger) TraceContext(ctx context.Context, msg string, args ...any) {
+	l.WriteCtx(ctx, LevelTrace, msg, args...)
+}
+
+func (l *logger) DebugContext(ctx context.Context, msg string, args ...any) {
+	l.WriteCtx(ctx, LevelDebug, msg, args...)
+}
+
+func (l *logger) InfoContext(ctx context.Context, msg string, args ...any) {
+	l.WriteCtx(ctx, LevelInfo, msg, args...)
+}
+
+func (l *logger) WarnContext(ctx context.Context, msg string, args ...any) {
+	l.WriteCtx(ctx, LevelWarn, msg, args...)
+}
+
+func (l *logger) ErrorContext(ctx context.Context, msg string, args ...any) {
+	l.WriteCtx(ctx, LevelError, msg, args...)
 }

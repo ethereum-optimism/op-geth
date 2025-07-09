@@ -20,7 +20,7 @@ func TestGetDepset(t *testing.T) {
 
 		depset, err := GetDepset(999999)
 		require.Nil(t, depset)
-		require.Error(t, err)
+		require.ErrorIs(t, err, ErrUnknownChain)
 		require.Contains(t, err.Error(), "unknown chain ID")
 	})
 
@@ -45,8 +45,13 @@ func TestGetDepset(t *testing.T) {
 		}
 
 		depset, err := GetDepset(42)
-		require.Nil(t, depset)
 		require.NoError(t, err)
+		require.NotNil(t, depset)
+
+		// Verify the default dependency was created
+		selfDep, exists := depset["42"]
+		require.True(t, exists)
+		require.Equal(t, selfDep, Dependency{})
 	})
 
 	t.Run("nil Interop creates default depset", func(t *testing.T) {
@@ -79,8 +84,7 @@ func TestGetDepset(t *testing.T) {
 		// Verify the default dependency was created
 		selfDep, exists := depset["42"]
 		require.True(t, exists)
-		require.Equal(t, uint32(1), selfDep.ChainIndex)
-		require.Equal(t, activationTime, selfDep.ActivationTime)
+		require.Equal(t, selfDep, Dependency{})
 	})
 
 	t.Run("existing Interop depset returned", func(t *testing.T) {
@@ -96,8 +100,8 @@ func TestGetDepset(t *testing.T) {
 				},
 				Interop: &Interop{
 					Dependencies: map[string]Dependency{
-						"42": {ChainIndex: 1, ActivationTime: activationTime},
-						"43": {ChainIndex: 2, ActivationTime: activationTime + 100},
+						"42": {},
+						"43": {},
 					},
 				},
 			},
@@ -118,11 +122,10 @@ func TestGetDepset(t *testing.T) {
 
 		selfDep, exists := depset["42"]
 		require.True(t, exists)
-		require.Equal(t, uint32(1), selfDep.ChainIndex)
+		require.Equal(t, selfDep, Dependency{})
 
 		otherDep, exists := depset["43"]
 		require.True(t, exists)
-		require.Equal(t, uint32(2), otherDep.ChainIndex)
-		require.Equal(t, activationTime+100, otherDep.ActivationTime)
+		require.Equal(t, otherDep, Dependency{})
 	})
 }

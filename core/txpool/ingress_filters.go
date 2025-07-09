@@ -4,6 +4,8 @@ import (
 	"context"
 	"time"
 
+	"github.com/holiman/uint256"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/types/interoptypes"
@@ -25,14 +27,16 @@ type interopFilterAPI interface {
 type interopAccessFilter struct {
 	api     interopFilterAPI
 	timeout uint64
+	chainID uint256.Int
 }
 
 // NewInteropFilter creates a new IngressFilter that filters transactions based on the interop access list.
 // the timeout is set to 1 day, the specified preverifier window
-func NewInteropFilter(api interopFilterAPI) IngressFilter {
+func NewInteropFilter(api interopFilterAPI, chainID uint256.Int) IngressFilter {
 	return &interopAccessFilter{
 		api:     api,
 		timeout: 86400,
+		chainID: chainID,
 	}
 }
 
@@ -55,7 +59,7 @@ func (f *interopAccessFilter) FilterTx(ctx context.Context, tx *types.Transactio
 	if tx.Time().Compare(expireTime) < 0 {
 		return false
 	}
-	exDesc := interoptypes.ExecutingDescriptor{Timestamp: t, Timeout: f.timeout}
+	exDesc := interoptypes.ExecutingDescriptor{Timestamp: t, Timeout: f.timeout, ChainID: f.chainID}
 	// perform the interop check
 	return f.api.CheckAccessList(ctx, hashes, interoptypes.CrossUnsafe, exDesc) == nil
 }

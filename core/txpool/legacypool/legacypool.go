@@ -158,6 +158,10 @@ type Config struct {
 	Lifetime time.Duration // Maximum amount of time non-executable transaction are queued
 
 	EffectiveGasCeil uint64 // OP-Stack: if non-zero, a gas ceiling to enforce independent of the header's gaslimit value
+
+	// FilterInterval defines how often already-added transactions are rechecked
+	// against ingress filters.
+	FilterInterval time.Duration
 }
 
 // DefaultConfig contains the default configurations for the transaction pool.
@@ -173,7 +177,8 @@ var DefaultConfig = Config{
 	AccountQueue: 64,
 	GlobalQueue:  1024,
 
-	Lifetime: 3 * time.Hour,
+	Lifetime:       3 * time.Hour,
+	FilterInterval: 12 * time.Second,
 }
 
 // sanitize checks the provided user configurations and changes anything that's
@@ -207,6 +212,10 @@ func (config *Config) sanitize() Config {
 	if conf.Lifetime < 1 {
 		log.Warn("Sanitizing invalid txpool lifetime", "provided", conf.Lifetime, "updated", DefaultConfig.Lifetime)
 		conf.Lifetime = DefaultConfig.Lifetime
+	}
+	if conf.FilterInterval <= 0 {
+		log.Warn("Sanitizing invalid txpool filter interval", "provided", conf.FilterInterval, "updated", DefaultConfig.FilterInterval)
+		conf.FilterInterval = DefaultConfig.FilterInterval
 	}
 	return conf
 }
@@ -359,9 +368,11 @@ func (pool *LegacyPool) loop() {
 		// Start the stats reporting and transaction eviction tickers
 		report = time.NewTicker(statsReportInterval)
 		evict  = time.NewTicker(evictionInterval)
+		filter = time.NewTicker(pool.config.FilterInterval)
 	)
 	defer report.Stop()
 	defer evict.Stop()
+	defer filter.Stop()
 
 	// Notify tests that the init phase is done
 	close(pool.initDoneCh)
@@ -397,6 +408,10 @@ func (pool *LegacyPool) loop() {
 				}
 			}
 			pool.mu.Unlock()
+
+		// Periodic re-check of ingress filters
+		case <-filter.C:
+			pool.filterTransactions()
 		}
 	}
 }
@@ -2004,6 +2019,34 @@ func (t *lookup) hasAuth(addr common.Address) bool {
 // numSlots calculates the number of slots needed for a single transaction.
 func numSlots(tx *types.Transaction) int {
 	return int((tx.Size() + txSlotSize - 1) / txSlotSize)
+}
+
+// filterTransactions walks all transactions in the pool and drops those that
+// fail the configured ingress filters.
+func (pool *LegacyPool) filterTransactions() {
+	if len(pool.ingressFilters) == 0 {
+		return
+	}
+	var drops []common.Hash
+	pool.all.Range(func(hash common.Hash, tx *types.Transaction) bool {
+		for _, filter := range pool.ingressFilters {
+			if !filter.FilterTx(pool.filterCtx, tx) {
+				drops = append(drops, hash)
+				break
+			}
+		}
+		return true
+	})
+	if len(drops) == 0 {
+		return
+	}
+	pool.mu.Lock()
+	defer pool.mu.Unlock()
+	for _, hash := range drops {
+		pool.removeTx(hash, false, true)
+		log.Trace("Discarding filtered transaction", "hash", hash)
+		invalidTxMeter.Mark(1)
+	}
 }
 
 // Clear implements txpool.SubPool, removing all tracked txs from the pool

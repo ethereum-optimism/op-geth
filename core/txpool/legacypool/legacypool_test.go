@@ -17,6 +17,7 @@
 package legacypool
 
 import (
+	"context"
 	"crypto/ecdsa"
 	crand "crypto/rand"
 	"errors"
@@ -205,6 +206,16 @@ func (r *reserver) Release(addr common.Address) error {
 
 func (r *reserver) Has(address common.Address) bool {
 	return false // reserver only supports a single pool
+}
+
+// dummyFilter is a simple ingress filter used in tests to toggle whether
+// transactions should be accepted or rejected.
+type dummyFilter struct {
+	allow atomic.Bool
+}
+
+func (f *dummyFilter) FilterTx(ctx context.Context, tx *types.Transaction) bool {
+	return f.allow.Load()
 }
 
 func setupPoolWithConfig(config *params.ChainConfig) (*LegacyPool, *ecdsa.PrivateKey) {
@@ -1161,6 +1172,42 @@ func TestQueueTimeLimiting(t *testing.T) {
 	}
 	if err := validatePoolInternals(pool); err != nil {
 		t.Fatalf("pool internal state corrupted: %v", err)
+	}
+}
+
+// Tests that transactions already present in the pool are periodically rechecked
+// against ingress filters and dropped if they become invalid.
+func TestIngressFilterInterval(t *testing.T) {
+	original := testTxPoolConfig.FilterInterval
+	testTxPoolConfig.FilterInterval = 100 * time.Millisecond
+	defer func() { testTxPoolConfig.FilterInterval = original }()
+
+	statedb, _ := state.New(types.EmptyRootHash, state.NewDatabaseForTesting())
+	blockchain := newTestBlockChain(params.TestChainConfig, 1000000, statedb, new(event.Feed))
+
+	pool := New(testTxPoolConfig, blockchain)
+	filter := &dummyFilter{}
+	filter.allow.Store(true)
+	pool.SetIngressFilters([]txpool.IngressFilter{filter})
+	pool.Init(testTxPoolConfig.PriceLimit, blockchain.CurrentBlock(), newReserver())
+	defer pool.Close()
+
+	key, _ := crypto.GenerateKey()
+	testAddBalance(pool, crypto.PubkeyToAddress(key.PublicKey), big.NewInt(1000000))
+	if err := pool.addRemoteSync(pricedTransaction(0, 100000, big.NewInt(1), key)); err != nil {
+		t.Fatalf("failed to add remote transaction: %v", err)
+	}
+	pending, queued := pool.Stats()
+	if pending != 1 || queued != 0 {
+		t.Fatalf("unexpected pool state after add: %d pending %d queued", pending, queued)
+	}
+
+	filter.allow.Store(false)
+	time.Sleep(2 * testTxPoolConfig.FilterInterval)
+
+	pending, queued = pool.Stats()
+	if pending != 0 || queued != 0 {
+		t.Fatalf("transaction not filtered: pending %d queued %d", pending, queued)
 	}
 }
 
