@@ -478,6 +478,12 @@ var (
 		Value:    ethconfig.Defaults.TxPool.Lifetime,
 		Category: flags.TxPoolCategory,
 	}
+	TxPoolMaxTxGasLimitFlag = &cli.Uint64Flag{
+		Name:     "txpool.maxtxgas",
+		Usage:    "Maximum gas limit for individual transactions (0 = no limit). Transactions exceeding this limit will be rejected by the transaction pool",
+		Value:    0,
+		Category: flags.TxPoolCategory,
+	}
 	// Blob transaction pool settings
 	BlobPoolDataDirFlag = &cli.StringFlag{
 		Name:     "blobpool.datadir",
@@ -1670,6 +1676,9 @@ func setTxPool(ctx *cli.Context, cfg *legacypool.Config) {
 		// While technically this is a miner config parameter, we also want the txpool to enforce
 		// it to avoid accepting transactions that can never be included in a block.
 		cfg.EffectiveGasCeil = ctx.Uint64(MinerEffectiveGasLimitFlag.Name)
+	}
+	if ctx.IsSet(TxPoolMaxTxGasLimitFlag.Name) {
+		cfg.MaxTxGasLimit = ctx.Uint64(TxPoolMaxTxGasLimitFlag.Name)
 	}
 }
 

@@ -219,12 +219,17 @@ func (f *dummyFilter) FilterTx(ctx context.Context, tx *types.Transaction) bool 
 }
 
 func setupPoolWithConfig(config *params.ChainConfig) (*LegacyPool, *ecdsa.PrivateKey) {
+	return setupPoolWithTxPoolConfig(config, testTxPoolConfig)
+}
+
+// setupPoolWithTxPoolConfig creates a new pool with custom pool configuration
+func setupPoolWithTxPoolConfig(chainConfig *params.ChainConfig, poolConfig Config) (*LegacyPool, *ecdsa.PrivateKey) {
 	statedb, _ := state.New(types.EmptyRootHash, state.NewDatabaseForTesting())
-	blockchain := newTestBlockChain(config, 10000000, statedb, new(event.Feed))
+	blockchain := newTestBlockChain(chainConfig, 10000000, statedb, new(event.Feed))
 
 	key, _ := crypto.GenerateKey()
-	pool := New(testTxPoolConfig, blockchain)
-	if err := pool.Init(testTxPoolConfig.PriceLimit, blockchain.CurrentBlock(), newReserver()); err != nil {
+	pool := New(poolConfig, blockchain)
+	if err := pool.Init(poolConfig.PriceLimit, blockchain.CurrentBlock(), newReserver()); err != nil {
 		panic(err)
 	}
 	// wait for the pool to initialize
@@ -2765,5 +2770,53 @@ func BenchmarkMultiAccountBatchInsert(b *testing.B) {
 	b.ResetTimer()
 	for _, tx := range batches {
 		pool.addRemotesSync([]*types.Transaction{tx})
+	}
+}
+
+func TestTxPoolMaxTxGasLimit(t *testing.T) {
+	t.Parallel()
+
+	// Create custom config with MaxTxGasLimit set
+	config := testTxPoolConfig
+	config.MaxTxGasLimit = 50000
+
+	pool, key := setupPoolWithTxPoolConfig(params.TestChainConfig, config)
+	defer pool.Close()
+
+	// Create transaction that exceeds the limit
+	tx := transaction(0, 100000, key) // gas limit > 50000
+	from, _ := deriveSender(tx)
+	testAddBalance(pool, from, big.NewInt(1000000))
+
+	// Should be rejected
+	if err := pool.addRemoteSync(tx); !errors.Is(err, txpool.ErrTxGasLimitExceeded) {
+		t.Errorf("Expected ErrTxGasLimitExceeded, got %v", err)
+	}
+
+	// Create transaction within the limit
+	tx2 := transaction(0, 30000, key) // gas limit < 50000
+	if err := pool.addRemoteSync(tx2); err != nil {
+		t.Errorf("Expected transaction within limit to be accepted, got %v", err)
+	}
+}
+
+func TestTxPoolMaxTxGasLimitDisabled(t *testing.T) {
+	t.Parallel()
+
+	// Test with default config (MaxTxGasLimit = 0, disabled)
+	config := testTxPoolConfig
+	config.MaxTxGasLimit = 0
+
+	pool, key := setupPoolWithTxPoolConfig(params.TestChainConfig, config)
+	defer pool.Close()
+
+	// Create transaction with high gas limit
+	tx := transaction(0, 100000, key)
+	from, _ := deriveSender(tx)
+	testAddBalance(pool, from, big.NewInt(1000000))
+
+	// Should be accepted since MaxTxGasLimit is disabled (0)
+	if err := pool.addRemoteSync(tx); err != nil {
+		t.Errorf("Expected transaction to be accepted when MaxTxGasLimit is disabled, got %v", err)
 	}
 }
