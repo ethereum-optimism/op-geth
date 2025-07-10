@@ -1041,20 +1041,6 @@ func (pool *LegacyPool) Add(txs []*types.Transaction, sync bool) []error {
 			invalidTxMeter.Mark(1)
 			continue
 		}
-		// Exclude transactions which fail the ingress filters
-		filtered := false
-		for _, filter := range pool.ingressFilters {
-			if !filter.FilterTx(pool.filterCtx, tx) {
-				errs[i] = core.ErrTxFilteredOut
-				log.Trace("Discarding filtered transaction", "hash", tx.Hash())
-				invalidTxMeter.Mark(1)
-				filtered = true
-				break
-			}
-		}
-		if filtered {
-			continue
-		}
 		// Accumulate all unknown transactions for deeper processing
 		news = append(news, tx)
 	}
@@ -1089,6 +1075,20 @@ func (pool *LegacyPool) addTxsLocked(txs []*types.Transaction) ([]error, *accoun
 	dirty := newAccountSet(pool.signer)
 	errs := make([]error, len(txs))
 	for i, tx := range txs {
+		// Exclude transactions which fail the ingress filters
+		filtered := false
+		for _, filter := range pool.ingressFilters {
+			if !filter.FilterTx(pool.filterCtx, tx) {
+				errs[i] = core.ErrTxFilteredOut
+				log.Trace("Discarding filtered transaction", "hash", tx.Hash())
+				invalidTxMeter.Mark(1)
+				filtered = true
+				break
+			}
+		}
+		if filtered {
+			continue
+		}
 		replaced, err := pool.add(tx)
 		errs[i] = err
 		if err == nil && !replaced {
