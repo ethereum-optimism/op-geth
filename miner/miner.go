@@ -48,9 +48,6 @@ var (
 type Backend interface {
 	BlockChain() *core.BlockChain
 	TxPool() *txpool.TxPool
-
-	// OP-Stack addition
-	SupervisorInFailsafe() bool
 }
 type BackendWithHistoricalState interface {
 	StateAtBlock(ctx context.Context, block *types.Block, reexec uint64, base *state.StateDB, readOnly bool, preferDisk bool) (*state.StateDB, tracers.StateReleaseFunc, error)
@@ -58,6 +55,7 @@ type BackendWithHistoricalState interface {
 
 type BackendWithInterop interface {
 	CheckAccessList(ctx context.Context, inboxEntries []common.Hash, minSafety interoptypes.SafetyLevel, executingDescriptor interoptypes.ExecutingDescriptor) error
+	SupervisorInFailsafe() bool
 }
 
 // Config is the configuration parameters of mining.

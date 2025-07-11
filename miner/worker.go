@@ -373,10 +373,13 @@ func (miner *Miner) makeEnv(parent *types.Header, header *types.Header, coinbase
 
 func (miner *Miner) commitTransaction(env *environment, tx *types.Transaction) error {
 	// OP-Stack addition
-	if len(tx.AccessList()) > 0 && miner.backend.SupervisorInFailsafe() {
-		log.Trace("Supervisor failsafe is enabled, rejecting transaction", "hash", tx.Hash)
-		tx.SetRejected()
-		return errSupervisorInFailsafe
+	if len(tx.AccessList()) > 0 {
+		backend, ok := miner.backend.(BackendWithInterop)
+		if ok && backend.SupervisorInFailsafe() {
+			log.Trace("Supervisor failsafe is enabled, rejecting transaction", "hash", tx.Hash)
+			tx.SetRejected()
+			return errSupervisorInFailsafe
+		}
 	}
 
 	if tx.Type() == types.BlobTxType {
