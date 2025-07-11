@@ -15,7 +15,17 @@ func (s *Ethereum) CheckAccessList(ctx context.Context, inboxEntries []common.Ha
 	if s.interopRPC == nil {
 		return errors.New("cannot check interop access list, no RPC available")
 	}
-	return s.interopRPC.CheckAccessList(ctx, inboxEntries, minSafety, execDesc)
+
+	err := s.interopRPC.CheckAccessList(ctx, inboxEntries, minSafety, execDesc)
+
+	// Detect failsafe mode and cache it in the backend
+	switch err {
+	case nil:
+		s.setSupervisorFailsafe(false)
+	case interoptypes.ErrFailsafeEnabled:
+		s.setSupervisorFailsafe(true)
+	}
+	return err
 }
 
 func (s *Ethereum) inferBlockTime(current *types.Header) (uint64, error) {

@@ -55,6 +55,9 @@ var (
 	errBlockInterruptedByTimeout  = errors.New("timeout while building block")
 	errBlockInterruptedByResolve  = errors.New("payload resolution while building block")
 
+	// OP-Stack addition
+	errSupervisorInFailsafe = errors.New("supervisor in failsafe")
+
 	txConditionalRejectedCounter = metrics.NewRegisteredCounter("miner/transactionConditional/rejected", nil)
 	txConditionalMinedTimer      = metrics.NewRegisteredTimer("miner/transactionConditional/elapsedtime", nil)
 )
@@ -369,6 +372,13 @@ func (miner *Miner) makeEnv(parent *types.Header, header *types.Header, coinbase
 }
 
 func (miner *Miner) commitTransaction(env *environment, tx *types.Transaction) error {
+	// OP-Stack addition
+	if len(tx.AccessList()) > 0 && miner.backend.SupervisorInFailsafe() {
+		log.Trace("Supervisor failsafe is enabled, rejecting transaction", "hash", tx.Hash)
+		tx.SetRejected()
+		return errSupervisorInFailsafe
+	}
+
 	if tx.Type() == types.BlobTxType {
 		return miner.commitBlobTransaction(env, tx)
 	}

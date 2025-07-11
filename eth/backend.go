@@ -24,6 +24,7 @@ import (
 	"math/big"
 	"runtime"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/holiman/uint256"
@@ -111,8 +112,8 @@ type Ethereum struct {
 	// OP-Stack additions
 	seqRPCService        *rpc.Client
 	historicalRPCService *rpc.Client
-
-	interopRPC *interop.InteropClient
+	interopRPC           *interop.InteropClient
+	supervisorFailsafe   atomic.Bool
 
 	nodeCloser func() error
 }
@@ -689,4 +690,12 @@ func (s *Ethereum) HandleRequiredProtocolVersion(required params.ProtocolVersion
 		return s.nodeCloser()
 	}
 	return nil
+}
+
+func (s *Ethereum) setSupervisorFailsafe(enabled bool) {
+	s.supervisorFailsafe.Store(enabled)
+}
+
+func (s *Ethereum) SupervisorInFailsafe() bool {
+	return s.supervisorFailsafe.Load()
 }

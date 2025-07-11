@@ -33,6 +33,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/types/interoptypes"
 	"github.com/ethereum/go-ethereum/eth/tracers"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/params"
 )
@@ -47,6 +48,9 @@ var (
 type Backend interface {
 	BlockChain() *core.BlockChain
 	TxPool() *txpool.TxPool
+
+	// OP-Stack addition
+	SupervisorInFailsafe() bool
 }
 type BackendWithHistoricalState interface {
 	StateAtBlock(ctx context.Context, block *types.Block, reexec uint64, base *state.StateDB, readOnly bool, preferDisk bool) (*state.StateDB, tracers.StateReleaseFunc, error)
@@ -107,7 +111,7 @@ type Miner struct {
 // New creates a new miner with provided config.
 func New(eth Backend, config Config, engine consensus.Engine) *Miner {
 	ctx, cancel := context.WithCancel(context.Background())
-	return &Miner{
+	miner := &Miner{
 		backend:     eth,
 		config:      &config,
 		chainConfig: eth.BlockChain().Config(),
@@ -119,6 +123,42 @@ func New(eth Backend, config Config, engine consensus.Engine) *Miner {
 		lifeCtxCancel: cancel,
 		lifeCtx:       ctx,
 	}
+
+	// OP-Stack: Start background RPC polling
+	miner.startBackgroundInteropFailsafeDetection()
+
+	return miner
+}
+
+// OP-Stack: startBackgroundInteropFailsafeDetection starts a background goroutine that periodically
+// calls the supervisor over RPC to check if the failsafe is enabled
+func (miner *Miner) startBackgroundInteropFailsafeDetection() {
+	backend, ok := miner.backend.(BackendWithInterop)
+	if !ok {
+		log.Warn("Miner backend does not implement BackendWithInterop, skipping interop failsafe detection")
+		return
+	}
+
+	go func() {
+		ticker := time.NewTicker(1 * time.Second)
+		defer ticker.Stop()
+
+		log.Info("Starting background interop failsafe detection", "interval", "1s")
+
+		for {
+			select {
+			case <-ticker.C:
+				ctx, cancel := context.WithTimeout(miner.lifeCtx, 1*time.Second)
+				defer cancel()
+				// Simply calling CheckAccessList will update the failsafe status in the backend
+				// We do not need to do anything with the result
+				_ = backend.CheckAccessList(ctx, []common.Hash{}, interoptypes.CrossUnsafe, interoptypes.ExecutingDescriptor{})
+			case <-miner.lifeCtx.Done():
+				log.Info("Stopping background RPC polling due to miner shutdown")
+				return
+			}
+		}
+	}()
 }
 
 // Pending returns the currently pending block and associated receipts, logs
