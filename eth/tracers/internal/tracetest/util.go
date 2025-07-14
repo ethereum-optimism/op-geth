@@ -53,7 +53,7 @@ type traceContext struct {
 	BaseFee    *math.HexOrDecimal256 `json:"baseFeePerGas"`
 }
 
-func (c *traceContext) toBlockContext(genesis *core.Genesis) vm.BlockContext {
+func (c *traceContext) toBlockContext(genesis *core.Genesis, statedb types.StateGetter) vm.BlockContext {
 	context := vm.BlockContext{
 		CanTransfer: core.CanTransfer,
 		Transfer:    core.Transfer,
@@ -62,6 +62,7 @@ func (c *traceContext) toBlockContext(genesis *core.Genesis) vm.BlockContext {
 		Time:        uint64(c.Time),
 		Difficulty:  (*big.Int)(c.Difficulty),
 		GasLimit:    uint64(c.GasLimit),
+		L1CostFunc:  types.NewL1CostFunc(genesis.Config, statedb),
 	}
 	if genesis.Config.IsLondon(context.BlockNumber) {
 		context.BaseFee = (*big.Int)(c.BaseFee)
