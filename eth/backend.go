@@ -691,11 +691,3 @@ func (s *Ethereum) HandleRequiredProtocolVersion(required params.ProtocolVersion
 	}
 	return nil
 }
-
-func (s *Ethereum) setSupervisorFailsafe(enabled bool) {
-	s.supervisorFailsafe.Store(enabled)
-}
-
-func (s *Ethereum) GetSupervisorFailsafe() bool {
-	return s.supervisorFailsafe.Load()
-}

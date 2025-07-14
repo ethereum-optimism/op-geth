@@ -11,6 +11,14 @@ import (
 	"github.com/ethereum/go-ethereum/miner"
 )
 
+func (s *Ethereum) setSupervisorFailsafe(enabled bool) {
+	s.supervisorFailsafe.Store(enabled)
+}
+
+func (s *Ethereum) GetSupervisorFailsafe() bool {
+	return s.supervisorFailsafe.Load()
+}
+
 func (s *Ethereum) CheckAccessList(ctx context.Context, inboxEntries []common.Hash, minSafety interoptypes.SafetyLevel, execDesc interoptypes.ExecutingDescriptor) error {
 	if s.interopRPC == nil {
 		return errors.New("cannot check interop access list, no RPC available")
@@ -30,18 +38,18 @@ func (s *Ethereum) CheckAccessList(ctx context.Context, inboxEntries []common.Ha
 
 // QueryFailsafe queries the supervisor for the failsafe status,
 // caches it in the backend, and returns the status.
-func (s *Ethereum) QueryFailsafe(ctx context.Context) bool {
+func (s *Ethereum) QueryFailsafe(ctx context.Context) (bool, error) {
 	if s.interopRPC == nil {
-		return false
+		return false, errors.New("cannot query failsafe, no RPC available")
 	}
 
 	enabled, err := s.interopRPC.GetFailsafeEnabled(ctx)
 	if err != nil {
-		return false
+		return false, err
 	}
 
 	s.setSupervisorFailsafe(enabled)
-	return enabled
+	return enabled, nil
 }
 
 func (s *Ethereum) inferBlockTime(current *types.Header) (uint64, error) {

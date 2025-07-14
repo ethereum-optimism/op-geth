@@ -57,7 +57,7 @@ type BackendWithInterop interface {
 	CheckAccessList(ctx context.Context, inboxEntries []common.Hash, minSafety interoptypes.SafetyLevel, executingDescriptor interoptypes.ExecutingDescriptor) error
 
 	// GetFailsafeEnabled reads the local failsafe status from the backend
-	GetFailsafeEnabled() bool
+	GetSupervisorFailsafe() bool
 
 	// QueryFailsafe queries the supervisor over RPC for the failsafe status,
 	// caches it in the backend, and returns the status.

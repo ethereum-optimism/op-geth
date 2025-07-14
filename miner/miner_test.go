@@ -73,7 +73,7 @@ func (m *mockBackend) TxPool() *txpool.TxPool {
 }
 
 // OP-Stack additions
-func (m *mockBackend) GetFailsafeEnabled() bool {
+func (m *mockBackend) GetSupervisorFailsafe() bool {
 	return m.supervisorInFailsafe
 }
 func (m *mockBackend) CheckAccessList(ctx context.Context, inboxEntries []common.Hash, minSafety interoptypes.SafetyLevel, executingDescriptor interoptypes.ExecutingDescriptor) error {
