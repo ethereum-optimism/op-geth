@@ -28,6 +28,22 @@ func (s *Ethereum) CheckAccessList(ctx context.Context, inboxEntries []common.Ha
 	return err
 }
 
+// QueryFailsafe queries the supervisor for the failsafe status,
+// caches it in the backend, and returns the status.
+func (s *Ethereum) QueryFailsafe(ctx context.Context) bool {
+	if s.interopRPC == nil {
+		return false
+	}
+
+	enabled, err := s.interopRPC.GetFailsafeEnabled(ctx)
+	if err != nil {
+		return false
+	}
+
+	s.setSupervisorFailsafe(enabled)
+	return enabled
+}
+
 func (s *Ethereum) inferBlockTime(current *types.Header) (uint64, error) {
 	if current.Number.Uint64() == 0 {
 		return 0, errors.New("current head is at genesis: penultimate header is nil")

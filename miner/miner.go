@@ -55,7 +55,7 @@ type BackendWithHistoricalState interface {
 
 type BackendWithInterop interface {
 	CheckAccessList(ctx context.Context, inboxEntries []common.Hash, minSafety interoptypes.SafetyLevel, executingDescriptor interoptypes.ExecutingDescriptor) error
-	GetSupervisorFailsafe() bool
+	QueryFailsafe(ctx context.Context) bool
 }
 
 // Config is the configuration parameters of mining.
@@ -148,9 +148,7 @@ func (miner *Miner) startBackgroundInteropFailsafeDetection() {
 			case <-ticker.C:
 				ctx, cancel := context.WithTimeout(miner.lifeCtx, 1*time.Second)
 				defer cancel()
-				// Simply calling CheckAccessList will update the failsafe status in the backend
-				// We do not need to do anything with the result
-				_ = backend.CheckAccessList(ctx, []common.Hash{}, interoptypes.CrossUnsafe, interoptypes.ExecutingDescriptor{})
+				backend.QueryFailsafe(ctx)
 			case <-miner.lifeCtx.Done():
 				log.Info("Stopping background RPC polling due to miner shutdown")
 				return
