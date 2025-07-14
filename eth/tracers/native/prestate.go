@@ -69,6 +69,9 @@ type prestateTracer struct {
 	reason    error       // Textual reason for the interruption
 	created   map[common.Address]bool
 	deleted   map[common.Address]bool
+
+	// Required on OP-Stack to detect Optimism flag
+	chainConfig *params.ChainConfig
 }
 
 type prestateTracerConfig struct {
@@ -88,6 +91,9 @@ func newPrestateTracer(ctx *tracers.Context, cfg json.RawMessage, chainConfig *p
 		config:  config,
 		created: make(map[common.Address]bool),
 		deleted: make(map[common.Address]bool),
+
+		// Required on OP-Stack to detect Optimism flag
+		chainConfig: chainConfig,
 	}
 	return &tracers.Tracer{
 		Hooks: &tracing.Hooks{
@@ -167,6 +173,10 @@ func (t *prestateTracer) OnTxStart(env *tracing.VMContext, tx *types.Transaction
 			continue
 		}
 		t.lookupAccount(addr)
+	}
+
+	if t.chainConfig.Optimism != nil {
+		t.lookupAccount(params.OptimismBaseFeeRecipient)
 	}
 }
 
