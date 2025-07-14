@@ -598,6 +598,38 @@ var (
 		Category: flags.MinerCategory,
 	}
 
+	// PID Controller settings
+	MinerPIDEnabledFlag = &cli.BoolFlag{
+		Name:     "miner.pid.enabled",
+		Usage:    "Enable PID controller for advanced fee management",
+		Value:    true,
+		Category: flags.MinerCategory,
+	}
+	MinerPIDKpFlag = &cli.Float64Flag{
+		Name:     "miner.pid.kp",
+		Usage:    "PID controller proportional gain (0.1-10.0)",
+		Value:    1.8,
+		Category: flags.MinerCategory,
+	}
+	MinerPIDKiFlag = &cli.Float64Flag{
+		Name:     "miner.pid.ki",
+		Usage:    "PID controller integral gain (0.01-1.0)",
+		Value:    0.12,
+		Category: flags.MinerCategory,
+	}
+	MinerPIDKdFlag = &cli.Float64Flag{
+		Name:     "miner.pid.kd",
+		Usage:    "PID controller derivative gain (0.1-2.0)",
+		Value:    0.35,
+		Category: flags.MinerCategory,
+	}
+	MinerPIDMaxChangeFlag = &cli.Float64Flag{
+		Name:     "miner.pid.maxchange",
+		Usage:    "PID controller maximum fee change per block (0.01-0.5)",
+		Value:    0.12,
+		Category: flags.MinerCategory,
+	}
+
 	// Account settings
 	PasswordFileFlag = &cli.PathFlag{
 		Name:      "password",
@@ -1719,6 +1751,23 @@ func setMiner(ctx *cli.Context, cfg *miner.Config) {
 	}
 	if ctx.IsSet(RollupComputePendingBlock.Name) {
 		cfg.RollupComputePendingBlock = ctx.Bool(RollupComputePendingBlock.Name)
+	}
+
+	// PID Controller configuration
+	if ctx.IsSet(MinerPIDEnabledFlag.Name) {
+		cfg.PIDEnabled = ctx.Bool(MinerPIDEnabledFlag.Name)
+	}
+	if ctx.IsSet(MinerPIDKpFlag.Name) {
+		cfg.PIDKp = ctx.Float64(MinerPIDKpFlag.Name)
+	}
+	if ctx.IsSet(MinerPIDKiFlag.Name) {
+		cfg.PIDKi = ctx.Float64(MinerPIDKiFlag.Name)
+	}
+	if ctx.IsSet(MinerPIDKdFlag.Name) {
+		cfg.PIDKd = ctx.Float64(MinerPIDKdFlag.Name)
+	}
+	if ctx.IsSet(MinerPIDMaxChangeFlag.Name) {
+		cfg.PIDMaxChange = ctx.Float64(MinerPIDMaxChangeFlag.Name)
 	}
 }
 

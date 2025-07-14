@@ -26,8 +26,19 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/misc"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 )
+
+// PIDController defines the interface for PID-based base fee calculation.
+// This interface allows for different PID controller implementations while
+// maintaining compatibility with the existing EIP-1559 base fee calculation.
+type PIDController interface {
+	// CalculateBaseFee computes the base fee using PID control algorithm
+	CalculateBaseFee(gasUsed uint64, currentBaseFee *big.Int, parentHeader *types.Header) *big.Int
+	// IsEnabled returns whether the PID controller is currently active
+	IsEnabled() bool
+}
 
 // VerifyEIP1559Header verifies some header attributes which were changed in EIP-1559,
 // - gas limit check
@@ -184,4 +195,73 @@ func CalcBaseFee(config *params.ChainConfig, parent *types.Header, time uint64) 
 		}
 		return baseFee
 	}
+}
+
+// CalcBaseFeeWithPID calculates base fee using either PID or EIP-1559
+func CalcBaseFeeWithPID(config *params.ChainConfig, parent *types.Header, gasUsed uint64, pidController PIDController) *big.Int {
+	// Check if PID control is activated for this block
+	if config.IsPID(parent.Number) && pidController != nil && pidController.IsEnabled() {
+		log.Debug("Using PID controller for base fee calculation",
+			"blockNumber", parent.Number,
+			"gasUsed", gasUsed,
+			"parentBaseFee", parent.BaseFee,
+		)
+		return pidController.CalculateBaseFee(gasUsed, parent.BaseFee, parent)
+	}
+
+	// Fallback to standard EIP-1559 calculation
+	log.Debug("Using EIP-1559 for base fee calculation",
+		"blockNumber", parent.Number,
+		"gasUsed", gasUsed,
+		"parentBaseFee", parent.BaseFee,
+	)
+	return CalcBaseFee(config, parent, parent.Time)
+}
+
+// VerifyPIDHeader verifies the base fee in a header when PID is enabled
+func VerifyPIDHeader(config *params.ChainConfig, parent, header *types.Header, pidController PIDController) error {
+	// First verify standard EIP-1559 constraints
+	err := VerifyEIP1559Header(config, parent, header)
+	if err != nil {
+		return err
+	}
+
+	// If PID is active, verify the base fee matches PID calculation
+	if config.IsPID(parent.Number) && pidController != nil && pidController.IsEnabled() {
+		expectedBaseFee := pidController.CalculateBaseFee(parent.GasUsed, parent.BaseFee, parent)
+
+		// Allow small rounding differences (within 1 wei per gas)
+		diff := new(big.Int).Sub(header.BaseFee, expectedBaseFee)
+		if diff.CmpAbs(big.NewInt(1)) > 0 {
+			log.Error("Invalid base fee in PID mode",
+				"expected", expectedBaseFee,
+				"actual", header.BaseFee,
+				"diff", diff,
+			)
+			return fmt.Errorf("invalid basefee: have %s, want %s", header.BaseFee, expectedBaseFee)
+		}
+	}
+
+	return nil
+}
+
+// VerifyEIP1559HeaderWithPID provides enhanced header verification for PID-enabled chains
+func VerifyEIP1559HeaderWithPID(config *params.ChainConfig, parent, header *types.Header, pidController PIDController) error {
+	if config.IsPID(parent.Number) {
+		return VerifyPIDHeader(config, parent, header, pidController)
+	}
+
+	// Standard EIP-1559 verification for non-PID blocks
+	return VerifyEIP1559Header(config, parent, header)
+}
+
+// GetBaseFeeTargetUtilization returns the target utilization for base fee calculation
+func GetBaseFeeTargetUtilization(config *params.ChainConfig) float64 {
+	if config.Optimism != nil {
+		// Optimism uses elasticity multiplier (target = limit / elasticity)
+		return 1.0 / float64(config.ElasticityMultiplier())
+	}
+
+	// Standard Ethereum targets 50% utilization
+	return 0.5
 }

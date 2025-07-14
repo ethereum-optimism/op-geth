@@ -136,6 +136,11 @@ var (
 		utils.MinerRecommitIntervalFlag,
 		utils.MinerPendingFeeRecipientFlag,
 		utils.MinerNewPayloadTimeoutFlag, // deprecated
+		utils.MinerPIDEnabledFlag,
+		utils.MinerPIDKpFlag,
+		utils.MinerPIDKiFlag,
+		utils.MinerPIDKdFlag,
+		utils.MinerPIDMaxChangeFlag,
 		utils.NATFlag,
 		utils.NoDiscoverFlag,
 		utils.DiscoveryV4Flag,
