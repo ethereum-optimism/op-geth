@@ -55,7 +55,7 @@ type BackendWithHistoricalState interface {
 
 type BackendWithInterop interface {
 	CheckAccessList(ctx context.Context, inboxEntries []common.Hash, minSafety interoptypes.SafetyLevel, executingDescriptor interoptypes.ExecutingDescriptor) error
-	SupervisorInFailsafe() bool
+	GetSupervisorFailsafe() bool
 }
 
 // Config is the configuration parameters of mining.

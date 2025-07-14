@@ -375,7 +375,7 @@ func (miner *Miner) commitTransaction(env *environment, tx *types.Transaction) e
 	// OP-Stack addition
 	if len(tx.AccessList()) > 0 {
 		backend, ok := miner.backend.(BackendWithInterop)
-		if ok && backend.SupervisorInFailsafe() {
+		if ok && backend.GetSupervisorFailsafe() {
 			log.Trace("Supervisor failsafe is enabled, rejecting transaction", "hash", tx.Hash)
 			tx.SetRejected()
 			return errSupervisorInFailsafe

@@ -696,6 +696,6 @@ func (s *Ethereum) setSupervisorFailsafe(enabled bool) {
 	s.supervisorFailsafe.Store(enabled)
 }
 
-func (s *Ethereum) SupervisorInFailsafe() bool {
+func (s *Ethereum) GetSupervisorFailsafe() bool {
 	return s.supervisorFailsafe.Load()
 }
