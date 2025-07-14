@@ -33,6 +33,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/stateless"
 	"github.com/ethereum/go-ethereum/core/txpool"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/core/types/interoptypes"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/eth/tracers"
 	"github.com/ethereum/go-ethereum/log"
@@ -373,7 +374,8 @@ func (miner *Miner) makeEnv(parent *types.Header, header *types.Header, coinbase
 
 func (miner *Miner) commitTransaction(env *environment, tx *types.Transaction) error {
 	// OP-Stack addition
-	if len(tx.AccessList()) > 0 {
+	interopAccessList := interoptypes.TxToInteropAccessList(tx)
+	if len(interopAccessList) > 0 {
 		backend, ok := miner.backend.(BackendWithInterop)
 		if ok && backend.GetSupervisorFailsafe() {
 			log.Trace("Supervisor failsafe is enabled, rejecting transaction", "hash", tx.Hash)
