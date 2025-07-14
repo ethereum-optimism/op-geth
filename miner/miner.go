@@ -33,6 +33,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/types/interoptypes"
 	"github.com/ethereum/go-ethereum/eth/tracers"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/params"
 )
@@ -54,6 +55,13 @@ type BackendWithHistoricalState interface {
 
 type BackendWithInterop interface {
 	CheckAccessList(ctx context.Context, inboxEntries []common.Hash, minSafety interoptypes.SafetyLevel, executingDescriptor interoptypes.ExecutingDescriptor) error
+
+	// GetFailsafeEnabled reads the local failsafe status from the backend
+	GetSupervisorFailsafe() bool
+
+	// QueryFailsafe queries the supervisor over RPC for the failsafe status,
+	// caches it in the backend, and returns the status.
+	QueryFailsafe(ctx context.Context) (bool, error)
 }
 
 // Config is the configuration parameters of mining.
@@ -107,7 +115,7 @@ type Miner struct {
 // New creates a new miner with provided config.
 func New(eth Backend, config Config, engine consensus.Engine) *Miner {
 	ctx, cancel := context.WithCancel(context.Background())
-	return &Miner{
+	miner := &Miner{
 		backend:     eth,
 		config:      &config,
 		chainConfig: eth.BlockChain().Config(),
@@ -119,6 +127,40 @@ func New(eth Backend, config Config, engine consensus.Engine) *Miner {
 		lifeCtxCancel: cancel,
 		lifeCtx:       ctx,
 	}
+
+	// OP-Stack: Start background RPC polling
+	miner.startBackgroundInteropFailsafeDetection()
+
+	return miner
+}
+
+// OP-Stack: startBackgroundInteropFailsafeDetection starts a background goroutine that periodically
+// calls the supervisor over RPC to check if the failsafe is enabled
+func (miner *Miner) startBackgroundInteropFailsafeDetection() {
+	backend, ok := miner.backend.(BackendWithInterop)
+	if !ok {
+		log.Warn("Miner backend does not implement BackendWithInterop, skipping interop failsafe detection")
+		return
+	}
+
+	go func() {
+		ticker := time.NewTicker(1 * time.Second)
+		defer ticker.Stop()
+
+		log.Info("Starting background interop failsafe detection", "interval", "1s")
+
+		for {
+			select {
+			case <-ticker.C:
+				ctx, cancel := context.WithTimeout(miner.lifeCtx, 1*time.Second)
+				defer cancel()
+				backend.QueryFailsafe(ctx)
+			case <-miner.lifeCtx.Done():
+				log.Info("Stopping background RPC polling due to miner shutdown")
+				return
+			}
+		}
+	}()
 }
 
 // Pending returns the currently pending block and associated receipts, logs
