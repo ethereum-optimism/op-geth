@@ -55,7 +55,13 @@ type BackendWithHistoricalState interface {
 
 type BackendWithInterop interface {
 	CheckAccessList(ctx context.Context, inboxEntries []common.Hash, minSafety interoptypes.SafetyLevel, executingDescriptor interoptypes.ExecutingDescriptor) error
-	QueryFailsafe(ctx context.Context) bool
+
+	// GetFailsafeEnabled reads the local failsafe status from the backend
+	GetFailsafeEnabled() bool
+
+	// QueryFailsafe queries the supervisor over RPC for the failsafe status,
+	// caches it in the backend, and returns the status.
+	QueryFailsafe(ctx context.Context) (bool, error)
 }
 
 // Config is the configuration parameters of mining.

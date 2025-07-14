@@ -377,7 +377,7 @@ func (miner *Miner) commitTransaction(env *environment, tx *types.Transaction) e
 	interopAccessList := interoptypes.TxToInteropAccessList(tx)
 	if len(interopAccessList) > 0 {
 		backend, ok := miner.backend.(BackendWithInterop)
-		if ok && backend.GetSupervisorFailsafe() {
+		if ok && backend.GetFailsafeEnabled() {
 			log.Trace("Supervisor failsafe is enabled, rejecting transaction", "hash", tx.Hash)
 			tx.SetRejected()
 			return errSupervisorInFailsafe

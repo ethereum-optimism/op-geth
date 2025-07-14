@@ -47,12 +47,12 @@ type mockBackend struct {
 
 	// OP-Stack additions
 	supervisorInFailsafe bool
-	checkAccessListCb    func()
+	queryFailsafeCb      func()
 }
 
 func NewMockBackend(bc *core.BlockChain, txPool *txpool.TxPool,
 	supervisorInFailsafe bool, // OP-Stack addition
-	checkAccessListCallback func(), // OP-Stack addition
+	queryFailsafeCb func(), // OP-Stack addition
 ) *mockBackend {
 	return &mockBackend{
 		bc:     bc,
@@ -60,7 +60,7 @@ func NewMockBackend(bc *core.BlockChain, txPool *txpool.TxPool,
 
 		// OP-Stack addition
 		supervisorInFailsafe: supervisorInFailsafe,
-		checkAccessListCb:    checkAccessListCallback,
+		queryFailsafeCb:      queryFailsafeCb,
 	}
 }
 
@@ -72,16 +72,21 @@ func (m *mockBackend) TxPool() *txpool.TxPool {
 	return m.txPool
 }
 
-// OP-Stack addition
-func (m *mockBackend) SupervisorInFailsafe() bool {
+// OP-Stack additions
+func (m *mockBackend) GetFailsafeEnabled() bool {
 	return m.supervisorInFailsafe
 }
 func (m *mockBackend) CheckAccessList(ctx context.Context, inboxEntries []common.Hash, minSafety interoptypes.SafetyLevel, executingDescriptor interoptypes.ExecutingDescriptor) error {
-	if m.checkAccessListCb != nil {
-		m.checkAccessListCb()
-	}
 	return nil
 }
+func (m *mockBackend) QueryFailsafe(ctx context.Context) (bool, error) {
+	if m.queryFailsafeCb != nil {
+		m.queryFailsafeCb()
+	}
+	return m.supervisorInFailsafe, nil
+}
+
+var _ BackendWithInterop = (*mockBackend)(nil)
 
 type testBlockChain struct {
 	root          common.Hash

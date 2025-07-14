@@ -24,7 +24,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func createInteropMiner(t *testing.T, supervisorInFailsafe bool, checkAccessListCallback func()) (*Miner, *ecdsa.PrivateKey, common.Address) {
+func createInteropMiner(t *testing.T, supervisorInFailsafe bool, queryFailsafeCb func()) (*Miner, *ecdsa.PrivateKey, common.Address) {
 	// Create Ethash config with interop enabled
 	config := Config{
 		PendingFeeRecipient:                   common.HexToAddress("123456789"),
@@ -66,7 +66,7 @@ func createInteropMiner(t *testing.T, supervisorInFailsafe bool, checkAccessList
 	txpool, _ := txpool.New(legacypool.DefaultConfig.PriceLimit, blockchain, []txpool.SubPool{pool}, nil)
 
 	// Create mock backend with interop support
-	backend := NewMockBackend(bc, txpool, supervisorInFailsafe, checkAccessListCallback)
+	backend := NewMockBackend(bc, txpool, supervisorInFailsafe, queryFailsafeCb)
 
 	miner := New(backend, config, engine)
 	return miner, testBankKey, testBankAddress
