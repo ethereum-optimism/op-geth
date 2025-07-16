@@ -279,7 +279,7 @@ func TestSuggestTipCap(t *testing.T) {
 	}
 	for _, c := range cases {
 		backend := newTestBackend(t, c.fork, nil, false, false)
-		oracle := NewOracle(backend, config, big.NewInt(params.GWei))
+		oracle := NewOracle(backend, config, big.NewInt(params.GWei), big.NewInt(1000000))
 
 		// The gas price sampled is: 32G, 31G, 30G, 29G, 28G, 27G
 		got, err := oracle.SuggestTipCap(context.Background())

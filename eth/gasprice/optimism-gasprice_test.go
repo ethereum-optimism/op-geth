@@ -136,7 +136,7 @@ func TestSuggestOptimismPriorityFee(t *testing.T) {
 	}
 	for i, c := range cases {
 		backend := newOpTestBackend(t, c.txdata)
-		oracle := NewOracle(backend, Config{MinSuggestedPriorityFee: minSuggestion}, big.NewInt(params.GWei))
+		oracle := NewOracle(backend, Config{MinSuggestedPriorityFee: minSuggestion}, big.NewInt(params.GWei), big.NewInt(1000000))
 		got := oracle.SuggestOptimismPriorityFee(context.Background(), backend.block.Header(), backend.block.Hash())
 		if got.Cmp(c.want) != 0 {
 			t.Errorf("Gas price mismatch for test case %d: want %d, got %d", i, c.want, got)
