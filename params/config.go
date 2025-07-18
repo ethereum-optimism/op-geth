@@ -1352,7 +1352,7 @@ func (c *ChainConfig) Rules(num *big.Int, isMerge bool, timestamp uint64) Rules 
 		IsOptimismGranite:  isMerge && c.IsOptimismGranite(timestamp),
 		IsOptimismHolocene: isMerge && c.IsOptimismHolocene(timestamp),
 		IsOptimismIsthmus:  isMerge && c.IsOptimismIsthmus(timestamp),
-		IsOptimismJovian: isMerge && c.IsOptimismJovian(timestamp),
+		IsOptimismJovian:   isMerge && c.IsOptimismJovian(timestamp),
 	}
 }
 
