@@ -230,9 +230,8 @@ func CalcBaseFee(config *params.ChainConfig, parent *types.Header, time uint64) 
 	}
 
 	var (
-		num     = new(big.Int)
-		denom   = new(big.Int)
-		baseFee = new(big.Int)
+		num   = new(big.Int)
+		denom = new(big.Int)
 	)
 
 	if parent.GasUsed > parentGasTarget {
@@ -245,7 +244,15 @@ func CalcBaseFee(config *params.ChainConfig, parent *types.Header, time uint64) 
 		if num.Cmp(common.Big1) < 0 {
 			return num.Add(parent.BaseFee, common.Big1)
 		}
-		baseFee = num.Add(parent.BaseFee, num)
+		baseFee := num.Add(parent.BaseFee, num)
+
+		// If the base fee is lower than the minBaseFee, and we're using more gas than the
+		// target, we should use the minBaseFee to speed up the fee adjustment.
+		minBaseFee := new(big.Int).Lsh(common.Big1, uint(minBaseFeeLog2))
+		if baseFee.Cmp(minBaseFee) < 0 {
+			return minBaseFee
+		}
+		return baseFee
 	} else {
 		// Otherwise if the parent block used less gas than its target, the baseFee should decrease.
 		// max(0, parentBaseFee * gasUsedDelta / parentGasTarget / baseFeeChangeDenominator)
@@ -254,15 +261,10 @@ func CalcBaseFee(config *params.ChainConfig, parent *types.Header, time uint64) 
 		num.Div(num, denom.SetUint64(parentGasTarget))
 		num.Div(num, denom.SetUint64(denominator))
 
-		baseFee = num.Sub(parent.BaseFee, num)
+		baseFee := num.Sub(parent.BaseFee, num)
 		if baseFee.Cmp(common.Big0) < 0 {
 			baseFee = common.Big0
 		}
+		return baseFee
 	}
-
-	minBaseFee := new(big.Int).Lsh(common.Big1, uint(minBaseFeeLog2))
-	if baseFee.Cmp(minBaseFee) < 0 {
-		return minBaseFee
-	}
-	return baseFee
 }

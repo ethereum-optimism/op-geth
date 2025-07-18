@@ -233,10 +233,10 @@ func TestCalcBaseFeeJovian(t *testing.T) {
 		denom, elasticity uint64
 		minBaseFeeLog2    uint8
 	}{
-		// Test case where calculated base fee is less than minBaseFee, should return minBaseFee
-		{900_000, 1_000_000, 1_048_576, 10, 2, 20}, // minBaseFee = 2^20 = 1_048_576
-		// Test case where calculated base fee is higher than minBaseFee, should return calculated value
-		{5_000_000, 20_000_000, 5_166_666, 10, 2, 10}, // minBaseFee = 2^10 = 1_024
+		// Test if gas used is more than target
+		{1_000_000, parentGasLimit / 2, 16_777_216, 10, 3, 24}, // minBaseFee = 2^24 = 16_777_216
+		// Test if gas used is less than target
+		{1_000_000, parentGasLimit / 3, 966_667, 10, 2, 24},
 	}
 	for i, test := range tests {
 		parent := &types.Header{
