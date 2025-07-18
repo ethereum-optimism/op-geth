@@ -209,6 +209,23 @@ func holoceneConfig() *params.ChainConfig {
 	return &config
 }
 
+func jovianConfig() *params.ChainConfig {
+	config := *params.TestChainConfig
+	config.LondonBlock = big.NewInt(0)
+	t := uint64(0)
+	config.CanyonTime = &t
+	config.HoloceneTime = &t
+	config.JovianTime = &t
+	jovianDenom := uint64(250)
+	config.Optimism = &params.OptimismConfig{
+		EIP1559Elasticity:        6,
+		EIP1559Denominator:       50,
+		EIP1559DenominatorCanyon: &jovianDenom,
+		EIP1559MinBaseFeeLog2:    20,
+	}
+	return &config
+}
+
 // newPayloadArgs returns a BuildPaylooadArgs with the given parentHash and eip-1559 params,
 // testTimestamp for Timestamp, and testRecipient for recipient. NoTxPool is set to true.
 func newPayloadArgs(parentHash common.Hash, params1559 []byte) *BuildPayloadArgs {
@@ -228,7 +245,11 @@ func testBuildPayload(t *testing.T, noTxPool, interrupt bool, params1559 []byte)
 
 	config := params.TestChainConfig
 	if len(params1559) != 0 {
-		config = holoceneConfig()
+		if config.IsJovian(testTimestamp) {
+			config = jovianConfig()
+		} else {
+			config = holoceneConfig()
+		}
 	}
 	w, b := newTestWorker(t, config, ethash.NewFaker(), db, 0)
 
@@ -284,9 +305,18 @@ func testBuildPayload(t *testing.T, noTxPool, interrupt bool, params1559 []byte)
 	var expected []byte
 	if len(params1559) != 0 {
 		expected = []byte{0}
-		d, _ := eip1559.DecodeHolocene1559Params(params1559)
+		var d uint64
+		if config.IsJovian(testTimestamp) {
+			d, _, _ = eip1559.DecodeJovian1559Params(params1559)
+		} else {
+			d, _ = eip1559.DecodeHolocene1559Params(params1559)
+		}
 		if d == 0 {
-			expected = append(expected, eip1559.EncodeHolocene1559Params(250, 6)...) // canyon defaults
+			if config.IsJovian(testTimestamp) {
+				expected = append(expected, eip1559.EncodeJovian1559Params(250, 6, 20)...) // jovian defaults
+			} else {
+				expected = append(expected, eip1559.EncodeHolocene1559Params(250, 6)...) // canyon defaults
+			}
 		} else {
 			expected = append(expected, params1559...)
 		}
@@ -374,6 +404,31 @@ func TestBuildPayloadInvalidHoloceneParams(t *testing.T) {
 
 	args := newPayloadArgs(b.chain.CurrentBlock().Hash(), badParams)
 	payload, err := w.buildPayload(args, false)
+	if err == nil && (payload == nil || payload.err == nil) {
+		t.Fatalf("expected error, got none")
+	}
+}
+
+func TestBuildPayloadInvalidJovianParams(t *testing.T) {
+	t.Parallel()
+	db := rawdb.NewMemoryDatabase()
+	config := jovianConfig()
+	w, b := newTestWorker(t, config, ethash.NewFaker(), db, 0)
+
+	// 0 denominators shouldn't be allowed
+	badParams := eip1559.EncodeJovian1559Params(0, 6, 20)
+
+	args := newPayloadArgs(b.chain.CurrentBlock().Hash(), badParams)
+	payload, err := w.buildPayload(args, false)
+	if err == nil && (payload == nil || payload.err == nil) {
+		t.Fatalf("expected error, got none")
+	}
+
+	// 0 minBaseFeeLog2 shouldn't be allowed
+	badParams = eip1559.EncodeJovian1559Params(250, 6, 0)
+
+	args = newPayloadArgs(b.chain.CurrentBlock().Hash(), badParams)
+	payload, err = w.buildPayload(args, false)
 	if err == nil && (payload == nil || payload.err == nil) {
 		t.Fatalf("expected error, got none")
 	}

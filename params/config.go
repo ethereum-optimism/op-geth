@@ -511,6 +511,7 @@ type OptimismConfig struct {
 	EIP1559Elasticity        uint64  `json:"eip1559Elasticity"`
 	EIP1559Denominator       uint64  `json:"eip1559Denominator"`
 	EIP1559DenominatorCanyon *uint64 `json:"eip1559DenominatorCanyon,omitempty"`
+	EIP1559MinBaseFeeLog2    uint8   `json:"eip1559MinBaseFeeLog2"`
 }
 
 // String implements the stringer interface, returning the optimism fee config details.
@@ -1121,6 +1122,13 @@ func (c *ChainConfig) ElasticityMultiplier() uint64 {
 		return c.Optimism.EIP1559Elasticity
 	}
 	return DefaultElasticityMultiplier
+}
+
+func (c *ChainConfig) MinBaseFeeLog2() uint8 {
+	if c.Optimism != nil {
+		return c.Optimism.EIP1559MinBaseFeeLog2
+	}
+	return DefaultMinBaseFeeLog2
 }
 
 // LatestFork returns the latest time-based fork that would be active for the given time.
