@@ -165,7 +165,7 @@ func EncodeJovianExtraData(denom, elasticity uint64, minBaseFeeLog2 uint8) []byt
 	if denom > gomath.MaxUint32 || elasticity > gomath.MaxUint32 {
 		panic("eip-1559 parameters out of uint32 range")
 	}
-	// leave version byte 0
+	// leave version byte 1
 	binary.BigEndian.PutUint32(r[1:5], uint32(denom))
 	binary.BigEndian.PutUint32(r[5:9], uint32(elasticity))
 	r[9] = minBaseFeeLog2
