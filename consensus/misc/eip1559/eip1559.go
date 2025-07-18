@@ -205,7 +205,18 @@ func CalcBaseFee(config *params.ChainConfig, parent *types.Header, time uint64) 
 	}
 	elasticity := config.ElasticityMultiplier()
 	denominator := config.BaseFeeChangeDenominator(time)
-	if config.IsHolocene(parent.Time) {
+	minBaseFeeLog2 := config.MinBaseFeeLog2()
+	if config.IsJovian(parent.Time) {
+		denominator, elasticity, minBaseFeeLog2 = DecodeJovianExtraData(parent.Extra)
+		if denominator == 0 {
+			// this shouldn't happen as the ExtraData should have been validated prior
+			panic("invalid eip-1559 params in extradata")
+		}
+		if minBaseFeeLog2 == 0 {
+			// this shouldn't happen as the ExtraData should have been validated prior
+			panic("invalid eip-1559 params in extradata")
+		}
+	} else if config.IsHolocene(parent.Time) {
 		denominator, elasticity = DecodeHoloceneExtraData(parent.Extra)
 		if denominator == 0 {
 			// this shouldn't happen as the ExtraData should have been validated prior
@@ -219,8 +230,9 @@ func CalcBaseFee(config *params.ChainConfig, parent *types.Header, time uint64) 
 	}
 
 	var (
-		num   = new(big.Int)
-		denom = new(big.Int)
+		num     = new(big.Int)
+		denom   = new(big.Int)
+		baseFee = new(big.Int)
 	)
 
 	if parent.GasUsed > parentGasTarget {
@@ -233,7 +245,7 @@ func CalcBaseFee(config *params.ChainConfig, parent *types.Header, time uint64) 
 		if num.Cmp(common.Big1) < 0 {
 			return num.Add(parent.BaseFee, common.Big1)
 		}
-		return num.Add(parent.BaseFee, num)
+		baseFee = num.Add(parent.BaseFee, num)
 	} else {
 		// Otherwise if the parent block used less gas than its target, the baseFee should decrease.
 		// max(0, parentBaseFee * gasUsedDelta / parentGasTarget / baseFeeChangeDenominator)
@@ -242,10 +254,15 @@ func CalcBaseFee(config *params.ChainConfig, parent *types.Header, time uint64) 
 		num.Div(num, denom.SetUint64(parentGasTarget))
 		num.Div(num, denom.SetUint64(denominator))
 
-		baseFee := num.Sub(parent.BaseFee, num)
+		baseFee = num.Sub(parent.BaseFee, num)
 		if baseFee.Cmp(common.Big0) < 0 {
 			baseFee = common.Big0
 		}
-		return baseFee
 	}
+
+	minBaseFee := new(big.Int).Lsh(common.Big1, uint(minBaseFeeLog2))
+	if baseFee.Cmp(minBaseFee) < 0 {
+		return minBaseFee
+	}
+	return baseFee
 }

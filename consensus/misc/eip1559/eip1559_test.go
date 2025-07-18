@@ -63,10 +63,13 @@ func opConfig() *params.ChainConfig {
 	config.CanyonTime = &ct
 	ht := uint64(12)
 	config.HoloceneTime = &ht
+	jt := uint64(14)
+	config.JovianTime = &jt
 	config.Optimism = &params.OptimismConfig{
 		EIP1559Elasticity:        6,
 		EIP1559Denominator:       50,
 		EIP1559DenominatorCanyon: &eip1559DenominatorCanyon,
+		EIP1559MinBaseFeeLog2:    20,
 	}
 	return config
 }
@@ -212,6 +215,37 @@ func TestCalcBaseFeeOptimismHolocene(t *testing.T) {
 			BaseFee:  big.NewInt(parentBaseFee),
 			Time:     12,
 			Extra:    EncodeHoloceneExtraData(test.denom, test.elasticity),
+		}
+		if have, want := CalcBaseFee(opConfig(), parent, parent.Time+2), big.NewInt(test.expectedBaseFee); have.Cmp(want) != 0 {
+			t.Errorf("test %d: have %d  want %d, ", i, have, want)
+		}
+	}
+}
+
+// TestCalcBaseFeeJovian assumes all blocks are jovian blocks
+func TestCalcBaseFeeJovian(t *testing.T) {
+	parentGasLimit := uint64(30_000_000)
+
+	tests := []struct {
+		parentBaseFee     int64
+		parentGasUsed     uint64
+		expectedBaseFee   int64
+		denom, elasticity uint64
+		minBaseFeeLog2    uint8
+	}{
+		// Test case where calculated base fee is less than minBaseFee, should return minBaseFee
+		{900_000, 1_000_000, 1_048_576, 10, 2, 20}, // minBaseFee = 2^20 = 1_048_576
+		// Test case where calculated base fee is higher than minBaseFee, should return calculated value
+		{5_000_000, 20_000_000, 5_166_666, 10, 2, 10}, // minBaseFee = 2^10 = 1_024
+	}
+	for i, test := range tests {
+		parent := &types.Header{
+			Number:   common.Big32,
+			GasLimit: parentGasLimit,
+			GasUsed:  test.parentGasUsed,
+			BaseFee:  big.NewInt(test.parentBaseFee),
+			Time:     14,
+			Extra:    EncodeJovianExtraData(test.denom, test.elasticity, test.minBaseFeeLog2),
 		}
 		if have, want := CalcBaseFee(opConfig(), parent, parent.Time+2), big.NewInt(test.expectedBaseFee); have.Cmp(want) != 0 {
 			t.Errorf("test %d: have %d  want %d, ", i, have, want)
