@@ -132,17 +132,17 @@ func ValidateHoloceneExtraData(extra []byte) error {
 	return ValidateHolocene1559Params(extra[1:])
 }
 
-func DecodeJovian1559Params(params []byte) (uint64, uint64, uint64) {
+func DecodeJovian1559Params(params []byte) (uint64, uint64, uint8) {
 	if len(params) != 9 {
 		return 0, 0, 0
 	}
 	denominator := binary.BigEndian.Uint32(params[:4])
 	elasticity := binary.BigEndian.Uint32(params[4:8])
-	minBaseFeeLog2 := binary.BigEndian.Uint32(params[8:9])
-	return uint64(denominator), uint64(elasticity), uint64(minBaseFeeLog2)
+	minBaseFeeLog2 := params[8]
+	return uint64(denominator), uint64(elasticity), minBaseFeeLog2
 }
 
-func DecodeJovianExtraData(extra []byte) (uint64, uint64, uint64) {
+func DecodeJovianExtraData(extra []byte) (uint64, uint64, uint8) {
 	if len(extra) != 10 {
 		return 0, 0, 0
 	}

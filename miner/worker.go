@@ -284,7 +284,17 @@ func (miner *Miner) prepareWork(genParams *generateParams, witness bool) (*envir
 		// configure the gas limit of pending blocks with the miner gas limit config when using optimism
 		header.GasLimit = miner.config.GasCeil
 	}
-	if miner.chainConfig.IsHolocene(header.Time) {
+	if miner.chainConfig.IsJovian(header.Time) {
+		if err := eip1559.ValidateJovian1559Params(genParams.eip1559Params); err != nil {
+			return nil, err
+		}
+		d, e, f := eip1559.DecodeJovian1559Params(genParams.eip1559Params)
+		if d == 0 {
+			d = miner.chainConfig.BaseFeeChangeDenominator(header.Time)
+			e = miner.chainConfig.ElasticityMultiplier()
+		}
+		header.Extra = eip1559.EncodeJovianExtraData(d, e, f)
+	} else if miner.chainConfig.IsHolocene(header.Time) {
 		if err := eip1559.ValidateHolocene1559Params(genParams.eip1559Params); err != nil {
 			return nil, err
 		}
