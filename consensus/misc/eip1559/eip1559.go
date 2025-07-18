@@ -132,6 +132,70 @@ func ValidateHoloceneExtraData(extra []byte) error {
 	return ValidateHolocene1559Params(extra[1:])
 }
 
+func DecodeJovian1559Params(params []byte) (uint64, uint64, uint64) {
+	if len(params) != 9 {
+		return 0, 0, 0
+	}
+	denominator := binary.BigEndian.Uint32(params[:4])
+	elasticity := binary.BigEndian.Uint32(params[4:8])
+	minBaseFeeLog2 := binary.BigEndian.Uint32(params[8:9])
+	return uint64(denominator), uint64(elasticity), uint64(minBaseFeeLog2)
+}
+
+func DecodeJovianExtraData(extra []byte) (uint64, uint64, uint64) {
+	if len(extra) != 10 {
+		return 0, 0, 0
+	}
+	return DecodeJovian1559Params(extra[1:])
+}
+
+func EncodeJovian1559Params(denom, elasticity uint64, minBaseFeeLog2 uint8) []byte {
+	r := make([]byte, 9)
+	if denom > gomath.MaxUint32 || elasticity > gomath.MaxUint32 {
+		panic("eip-1559 parameters out of uint32 range")
+	}
+	binary.BigEndian.PutUint32(r[:4], uint32(denom))
+	binary.BigEndian.PutUint32(r[4:8], uint32(elasticity))
+	r[8] = minBaseFeeLog2
+	return r
+}
+
+func EncodeJovianExtraData(denom, elasticity uint64, minBaseFeeLog2 uint8) []byte {
+	r := make([]byte, 10)
+	if denom > gomath.MaxUint32 || elasticity > gomath.MaxUint32 {
+		panic("eip-1559 parameters out of uint32 range")
+	}
+	// leave version byte 0
+	binary.BigEndian.PutUint32(r[1:5], uint32(denom))
+	binary.BigEndian.PutUint32(r[5:9], uint32(elasticity))
+	r[9] = minBaseFeeLog2
+	return r
+}
+
+func ValidateJovian1559Params(params []byte) error {
+	if len(params) != 10 {
+		return fmt.Errorf("jovian eip-1559 params should be 10 bytes, got %d", len(params))
+	}
+	d, e, f := DecodeJovian1559Params(params)
+	if e != 0 && d == 0 {
+		return errors.New("jovian params cannot have a 0 denominator unless elasticity is also 0")
+	}
+	if f == 0 {
+		return errors.New("jovian params should not have a 0 minBaseFeeLog2")
+	}
+	return nil
+}
+
+func ValidateJovianExtraData(extra []byte) error {
+	if len(extra) != 10 {
+		return fmt.Errorf("jovian extraData should be 10 bytes, got %d", len(extra))
+	}
+	if extra[0] != 1 {
+		return fmt.Errorf("jovian extraData should have 1 version byte, got %d", extra[0])
+	}
+	return ValidateJovian1559Params(extra[1:])
+}
+
 // CalcBaseFee calculates the basefee of the header.
 // The time belongs to the new block to check which upgrades are active.
 func CalcBaseFee(config *params.ChainConfig, parent *types.Header, time uint64) *big.Int {
