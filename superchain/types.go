@@ -86,7 +86,6 @@ type SystemConfig struct {
 	GasLimit          uint64         `json:"gasLimit" toml:"gasLimit"`
 	BaseFeeScalar     *uint64        `json:"baseFeeScalar,omitempty" toml:"baseFeeScalar,omitempty"`
 	BlobBaseFeeScalar *uint64        `json:"blobBaseFeeScalar,omitempty" toml:"blobBaseFeeScalar,omitempty"`
-	MinBaseFeeLog2    *uint8         `json:"minBaseFeeLog2,omitempty" toml:"minBaseFeeLog2,omitempty"`
 }
 
 type RolesConfig struct {
