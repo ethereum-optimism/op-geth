@@ -1124,13 +1124,6 @@ func (c *ChainConfig) ElasticityMultiplier() uint64 {
 	return DefaultElasticityMultiplier
 }
 
-func (c *ChainConfig) MinBaseFeeLog2() uint8 {
-	if c.Optimism != nil {
-		return c.Optimism.EIP1559MinBaseFeeLog2
-	}
-	return DefaultMinBaseFeeLog2
-}
-
 // LatestFork returns the latest time-based fork that would be active for the given time.
 func (c *ChainConfig) LatestFork(time uint64) forks.Fork {
 	// Assume last non-time-based fork has passed.
