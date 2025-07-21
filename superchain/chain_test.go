@@ -13,6 +13,7 @@ func TestGetChain(t *testing.T) {
 		require.NotNil(t, chain)
 	})
 
+	// Celo mainnet skipped due to custom genesis
 	t.Run("Celo Mainnet skipped", func(t *testing.T) {
 		chain, err := GetChain(42220)
 		require.Error(t, err)

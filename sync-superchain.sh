@@ -51,9 +51,12 @@ process_network_dir() {
         chain_name="$(basename "${toml_file%.*}")"
 
         if [[ -z "$chain_id"
-              || "$chain_id" -eq 28882     # Boba Sepolia
-              || "$chain_id" -eq 288       # Boba Mainnet
-              || "$chain_id" -eq 42220 ]]; # Celo Mainnet
+              # Boba Sepolia
+              || "$chain_id" -eq 28882
+              # Boba Mainnet
+              || "$chain_id" -eq 288
+              # Celo Mainnet: non-standard genesis format (forked from Ethereum, then converted to L2)
+              || "$chain_id" -eq 42220 ]];
         then
             echo "Skipping $network_name/$chain_name ($chain_id)"
             rm "$toml_file"
