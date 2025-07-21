@@ -173,7 +173,7 @@ func EncodeJovianExtraData(denom, elasticity uint64, minBaseFeeLog2 uint8) []byt
 }
 
 func ValidateJovian1559Params(params []byte) error {
-	if len(params) != 10 {
+	if len(params) != 9 {
 		return fmt.Errorf("jovian eip-1559 params should be 10 bytes, got %d", len(params))
 	}
 	d, e, f := DecodeJovian1559Params(params)
