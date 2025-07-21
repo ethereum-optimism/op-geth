@@ -464,6 +464,7 @@ func (tx *Transaction) EffectiveGasTip(baseFee *big.Int) (*big.Int, error) {
 // saves the result to dst.
 func (tx *Transaction) calcEffectiveGasTip(dst *big.Int, baseFee *big.Int) error {
 	if tx.Type() == DepositTxType {
+		dst.Set(common.Big0)
 		return nil
 	}
 

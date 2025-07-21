@@ -517,6 +517,8 @@ func NewBlockChain(db ethdb.Database, genesis *Genesis, engine consensus.Engine,
 		rawdb.WriteChainConfig(db, genesisHash, chainConfig)
 	}
 
+	bc.engine.VerifyHeader(bc, bc.CurrentHeader())
+
 	// Start tx indexer if it's enabled.
 	if bc.cfg.TxLookupLimit >= 0 {
 		bc.txIndexer = newTxIndexer(uint64(bc.cfg.TxLookupLimit), bc)
