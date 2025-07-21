@@ -176,12 +176,9 @@ func ValidateJovian1559Params(params []byte) error {
 	if len(params) != 9 {
 		return fmt.Errorf("jovian eip-1559 params should be 10 bytes, got %d", len(params))
 	}
-	d, e, f := DecodeJovian1559Params(params)
+	d, e, _ := DecodeJovian1559Params(params)
 	if e != 0 && d == 0 {
 		return errors.New("jovian params cannot have a 0 denominator unless elasticity is also 0")
-	}
-	if f == 0 {
-		return errors.New("jovian params should not have a 0 minBaseFeeLog2")
 	}
 	return nil
 }
@@ -209,10 +206,6 @@ func CalcBaseFee(config *params.ChainConfig, parent *types.Header, time uint64) 
 	if config.IsJovian(parent.Time) {
 		denominator, elasticity, minBaseFeeLog2 = DecodeJovianExtraData(parent.Extra)
 		if denominator == 0 {
-			// this shouldn't happen as the ExtraData should have been validated prior
-			panic("invalid eip-1559 params in extradata")
-		}
-		if minBaseFeeLog2 == 0 {
 			// this shouldn't happen as the ExtraData should have been validated prior
 			panic("invalid eip-1559 params in extradata")
 		}
