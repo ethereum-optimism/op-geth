@@ -217,10 +217,6 @@ func CalcBaseFee(config *params.ChainConfig, parent *types.Header, time uint64) 
 		}
 	}
 	parentGasTarget := parent.GasLimit / elasticity
-	// If the parent gasUsed is the same as the target, the baseFee remains unchanged.
-	if parent.GasUsed == parentGasTarget {
-		return new(big.Int).Set(parent.BaseFee)
-	}
 
 	var (
 		num     = new(big.Int)
@@ -240,7 +236,7 @@ func CalcBaseFee(config *params.ChainConfig, parent *types.Header, time uint64) 
 		} else {
 			baseFee = num.Add(parent.BaseFee, num)
 		}
-	} else {
+	} else if parent.GasUsed < parentGasTarget {
 		// Otherwise if the parent block used less gas than its target, the baseFee should decrease.
 		// max(0, parentBaseFee * gasUsedDelta / parentGasTarget / baseFeeChangeDenominator)
 		num.SetUint64(parentGasTarget - parent.GasUsed)
@@ -252,6 +248,9 @@ func CalcBaseFee(config *params.ChainConfig, parent *types.Header, time uint64) 
 		if baseFee.Cmp(common.Big0) < 0 {
 			baseFee = common.Big0
 		}
+	} else {
+		// If the parent gasUsed is the same as the target, the baseFee remains unchanged.
+		baseFee = parent.BaseFee
 	}
 
 	// Enforce minimum base fee if needed
