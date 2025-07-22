@@ -235,8 +235,8 @@ func TestCalcBaseFeeJovian(t *testing.T) {
 	}{
 		// Test if gas used is more than target
 		{1_000_000, parentGasLimit / 2, 16_777_216, 10, 3, 24}, // minBaseFee = 2^24 = 16_777_216
-		// Test if gas used is less than target
-		{1_000_000, parentGasLimit / 3, 966_667, 10, 2, 24},
+		// Test if gas used is less than target - now enforces minimum base fee
+		{1_000_000, parentGasLimit / 3, 16_777_216, 10, 2, 24}, // Should be clamped to minBaseFee = 2^24 = 16_777_216
 	}
 	for i, test := range tests {
 		parent := &types.Header{
@@ -250,5 +250,66 @@ func TestCalcBaseFeeJovian(t *testing.T) {
 		if have, want := CalcBaseFee(opConfig(), parent, parent.Time+2), big.NewInt(test.expectedBaseFee); have.Cmp(want) != 0 {
 			t.Errorf("test %d: have %d  want %d, ", i, have, want)
 		}
+	}
+}
+
+// TestCalcBaseFeeJovianMinBaseFeeEnforcement tests that the minimum base fee is enforced when the computed
+// base fee is less than the minimum base fee
+func TestCalcBaseFeeJovianMinBaseFeeEnforcement(t *testing.T) {
+	parentGasLimit := uint64(30_000_000)
+	minBaseFeeLog2 := uint8(20) // minBaseFee = 2^20 = 1_048_576
+	minBaseFee := int64(1_048_576)
+	denom := uint64(250)
+	elasticity := uint64(6)
+
+	// Start at extremely low base fee
+	parent1 := &types.Header{
+		Number:   common.Big32,
+		GasLimit: parentGasLimit,
+		GasUsed:  parentGasLimit / elasticity, // Use exactly the target gas
+		BaseFee:  big.NewInt(1),
+		Time:     14,
+		Extra:    EncodeJovianExtraData(denom, elasticity, minBaseFeeLog2),
+	}
+
+	// When at target, base fee should stay the same
+	baseFeeAtTarget := CalcBaseFee(opConfig(), parent1, parent1.Time+2)
+	if baseFeeAtTarget.Cmp(big.NewInt(1)) != 0 {
+		t.Errorf("Expected base fee to stay at 1 when at target, got %d", baseFeeAtTarget)
+	}
+
+	// Now exceed gas target by a small amount, the base fee should increase but
+	// it doesn't increase enough so we use the minBaseFee
+	parent2 := &types.Header{
+		Number:   big.NewInt(33),
+		GasLimit: parentGasLimit,
+		GasUsed:  parentGasLimit/elasticity + 1_000_000, // Exceed target by a small amount
+		BaseFee:  big.NewInt(1),
+		Time:     14,
+		Extra:    EncodeJovianExtraData(denom, elasticity, minBaseFeeLog2),
+	}
+
+	baseFeeAfterIncrease := CalcBaseFee(opConfig(), parent2, parent2.Time+2)
+
+	// Expect the result to be minBaseFee
+	if baseFeeAfterIncrease.Cmp(big.NewInt(minBaseFee)) != 0 {
+		t.Errorf("Expected minimum base fee enforcement after calculation, got %d, want %d", baseFeeAfterIncrease, minBaseFee)
+	}
+
+	// Exceed by a little
+	parent3 := &types.Header{
+		Number:   big.NewInt(34),
+		GasLimit: parentGasLimit,
+		GasUsed:  parentGasLimit/elasticity + 1, // Exceed target by just 1 gas unit
+		BaseFee:  big.NewInt(1),
+		Time:     14,
+		Extra:    EncodeJovianExtraData(denom, elasticity, minBaseFeeLog2),
+	}
+
+	baseFeeSmallIncrease := CalcBaseFee(opConfig(), parent3, parent3.Time+2)
+
+	// Should calculate tiny increase and then enforce minimum
+	if baseFeeSmallIncrease.Cmp(big.NewInt(minBaseFee)) != 0 {
+		t.Errorf("Expected minimum base fee enforcement after calculation, got %d, want %d", baseFeeSmallIncrease, minBaseFee)
 	}
 }
