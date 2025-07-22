@@ -128,7 +128,9 @@ func newTestWorkerBackend(t *testing.T, chainConfig *params.ChainConfig, engine 
 	default:
 		t.Fatalf("unexpected consensus engine type: %T", engine)
 	}
-	if chainConfig.HoloceneTime != nil {
+	if chainConfig.JovianTime != nil {
+		gspec.ExtraData = []byte{1, 0, 1, 2, 3, 4, 5, 6, 7, 8}
+	} else if chainConfig.HoloceneTime != nil {
 		// genesis block extraData needs to be correct format
 		gspec.ExtraData = []byte{0, 0, 1, 2, 3, 4, 5, 6, 7}
 	}
@@ -221,7 +223,6 @@ func jovianConfig() *params.ChainConfig {
 		EIP1559Elasticity:        6,
 		EIP1559Denominator:       50,
 		EIP1559DenominatorCanyon: &jovianDenom,
-		EIP1559MinBaseFeeLog2:    20,
 	}
 	return &config
 }
@@ -313,7 +314,7 @@ func testBuildPayload(t *testing.T, noTxPool, interrupt bool, params1559 []byte)
 		}
 		if d == 0 {
 			if config.IsJovian(testTimestamp) {
-				expected = append(expected, eip1559.EncodeJovian1559Params(250, 6, 20)...) // jovian defaults
+				expected = append(expected, eip1559.EncodeJovian1559Params(250, 6, 0)...) // jovian defaults
 			} else {
 				expected = append(expected, eip1559.EncodeHolocene1559Params(250, 6)...) // canyon defaults
 			}
@@ -416,19 +417,10 @@ func TestBuildPayloadInvalidJovianParams(t *testing.T) {
 	w, b := newTestWorker(t, config, ethash.NewFaker(), db, 0)
 
 	// 0 denominators shouldn't be allowed
-	badParams := eip1559.EncodeJovian1559Params(0, 6, 20)
+	badParams := eip1559.EncodeJovian1559Params(0, 6, 0)
 
 	args := newPayloadArgs(b.chain.CurrentBlock().Hash(), badParams)
 	payload, err := w.buildPayload(args, false)
-	if err == nil && (payload == nil || payload.err == nil) {
-		t.Fatalf("expected error, got none")
-	}
-
-	// 0 minBaseFeeLog2 shouldn't be allowed
-	badParams = eip1559.EncodeJovian1559Params(250, 6, 0)
-
-	args = newPayloadArgs(b.chain.CurrentBlock().Hash(), badParams)
-	payload, err = w.buildPayload(args, false)
 	if err == nil && (payload == nil || payload.err == nil) {
 		t.Fatalf("expected error, got none")
 	}

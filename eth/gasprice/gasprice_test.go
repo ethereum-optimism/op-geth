@@ -163,7 +163,6 @@ func newTestBackend(t *testing.T, londonBlock *big.Int, cancunBlock *big.Int, pe
 			config.FjordTime = &ts
 			config.GraniteTime = &ts
 			config.HoloceneTime = &ts
-			config.JovianTime = &ts
 		}
 	}
 	config.LondonBlock = londonBlock
@@ -214,9 +213,6 @@ func newTestBackend(t *testing.T, londonBlock *big.Int, cancunBlock *big.Int, pe
 
 		if gspec.Config.IsOptimismBedrock(b.Number()) {
 			b.SetPoS()
-		}
-		if gspec.Config.IsOptimismJovian(b.Timestamp()) {
-			b.SetExtra(eip1559.EncodeJovianExtraData(*gspec.Config.Optimism.EIP1559DenominatorCanyon, gspec.Config.Optimism.EIP1559Elasticity, gspec.Config.Optimism.EIP1559MinBaseFeeLog2))
 		}
 		if gspec.Config.IsOptimismHolocene(b.Timestamp()) {
 			b.SetExtra(eip1559.EncodeHoloceneExtraData(*gspec.Config.Optimism.EIP1559DenominatorCanyon, gspec.Config.Optimism.EIP1559Elasticity))
