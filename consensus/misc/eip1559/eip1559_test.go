@@ -69,7 +69,6 @@ func opConfig() *params.ChainConfig {
 		EIP1559Elasticity:        6,
 		EIP1559Denominator:       50,
 		EIP1559DenominatorCanyon: &eip1559DenominatorCanyon,
-		EIP1559MinBaseFeeLog2:    20,
 	}
 	return config
 }

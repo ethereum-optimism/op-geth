@@ -254,7 +254,9 @@ func CalcBaseFee(config *params.ChainConfig, parent *types.Header, time uint64) 
 	}
 
 	// Enforce minimum base fee if needed
+	// If it's zero then it's pre-Jovian
 	if minBaseFeeLog2 > 0 {
+		// compute 2^minBaseFeeLog2
 		minBaseFee := new(big.Int).Lsh(common.Big1, uint(minBaseFeeLog2))
 		if baseFee.Cmp(minBaseFee) < 0 {
 			baseFee = minBaseFee
