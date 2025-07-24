@@ -225,7 +225,6 @@ func TestCalcBaseFeeOptimismHolocene(t *testing.T) {
 // is enforced when the computed base fee is less than the minimum base fee
 func TestCalcBaseFeeJovian(t *testing.T) {
 	parentGasLimit := uint64(30_000_000)
-	minBaseFeeLog2 := uint8(20) // minBaseFee = 2^20 = 1_048_576
 	minBaseFee := int64(1_048_576)
 	denom := uint64(50)
 	elasticity := uint64(3)
@@ -234,27 +233,29 @@ func TestCalcBaseFeeJovian(t *testing.T) {
 		parentBaseFee   int64
 		parentGasUsed   uint64
 		expectedBaseFee int64
+		minBaseFeeLog2  uint8
 	}{
-		// Test 1: gas used is exactly the target gas, but the base fee is set too low
-		{1, parentGasLimit / elasticity, minBaseFee},
+		// Test 1: gas used is exactly the target gas, but the base fee is set too low so
+		// it will be set to the minBaseFee
+		{1, parentGasLimit / elasticity, minBaseFee, 20},
 		// Test 2: gas used exceeds gas target, but the new calculated fee is still
 		// too low so it will be set to the minBaseFee
-		{1, parentGasLimit/elasticity + 1_000_000, minBaseFee},
+		{1, parentGasLimit/elasticity + 1_000_000, minBaseFee, 20},
 		// Test 3: gas used exceeds gas target, but the new calculated fee is higher
 		// than the minBaseFee so we keep it as is. See the calculation below:
 		// gasUsedDelta = gasUsed - parentGasTarget = 20_000_000 - 30_000_000 / 3 = 10_000_000
 		// 16_777_216 * 10_000_000 / 10_000_000 / 50 = 335_544.32
-		// 16_777_216 + 335_544.32 = 17_112_760.32
-		{16_777_216, parentGasLimit/elasticity + 10_000_000, 17_112_760},
+		// 16_777_216 + 335_544.32 = 17_112_760.32, which is greater than 2^20
+		{16_777_216, parentGasLimit/elasticity + 10_000_000, 17_112_760, 20},
 		// Test 4: gas used is below target, but the new calculated fee is still
 		// too low so it will be set to the minBaseFee
-		{1, parentGasLimit/elasticity - 1_000_000, minBaseFee},
+		{1, parentGasLimit/elasticity - 1_000_000, minBaseFee, 20},
 		// Test 5: gas used is below target, and the new calculated fee is higher
 		// than the minBaseFee so we keep it as is. See the calculation below:
 		// gasUsedDelta = gasUsed - parentGasTarget = 9_000_000 - 30_000_000 / 3 = -1_000_000
-		// 524_288 * -1_000_000 / 10_000_000 / 50 = -1048.576
-		// 524_288 - 1048.576 = 523_239.424
-		{524_288, parentGasLimit/elasticity - 1_000_000, minBaseFee},
+		// 2_097_152 * -1_000_000 / 10_000_000 / 50 = -4194.304
+		// 2_097_152 - 4194.304 = 2_092_957.696, which is greater than 2^18
+		{2_097_152, parentGasLimit/elasticity - 1_000_000, 2_092_958, 18},
 	}
 	for i, test := range tests {
 		parent := &types.Header{
@@ -263,7 +264,7 @@ func TestCalcBaseFeeJovian(t *testing.T) {
 			GasUsed:  test.parentGasUsed,
 			BaseFee:  big.NewInt(test.parentBaseFee),
 			Time:     14,
-			Extra:    EncodeJovianExtraData(denom, elasticity, minBaseFeeLog2),
+			Extra:    EncodeJovianExtraData(denom, elasticity, test.minBaseFeeLog2),
 		}
 		if have, want := CalcBaseFee(opConfig(), parent, parent.Time+2), big.NewInt(test.expectedBaseFee); have.Cmp(want) != 0 {
 			t.Errorf("test %d: have %d  want %d, ", i, have, want)
