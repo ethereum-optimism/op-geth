@@ -132,35 +132,25 @@ func ValidateHoloceneExtraData(extra []byte) error {
 	return ValidateHolocene1559Params(extra[1:])
 }
 
-func DecodeJovian1559Params(params []byte) (uint64, uint64, uint8) {
-	if len(params) != 9 {
-		return 0, 0, 0
-	}
-	denominator := binary.BigEndian.Uint32(params[:4])
-	elasticity := binary.BigEndian.Uint32(params[4:8])
-	minBaseFeeLog2 := params[8]
-	return uint64(denominator), uint64(elasticity), minBaseFeeLog2
-}
-
-func DecodeJovianExtraData(extra []byte) (uint64, uint64, uint8) {
+// DecodeMinBaseFeeExtraData decodes the extraData parameters from the encoded form defined here:
+// https://github.com/ethereum-optimism/design-docs/blob/main/protocol/minimum-base-fee.md#minimum-base-fee-in-block-header
+//
+// Returns 0,0,0 if the format is invalid, though ValidateMinBaseFeeExtraData should be used instead of this function for
+// validity checking.
+func DecodeMinBaseFeeExtraData(extra []byte) (uint64, uint64, uint8) {
 	if len(extra) != 10 {
 		return 0, 0, 0
 	}
-	return DecodeJovian1559Params(extra[1:])
+
+	denominator := binary.BigEndian.Uint32(extra[1:5])
+	elasticity := binary.BigEndian.Uint32(extra[5:9])
+	minBaseFeeLog2 := extra[9]
+	return uint64(denominator), uint64(elasticity), minBaseFeeLog2
 }
 
-func EncodeJovian1559Params(denom, elasticity uint64, minBaseFeeLog2 uint8) []byte {
-	r := make([]byte, 9)
-	if denom > gomath.MaxUint32 || elasticity > gomath.MaxUint32 {
-		panic("eip-1559 parameters out of uint32 range")
-	}
-	binary.BigEndian.PutUint32(r[:4], uint32(denom))
-	binary.BigEndian.PutUint32(r[4:8], uint32(elasticity))
-	r[8] = minBaseFeeLog2
-	return r
-}
-
-func EncodeJovianExtraData(denom, elasticity uint64, minBaseFeeLog2 uint8) []byte {
+// EncodeMinBaseFeeExtraData encodes the EIP-1559 and minBaseFeeLog2 parameters into the header 'ExtraData' format.
+// Will panic if EIP-1559 parameters are outside uint32 range.
+func EncodeMinBaseFeeExtraData(denom, elasticity uint64, minBaseFeeLog2 uint8) []byte {
 	r := make([]byte, 10)
 	if denom > gomath.MaxUint32 || elasticity > gomath.MaxUint32 {
 		panic("eip-1559 parameters out of uint32 range")
@@ -172,25 +162,15 @@ func EncodeJovianExtraData(denom, elasticity uint64, minBaseFeeLog2 uint8) []byt
 	return r
 }
 
-func ValidateJovian1559Params(params []byte) error {
-	if len(params) != 9 {
-		return fmt.Errorf("jovian eip-1559 params should be 9 bytes, got %d", len(params))
-	}
-	d, e, _ := DecodeJovian1559Params(params)
-	if e != 0 && d == 0 {
-		return errors.New("jovian params cannot have a 0 denominator unless elasticity is also 0")
-	}
-	return nil
-}
-
-func ValidateJovianExtraData(extra []byte) error {
+// ValidateMinBaseFeeExtraData checks if the header extraData is valid according to the minimum base fee feature.
+func ValidateMinBaseFeeExtraData(extra []byte) error {
 	if len(extra) != 10 {
-		return fmt.Errorf("jovian extraData should be 10 bytes, got %d", len(extra))
+		return fmt.Errorf("minBaseFee extraData should be 10 bytes, got %d", len(extra))
 	}
 	if extra[0] != 1 {
-		return fmt.Errorf("jovian extraData should have 1 version byte, got %d", extra[0])
+		return fmt.Errorf("minBaseFee extraData should have 1 version byte, got %d", extra[0])
 	}
-	return ValidateJovian1559Params(extra[1:])
+	return ValidateHolocene1559Params(extra[1:9])
 }
 
 // CalcBaseFee calculates the basefee of the header.
@@ -204,7 +184,7 @@ func CalcBaseFee(config *params.ChainConfig, parent *types.Header, time uint64) 
 	denominator := config.BaseFeeChangeDenominator(time)
 	var minBaseFeeLog2 uint8
 	if config.IsJovian(parent.Time) {
-		denominator, elasticity, minBaseFeeLog2 = DecodeJovianExtraData(parent.Extra)
+		denominator, elasticity, minBaseFeeLog2 = DecodeMinBaseFeeExtraData(parent.Extra)
 		if denominator == 0 {
 			// this shouldn't happen as the ExtraData should have been validated prior
 			panic("invalid eip-1559 params in extradata")
