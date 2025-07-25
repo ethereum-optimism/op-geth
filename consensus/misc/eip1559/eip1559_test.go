@@ -264,7 +264,7 @@ func TestCalcBaseFeeJovian(t *testing.T) {
 			GasUsed:  test.parentGasUsed,
 			BaseFee:  big.NewInt(test.parentBaseFee),
 			Time:     14,
-			Extra:    EncodeJovianExtraData(denom, elasticity, test.minBaseFeeLog2),
+			Extra:    EncodeMinBaseFeeExtraData(denom, elasticity, test.minBaseFeeLog2),
 		}
 		if have, want := CalcBaseFee(opConfig(), parent, parent.Time+2), big.NewInt(test.expectedBaseFee); have.Cmp(want) != 0 {
 			t.Errorf("test %d: have %d  want %d, ", i, have, want)

@@ -306,18 +306,9 @@ func testBuildPayload(t *testing.T, noTxPool, interrupt bool, params1559 []byte)
 	var expected []byte
 	if len(params1559) != 0 {
 		expected = []byte{0}
-		var d uint64
-		if config.IsJovian(testTimestamp) {
-			d, _, _ = eip1559.DecodeJovian1559Params(params1559)
-		} else {
-			d, _ = eip1559.DecodeHolocene1559Params(params1559)
-		}
+		d, _ := eip1559.DecodeHolocene1559Params(params1559)
 		if d == 0 {
-			if config.IsJovian(testTimestamp) {
-				expected = append(expected, eip1559.EncodeJovian1559Params(250, 6, 0)...) // jovian defaults
-			} else {
-				expected = append(expected, eip1559.EncodeHolocene1559Params(250, 6)...) // canyon defaults
-			}
+			expected = append(expected, eip1559.EncodeHolocene1559Params(250, 6)...) // canyon defaults
 		} else {
 			expected = append(expected, params1559...)
 		}
@@ -410,14 +401,14 @@ func TestBuildPayloadInvalidHoloceneParams(t *testing.T) {
 	}
 }
 
-func TestBuildPayloadInvalidJovianParams(t *testing.T) {
+func TestBuildPayloadInvalidMinBaseFeeExtraData(t *testing.T) {
 	t.Parallel()
 	db := rawdb.NewMemoryDatabase()
 	config := jovianConfig()
 	w, b := newTestWorker(t, config, ethash.NewFaker(), db, 0)
 
 	// 0 denominators shouldn't be allowed
-	badParams := eip1559.EncodeJovian1559Params(0, 6, 0)
+	badParams := eip1559.EncodeMinBaseFeeExtraData(0, 6, 0)
 
 	args := newPayloadArgs(b.chain.CurrentBlock().Hash(), badParams)
 	payload, err := w.buildPayload(args, false)

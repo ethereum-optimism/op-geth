@@ -116,11 +116,12 @@ type generateParams struct {
 	beaconRoot  *common.Hash      // The beacon root (cancun field).
 	noTxs       bool              // Flag whether an empty block without any transaction is expected
 
-	txs           types.Transactions // Deposit transactions to include at the start of the block
-	gasLimit      *uint64            // Optional gas limit override
-	eip1559Params []byte             // Optional EIP-1559 parameters
-	interrupt     *atomic.Int32      // Optional interruption signal to pass down to worker.generateWork
-	isUpdate      bool               // Optional flag indicating that this is building a discardable update
+	txs            types.Transactions // Deposit transactions to include at the start of the block
+	gasLimit       *uint64            // Optional gas limit override
+	eip1559Params  []byte             // Optional EIP-1559 parameters
+	minBaseFeeLog2 uint8              // Optional minBaseFeeLog2 for Jovian
+	interrupt      *atomic.Int32      // Optional interruption signal to pass down to worker.generateWork
+	isUpdate       bool               // Optional flag indicating that this is building a discardable update
 
 	rpcCtx context.Context // context to control block-building RPC work. No RPC allowed if nil.
 }
@@ -284,17 +285,7 @@ func (miner *Miner) prepareWork(genParams *generateParams, witness bool) (*envir
 		// configure the gas limit of pending blocks with the miner gas limit config when using optimism
 		header.GasLimit = miner.config.GasCeil
 	}
-	if miner.chainConfig.IsJovian(header.Time) {
-		if err := eip1559.ValidateJovian1559Params(genParams.eip1559Params); err != nil {
-			return nil, err
-		}
-		d, e, f := eip1559.DecodeJovian1559Params(genParams.eip1559Params)
-		if d == 0 {
-			d = miner.chainConfig.BaseFeeChangeDenominator(header.Time)
-			e = miner.chainConfig.ElasticityMultiplier()
-		}
-		header.Extra = eip1559.EncodeJovianExtraData(d, e, f)
-	} else if miner.chainConfig.IsHolocene(header.Time) {
+	if cfg := miner.chainConfig; cfg.IsHolocene(header.Time) {
 		if err := eip1559.ValidateHolocene1559Params(genParams.eip1559Params); err != nil {
 			return nil, err
 		}
@@ -305,7 +296,11 @@ func (miner *Miner) prepareWork(genParams *generateParams, witness bool) (*envir
 			d = miner.chainConfig.BaseFeeChangeDenominator(header.Time)
 			e = miner.chainConfig.ElasticityMultiplier()
 		}
-		header.Extra = eip1559.EncodeHoloceneExtraData(d, e)
+		if cfg.IsJovian(header.Time) {
+			header.Extra = eip1559.EncodeMinBaseFeeExtraData(d, e, genParams.minBaseFeeLog2)
+		} else {
+			header.Extra = eip1559.EncodeHoloceneExtraData(d, e)
+		}
 	} else if genParams.eip1559Params != nil {
 		return nil, errors.New("got eip1559 params, expected none")
 	}
