@@ -63,8 +63,10 @@ func opConfig() *params.ChainConfig {
 	config.CanyonTime = &ct
 	ht := uint64(12)
 	config.HoloceneTime = &ht
-	jt := uint64(14)
+	jt := uint64(14) // Jovian time
 	config.JovianTime = &jt
+	minBaseFeeTime := uint64(14) // Minimum base fee feature time
+	config.MinBaseFeeTime = &minBaseFeeTime
 	config.Optimism = &params.OptimismConfig{
 		EIP1559Elasticity:        6,
 		EIP1559Denominator:       50,
