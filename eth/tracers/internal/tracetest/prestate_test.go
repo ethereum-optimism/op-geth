@@ -71,14 +71,15 @@ func testPrestateTracer(tracerName string, dirPath string, t *testing.T) {
 			continue
 		}
 		t.Run(camel(strings.TrimSuffix(file.Name(), ".json")), func(t *testing.T) {
-			t.Parallel()
+			// t.Parallel()
 
 			var (
 				test = new(prestateTracerTest)
 				tx   = new(types.Transaction)
 			)
 			// Call tracer test found, read if from disk
-			if blob, err := os.ReadFile(filepath.Join("testdata", dirPath, file.Name())); err != nil {
+			path := filepath.Join("testdata", dirPath, file.Name())
+			if blob, err := os.ReadFile(path); err != nil {
 				t.Fatalf("failed to read testcase: %v", err)
 			} else if err := json.Unmarshal(blob, test); err != nil {
 				t.Fatalf("failed to parse testcase: %v", err)
@@ -89,8 +90,8 @@ func testPrestateTracer(tracerName string, dirPath string, t *testing.T) {
 			// Configure a blockchain with the given prestate
 			var (
 				signer  = types.MakeSigner(test.Genesis.Config, new(big.Int).SetUint64(uint64(test.Context.Number)), uint64(test.Context.Time))
-				context = test.Context.toBlockContext(test.Genesis)
 				state   = tests.MakePreState(rawdb.NewMemoryDatabase(), test.Genesis.Alloc, false, rawdb.HashScheme)
+				context = test.Context.toBlockContext(test.Genesis, state.StateDB)
 			)
 			defer state.Close()
 

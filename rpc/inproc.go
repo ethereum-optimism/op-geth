@@ -22,9 +22,12 @@ import (
 )
 
 // DialInProc attaches an in-process connection to the given RPC server.
-func DialInProc(handler *Server) *Client {
+func DialInProc(handler *Server, options ...ClientOption) *Client {
 	initctx := context.Background()
 	cfg := new(clientConfig)
+	for _, opt := range options {
+		opt.applyOption(cfg)
+	}
 	c, _ := newClient(initctx, cfg, func(context.Context) (ServerCodec, error) {
 		p1, p2 := net.Pipe()
 		go handler.ServeCodec(NewCodec(p1), 0)

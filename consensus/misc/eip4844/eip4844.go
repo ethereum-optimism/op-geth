@@ -81,6 +81,16 @@ func CalcExcessBlobGas(config *params.ChainConfig, parent *types.Header, headTim
 
 // CalcBlobFee calculates the blobfee from the header's excess blob gas field.
 func CalcBlobFee(config *params.ChainConfig, header *types.Header) *big.Int {
+	// OP-Stack chains don't support blobs, but still set the excessBlobGas field (always to zero).
+	// So this function is called in many places for OP-Stack chains too. In order to not require
+	// a blob schedule in the chain config, we short circuit here.
+	if config.IsOptimism() {
+		if config.BlobScheduleConfig != nil || header.ExcessBlobGas == nil || *header.ExcessBlobGas != 0 {
+			panic("OP-Stack: CalcBlobFee: unexpected blob schedule or excess blob gas")
+		}
+		return minBlobGasPrice
+	}
+
 	var frac uint64
 	switch config.LatestFork(header.Time) {
 	case forks.Osaka:

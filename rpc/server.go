@@ -54,6 +54,8 @@ type Server struct {
 	batchItemLimit     int
 	batchResponseLimit int
 	httpBodyLimit      int
+
+	recorder Recorder // optional, may be nil
 }
 
 // NewServer creates a new server instance with no registered handlers.
@@ -69,6 +71,10 @@ func NewServer() *Server {
 	rpcService := &RPCService{server}
 	server.RegisterName(MetadataApi, rpcService)
 	return server
+}
+
+func (s *Server) SetRecorder(recorder Recorder) {
+	s.recorder = recorder
 }
 
 // SetBatchLimits sets limits applied to batch requests. There are two limits: 'itemLimit'
@@ -114,6 +120,7 @@ func (s *Server) ServeCodec(codec ServerCodec, options CodecOption) {
 		idgen:              s.idgen,
 		batchItemLimit:     s.batchItemLimit,
 		batchResponseLimit: s.batchResponseLimit,
+		recorder:           s.recorder,
 	}
 	c := initClient(codec, &s.services, cfg)
 	<-codec.closed()
@@ -148,6 +155,7 @@ func (s *Server) serveSingleRequest(ctx context.Context, codec ServerCodec) {
 	}
 
 	h := newHandler(ctx, codec, s.idgen, &s.services, s.batchItemLimit, s.batchResponseLimit)
+	h.recorder = s.recorder
 	h.allowSubscribe = false
 	defer h.close(io.EOF, nil)
 

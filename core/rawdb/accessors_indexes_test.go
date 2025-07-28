@@ -85,7 +85,7 @@ func TestLookupStorage(t *testing.T) {
 			})
 			txs := []*types.Transaction{tx1, tx2, tx3, tx4}
 
-			block := types.NewBlock(&types.Header{Number: big.NewInt(314)}, &types.Body{Transactions: txs}, nil, newTestHasher())
+			block := types.NewBlock(&types.Header{Number: big.NewInt(314)}, &types.Body{Transactions: txs}, nil, newTestHasher(), types.DefaultBlockConfig)
 
 			// Check that no transactions entries are in a pristine database
 			for i, tx := range txs {
@@ -200,7 +200,7 @@ func TestFindTxInBlockBody(t *testing.T) {
 
 	txs := []*types.Transaction{tx1, tx2, tx3, tx4, tx5}
 
-	block := types.NewBlock(&types.Header{Number: big.NewInt(314)}, &types.Body{Transactions: txs}, nil, newTestHasher())
+	block := types.NewBlock(&types.Header{Number: big.NewInt(314)}, &types.Body{Transactions: txs, Withdrawals: []*types.Withdrawal{}}, nil, newTestHasher(), types.IsthmusBlockConfig)
 	db := NewMemoryDatabase()
 	WriteBlock(db, block)
 

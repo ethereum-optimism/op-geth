@@ -350,9 +350,11 @@ func (pre *Prestate) Apply(vmConfig vm.Config, chainConfig *params.ChainConfig, 
 		statedb.AddBalance(w.Address, uint256.MustFromBig(amount), tracing.BalanceIncreaseWithdrawal)
 	}
 
+	isIsthmus := chainConfig.IsIsthmus(vmContext.Time)
+
 	// Gather the execution-layer triggered requests.
 	var requests [][]byte
-	if chainConfig.IsPrague(vmContext.BlockNumber, vmContext.Time) {
+	if chainConfig.IsPrague(vmContext.BlockNumber, vmContext.Time) && !isIsthmus {
 		requests = [][]byte{}
 		// EIP-6110
 		var allLogs []*types.Log
@@ -370,6 +372,10 @@ func (pre *Prestate) Apply(vmConfig vm.Config, chainConfig *params.ChainConfig, 
 		if err := core.ProcessConsolidationQueue(&requests, evm); err != nil {
 			return nil, nil, nil, NewError(ErrorEVM, fmt.Errorf("could not process consolidation requests: %v", err))
 		}
+	}
+
+	if isIsthmus {
+		requests = [][]byte{}
 	}
 
 	// Commit block

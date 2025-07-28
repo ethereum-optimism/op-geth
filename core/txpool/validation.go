@@ -31,11 +31,30 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 )
 
+// L1 Info Gas Overhead is the amount of gas the the L1 info deposit consumes.
+// It is removed from the tx pool max gas to better indicate that L2 transactions
+// are not able to consume all of the gas in a L2 block as the L1 info deposit is always present.
+const l1InfoGasOverhead = uint64(70_000)
+
 var (
 	// blobTxMinBlobGasPrice is the big.Int version of the configured protocol
 	// parameter to avoid constructing a new big integer for every transaction.
 	blobTxMinBlobGasPrice = big.NewInt(params.BlobTxMinBlobGasprice)
 )
+
+func EffectiveGasLimit(chainConfig *params.ChainConfig, gasLimit uint64, effectiveLimit uint64) uint64 {
+	if effectiveLimit != 0 && effectiveLimit < gasLimit {
+		gasLimit = effectiveLimit
+	}
+	if chainConfig.Optimism != nil {
+		if l1InfoGasOverhead < gasLimit {
+			gasLimit -= l1InfoGasOverhead
+		} else {
+			gasLimit = 0
+		}
+	}
+	return gasLimit
+}
 
 // ValidationOptions define certain differences between transaction validation
 // across the different pools without having to duplicate those checks.
@@ -46,6 +65,9 @@ type ValidationOptions struct {
 	MaxSize      uint64   // Maximum size of a transaction that the caller can meaningfully handle
 	MaxBlobCount int      // Maximum number of blobs allowed per transaction
 	MinTip       *big.Int // Minimum gas tip needed to allow a transaction into the caller pool
+
+	EffectiveGasCeil uint64 // if non-zero, a gas ceiling to enforce independent of the header's gaslimit value
+	MaxTxGasLimit    uint64 // Maximum gas limit allowed per individual transaction
 }
 
 // ValidationFunction is an method type which the pools use to perform the tx-validations which do not
@@ -60,6 +82,15 @@ type ValidationFunction func(tx *types.Transaction, head *types.Header, signer t
 // This check is public to allow different transaction pools to check the basic
 // rules without duplicating code and running the risk of missed updates.
 func ValidateTransaction(tx *types.Transaction, head *types.Header, signer types.Signer, opts *ValidationOptions) error {
+	// No unauthenticated deposits allowed in the transaction pool.
+	// This is for spam protection, not consensus,
+	// as the external engine-API user authenticates deposits.
+	if tx.Type() == types.DepositTxType {
+		return core.ErrTxTypeNotSupported
+	}
+	if opts.Config.IsOptimism() && tx.Type() == types.BlobTxType {
+		return core.ErrTxTypeNotSupported
+	}
 	// Ensure transactions not implemented by the calling pool are rejected
 	if opts.Accept&(1<<tx.Type()) == 0 {
 		return fmt.Errorf("%w: tx type %v not supported by this pool", core.ErrTxTypeNotSupported, tx.Type())
@@ -96,8 +127,12 @@ func ValidateTransaction(tx *types.Transaction, head *types.Header, signer types
 		return ErrNegativeValue
 	}
 	// Ensure the transaction doesn't exceed the current block limit gas
-	if head.GasLimit < tx.Gas() {
+	if EffectiveGasLimit(opts.Config, head.GasLimit, opts.EffectiveGasCeil) < tx.Gas() {
 		return ErrGasLimit
+	}
+	// Check individual transaction gas limit if configured
+	if opts.MaxTxGasLimit != 0 && tx.Gas() > opts.MaxTxGasLimit {
+		return fmt.Errorf("%w: transaction gas %v, limit %v", ErrTxGasLimitExceeded, tx.Gas(), opts.MaxTxGasLimit)
 	}
 	// Sanity check for extremely large numbers (supported by RLP or RPC)
 	if tx.GasFeeCap().BitLen() > 256 {
@@ -229,6 +264,9 @@ type ValidationOptionsWithState struct {
 	// ExistingCost is a mandatory callback to retrieve an already pooled
 	// transaction's cost with the given nonce to check for overdrafts.
 	ExistingCost func(addr common.Address, nonce uint64) *big.Int
+
+	// RollupCostFn is an optional extension, to validate total rollup costs of a tx
+	RollupCostFn RollupCostFunc
 }
 
 // ValidateTransactionWithState is a helper method to check whether a transaction
@@ -256,9 +294,13 @@ func ValidateTransactionWithState(tx *types.Transaction, signer types.Signer, op
 	}
 	// Ensure the transactor has enough funds to cover the transaction costs
 	var (
-		balance = opts.State.GetBalance(from).ToBig()
-		cost    = tx.Cost()
+		balance           = opts.State.GetBalance(from).ToBig()
+		cost256, overflow = TotalTxCost(tx, opts.RollupCostFn)
 	)
+	if overflow {
+		return fmt.Errorf("%w: total tx cost overflow", core.ErrInsufficientFunds)
+	}
+	cost := cost256.ToBig()
 	if balance.Cmp(cost) < 0 {
 		return fmt.Errorf("%w: balance %v, tx cost %v, overshot %v", core.ErrInsufficientFunds, balance, cost, new(big.Int).Sub(cost, balance))
 	}

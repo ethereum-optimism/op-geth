@@ -39,12 +39,13 @@ import (
 
 // FullNodeGPO contains default gasprice oracle settings for full node.
 var FullNodeGPO = gasprice.Config{
-	Blocks:           20,
-	Percentile:       60,
-	MaxHeaderHistory: 1024,
-	MaxBlockHistory:  1024,
-	MaxPrice:         gasprice.DefaultMaxPrice,
-	IgnorePrice:      gasprice.DefaultIgnorePrice,
+	Blocks:                  20,
+	Percentile:              60,
+	MaxHeaderHistory:        1024,
+	MaxBlockHistory:         1024,
+	MaxPrice:                gasprice.DefaultMaxPrice,
+	IgnorePrice:             gasprice.DefaultIgnorePrice,
+	MinSuggestedPriorityFee: gasprice.DefaultMinSuggestedPriorityFee,
 }
 
 // Defaults contains default settings for use on the Ethereum main net.
@@ -163,12 +164,46 @@ type Config struct {
 
 	// OverrideVerkle (TODO: remove after the fork)
 	OverrideVerkle *uint64 `toml:",omitempty"`
+
+	OverrideOptimismCanyon *uint64 `toml:",omitempty"`
+
+	OverrideOptimismEcotone *uint64 `toml:",omitempty"`
+
+	OverrideOptimismFjord *uint64 `toml:",omitempty"`
+
+	OverrideOptimismGranite *uint64 `toml:",omitempty"`
+
+	OverrideOptimismHolocene *uint64 `toml:",omitempty"`
+
+	OverrideOptimismIsthmus *uint64 `toml:",omitempty"`
+
+	OverrideOptimismJovian *uint64 `toml:",omitempty"`
+
+	OverrideOptimismInterop *uint64 `toml:",omitempty"`
+
+	// ApplySuperchainUpgrades requests the node to load chain-configuration from the superchain-registry.
+	ApplySuperchainUpgrades bool `toml:",omitempty"`
+
+	RollupSequencerHTTP                       string
+	RollupSequencerTxConditionalEnabled       bool
+	RollupSequencerTxConditionalCostRateLimit int
+	RollupHistoricalRPC                       string
+	RollupHistoricalRPCTimeout                time.Duration
+	RollupDisableTxPoolGossip                 bool
+	RollupDisableTxPoolAdmission              bool
+	RollupHaltOnIncompatibleProtocolVersion   string
+
+	InteropMessageRPC       string `toml:",omitempty"`
+	InteropMempoolFiltering bool   `toml:",omitempty"`
 }
 
 // CreateConsensusEngine creates a consensus engine for the given chain config.
 // Clique is allowed for now to live standalone, but ethash is forbidden and can
 // only exist on already merged networks.
 func CreateConsensusEngine(config *params.ChainConfig, db ethdb.Database) (consensus.Engine, error) {
+	if config.Optimism != nil {
+		return beacon.New(&beacon.OpLegacy{}), nil
+	}
 	if config.TerminalTotalDifficulty == nil {
 		log.Error("Geth only supports PoS networks. Please transition legacy networks using Geth v1.13.x.")
 		return nil, fmt.Errorf("'terminalTotalDifficulty' is not set in genesis block")

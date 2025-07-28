@@ -33,8 +33,9 @@ import (
 )
 
 const (
-	defaultBodyLimit = 5 * 1024 * 1024
-	contentType      = "application/json"
+	maxRequestContentLength = 1024 * 1024 * 32
+	defaultBodyLimit        = 5 * 1024 * 1024
+	contentType             = "application/json"
 )
 
 // https://www.jsonrpc.org/historical/json-rpc-over-http.html#id13

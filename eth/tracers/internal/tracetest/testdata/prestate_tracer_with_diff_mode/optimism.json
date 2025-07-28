@@ -1,0 +1,88 @@
+{
+  "genesis": {
+    "baseFeePerGas": "1000000000",
+    "blobGasUsed": "0",
+    "difficulty": "0",
+    "excessBlobGas": "0",
+    "extraData": "0x",
+    "gasLimit": "11500000",
+    "hash": "0x4a3a3699d4d328652bfea00c9fdc2be4768519142e10e0d6cebdbec5056f101e",
+    "miner": "0x0000000000000000000000000000000000000000",
+    "mixHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "nonce": "0x0000000000000000",
+    "number": "0",
+    "parentBeaconBlockRoot": "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "stateRoot": "0x0344388281802511fb31b24f96f087a8b935683646d2a75de96465703505e065",
+    "timestamp": "0",
+    "withdrawals": [],
+    "withdrawalsRoot": "0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421",
+    "alloc": {
+      "0x0000000000000000000000000000000000000000": {
+        "balance": "0x0"
+      },
+      "0xf7b094d8c987eff69afec8f93153ac9829577125": {
+        "balance": "0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7"
+      }
+    },
+    "config": {
+      "chainId": 1337,
+      "homesteadBlock": 0,
+      "eip150Block": 0,
+      "eip155Block": 0,
+      "eip158Block": 0,
+      "byzantiumBlock": 0,
+      "constantinopleBlock": 0,
+      "petersburgBlock": 0,
+      "istanbulBlock": 0,
+      "muirGlacierBlock": 0,
+      "berlinBlock": 0,
+      "londonBlock": 0,
+      "arrowGlacierBlock": 0,
+      "grayGlacierBlock": 0,
+      "bedrockBlock": 0,
+      "shanghaiTime": 0,
+      "cancunTime": 0,
+      "terminalTotalDifficulty": 0,
+      "terminalTotalDifficultyPassed": true,
+      "depositContractAddress": "0x0000000000000000000000000000000000000000",
+      "optimism": {
+        "eip1559Elasticity": 6,
+        "eip1559Denominator": 50,
+        "eip1559DenominatorCanyon": 250
+      }
+    }
+  },
+  "context": {
+    "number": "1",
+    "difficulty": "0",
+    "timestamp": "1729512767",
+    "gasLimit": "11511229",
+    "miner": "0x0000000000000000000000000000000000000000",
+    "baseFeePerGas": "875000000",
+    "random": "0x0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "random": "0x0000000000000000000000000000000000000000000000000000000000000000",
+  "input": "0x02f8708205398001847735940182520894f7b094d8c987eff69afec8f93153ac9829577125880de0b6b3a764000080c001a0e44882c072410fbadfd4783a71be745edfcedd9fc9ab55b66e25bb039db2f579a017c13129640ceff7ffa674bcff74bcce168404aa8450a67ece2737ca5a554a12",
+  "result": {
+    "post": {
+      "0x0000000000000000000000000000000000000000": {
+        "balance": "0x5208"
+      },
+      "0x4200000000000000000000000000000000000019": {
+        "balance": "0x10b643590600"
+      },
+      "0xf7b094d8c987eff69afec8f93153ac9829577125": {
+        "balance": "0xffffffffffffffffffffffffffffffffffffffffffffffffffffef49bca6a7ef",
+        "nonce": 1
+      }
+    },
+    "pre": {
+      "0xf7b094d8c987eff69afec8f93153ac9829577125": {
+        "balance": "0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7"
+      }
+    }
+  },
+  "tracerConfig": {
+    "diffMode": true
+  }
+}

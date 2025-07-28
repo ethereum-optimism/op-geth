@@ -67,7 +67,7 @@ func newTestEnv(t *testing.T, n int, gasTip uint64, journal string) *testEnv {
 	chain, _ := core.NewBlockChain(db, gspec, ethash.NewFaker(), nil)
 
 	legacyPool := legacypool.New(legacypool.DefaultConfig, chain)
-	pool, err := txpool.New(gasTip, chain, []txpool.SubPool{legacyPool})
+	pool, err := txpool.New(gasTip, chain, []txpool.SubPool{legacyPool}, nil)
 	if err != nil {
 		t.Fatalf("Failed to create tx pool: %v", err)
 	}

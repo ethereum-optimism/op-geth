@@ -17,6 +17,7 @@
 package miner
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"math/big"
@@ -24,6 +25,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/consensus/misc"
 	"github.com/ethereum/go-ethereum/consensus/misc/eip1559"
 	"github.com/ethereum/go-ethereum/consensus/misc/eip4844"
 	"github.com/ethereum/go-ethereum/core"
@@ -31,17 +33,35 @@ import (
 	"github.com/ethereum/go-ethereum/core/stateless"
 	"github.com/ethereum/go-ethereum/core/txpool"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/core/types/interoptypes"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto/kzg4844"
+	"github.com/ethereum/go-ethereum/eth/tracers"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/holiman/uint256"
 )
 
+const (
+	// minRecommitInterruptInterval is the minimum time interval used to interrupt filling a
+	// sealing block with pending transactions from the mempool
+	minRecommitInterruptInterval = 2 * time.Second
+)
+
 var (
+	errTxConditionalInvalid = errors.New("transaction conditional failed")
+
 	errBlockInterruptedByNewHead  = errors.New("new head arrived while building block")
 	errBlockInterruptedByRecommit = errors.New("recommit interrupt while building block")
 	errBlockInterruptedByTimeout  = errors.New("timeout while building block")
+	errBlockInterruptedByResolve  = errors.New("payload resolution while building block")
+
+	// OP-Stack addition
+	errSupervisorInFailsafe = errors.New("supervisor in failsafe")
+
+	txConditionalRejectedCounter = metrics.NewRegisteredCounter("miner/transactionConditional/rejected", nil)
+	txConditionalMinedTimer      = metrics.NewRegisteredTimer("miner/transactionConditional/elapsedtime", nil)
 )
 
 // environment is the worker's current environment and holds all
@@ -61,6 +81,9 @@ type environment struct {
 	blobs    int
 
 	witness *stateless.Witness
+
+	noTxs  bool            // true if we are reproducing a block, and do not have to check interop txs
+	rpcCtx context.Context // context to control block-building RPC work. No RPC allowed if nil.
 }
 
 const (
@@ -68,6 +91,7 @@ const (
 	commitInterruptNewHead
 	commitInterruptResubmit
 	commitInterruptTimeout
+	commitInterruptResolve
 )
 
 // newPayloadResult is the result of payload generation.
@@ -92,6 +116,14 @@ type generateParams struct {
 	withdrawals types.Withdrawals // List of withdrawals to include in block (shanghai field)
 	beaconRoot  *common.Hash      // The beacon root (cancun field).
 	noTxs       bool              // Flag whether an empty block without any transaction is expected
+
+	txs           types.Transactions // Deposit transactions to include at the start of the block
+	gasLimit      *uint64            // Optional gas limit override
+	eip1559Params []byte             // Optional EIP-1559 parameters
+	interrupt     *atomic.Int32      // Optional interruption signal to pass down to worker.generateWork
+	isUpdate      bool               // Optional flag indicating that this is building a discardable update
+
+	rpcCtx context.Context // context to control block-building RPC work. No RPC allowed if nil.
 }
 
 // generateWork generates a sealing block based on the given parameters.
@@ -100,17 +132,51 @@ func (miner *Miner) generateWork(params *generateParams, witness bool) *newPaylo
 	if err != nil {
 		return &newPayloadResult{err: err}
 	}
+	if work.gasPool == nil {
+		gasLimit := work.header.GasLimit
+
+		// If we're building blocks with mempool transactions, we need to ensure that the
+		// gas limit is not higher than the effective gas limit. We must still accept any
+		// explicitly selected transactions with gas usage up to the block header's limit.
+		if !params.noTxs {
+			effectiveGasLimit := miner.config.EffectiveGasCeil
+			if effectiveGasLimit != 0 && effectiveGasLimit < gasLimit {
+				gasLimit = effectiveGasLimit
+			}
+		}
+		work.gasPool = new(core.GasPool).AddGas(gasLimit)
+	}
+
+	misc.EnsureCreate2Deployer(miner.chainConfig, work.header.Time, work.state)
+
+	for _, tx := range params.txs {
+		from, _ := types.Sender(work.signer, tx)
+		work.state.SetTxContext(tx.Hash(), work.tcount)
+		err = miner.commitTransaction(work, tx)
+		if err != nil {
+			return &newPayloadResult{err: fmt.Errorf("failed to force-include tx: %s type: %d sender: %s nonce: %d, err: %w", tx.Hash(), tx.Type(), from, tx.Nonce(), err)}
+		}
+	}
 	if !params.noTxs {
-		interrupt := new(atomic.Int32)
-		timer := time.AfterFunc(miner.config.Recommit, func() {
+		// use shared interrupt if present
+		interrupt := params.interrupt
+		if interrupt == nil {
+			interrupt = new(atomic.Int32)
+		}
+		timer := time.AfterFunc(max(minRecommitInterruptInterval, miner.config.Recommit), func() {
 			interrupt.Store(commitInterruptTimeout)
 		})
-		defer timer.Stop()
 
 		err := miner.fillTransactions(interrupt, work)
+		timer.Stop() // don't need timeout interruption any more
 		if errors.Is(err, errBlockInterruptedByTimeout) {
 			log.Warn("Block building is interrupted", "allowance", common.PrettyDuration(miner.config.Recommit))
+		} else if errors.Is(err, errBlockInterruptedByResolve) {
+			log.Info("Block building got interrupted by payload resolution")
 		}
+	}
+	if intr := params.interrupt; intr != nil && params.isUpdate && intr.Load() != commitInterruptNone {
+		return &newPayloadResult{err: errInterruptedUpdate}
 	}
 
 	body := types.Body{Transactions: work.txs, Withdrawals: params.withdrawals}
@@ -119,9 +185,11 @@ func (miner *Miner) generateWork(params *generateParams, witness bool) *newPaylo
 		allLogs = append(allLogs, r.Logs...)
 	}
 
+	isIsthmus := miner.chainConfig.IsIsthmus(work.header.Time)
+
 	// Collect consensus-layer requests if Prague is enabled.
 	var requests [][]byte
-	if miner.chainConfig.IsPrague(work.header.Number, work.header.Time) {
+	if miner.chainConfig.IsPrague(work.header.Number, work.header.Time) && !isIsthmus {
 		requests = [][]byte{}
 		// EIP-6110 deposits
 		if err := core.ParseDepositLogs(&requests, allLogs, miner.chainConfig); err != nil {
@@ -136,6 +204,11 @@ func (miner *Miner) generateWork(params *generateParams, witness bool) *newPaylo
 			return &newPayloadResult{err: err}
 		}
 	}
+
+	if isIsthmus {
+		requests = [][]byte{}
+	}
+
 	if requests != nil {
 		reqHash := types.CalcRequestsHash(requests)
 		work.header.RequestsHash = &reqHash
@@ -190,7 +263,8 @@ func (miner *Miner) prepareWork(genParams *generateParams, witness bool) (*envir
 		Coinbase:   genParams.coinbase,
 	}
 	// Set the extra field.
-	if len(miner.config.ExtraData) != 0 {
+	if len(miner.config.ExtraData) != 0 && miner.chainConfig.Optimism == nil {
+		// Optimism chains have their own ExtraData handling rules
 		header.Extra = miner.config.ExtraData
 	}
 	// Set the randomness field from the beacon chain if it's available.
@@ -199,11 +273,32 @@ func (miner *Miner) prepareWork(genParams *generateParams, witness bool) (*envir
 	}
 	// Set baseFee and GasLimit if we are on an EIP-1559 chain
 	if miner.chainConfig.IsLondon(header.Number) {
-		header.BaseFee = eip1559.CalcBaseFee(miner.chainConfig, parent)
+		header.BaseFee = eip1559.CalcBaseFee(miner.chainConfig, parent, header.Time)
 		if !miner.chainConfig.IsLondon(parent.Number) {
 			parentGasLimit := parent.GasLimit * miner.chainConfig.ElasticityMultiplier()
 			header.GasLimit = core.CalcGasLimit(parentGasLimit, miner.config.GasCeil)
 		}
+	}
+	if genParams.gasLimit != nil { // override gas limit if specified
+		header.GasLimit = *genParams.gasLimit
+	} else if miner.chain.Config().Optimism != nil && miner.config.GasCeil != 0 {
+		// configure the gas limit of pending blocks with the miner gas limit config when using optimism
+		header.GasLimit = miner.config.GasCeil
+	}
+	if miner.chainConfig.IsHolocene(header.Time) {
+		if err := eip1559.ValidateHolocene1559Params(genParams.eip1559Params); err != nil {
+			return nil, err
+		}
+		// If this is a holocene block and the params are 0, we must convert them to their previous
+		// constants in the header.
+		d, e := eip1559.DecodeHolocene1559Params(genParams.eip1559Params)
+		if d == 0 {
+			d = miner.chainConfig.BaseFeeChangeDenominator(header.Time)
+			e = miner.chainConfig.ElasticityMultiplier()
+		}
+		header.Extra = eip1559.EncodeHoloceneExtraData(d, e)
+	} else if genParams.eip1559Params != nil {
+		return nil, errors.New("got eip1559 params, expected none")
 	}
 	// Run the consensus preparation with the default or customized consensus engine.
 	// Note that the `header.Time` may be changed.
@@ -224,11 +319,12 @@ func (miner *Miner) prepareWork(genParams *generateParams, witness bool) (*envir
 	// Could potentially happen if starting to mine in an odd state.
 	// Note genParams.coinbase can be different with header.Coinbase
 	// since clique algorithm can modify the coinbase field in header.
-	env, err := miner.makeEnv(parent, header, genParams.coinbase, witness)
+	env, err := miner.makeEnv(parent, header, genParams.coinbase, witness, genParams.rpcCtx)
 	if err != nil {
 		log.Error("Failed to create sealing context", "err", err)
 		return nil, err
 	}
+	env.noTxs = genParams.noTxs
 	if header.ParentBeaconRoot != nil {
 		core.ProcessBeaconBlockRoot(*header.ParentBeaconRoot, env.evm)
 	}
@@ -239,12 +335,25 @@ func (miner *Miner) prepareWork(genParams *generateParams, witness bool) (*envir
 }
 
 // makeEnv creates a new environment for the sealing block.
-func (miner *Miner) makeEnv(parent *types.Header, header *types.Header, coinbase common.Address, witness bool) (*environment, error) {
+func (miner *Miner) makeEnv(parent *types.Header, header *types.Header, coinbase common.Address, witness bool, rpcCtx context.Context) (*environment, error) {
 	// Retrieve the parent state to execute on top.
 	state, err := miner.chain.StateAt(parent.Root)
 	if err != nil {
 		return nil, err
 	}
+	if miner.chainConfig.Optimism != nil { // Allow the miner to reorg its own chain arbitrarily deep
+		if historicalBackend, ok := miner.backend.(BackendWithHistoricalState); ok {
+			var release tracers.StateReleaseFunc
+			parentBlock := miner.backend.BlockChain().GetBlockByHash(parent.Hash())
+			state, release, err = historicalBackend.StateAtBlock(context.Background(), parentBlock, ^uint64(0), nil, false, false)
+			if err != nil {
+				return nil, err
+			}
+			state = state.Copy()
+			release()
+		}
+	}
+
 	if witness {
 		bundle, err := stateless.NewWitness(header, miner.chain)
 		if err != nil {
@@ -259,14 +368,40 @@ func (miner *Miner) makeEnv(parent *types.Header, header *types.Header, coinbase
 		coinbase: coinbase,
 		header:   header,
 		witness:  state.Witness(),
-		evm:      vm.NewEVM(core.NewEVMBlockContext(header, miner.chain, &coinbase), state, miner.chainConfig, vm.Config{}),
+		evm:      vm.NewEVM(core.NewEVMBlockContext(header, miner.chain, &coinbase, miner.chainConfig, state), state, miner.chainConfig, vm.Config{}),
+		rpcCtx:   rpcCtx,
 	}, nil
 }
 
 func (miner *Miner) commitTransaction(env *environment, tx *types.Transaction) error {
+	// OP-Stack addition
+	interopAccessList := interoptypes.TxToInteropAccessList(tx)
+	if len(interopAccessList) > 0 {
+		backend, ok := miner.backend.(BackendWithInterop)
+		if ok && backend.GetSupervisorFailsafe() {
+			log.Trace("Supervisor failsafe is enabled, rejecting transaction", "hash", tx.Hash)
+			tx.SetRejected()
+			return errSupervisorInFailsafe
+		}
+	}
+
 	if tx.Type() == types.BlobTxType {
 		return miner.commitBlobTransaction(env, tx)
 	}
+
+	// If a conditional is set, check prior to applying
+	if conditional := tx.Conditional(); conditional != nil {
+		txConditionalMinedTimer.UpdateSince(tx.Time())
+
+		// check the conditional
+		if err := env.header.CheckTransactionConditional(conditional); err != nil {
+			return fmt.Errorf("failed header check: %s: %w", err, errTxConditionalInvalid)
+		}
+		if err := env.state.CheckTransactionConditional(conditional); err != nil {
+			return fmt.Errorf("failed state check: %s: %w", err, errTxConditionalInvalid)
+		}
+	}
+
 	receipt, err := miner.applyTransaction(env, tx)
 	if err != nil {
 		return err
@@ -322,6 +457,7 @@ func (miner *Miner) commitTransactions(env *environment, plainTxs, blobTxs *tran
 	if env.gasPool == nil {
 		env.gasPool = new(core.GasPool).AddGas(gasLimit)
 	}
+	blockDABytes := new(big.Int)
 	for {
 		// Check interruption signal and abort building if it's fired.
 		if interrupt != nil {
@@ -383,6 +519,24 @@ func (miner *Miner) commitTransactions(env *environment, plainTxs, blobTxs *tran
 			}
 		}
 
+		// OP-Stack addition: sequencer throttling
+		daBytesAfter := new(big.Int)
+		if ltx.DABytes != nil && miner.config.MaxDABlockSize != nil {
+			daBytesAfter.Add(blockDABytes, ltx.DABytes)
+			if daBytesAfter.Cmp(miner.config.MaxDABlockSize) > 0 {
+				log.Debug("adding tx would exceed block DA size limit",
+					"hash", ltx.Hash, "txda", ltx.DABytes, "blockda", blockDABytes, "dalimit", miner.config.MaxDABlockSize)
+				txs.Pop()
+				// If the number of remaining bytes is too few to hold even the minimum possible transaction size,
+				// then we can stop early.
+				daBytesRemaining := new(big.Int).Sub(miner.config.MaxDABlockSize, daBytesAfter)
+				if daBytesRemaining.Cmp(types.MinTransactionSize) < 0 {
+					break
+				}
+				continue
+			}
+		}
+
 		// Transaction seems to fit, pull it up from the pool
 		tx := ltx.Resolve()
 		if tx == nil {
@@ -429,8 +583,26 @@ func (miner *Miner) commitTransactions(env *environment, plainTxs, blobTxs *tran
 			log.Trace("Skipping transaction with low nonce", "hash", ltx.Hash, "sender", from, "nonce", tx.Nonce())
 			txs.Shift()
 
+		case errors.Is(err, errTxConditionalInvalid):
+			// err contains contextual info on the failed conditional.
+			txConditionalRejectedCounter.Inc(1)
+
+			// mark as rejected so that it can be ejected from the mempool
+			tx.SetRejected()
+			log.Warn("Skipping account, transaction with failed conditional", "sender", from, "hash", ltx.Hash, "err", err)
+			txs.Pop()
+
+		case env.rpcCtx != nil && env.rpcCtx.Err() != nil && errors.Is(err, env.rpcCtx.Err()):
+			log.Warn("Transaction processing aborted due to RPC context error", "err", err)
+			txs.Pop() // RPC timeout. Tx could not be checked, and thus not included, but not rejected yet.
+
+		case err != nil && tx.Rejected():
+			log.Warn("Transaction was rejected during block-building", "hash", ltx.Hash, "err", err)
+			txs.Pop()
+
 		case errors.Is(err, nil):
 			// Everything ok, collect the logs and shift in the next transaction from the same account
+			blockDABytes = daBytesAfter
 			txs.Shift()
 
 		default:
@@ -454,7 +626,8 @@ func (miner *Miner) fillTransactions(interrupt *atomic.Int32, env *environment) 
 
 	// Retrieve the pending transactions pre-filtered by the 1559/4844 dynamic fees
 	filter := txpool.PendingFilter{
-		MinTip: uint256.MustFromBig(tip),
+		MinTip:      uint256.MustFromBig(tip),
+		MaxDATxSize: miner.config.MaxDATxSize,
 	}
 	if env.header.BaseFee != nil {
 		filter.BaseFee = uint256.MustFromBig(env.header.BaseFee)
@@ -523,7 +696,41 @@ func signalToErr(signal int32) error {
 		return errBlockInterruptedByRecommit
 	case commitInterruptTimeout:
 		return errBlockInterruptedByTimeout
+	case commitInterruptResolve:
+		return errBlockInterruptedByResolve
 	default:
 		panic(fmt.Errorf("undefined signal %d", signal))
 	}
+}
+
+// validateParams validates the given parameters.
+// It currently checks that the parent block is known and that the timestamp is valid,
+// i.e., after the parent block's timestamp.
+// It returns an upper bound of the payload building duration as computed
+// by the difference in block timestamps between the parent and genParams.
+func (miner *Miner) validateParams(genParams *generateParams) (time.Duration, error) {
+	miner.confMu.RLock()
+	defer miner.confMu.RUnlock()
+
+	// Find the parent block for sealing task
+	parent := miner.chain.CurrentBlock()
+	if genParams.parentHash != (common.Hash{}) {
+		block := miner.chain.GetBlockByHash(genParams.parentHash)
+		if block == nil {
+			return 0, fmt.Errorf("missing parent %v", genParams.parentHash)
+		}
+		parent = block.Header()
+	}
+
+	// Sanity check the timestamp correctness
+	blockTime := int64(genParams.timestamp) - int64(parent.Time)
+	if blockTime <= 0 && genParams.forceTime {
+		return 0, fmt.Errorf("invalid timestamp, parent %d given %d", parent.Time, genParams.timestamp)
+	}
+
+	// minimum payload build time of 2s
+	if blockTime < 2 {
+		blockTime = 2
+	}
+	return time.Duration(blockTime) * time.Second, nil
 }

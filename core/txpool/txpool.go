@@ -79,7 +79,7 @@ type TxPool struct {
 
 // New creates a new transaction pool to gather, sort and filter inbound
 // transactions from the network.
-func New(gasTip uint64, chain BlockChain, subpools []SubPool) (*TxPool, error) {
+func New(gasTip uint64, chain BlockChain, subpools []SubPool, ingressFilters []IngressFilter) (*TxPool, error) {
 	// Retrieve the current head so that all subpools and this main coordinator
 	// pool will have the same starting state, even if the chain moves forward
 	// during initialization.
@@ -112,6 +112,9 @@ func New(gasTip uint64, chain BlockChain, subpools []SubPool) (*TxPool, error) {
 			}
 			return nil, err
 		}
+
+		// OP-Stack: set the ingress filters for the subpool
+		subpool.SetIngressFilters(ingressFilters)
 	}
 	go pool.loop(head)
 	return pool, nil
@@ -459,6 +462,22 @@ func (p *TxPool) Status(hash common.Hash) TxStatus {
 		}
 	}
 	return TxStatusUnknown
+}
+
+// ToJournal returns all transactions in the legacy subpool in a format suitable for journaling.
+//
+// OP-Stack addition.
+func (p *TxPool) ToJournal() map[common.Address]types.Transactions {
+	for _, subpool := range p.subpools {
+		// We only implement ToJournal with the legacy pool. So once we find the first pool
+		// with this function, we can return.
+		if lpool, ok := subpool.(interface {
+			ToJournal() map[common.Address]types.Transactions
+		}); ok {
+			return lpool.ToJournal()
+		}
+	}
+	return nil
 }
 
 // Sync is a helper method for unit tests or simulator runs where the chain events

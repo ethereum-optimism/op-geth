@@ -430,6 +430,14 @@ func (n *Node) startRPC() error {
 	}
 
 	initAuth := func(port int, secret []byte) error {
+		authModules := DefaultAuthModules
+		if slices.Contains(n.config.HTTPModules, "miner") {
+			authModules = append(authModules, "miner")
+		}
+		if slices.Contains(n.config.HTTPModules, "debug") {
+			authModules = append(authModules, "debug")
+		}
+
 		// Enable auth via HTTP
 		server := n.httpAuth
 		if err := server.setListenAddr(n.config.AuthAddr, port); err != nil {
@@ -444,7 +452,7 @@ func (n *Node) startRPC() error {
 		err := server.enableRPC(allAPIs, httpConfig{
 			CorsAllowedOrigins: DefaultAuthCors,
 			Vhosts:             n.config.AuthVirtualHosts,
-			Modules:            DefaultAuthModules,
+			Modules:            authModules,
 			prefix:             DefaultAuthPrefix,
 			rpcEndpointConfig:  sharedConfig,
 		})
@@ -666,7 +674,7 @@ func (n *Node) IPCEndpoint() string {
 // HTTPEndpoint returns the URL of the HTTP server. Note that this URL does not
 // contain the JSON-RPC path prefix set by HTTPPathPrefix.
 func (n *Node) HTTPEndpoint() string {
-	return "http://" + n.http.listenAddr()
+	return "http://" + n.http.listenAddr() //nolint:all
 }
 
 // WSEndpoint returns the current JSON-RPC over WebSocket endpoint.

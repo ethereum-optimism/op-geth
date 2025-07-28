@@ -270,6 +270,9 @@ const (
 	// BalanceChangeRevert is emitted when the balance is reverted back to a previous value due to call failure.
 	// It is only emitted when the tracer has opted in to use the journaling wrapper (WrapWithJournal).
 	BalanceChangeRevert BalanceChangeReason = 15
+
+	// BalanceMint is an OP-Stack addition for an event that is emitted when the balance changes due to a mint operation.
+	BalanceMint BalanceChangeReason = 200
 )
 
 // GasChangeReason is used to indicate the reason for a gas change, useful

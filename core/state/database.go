@@ -248,6 +248,22 @@ func (db *CachingDB) OpenStorageTrie(stateRoot common.Hash, address common.Addre
 	return tr, nil
 }
 
+// ContractCode retrieves a particular contract's code. Returns nil if not found.
+// OP-Stack diff: used to serve snap-sync from legacy DB code storage scheme.
+func (db *CachingDB) ContractCode(address common.Address, codeHash common.Hash) []byte {
+	code, _ := db.codeCache.Get(codeHash)
+	if len(code) > 0 {
+		return code
+	}
+	code = rawdb.ReadCode(db.disk, codeHash) // tries prefix first, then reads non-prefixed key if not found
+	if len(code) > 0 {
+		db.codeCache.Add(codeHash, code)
+		db.codeSizeCache.Add(codeHash, len(code))
+		return code
+	}
+	return nil
+}
+
 // ContractCodeWithPrefix retrieves a particular contract's code. If the
 // code can't be found in the cache, then check the existence with **new**
 // db scheme.

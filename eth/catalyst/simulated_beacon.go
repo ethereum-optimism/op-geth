@@ -214,6 +214,10 @@ func (c *SimulatedBeacon) sealBlock(withdrawals []*types.Withdrawal, timestamp u
 		return nil
 	}
 
+	if err := c.engineAPI.localBlocks.waitFull(*fcResponse.PayloadID); err != nil {
+		return err
+	}
+
 	envelope, err := c.engineAPI.getPayload(*fcResponse.PayloadID, true)
 	if err != nil {
 		return err

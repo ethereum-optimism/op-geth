@@ -191,6 +191,10 @@ func (t *prestateTracer) OnTxStart(env *tracing.VMContext, tx *types.Transaction
 		}
 		t.lookupAccount(addr)
 	}
+
+	if t.chainConfig.Optimism != nil {
+		t.lookupAccount(params.OptimismBaseFeeRecipient)
+	}
 }
 
 func (t *prestateTracer) OnTxEnd(receipt *types.Receipt, err error) {

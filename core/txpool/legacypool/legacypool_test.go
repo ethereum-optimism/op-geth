@@ -17,6 +17,7 @@
 package legacypool
 
 import (
+	"context"
 	"crypto/ecdsa"
 	crand "crypto/rand"
 	"errors"
@@ -88,7 +89,7 @@ func (bc *testBlockChain) CurrentBlock() *types.Header {
 }
 
 func (bc *testBlockChain) GetBlock(hash common.Hash, number uint64) *types.Block {
-	return types.NewBlock(bc.CurrentBlock(), nil, nil, trie.NewStackTrie(nil))
+	return types.NewBlock(bc.CurrentBlock(), nil, nil, trie.NewStackTrie(nil), bc.config)
 }
 
 func (bc *testBlockChain) StateAt(common.Hash) (*state.StateDB, error) {
@@ -229,13 +230,28 @@ func (r *reserver) Has(address common.Address) bool {
 	return false // reserver only supports a single pool
 }
 
+// dummyFilter is a simple ingress filter used in tests to toggle whether
+// transactions should be accepted or rejected.
+type dummyFilter struct {
+	allow atomic.Bool
+}
+
+func (f *dummyFilter) FilterTx(ctx context.Context, tx *types.Transaction) bool {
+	return f.allow.Load()
+}
+
 func setupPoolWithConfig(config *params.ChainConfig) (*LegacyPool, *ecdsa.PrivateKey) {
+	return setupPoolWithTxPoolConfig(config, testTxPoolConfig)
+}
+
+// setupPoolWithTxPoolConfig creates a new pool with custom pool configuration
+func setupPoolWithTxPoolConfig(chainConfig *params.ChainConfig, poolConfig Config) (*LegacyPool, *ecdsa.PrivateKey) {
 	statedb, _ := state.New(types.EmptyRootHash, state.NewDatabaseForTesting())
-	blockchain := newTestBlockChain(config, 10000000, statedb, new(event.Feed))
+	blockchain := newTestBlockChain(chainConfig, 10000000, statedb, new(event.Feed))
 
 	key, _ := crypto.GenerateKey()
-	pool := New(testTxPoolConfig, blockchain)
-	if err := pool.Init(testTxPoolConfig.PriceLimit, blockchain.CurrentBlock(), newReserver()); err != nil {
+	pool := New(poolConfig, blockchain)
+	if err := pool.Init(poolConfig.PriceLimit, blockchain.CurrentBlock(), newReserver()); err != nil {
 		panic(err)
 	}
 	// wait for the pool to initialize
@@ -774,6 +790,39 @@ func TestDropping(t *testing.T) {
 	}
 }
 
+// Tests that transactions marked as reject (by the miner in practice)
+// are removed from the pool
+func TestRejectedDropping(t *testing.T) {
+	t.Parallel()
+
+	pool, key := setupPool()
+	defer pool.Close()
+
+	account := crypto.PubkeyToAddress(key.PublicKey)
+	testAddBalance(pool, account, big.NewInt(1000))
+
+	// create some txs. tx0 has a conditional
+	tx0, tx1 := transaction(0, 100, key), transaction(1, 200, key)
+
+	pool.all.Add(tx0)
+	pool.all.Add(tx1)
+	pool.promoteTx(account, tx0.Hash(), tx0)
+	pool.promoteTx(account, tx1.Hash(), tx1)
+
+	// pool state is unchanged
+	<-pool.requestReset(nil, nil)
+	if pool.all.Count() != 2 {
+		t.Errorf("total transaction mismatch: have %d, want %d", pool.all.Count(), 2)
+	}
+
+	// tx0 conditional is marked as rejected and should be removed
+	tx0.SetRejected()
+	<-pool.requestReset(nil, nil)
+	if pool.all.Count() != 1 {
+		t.Errorf("total transaction mismatch: have %d, want %d", pool.all.Count(), 1)
+	}
+}
+
 // Tests that if a transaction is dropped from the current pending pool (e.g. out
 // of fund), all consecutive (still valid, but not executable) transactions are
 // postponed back into the future queue to prevent broadcasting them.
@@ -1150,6 +1199,42 @@ func TestQueueTimeLimiting(t *testing.T) {
 	}
 	if err := validatePoolInternals(pool); err != nil {
 		t.Fatalf("pool internal state corrupted: %v", err)
+	}
+}
+
+// Tests that transactions already present in the pool are periodically rechecked
+// against ingress filters and dropped if they become invalid.
+func TestIngressFilterInterval(t *testing.T) {
+	original := testTxPoolConfig.FilterInterval
+	testTxPoolConfig.FilterInterval = 100 * time.Millisecond
+	defer func() { testTxPoolConfig.FilterInterval = original }()
+
+	statedb, _ := state.New(types.EmptyRootHash, state.NewDatabaseForTesting())
+	blockchain := newTestBlockChain(params.TestChainConfig, 1000000, statedb, new(event.Feed))
+
+	pool := New(testTxPoolConfig, blockchain)
+	filter := &dummyFilter{}
+	filter.allow.Store(true)
+	pool.SetIngressFilters([]txpool.IngressFilter{filter})
+	pool.Init(testTxPoolConfig.PriceLimit, blockchain.CurrentBlock(), newReserver())
+	defer pool.Close()
+
+	key, _ := crypto.GenerateKey()
+	testAddBalance(pool, crypto.PubkeyToAddress(key.PublicKey), big.NewInt(1000000))
+	if err := pool.addRemoteSync(pricedTransaction(0, 100000, big.NewInt(1), key)); err != nil {
+		t.Fatalf("failed to add remote transaction: %v", err)
+	}
+	pending, queued := pool.Stats()
+	if pending != 1 || queued != 0 {
+		t.Fatalf("unexpected pool state after add: %d pending %d queued", pending, queued)
+	}
+
+	filter.allow.Store(false)
+	time.Sleep(2 * testTxPoolConfig.FilterInterval)
+
+	pending, queued = pool.Stats()
+	if pending != 0 || queued != 0 {
+		t.Fatalf("transaction not filtered: pending %d queued %d", pending, queued)
 	}
 }
 
@@ -2707,5 +2792,53 @@ func BenchmarkMultiAccountBatchInsert(b *testing.B) {
 	b.ResetTimer()
 	for _, tx := range batches {
 		pool.addRemotesSync([]*types.Transaction{tx})
+	}
+}
+
+func TestTxPoolMaxTxGasLimit(t *testing.T) {
+	t.Parallel()
+
+	// Create custom config with MaxTxGasLimit set
+	config := testTxPoolConfig
+	config.MaxTxGasLimit = 50000
+
+	pool, key := setupPoolWithTxPoolConfig(params.TestChainConfig, config)
+	defer pool.Close()
+
+	// Create transaction that exceeds the limit
+	tx := transaction(0, 100000, key) // gas limit > 50000
+	from, _ := deriveSender(tx)
+	testAddBalance(pool, from, big.NewInt(1000000))
+
+	// Should be rejected
+	if err := pool.addRemoteSync(tx); !errors.Is(err, txpool.ErrTxGasLimitExceeded) {
+		t.Errorf("Expected ErrTxGasLimitExceeded, got %v", err)
+	}
+
+	// Create transaction within the limit
+	tx2 := transaction(0, 30000, key) // gas limit < 50000
+	if err := pool.addRemoteSync(tx2); err != nil {
+		t.Errorf("Expected transaction within limit to be accepted, got %v", err)
+	}
+}
+
+func TestTxPoolMaxTxGasLimitDisabled(t *testing.T) {
+	t.Parallel()
+
+	// Test with default config (MaxTxGasLimit = 0, disabled)
+	config := testTxPoolConfig
+	config.MaxTxGasLimit = 0
+
+	pool, key := setupPoolWithTxPoolConfig(params.TestChainConfig, config)
+	defer pool.Close()
+
+	// Create transaction with high gas limit
+	tx := transaction(0, 100000, key)
+	from, _ := deriveSender(tx)
+	testAddBalance(pool, from, big.NewInt(1000000))
+
+	// Should be accepted since MaxTxGasLimit is disabled (0)
+	if err := pool.addRemoteSync(tx); err != nil {
+		t.Errorf("Expected transaction to be accepted when MaxTxGasLimit is disabled, got %v", err)
 	}
 }

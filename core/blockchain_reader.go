@@ -403,6 +403,16 @@ func (bc *BlockChain) ContractCodeWithPrefix(hash common.Hash) []byte {
 	return bc.statedb.ContractCodeWithPrefix(common.Address{}, hash)
 }
 
+// ContractCode retrieves a blob of data associated with a contract hash
+// either from ephemeral in-memory cache, or from persistent storage.
+// OP-Stack diff: this is a legacy-method, replaced by ContractCodeWithPrefix in upstream,
+// but required for old databases to serve snap-sync.
+// It tries prefix-style contract-code retrieval first, then falls back to legacy code storage.
+// Returns nil if not found.
+func (bc *BlockChain) ContractCode(hash common.Hash) []byte {
+	return bc.statedb.ContractCode(common.Address{}, hash)
+}
+
 // State returns a new mutable state based on the current HEAD block.
 func (bc *BlockChain) State() (*state.StateDB, error) {
 	return bc.StateAt(bc.CurrentBlock().Root)

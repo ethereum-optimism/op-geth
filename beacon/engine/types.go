@@ -48,11 +48,27 @@ type PayloadAttributes struct {
 	SuggestedFeeRecipient common.Address      `json:"suggestedFeeRecipient" gencodec:"required"`
 	Withdrawals           []*types.Withdrawal `json:"withdrawals"`
 	BeaconRoot            *common.Hash        `json:"parentBeaconBlockRoot"`
+
+	// Transactions is a field for rollups: the transactions list is forced into the block
+	Transactions [][]byte `json:"transactions,omitempty"  gencodec:"optional"`
+	// NoTxPool is a field for rollups: if true, the no transactions are taken out of the tx-pool,
+	// only transactions from the above Transactions list will be included.
+	NoTxPool bool `json:"noTxPool,omitempty" gencodec:"optional"`
+	// GasLimit is a field for rollups: if set, this sets the exact gas limit the block produced with.
+	GasLimit *uint64 `json:"gasLimit,omitempty" gencodec:"optional"`
+	// EIP1559Params is a field for rollups implementing the Holocene upgrade,
+	// and contains encoded EIP-1559 parameters. See:
+	// https://github.com/ethereum-optimism/specs/blob/main/specs/protocol/holocene/exec-engine.md#eip1559params-encoding
+	EIP1559Params []byte `json:"eip1559Params,omitempty" gencodec:"optional"`
 }
 
 // JSON type overrides for PayloadAttributes.
 type payloadAttributesMarshaling struct {
 	Timestamp hexutil.Uint64
+
+	Transactions  []hexutil.Bytes
+	GasLimit      *hexutil.Uint64
+	EIP1559Params hexutil.Bytes
 }
 
 //go:generate go run github.com/fjl/gencodec -type ExecutableData -field-override executableDataMarshaling -out gen_ed.go
@@ -77,6 +93,11 @@ type ExecutableData struct {
 	BlobGasUsed      *uint64                 `json:"blobGasUsed"`
 	ExcessBlobGas    *uint64                 `json:"excessBlobGas"`
 	ExecutionWitness *types.ExecutionWitness `json:"executionWitness,omitempty"`
+
+	// OP-Stack Isthmus specific field:
+	// instead of computing the root from a withdrawals list, set it directly.
+	// The "withdrawals" list attribute must be non-nil but empty.
+	WithdrawalsRoot *common.Hash `json:"withdrawalsRoot,omitempty"`
 }
 
 // JSON type overrides for executableData.
@@ -110,6 +131,8 @@ type ExecutionPayloadEnvelope struct {
 	Requests         [][]byte        `json:"executionRequests"`
 	Override         bool            `json:"shouldOverrideBuilder"`
 	Witness          *hexutil.Bytes  `json:"witness,omitempty"`
+	// OP-Stack: Ecotone specific fields
+	ParentBeaconBlockRoot *common.Hash `json:"parentBeaconBlockRoot,omitempty"`
 }
 
 type BlobsBundleV1 struct {
@@ -218,8 +241,8 @@ func decodeTransactions(enc [][]byte) ([]*types.Transaction, error) {
 // and that the blockhash of the constructed block matches the parameters. Nil
 // Withdrawals value will propagate through the returned block. Empty
 // Withdrawals value must be passed via non-nil, length 0 value in data.
-func ExecutableDataToBlock(data ExecutableData, versionedHashes []common.Hash, beaconRoot *common.Hash, requests [][]byte) (*types.Block, error) {
-	block, err := ExecutableDataToBlockNoHash(data, versionedHashes, beaconRoot, requests)
+func ExecutableDataToBlock(data ExecutableData, versionedHashes []common.Hash, beaconRoot *common.Hash, requests [][]byte, bType types.BlockType) (*types.Block, error) {
+	block, err := ExecutableDataToBlockNoHash(data, versionedHashes, beaconRoot, requests, bType)
 	if err != nil {
 		return nil, err
 	}
@@ -232,7 +255,7 @@ func ExecutableDataToBlock(data ExecutableData, versionedHashes []common.Hash, b
 // ExecutableDataToBlockNoHash is analogous to ExecutableDataToBlock, but is used
 // for stateless execution, so it skips checking if the executable data hashes to
 // the requested hash (stateless has to *compute* the root hash, it's not given).
-func ExecutableDataToBlockNoHash(data ExecutableData, versionedHashes []common.Hash, beaconRoot *common.Hash, requests [][]byte) (*types.Block, error) {
+func ExecutableDataToBlockNoHash(data ExecutableData, versionedHashes []common.Hash, beaconRoot *common.Hash, requests [][]byte, bType types.BlockType) (*types.Block, error) {
 	txs, err := decodeTransactions(data.Transactions)
 	if err != nil {
 		return nil, err
@@ -263,15 +286,32 @@ func ExecutableDataToBlockNoHash(data ExecutableData, versionedHashes []common.H
 	// ExecutableData before withdrawals are enabled by marshaling
 	// Withdrawals as the json null value.
 	var withdrawalsRoot *common.Hash
-	if data.Withdrawals != nil {
+	if bType.HasOptimismWithdrawalsRoot(data.Timestamp) {
+		if data.WithdrawalsRoot == nil {
+			return nil, fmt.Errorf("attribute WithdrawalsRoot is required for Isthmus blocks")
+		}
+		if data.Withdrawals == nil || len(data.Withdrawals) > 0 {
+			return nil, fmt.Errorf("expected non-nil empty withdrawals operation list in Isthmus, but got: %v", data.Withdrawals)
+		}
+	}
+	if data.WithdrawalsRoot != nil {
+		h := *data.WithdrawalsRoot // copy, avoid any sharing of memory
+		withdrawalsRoot = &h
+	} else if data.Withdrawals != nil {
 		h := types.DeriveSha(types.Withdrawals(data.Withdrawals), trie.NewStackTrie(nil))
 		withdrawalsRoot = &h
 	}
 
+	isthmusEnabled := bType.IsIsthmus(data.Timestamp)
 	var requestsHash *common.Hash
 	if requests != nil {
+		if isthmusEnabled && len(requests) > 0 {
+			return nil, fmt.Errorf("requests should be empty for Isthmus blocks")
+		}
 		h := types.CalcRequestsHash(requests)
 		requestsHash = &h
+	} else if isthmusEnabled {
+		return nil, fmt.Errorf("requests must be an empty array for Isthmus blocks")
 	}
 
 	header := &types.Header{
@@ -326,6 +366,13 @@ func BlockToExecutableData(block *types.Block, fees *big.Int, sidecars []*types.
 		ExecutionWitness: block.ExecutionWitness(),
 	}
 
+	// OP-Stack: only Isthmus execution payloads must set the withdrawals root.
+	// They are guaranteed to not be the empty withdrawals hash, which is set pre-Isthmus (post-Canyon).
+	if wr := block.WithdrawalsRoot(); wr != nil && *wr != types.EmptyWithdrawalsHash {
+		wr := *wr
+		data.WithdrawalsRoot = &wr
+	}
+
 	// Add blobs.
 	bundle := BlobsBundleV1{
 		Commitments: make([]hexutil.Bytes, 0),
@@ -348,6 +395,9 @@ func BlockToExecutableData(block *types.Block, fees *big.Int, sidecars []*types.
 		BlobsBundle:      &bundle,
 		Requests:         requests,
 		Override:         false,
+
+		// OP-Stack addition
+		ParentBeaconBlockRoot: block.BeaconRoot(),
 	}
 }
 

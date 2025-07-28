@@ -62,6 +62,164 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestNewRPCTransactionDepositTx(t *testing.T) {
+	tx := types.NewTx(&types.DepositTx{
+		SourceHash:          common.HexToHash("0x1234"),
+		IsSystemTransaction: true,
+		Mint:                big.NewInt(34),
+	})
+	nonce := uint64(7)
+	receipt := &types.Receipt{
+		DepositNonce: &nonce,
+	}
+	got := newRPCTransaction(tx, common.Hash{}, uint64(12), uint64(1234), uint64(1), big.NewInt(0), &params.ChainConfig{}, receipt)
+	// Should provide zero values for unused fields that are required in other transactions
+	require.Equal(t, got.GasPrice, (*hexutil.Big)(big.NewInt(0)), "newRPCTransaction().GasPrice = %v, want 0x0", got.GasPrice)
+	require.Equal(t, got.V, (*hexutil.Big)(big.NewInt(0)), "newRPCTransaction().V = %v, want 0x0", got.V)
+	require.Equal(t, got.R, (*hexutil.Big)(big.NewInt(0)), "newRPCTransaction().R = %v, want 0x0", got.R)
+	require.Equal(t, got.S, (*hexutil.Big)(big.NewInt(0)), "newRPCTransaction().S = %v, want 0x0", got.S)
+
+	// Should include deposit tx specific fields
+	require.Equal(t, *got.SourceHash, tx.SourceHash(), "newRPCTransaction().SourceHash = %v, want %v", got.SourceHash, tx.SourceHash())
+	require.Equal(t, *got.IsSystemTx, tx.IsSystemTx(), "newRPCTransaction().IsSystemTx = %v, want %v", got.IsSystemTx, tx.IsSystemTx())
+	require.Equal(t, got.Mint, (*hexutil.Big)(tx.Mint()), "newRPCTransaction().Mint = %v, want %v", got.Mint, tx.Mint())
+	require.Equal(t, got.Nonce, (hexutil.Uint64)(nonce), "newRPCTransaction().Nonce = %v, want %v", got.Nonce, nonce)
+}
+
+func TestRPCTransactionDepositTxWithVersion(t *testing.T) {
+	tx := types.NewTx(&types.DepositTx{
+		SourceHash:          common.HexToHash("0x1234"),
+		IsSystemTransaction: true,
+		Mint:                big.NewInt(34),
+	})
+	nonce := uint64(7)
+	version := types.CanyonDepositReceiptVersion
+	receipt := &types.Receipt{
+		DepositNonce:          &nonce,
+		DepositReceiptVersion: &version,
+	}
+	got := newRPCTransaction(tx, common.Hash{}, uint64(12), uint64(1234), uint64(1), big.NewInt(0), &params.ChainConfig{}, receipt)
+	// Should provide zero values for unused fields that are required in other transactions
+	require.Equal(t, got.GasPrice, (*hexutil.Big)(big.NewInt(0)), "newRPCTransaction().GasPrice = %v, want 0x0", got.GasPrice)
+	require.Equal(t, got.V, (*hexutil.Big)(big.NewInt(0)), "newRPCTransaction().V = %v, want 0x0", got.V)
+	require.Equal(t, got.R, (*hexutil.Big)(big.NewInt(0)), "newRPCTransaction().R = %v, want 0x0", got.R)
+	require.Equal(t, got.S, (*hexutil.Big)(big.NewInt(0)), "newRPCTransaction().S = %v, want 0x0", got.S)
+
+	// Should include versioned deposit tx specific fields
+	require.Equal(t, *got.SourceHash, tx.SourceHash(), "newRPCTransaction().SourceHash = %v, want %v", got.SourceHash, tx.SourceHash())
+	require.Equal(t, *got.IsSystemTx, tx.IsSystemTx(), "newRPCTransaction().IsSystemTx = %v, want %v", got.IsSystemTx, tx.IsSystemTx())
+	require.Equal(t, got.Mint, (*hexutil.Big)(tx.Mint()), "newRPCTransaction().Mint = %v, want %v", got.Mint, tx.Mint())
+	require.Equal(t, got.Nonce, (hexutil.Uint64)(nonce), "newRPCTransaction().Nonce = %v, want %v", got.Nonce, nonce)
+	require.Equal(t, *got.DepositReceiptVersion, (hexutil.Uint64(version)), "newRPCTransaction().DepositReceiptVersion = %v, want %v", *got.DepositReceiptVersion, version)
+
+	// Make sure json marshal/unmarshal of the rpc tx preserves the receipt version
+	b, err := json.Marshal(got)
+	require.NoError(t, err, "marshalling failed: %w", err)
+	parsed := make(map[string]interface{})
+	err = json.Unmarshal(b, &parsed)
+	require.NoError(t, err, "unmarshalling failed: %w", err)
+	require.Equal(t, "0x1", parsed["depositReceiptVersion"])
+}
+
+func TestNewRPCTransactionOmitIsSystemTxFalse(t *testing.T) {
+	tx := types.NewTx(&types.DepositTx{
+		IsSystemTransaction: false,
+	})
+	got := newRPCTransaction(tx, common.Hash{}, uint64(12), uint64(1234), uint64(1), big.NewInt(0), &params.ChainConfig{}, nil)
+
+	require.Nil(t, got.IsSystemTx, "should omit IsSystemTx when false")
+}
+
+func TestUnmarshalRpcDepositTx(t *testing.T) {
+	version := hexutil.Uint64(types.CanyonDepositReceiptVersion)
+	tests := []struct {
+		name     string
+		modifier func(tx *RPCTransaction)
+		valid    bool
+	}{
+		{
+			name:     "Unmodified",
+			modifier: func(tx *RPCTransaction) {},
+			valid:    true,
+		},
+		{
+			name: "Zero Values",
+			modifier: func(tx *RPCTransaction) {
+				tx.V = (*hexutil.Big)(common.Big0)
+				tx.R = (*hexutil.Big)(common.Big0)
+				tx.S = (*hexutil.Big)(common.Big0)
+				tx.GasPrice = (*hexutil.Big)(common.Big0)
+			},
+			valid: true,
+		},
+		{
+			name: "Nil Values",
+			modifier: func(tx *RPCTransaction) {
+				tx.V = nil
+				tx.R = nil
+				tx.S = nil
+				tx.GasPrice = nil
+			},
+			valid: true,
+		},
+		{
+			name: "Non-Zero GasPrice",
+			modifier: func(tx *RPCTransaction) {
+				tx.GasPrice = (*hexutil.Big)(big.NewInt(43))
+			},
+			valid: false,
+		},
+		{
+			name: "Non-Zero V",
+			modifier: func(tx *RPCTransaction) {
+				tx.V = (*hexutil.Big)(big.NewInt(43))
+			},
+			valid: false,
+		},
+		{
+			name: "Non-Zero R",
+			modifier: func(tx *RPCTransaction) {
+				tx.R = (*hexutil.Big)(big.NewInt(43))
+			},
+			valid: false,
+		},
+		{
+			name: "Non-Zero S",
+			modifier: func(tx *RPCTransaction) {
+				tx.S = (*hexutil.Big)(big.NewInt(43))
+			},
+			valid: false,
+		},
+		{
+			name: "Non-nil deposit receipt version",
+			modifier: func(tx *RPCTransaction) {
+				tx.DepositReceiptVersion = &version
+			},
+			valid: true,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			tx := types.NewTx(&types.DepositTx{
+				SourceHash:          common.HexToHash("0x1234"),
+				IsSystemTransaction: true,
+				Mint:                big.NewInt(34),
+			})
+			rpcTx := newRPCTransaction(tx, common.Hash{}, uint64(12), uint64(1234), uint64(1), big.NewInt(0), &params.ChainConfig{}, nil)
+			test.modifier(rpcTx)
+			json, err := json.Marshal(rpcTx)
+			require.NoError(t, err, "marshalling failed: %w", err)
+			parsed := &types.Transaction{}
+			err = parsed.UnmarshalJSON(json)
+			if test.valid {
+				require.NoError(t, err, "unmarshal failed: %w", err)
+			} else {
+				require.Error(t, err, "unmarshal should have failed but did not")
+			}
+		})
+	}
+}
+
 func testTransactionMarshal(t *testing.T, tests []txData, config *params.ChainConfig) {
 	var (
 		signer = types.LatestSigner(config)
@@ -84,7 +242,7 @@ func testTransactionMarshal(t *testing.T, tests []txData, config *params.ChainCo
 		}
 
 		// rpcTransaction
-		rpcTx := newRPCTransaction(tx, common.Hash{}, 0, 0, 0, nil, config)
+		rpcTx := newRPCTransaction(tx, common.Hash{}, 0, 0, 0, nil, config, nil)
 		if data, err := json.Marshal(rpcTx); err != nil {
 			t.Fatalf("test %d: marshalling failed; %v", i, err)
 		} else if err = tx2.UnmarshalJSON(data); err != nil {
@@ -571,7 +729,7 @@ func (b testBackend) GetEVM(ctx context.Context, state *state.StateDB, header *t
 	if vmConfig == nil {
 		vmConfig = b.chain.GetVMConfig()
 	}
-	context := core.NewEVMBlockContext(header, b.chain, nil)
+	context := core.NewEVMBlockContext(header, b.chain, nil, b.ChainConfig(), state)
 	if blockContext != nil {
 		context = *blockContext
 	}
@@ -632,6 +790,14 @@ func (b testBackend) NewMatcherBackend() filtermaps.MatcherBackend {
 func (b testBackend) HistoryPruningCutoff() uint64 {
 	bn, _ := b.chain.HistoryPruningCutoff()
 	return bn
+}
+
+// OP-Stack additions
+func (b testBackend) HistoricalRPCService() *rpc.Client {
+	panic("implement me")
+}
+func (b testBackend) Genesis() *types.Block {
+	panic("implement me")
 }
 
 func TestEstimateGas(t *testing.T) {
@@ -999,7 +1165,7 @@ func TestCall(t *testing.T) {
 				To:    &accounts[1].addr,
 				Value: (*hexutil.Big)(big.NewInt(1000)),
 			},
-			expectErr: errors.New("header not found"),
+			expectErr: ethereum.NotFound,
 		},
 		// transfer on the latest block
 		{
@@ -2621,8 +2787,11 @@ func TestSignBlobTransaction(t *testing.T) {
 	}
 
 	_, err = api.SignTransaction(context.Background(), argsFromTransaction(res.Tx, b.acc.Address))
-	if err != nil {
-		t.Fatalf("should not fail on blob transaction")
+	if err == nil {
+		t.Fatalf("should fail on blob transaction")
+	}
+	if !errors.Is(err, errBlobTxNotSupported) {
+		t.Errorf("error mismatch. Have: %v, want: %v", err, errBlobTxNotSupported)
 	}
 }
 
@@ -2956,7 +3125,7 @@ func TestRPCMarshalBlock(t *testing.T) {
 		}
 		txs = append(txs, tx)
 	}
-	block := types.NewBlock(&types.Header{Number: big.NewInt(100)}, &types.Body{Transactions: txs}, nil, blocktest.NewHasher())
+	block := types.NewBlock(&types.Header{Number: big.NewInt(100)}, &types.Body{Transactions: txs}, nil, blocktest.NewHasher(), types.DefaultBlockConfig)
 
 	var testSuite = []struct {
 		inclTx bool
@@ -3074,7 +3243,7 @@ func TestRPCMarshalBlock(t *testing.T) {
 						"transactionIndex": "0x1",
 						"value": "0x6f",
 						"type": "0x0",
-						"chainId": "0x7fffffffffffffee",
+						"chainId": "0x1",
 						"v": "0x0",
 						"r": "0x0",
 						"s": "0x0"
@@ -3112,7 +3281,7 @@ func TestRPCMarshalBlock(t *testing.T) {
 						"transactionIndex": "0x3",
 						"value": "0x6f",
 						"type": "0x0",
-						"chainId": "0x7fffffffffffffee",
+						"chainId": "0x1",
 						"v": "0x0",
 						"r": "0x0",
 						"s": "0x0"
@@ -3125,7 +3294,11 @@ func TestRPCMarshalBlock(t *testing.T) {
 	}
 
 	for i, tc := range testSuite {
-		resp := RPCMarshalBlock(block, tc.inclTx, tc.fullTx, params.MainnetChainConfig)
+		resp, err := RPCMarshalBlock(context.Background(), block, tc.inclTx, tc.fullTx, params.MainnetChainConfig, testBackend{})
+		if err != nil {
+			t.Errorf("test %d: got error %v", i, err)
+			continue
+		}
 		out, err := json.Marshal(resp)
 		if err != nil {
 			t.Errorf("test %d: json marshal error: %v", i, err)
@@ -3167,7 +3340,7 @@ func TestRPCGetBlockOrHeader(t *testing.T) {
 			Address:   common.Address{0x12, 0x34},
 			Amount:    10,
 		}
-		pending = types.NewBlock(&types.Header{Number: big.NewInt(11), Time: 42}, &types.Body{Transactions: types.Transactions{tx}, Withdrawals: types.Withdrawals{withdrawal}}, nil, blocktest.NewHasher())
+		pending = types.NewBlock(&types.Header{Number: big.NewInt(11), Time: 42}, &types.Body{Transactions: types.Transactions{tx}, Withdrawals: types.Withdrawals{withdrawal}}, nil, blocktest.NewHasher(), types.DefaultBlockConfig)
 	)
 	backend := newTestBackend(t, genBlocks, genesis, ethash.NewFaker(), func(i int, b *core.BlockGen) {
 		// Transfer from account[0] to account[1]

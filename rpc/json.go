@@ -42,6 +42,8 @@ const (
 
 var null = json.RawMessage("null")
 
+type JsonError = jsonError
+
 type subscriptionResult struct {
 	ID     string          `json:"subscription"`
 	Result json.RawMessage `json:"result,omitempty"`

@@ -102,6 +102,27 @@ func NewBackend(alloc types.GenesisAlloc, options ...func(nodeConf *node.Config,
 	return sim
 }
 
+func NewBackendFromConfig(conf ethconfig.Config) *Backend {
+	// Setup the node object
+	nodeConf := node.DefaultConfig
+	nodeConf.DataDir = ""
+	nodeConf.P2P = p2p.Config{NoDiscovery: true}
+	stack, err := node.New(&nodeConf)
+	if err != nil {
+		// This should never happen, if it does, please open an issue
+		panic(err)
+	}
+
+	conf.SyncMode = ethconfig.FullSync
+	conf.TxPool.NoLocals = true
+	sim, err := newWithNode(stack, &conf, 0)
+	if err != nil {
+		// This should never happen, if it does, please open an issue
+		panic(err)
+	}
+	return sim
+}
+
 // newWithNode sets up a simulated backend on an existing node. The provided node
 // must not be started and will be started by this method.
 func newWithNode(stack *node.Node, conf *eth.Config, blockPeriod uint64) (*Backend, error) {

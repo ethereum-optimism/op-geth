@@ -193,6 +193,7 @@ func (tx *SetCodeTx) gasPrice() *big.Int     { return tx.GasFeeCap.ToBig() }
 func (tx *SetCodeTx) value() *big.Int        { return tx.Value.ToBig() }
 func (tx *SetCodeTx) nonce() uint64          { return tx.Nonce }
 func (tx *SetCodeTx) to() *common.Address    { tmp := tx.To; return &tmp }
+func (tx *SetCodeTx) isSystemTx() bool       { return false }
 
 func (tx *SetCodeTx) effectiveGasPrice(dst *big.Int, baseFee *big.Int) *big.Int {
 	if baseFee == nil {

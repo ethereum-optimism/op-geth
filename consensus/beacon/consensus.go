@@ -19,6 +19,7 @@ package beacon
 import (
 	"errors"
 	"fmt"
+	"math"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -60,6 +61,7 @@ var (
 // is only used for necessary consensus checks. The legacy consensus engine can be any
 // engine implements the consensus interface (except the beacon itself).
 type Beacon struct {
+	// For migrated OP chains (OP mainnet, OP Goerli), ethone is a dummy legacy pre-Bedrock consensus
 	ethone consensus.Engine // Original consensus engine used in eth1, e.g. ethash or clique
 }
 
@@ -78,7 +80,9 @@ func isPostMerge(config *params.ChainConfig, blockNum uint64, timestamp uint64) 
 	mergedAtGenesis := config.TerminalTotalDifficulty != nil && config.TerminalTotalDifficulty.Sign() == 0
 	return mergedAtGenesis ||
 		config.MergeNetsplitBlock != nil && blockNum >= config.MergeNetsplitBlock.Uint64() ||
-		config.ShanghaiTime != nil && timestamp >= *config.ShanghaiTime
+		config.ShanghaiTime != nil && timestamp >= *config.ShanghaiTime ||
+		// If OP-Stack then bedrock activation number determines when TTD (eth Merge) has been reached.
+		config.IsOptimismBedrock(new(big.Int).SetUint64(blockNum))
 }
 
 // Author implements consensus.Engine, returning the verified author of the block.
@@ -117,18 +121,37 @@ func (beacon *Beacon) VerifyHeader(chain consensus.ChainHeaderReader, header *ty
 	if parent.Difficulty.Sign() == 0 && header.Difficulty.Sign() > 0 {
 		return consensus.ErrInvalidTerminalBlock
 	}
+	cfg := chain.Config()
 	// Check >0 TDs with pre-merge, --0 TDs with post-merge rules
-	if header.Difficulty.Sign() > 0 {
+	if header.Difficulty.Sign() > 0 ||
+		// OP-Stack: transitioned networks must use legacy consensus pre-Bedrock
+		cfg.IsOptimismBedrock(header.Number) {
 		return beacon.ethone.VerifyHeader(chain, header)
 	}
 	return beacon.verifyHeader(chain, header, parent)
+}
+
+// OP-Stack Bedrock variant of splitHeaders: the total-terminal difficulty is terminated at bedrock transition, but also reset to 0.
+// So just use the bedrock fork check to split the headers, to simplify the splitting.
+// The returned slices are slices over the input. The input must be sorted.
+func (beacon *Beacon) splitBedrockHeaders(chain consensus.ChainHeaderReader, headers []*types.Header) ([]*types.Header, []*types.Header) {
+	for i, h := range headers {
+		if chain.Config().IsBedrock(h.Number) {
+			return headers[:i], headers[i:]
+		}
+	}
+	return headers, nil
 }
 
 // splitHeaders splits the provided header batch into two parts according to
 // the difficulty field.
 //
 // Note, this function will not verify the header validity but just split them.
-func (beacon *Beacon) splitHeaders(headers []*types.Header) ([]*types.Header, []*types.Header) {
+func (beacon *Beacon) splitHeaders(chain consensus.ChainHeaderReader, headers []*types.Header) ([]*types.Header, []*types.Header) {
+	if chain.Config().IsOptimism() {
+		return beacon.splitBedrockHeaders(chain, headers)
+	}
+
 	var (
 		preHeaders  = headers
 		postHeaders []*types.Header
@@ -148,7 +171,7 @@ func (beacon *Beacon) splitHeaders(headers []*types.Header) ([]*types.Header, []
 // a results channel to retrieve the async verifications.
 // VerifyHeaders expect the headers to be ordered and continuous.
 func (beacon *Beacon) VerifyHeaders(chain consensus.ChainHeaderReader, headers []*types.Header) (chan<- struct{}, <-chan error) {
-	preHeaders, postHeaders := beacon.splitHeaders(headers)
+	preHeaders, postHeaders := beacon.splitHeaders(chain, headers)
 	if len(postHeaders) == 0 {
 		return beacon.ethone.VerifyHeaders(chain, headers)
 	}
@@ -374,8 +397,21 @@ func (beacon *Beacon) FinalizeAndAssemble(chain consensus.ChainHeaderReader, hea
 	// Assign the final state root to header.
 	header.Root = state.IntermediateRoot(true)
 
+	if chain.Config().IsOptimismIsthmus(header.Time) {
+		if body.Withdrawals == nil || len(body.Withdrawals) > 0 { // We verify nil/empty withdrawals in the CL pre-Isthmus
+			return nil, fmt.Errorf("expected non-nil empty withdrawals operation list in Isthmus, but got: %v", body.Withdrawals)
+		}
+		// State-root has just been computed, we can get an accurate storage-root now.
+		h := state.GetStorageRoot(params.OptimismL2ToL1MessagePasser)
+		header.WithdrawalsHash = &h
+		sa := state.AccessEvents()
+		if sa != nil {
+			sa.AddAccount(params.OptimismL2ToL1MessagePasser, false, math.MaxUint64) // include in execution witness
+		}
+	}
+
 	// Assemble the final block.
-	block := types.NewBlock(header, body, receipts, trie.NewStackTrie(nil))
+	block := types.NewBlock(header, body, receipts, trie.NewStackTrie(nil), chain.Config())
 
 	// Create the block witness and attach to block.
 	// This step needs to happen as late as possible to catch all access events.
@@ -442,6 +478,14 @@ func (beacon *Beacon) SealHash(header *types.Header) common.Hash {
 // the difficulty that a new block should have when created at time
 // given the parent block's time and difficulty.
 func (beacon *Beacon) CalcDifficulty(chain consensus.ChainHeaderReader, time uint64, parent *types.Header) *big.Int {
+	// The beacon engine requires access to total difficulties to be able to
+	// seal pre-merge and post-merge blocks. With the transition to removing
+	// old blocks, TDs become unaccessible, thus making TTD based pre-/post-
+	// merge decisions impossible.
+	//
+	// We do not need to seal non-merge blocks anymore live, but we do need
+	// to be able to generate test chains, thus we're reverting to a testing-
+	// settable field to direct that.
 	if !isPostMerge(chain.Config(), parent.Number.Uint64()+1, time) {
 		return beacon.ethone.CalcDifficulty(chain, time, parent)
 	}
@@ -466,6 +510,10 @@ func (beacon *Beacon) IsPoSHeader(header *types.Header) bool {
 // InnerEngine returns the embedded eth1 consensus engine.
 func (beacon *Beacon) InnerEngine() consensus.Engine {
 	return beacon.ethone
+}
+
+func (beacon *Beacon) SwapInner(inner consensus.Engine) {
+	beacon.ethone = inner
 }
 
 // SetThreads updates the mining threads. Delegate the call

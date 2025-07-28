@@ -227,6 +227,47 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 		v := ctx.Uint64(utils.OverrideOsaka.Name)
 		cfg.Eth.OverrideOsaka = &v
 	}
+
+	if ctx.IsSet(utils.OverrideOptimismCanyon.Name) {
+		v := ctx.Uint64(utils.OverrideOptimismCanyon.Name)
+		cfg.Eth.OverrideOptimismCanyon = &v
+	}
+
+	if ctx.IsSet(utils.OverrideOptimismEcotone.Name) {
+		v := ctx.Uint64(utils.OverrideOptimismEcotone.Name)
+		cfg.Eth.OverrideOptimismEcotone = &v
+	}
+
+	if ctx.IsSet(utils.OverrideOptimismFjord.Name) {
+		v := ctx.Uint64(utils.OverrideOptimismFjord.Name)
+		cfg.Eth.OverrideOptimismFjord = &v
+	}
+
+	if ctx.IsSet(utils.OverrideOptimismGranite.Name) {
+		v := ctx.Uint64(utils.OverrideOptimismGranite.Name)
+		cfg.Eth.OverrideOptimismGranite = &v
+	}
+
+	if ctx.IsSet(utils.OverrideOptimismHolocene.Name) {
+		v := ctx.Uint64(utils.OverrideOptimismHolocene.Name)
+		cfg.Eth.OverrideOptimismHolocene = &v
+	}
+
+	if ctx.IsSet(utils.OverrideOptimismIsthmus.Name) {
+		v := ctx.Uint64(utils.OverrideOptimismIsthmus.Name)
+		cfg.Eth.OverrideOptimismIsthmus = &v
+	}
+
+	if ctx.IsSet(utils.OverrideOptimismJovian.Name) {
+		v := ctx.Uint64(utils.OverrideOptimismJovian.Name)
+		cfg.Eth.OverrideOptimismJovian = &v
+	}
+
+	if ctx.IsSet(utils.OverrideOptimismInterop.Name) {
+		v := ctx.Uint64(utils.OverrideOptimismInterop.Name)
+		cfg.Eth.OverrideOptimismInterop = &v
+	}
+
 	if ctx.IsSet(utils.OverrideVerkle.Name) {
 		v := ctx.Uint64(utils.OverrideVerkle.Name)
 		cfg.Eth.OverrideVerkle = &v

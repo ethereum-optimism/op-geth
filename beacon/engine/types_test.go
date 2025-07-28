@@ -32,7 +32,7 @@ func TestBlobs(t *testing.T) {
 		emptyCellProof, _  = kzg4844.ComputeCellProofs(emptyBlob)
 	)
 	header := types.Header{}
-	block := types.NewBlock(&header, &types.Body{}, nil, nil)
+	block := types.NewBlock(&header, &types.Body{Withdrawals: []*types.Withdrawal{}}, nil, nil, types.DefaultBlockConfig)
 
 	sidecarWithoutCellProofs := &types.BlobTxSidecar{
 		Blobs:       []kzg4844.Blob{*emptyBlob},

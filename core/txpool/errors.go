@@ -71,4 +71,8 @@ var (
 	// ErrInflightTxLimitReached is returned when the maximum number of in-flight
 	// transactions is reached for specific accounts.
 	ErrInflightTxLimitReached = errors.New("in-flight transaction limit reached for delegated accounts")
+
+	// ErrTxGasLimitExceeded is returned if a transaction's gas limit exceeds the
+	// configured maximum per-transaction limit.
+	ErrTxGasLimitExceeded = errors.New("exceeds maximum per-transaction gas limit")
 )
