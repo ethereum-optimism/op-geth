@@ -119,9 +119,9 @@ type generateParams struct {
 	txs            types.Transactions // Deposit transactions to include at the start of the block
 	gasLimit       *uint64            // Optional gas limit override
 	eip1559Params  []byte             // Optional EIP-1559 parameters
-	minBaseFeeLog2 uint8              // Optional minBaseFeeLog2 for Jovian
 	interrupt      *atomic.Int32      // Optional interruption signal to pass down to worker.generateWork
 	isUpdate       bool               // Optional flag indicating that this is building a discardable update
+	minBaseFeeLog2 uint8              // Optional minBaseFeeLog2 for Jovian
 
 	rpcCtx context.Context // context to control block-building RPC work. No RPC allowed if nil.
 }
@@ -296,7 +296,7 @@ func (miner *Miner) prepareWork(genParams *generateParams, witness bool) (*envir
 			d = miner.chainConfig.BaseFeeChangeDenominator(header.Time)
 			e = miner.chainConfig.ElasticityMultiplier()
 		}
-		if cfg.IsJovian(header.Time) {
+		if cfg.IsConfigurableMinBaseFeeEnabled(header.Time) {
 			header.Extra = eip1559.EncodeMinBaseFeeExtraData(d, e, genParams.minBaseFeeLog2)
 		} else {
 			header.Extra = eip1559.EncodeHoloceneExtraData(d, e)

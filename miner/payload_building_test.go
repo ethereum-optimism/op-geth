@@ -128,7 +128,7 @@ func newTestWorkerBackend(t *testing.T, chainConfig *params.ChainConfig, engine 
 	default:
 		t.Fatalf("unexpected consensus engine type: %T", engine)
 	}
-	if chainConfig.JovianTime != nil {
+	if chainConfig.MinBaseFeeTime != nil {
 		gspec.ExtraData = []byte{1, 0, 1, 2, 3, 4, 5, 6, 7, 8}
 	} else if chainConfig.HoloceneTime != nil {
 		// genesis block extraData needs to be correct format

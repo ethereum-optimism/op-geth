@@ -221,9 +221,9 @@ func TestCalcBaseFeeOptimismHolocene(t *testing.T) {
 	}
 }
 
-// TestCalcBaseFeeJovian assumes all blocks are jovian blocks. It tests that the minimum base fee
-// is enforced when the computed base fee is less than the minimum base fee
-func TestCalcBaseFeeJovian(t *testing.T) {
+// TestCalcBaseFeeMinBaseFee assumes all blocks are jovian blocks that have the minimum base fee feature enabled.
+// It tests that the minimum base fee is enforced when the computed base fee is less than the minimum base fee.
+func TestCalcBaseFeeMinBaseFee(t *testing.T) {
 	parentGasLimit := uint64(30_000_000)
 	minBaseFee := int64(1_048_576)
 	denom := uint64(50)

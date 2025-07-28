@@ -190,7 +190,7 @@ func CalcBaseFee(config *params.ChainConfig, parent *types.Header, time uint64) 
 	elasticity := config.ElasticityMultiplier()
 	denominator := config.BaseFeeChangeDenominator(time)
 	var minBaseFeeLog2 uint8
-	if config.IsJovian(parent.Time) {
+	if config.IsConfigurableMinBaseFeeEnabled(parent.Time) {
 		denominator, elasticity, minBaseFeeLog2 = DecodeMinBaseFeeExtraData(parent.Extra)
 		if denominator == 0 {
 			// this shouldn't happen as the ExtraData should have been validated prior
