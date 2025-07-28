@@ -121,7 +121,7 @@ type generateParams struct {
 	eip1559Params  []byte             // Optional EIP-1559 parameters
 	interrupt      *atomic.Int32      // Optional interruption signal to pass down to worker.generateWork
 	isUpdate       bool               // Optional flag indicating that this is building a discardable update
-	minBaseFeeLog2 uint8              // Optional minBaseFeeLog2 for Jovian
+	minBaseFeeLog2 uint8              // Optional minBaseFeeLog2 for configurable minBaseFee feature
 
 	rpcCtx context.Context // context to control block-building RPC work. No RPC allowed if nil.
 }

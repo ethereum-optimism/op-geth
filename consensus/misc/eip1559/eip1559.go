@@ -151,7 +151,6 @@ func DecodeMinBaseFeeExtraData(extra []byte) (uint64, uint64, uint8) {
 		minBaseFeeLog2 := extra[9]
 		return uint64(denominator), uint64(elasticity), minBaseFeeLog2
 	}
-
 	return 0, 0, 0
 }
 
@@ -241,7 +240,7 @@ func CalcBaseFee(config *params.ChainConfig, parent *types.Header, time uint64) 
 	}
 
 	// Enforce minimum base fee if needed
-	// If it's zero then it's pre-Jovian
+	// If it's zero then it's before the minimum base fee feature was enabled
 	if minBaseFeeLog2 > 0 {
 		// compute 2^minBaseFeeLog2
 		minBaseFee := new(big.Int).Lsh(common.Big1, uint(minBaseFeeLog2))
