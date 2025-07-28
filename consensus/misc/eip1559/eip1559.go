@@ -138,14 +138,21 @@ func ValidateHoloceneExtraData(extra []byte) error {
 // Returns 0,0,0 if the format is invalid, though ValidateMinBaseFeeExtraData should be used instead of this function for
 // validity checking.
 func DecodeMinBaseFeeExtraData(extra []byte) (uint64, uint64, uint8) {
-	if len(extra) != 10 {
-		return 0, 0, 0
+	// Best effort to decode the extraData for every block in the chain's history,
+	// including blocks before the minimum base fee feature was enabled.
+	if len(extra) == 9 {
+		// This is Holocene extraData
+		denominator, elasticity := DecodeHolocene1559Params(extra[1:9])
+		return denominator, elasticity, 0
+	} else if len(extra) == 10 {
+		// This is the case when minBaseFeeLog2 feature is enabled
+		denominator := binary.BigEndian.Uint32(extra[1:5])
+		elasticity := binary.BigEndian.Uint32(extra[5:9])
+		minBaseFeeLog2 := extra[9]
+		return uint64(denominator), uint64(elasticity), minBaseFeeLog2
 	}
 
-	denominator := binary.BigEndian.Uint32(extra[1:5])
-	elasticity := binary.BigEndian.Uint32(extra[5:9])
-	minBaseFeeLog2 := extra[9]
-	return uint64(denominator), uint64(elasticity), minBaseFeeLog2
+	return 0, 0, 0
 }
 
 // EncodeMinBaseFeeExtraData encodes the EIP-1559 and minBaseFeeLog2 parameters into the header 'ExtraData' format.
