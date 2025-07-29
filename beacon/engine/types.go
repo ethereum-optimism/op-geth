@@ -60,6 +60,9 @@ type PayloadAttributes struct {
 	// and contains encoded EIP-1559 parameters. See:
 	// https://github.com/ethereum-optimism/specs/blob/main/specs/protocol/holocene/exec-engine.md#eip1559params-encoding
 	EIP1559Params []byte `json:"eip1559Params,omitempty" gencodec:"optional"`
+	// MinBaseFeeLog2 is a field for rollups implementing the minimum base fee feature,
+	// and contains the minBaseFeeLog2 value.
+	MinBaseFeeLog2 uint8 `json:"minBaseFeeLog2,omitempty" gencodec:"optional"`
 }
 
 // JSON type overrides for PayloadAttributes.
