@@ -183,6 +183,7 @@ func (d *Downloader) concurrentFetch(queue typedQueue) error {
 					// Although all peer removal operations return allocated tasks
 					// to the queue, that is async, and we can do better here by
 					// immediately pushing the unfulfilled requests.
+					log.Error("Sending request failed", "peer", peer.id, "err", err)
 					queue.unreserve(peer.id) // TODO(karalabe): This needs a non-expiration method
 					continue
 				}
@@ -274,6 +275,7 @@ func (d *Downloader) concurrentFetch(queue typedQueue) error {
 
 			// New timeout potentially set if there are more requests pending,
 			// reschedule the failed one to a free peer
+			log.Error("Timeout happened", "peer", req.Peer)
 			fails := queue.unreserve(req.Peer)
 
 			// Finally, update the peer's retrieval capacity, or if it's already
