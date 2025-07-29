@@ -293,6 +293,7 @@ func (h *handler) runEthPeer(peer *eth.Peer, handler eth.Handler) error {
 		}
 	}
 	peer.Log().Debug("Ethereum peer connected", "name", peer.Name())
+	log.Info("Ethereum peer connected", "name", peer.Name())
 
 	// Register the peer locally
 	if err := h.peers.registerPeer(peer, snap); err != nil {
