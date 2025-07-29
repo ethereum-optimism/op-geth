@@ -218,25 +218,27 @@ func jovianConfig() *params.ChainConfig {
 	config.CanyonTime = &t
 	config.HoloceneTime = &t
 	config.JovianTime = &t
-	jovianDenom := uint64(250)
+	config.MinBaseFeeTime = &t
+	canyonDenom := uint64(250)
 	config.Optimism = &params.OptimismConfig{
 		EIP1559Elasticity:        6,
 		EIP1559Denominator:       50,
-		EIP1559DenominatorCanyon: &jovianDenom,
+		EIP1559DenominatorCanyon: &canyonDenom,
 	}
 	return &config
 }
 
-// newPayloadArgs returns a BuildPaylooadArgs with the given parentHash and eip-1559 params,
-// testTimestamp for Timestamp, and testRecipient for recipient. NoTxPool is set to true.
-func newPayloadArgs(parentHash common.Hash, params1559 []byte) *BuildPayloadArgs {
+// newPayloadArgs returns a BuildPaylooadArgs with the given parentHash, eip-1559 params,
+// minBaseFeeLog2, testTimestamp for Timestamp, and testRecipient for recipient. NoTxPool is set to true.
+func newPayloadArgs(parentHash common.Hash, params1559 []byte, minBaseFeeLog2 uint8) *BuildPayloadArgs {
 	return &BuildPayloadArgs{
-		Parent:        parentHash,
-		Timestamp:     testTimestamp,
-		Random:        common.Hash{},
-		FeeRecipient:  testRecipient,
-		NoTxPool:      true,
-		EIP1559Params: params1559,
+		Parent:         parentHash,
+		Timestamp:      testTimestamp,
+		Random:         common.Hash{},
+		FeeRecipient:   testRecipient,
+		NoTxPool:       true,
+		EIP1559Params:  params1559,
+		MinBaseFeeLog2: minBaseFeeLog2,
 	}
 }
 
@@ -244,13 +246,11 @@ func testBuildPayload(t *testing.T, noTxPool, interrupt bool, params1559 []byte)
 	t.Parallel()
 	db := rawdb.NewMemoryDatabase()
 
+	minBaseFeeLog2 := uint8(0)
 	config := params.TestChainConfig
 	if len(params1559) != 0 {
-		if config.IsJovian(testTimestamp) {
-			config = jovianConfig()
-		} else {
-			config = holoceneConfig()
-		}
+		config = jovianConfig()
+		minBaseFeeLog2 = 1
 	}
 	w, b := newTestWorker(t, config, ethash.NewFaker(), db, 0)
 
@@ -263,7 +263,7 @@ func testBuildPayload(t *testing.T, noTxPool, interrupt bool, params1559 []byte)
 		b.txPool.Add(txs, false)
 	}
 
-	args := newPayloadArgs(b.chain.CurrentBlock().Hash(), params1559)
+	args := newPayloadArgs(b.chain.CurrentBlock().Hash(), params1559, minBaseFeeLog2)
 	args.NoTxPool = noTxPool
 
 	// payload resolution now interrupts block building, so we have to
@@ -305,12 +305,15 @@ func testBuildPayload(t *testing.T, noTxPool, interrupt bool, params1559 []byte)
 	// make sure the 1559 params we've specied (if any) ends up in both the full and empty block headers
 	var expected []byte
 	if len(params1559) != 0 {
-		expected = []byte{0}
+		expected = []byte{1} // bump version byte
 		d, _ := eip1559.DecodeHolocene1559Params(params1559)
 		if d == 0 {
 			expected = append(expected, eip1559.EncodeHolocene1559Params(250, 6)...) // canyon defaults
 		} else {
 			expected = append(expected, params1559...)
+		}
+		if minBaseFeeLog2 != 0 {
+			expected = append(expected, byte(minBaseFeeLog2))
 		}
 	}
 	if payload.full != nil && !bytes.Equal(payload.full.Header().Extra, expected) {
@@ -318,6 +321,14 @@ func testBuildPayload(t *testing.T, noTxPool, interrupt bool, params1559 []byte)
 	}
 	if payload.empty != nil && !bytes.Equal(payload.empty.Header().Extra, expected) {
 		t.Fatalf("ExtraData doesn't match on empty block. want: %x, got %x", expected, payload.empty.Header().Extra)
+	}
+
+	// Test minBaseFeeLog2 value in extraData
+	if minBaseFeeLog2 != 0 && payload.full != nil {
+		_, _, extractedMinBaseFeeLog2 := eip1559.DecodeMinBaseFeeExtraData(payload.full.Header().Extra)
+		if extractedMinBaseFeeLog2 != minBaseFeeLog2 {
+			t.Fatalf("minBaseFeeLog2 doesn't match. want: %d, got %d", minBaseFeeLog2, extractedMinBaseFeeLog2)
+		}
 	}
 
 	if noTxPool {
@@ -354,7 +365,7 @@ func testDAFilters(t *testing.T, maxDATxSize, maxDABlockSize *big.Int, expectedT
 	b.txPool.Add(txs, false)
 
 	params1559 := []byte{0, 1, 2, 3, 4, 5, 6, 7}
-	args := newPayloadArgs(b.chain.CurrentBlock().Hash(), params1559)
+	args := newPayloadArgs(b.chain.CurrentBlock().Hash(), params1559, 0)
 	args.NoTxPool = false
 
 	payload, err := w.buildPayload(args, false)
@@ -378,7 +389,7 @@ func testBuildPayloadWrongConfig(t *testing.T, params1559 []byte) {
 	}
 	w, b := newTestWorker(t, config, ethash.NewFaker(), db, 0)
 
-	args := newPayloadArgs(b.chain.CurrentBlock().Hash(), params1559)
+	args := newPayloadArgs(b.chain.CurrentBlock().Hash(), params1559, 0)
 	payload, err := w.buildPayload(args, false)
 	if err == nil && (payload == nil || payload.err == nil) {
 		t.Fatalf("expected error, got none")
@@ -394,7 +405,7 @@ func TestBuildPayloadInvalidHoloceneParams(t *testing.T) {
 	// 0 denominators shouldn't be allowed
 	badParams := eip1559.EncodeHolocene1559Params(0, 6)
 
-	args := newPayloadArgs(b.chain.CurrentBlock().Hash(), badParams)
+	args := newPayloadArgs(b.chain.CurrentBlock().Hash(), badParams, 0)
 	payload, err := w.buildPayload(args, false)
 	if err == nil && (payload == nil || payload.err == nil) {
 		t.Fatalf("expected error, got none")
@@ -410,7 +421,7 @@ func TestBuildPayloadInvalidMinBaseFeeExtraData(t *testing.T) {
 	// 0 denominators shouldn't be allowed
 	badParams := eip1559.EncodeMinBaseFeeExtraData(0, 6, 0)
 
-	args := newPayloadArgs(b.chain.CurrentBlock().Hash(), badParams)
+	args := newPayloadArgs(b.chain.CurrentBlock().Hash(), badParams, 0)
 	payload, err := w.buildPayload(args, false)
 	if err == nil && (payload == nil || payload.err == nil) {
 		t.Fatalf("expected error, got none")
