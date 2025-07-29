@@ -160,21 +160,26 @@ func newTestWorker(t *testing.T, chainConfig *params.ChainConfig, engine consens
 }
 
 func TestBuildPayload(t *testing.T) {
-	t.Run("no-tx-pool", func(t *testing.T) { testBuildPayload(t, true, false, nil) })
+	t.Run("no-tx-pool", func(t *testing.T) { testBuildPayload(t, true, false, nil, params.TestChainConfig) })
 	// no-tx-pool case with interrupt not interesting because no-tx-pool doesn't run
 	// the builder routine
-	t.Run("with-tx-pool", func(t *testing.T) { testBuildPayload(t, false, false, nil) })
-	t.Run("with-tx-pool-interrupt", func(t *testing.T) { testBuildPayload(t, false, true, nil) })
+	t.Run("with-tx-pool", func(t *testing.T) { testBuildPayload(t, false, false, nil, params.TestChainConfig) })
+	t.Run("with-tx-pool-interrupt", func(t *testing.T) { testBuildPayload(t, false, true, nil, params.TestChainConfig) })
 	params1559 := []byte{0, 1, 2, 3, 4, 5, 6, 7}
-	t.Run("with-params", func(t *testing.T) { testBuildPayload(t, false, false, params1559) })
-	t.Run("with-params-no-tx-pool", func(t *testing.T) { testBuildPayload(t, true, false, params1559) })
-	t.Run("with-params-interrupt", func(t *testing.T) { testBuildPayload(t, false, true, params1559) })
+	t.Run("with-params-holocene", func(t *testing.T) { testBuildPayload(t, false, false, params1559, holoceneConfig()) })
+	t.Run("with-params-no-tx-pool-holocene", func(t *testing.T) { testBuildPayload(t, true, false, params1559, holoceneConfig()) })
+	t.Run("with-params-interrupt-holocene", func(t *testing.T) { testBuildPayload(t, false, true, params1559, holoceneConfig()) })
+	t.Run("with-params-jovian", func(t *testing.T) { testBuildPayload(t, false, false, params1559, jovianConfig()) })
+	t.Run("with-params-no-tx-pool-jovian", func(t *testing.T) { testBuildPayload(t, true, false, params1559, jovianConfig()) })
+	t.Run("with-params-interrupt-jovian", func(t *testing.T) { testBuildPayload(t, false, true, params1559, jovianConfig()) })
 
-	t.Run("wrong-config-no-params", func(t *testing.T) { testBuildPayloadWrongConfig(t, nil) })
-	t.Run("wrong-config-params", func(t *testing.T) { testBuildPayloadWrongConfig(t, params1559) })
+	t.Run("wrong-config-no-params", func(t *testing.T) { testBuildPayloadWrongConfig(t, nil, holoceneConfig()) })
+	t.Run("wrong-config-params-holocene", func(t *testing.T) { testBuildPayloadWrongConfig(t, params1559, holoceneConfig()) })
+	t.Run("wrong-config-params-jovian", func(t *testing.T) { testBuildPayloadWrongConfig(t, params1559, jovianConfig()) })
 
 	zeroParams := make([]byte, 8)
-	t.Run("with-zero-params", func(t *testing.T) { testBuildPayload(t, true, false, zeroParams) })
+	t.Run("with-zero-params-holocene", func(t *testing.T) { testBuildPayload(t, true, false, zeroParams, holoceneConfig()) })
+	t.Run("with-zero-params-jovian", func(t *testing.T) { testBuildPayload(t, true, false, zeroParams, jovianConfig()) })
 }
 
 func TestDAFilters(t *testing.T) {
@@ -242,14 +247,12 @@ func newPayloadArgs(parentHash common.Hash, params1559 []byte, minBaseFeeLog2 ui
 	}
 }
 
-func testBuildPayload(t *testing.T, noTxPool, interrupt bool, params1559 []byte) {
+func testBuildPayload(t *testing.T, noTxPool, interrupt bool, params1559 []byte, config *params.ChainConfig) {
 	t.Parallel()
 	db := rawdb.NewMemoryDatabase()
 
 	minBaseFeeLog2 := uint8(0)
-	config := params.TestChainConfig
-	if len(params1559) != 0 {
-		config = jovianConfig()
+	if config.IsConfigurableMinBaseFeeEnabled(testTimestamp) {
 		minBaseFeeLog2 = 1
 	}
 	w, b := newTestWorker(t, config, ethash.NewFaker(), db, 0)
@@ -305,14 +308,19 @@ func testBuildPayload(t *testing.T, noTxPool, interrupt bool, params1559 []byte)
 	// make sure the 1559 params we've specied (if any) ends up in both the full and empty block headers
 	var expected []byte
 	if len(params1559) != 0 {
-		expected = []byte{1} // bump version byte
+		versionByte := byte(0)
+		if config.IsConfigurableMinBaseFeeEnabled(testTimestamp) {
+			versionByte = 1
+		}
+		expected = []byte{versionByte}
+
 		d, _ := eip1559.DecodeHolocene1559Params(params1559)
 		if d == 0 {
 			expected = append(expected, eip1559.EncodeHolocene1559Params(250, 6)...) // canyon defaults
 		} else {
 			expected = append(expected, params1559...)
 		}
-		if minBaseFeeLog2 != 0 {
+		if versionByte == 1 {
 			expected = append(expected, byte(minBaseFeeLog2))
 		}
 	}
@@ -379,15 +387,17 @@ func testDAFilters(t *testing.T, maxDATxSize, maxDABlockSize *big.Int, expectedT
 	}
 }
 
-func testBuildPayloadWrongConfig(t *testing.T, params1559 []byte) {
+func testBuildPayloadWrongConfig(t *testing.T, params1559 []byte, config *params.ChainConfig) {
 	t.Parallel()
 	db := rawdb.NewMemoryDatabase()
-	config := holoceneConfig()
+	wrongConfig := *config
 	if len(params1559) != 0 {
 		// deactivate holocene and make sure non-empty params get rejected
-		config.HoloceneTime = nil
+		wrongConfig.HoloceneTime = nil
+		wrongConfig.JovianTime = nil
+		wrongConfig.MinBaseFeeTime = nil
 	}
-	w, b := newTestWorker(t, config, ethash.NewFaker(), db, 0)
+	w, b := newTestWorker(t, &wrongConfig, ethash.NewFaker(), db, 0)
 
 	args := newPayloadArgs(b.chain.CurrentBlock().Hash(), params1559, 0)
 	payload, err := w.buildPayload(args, false)
