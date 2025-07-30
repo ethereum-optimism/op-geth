@@ -336,7 +336,7 @@ func (st *stateTransition) preCheck() error {
 		// No fee fields to check, no nonce to check, and no need to check if EOA (L1 already verified it for us)
 		// Gas is free, but no refunds!
 		st.initialGas = st.msg.GasLimit
-		st.gasRemaining += st.msg.GasLimit // Add gas here in order to be able to execute calls.
+		st.gasRemaining = st.msg.GasLimit // Add gas here in order to be able to execute calls.
 		// Don't touch the gas pool for system transactions
 		if st.msg.IsSystemTx {
 			if st.evm.ChainConfig().IsOptimismRegolith(st.evm.Context.Time) {

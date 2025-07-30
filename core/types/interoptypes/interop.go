@@ -101,3 +101,5 @@ func TxToInteropAccessList(tx *types.Transaction) []common.Hash {
 	}
 	return hashes
 }
+
+var ErrFailsafeEnabled = errors.New("failsafe is enabled, rejecting all CheckAccessList requests")
