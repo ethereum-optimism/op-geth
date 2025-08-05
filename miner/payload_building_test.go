@@ -252,7 +252,7 @@ func testBuildPayload(t *testing.T, noTxPool, interrupt bool, params1559 []byte,
 	db := rawdb.NewMemoryDatabase()
 
 	minBaseFeeLog2 := uint8(0)
-	if config.IsConfigurableMinBaseFeeEnabled(testTimestamp) {
+	if config.IsConfigurableMinBaseFee(testTimestamp) {
 		minBaseFeeLog2 = 1
 	}
 	w, b := newTestWorker(t, config, ethash.NewFaker(), db, 0)
@@ -309,7 +309,7 @@ func testBuildPayload(t *testing.T, noTxPool, interrupt bool, params1559 []byte,
 	var expected []byte
 	if len(params1559) != 0 {
 		versionByte := byte(0)
-		if config.IsConfigurableMinBaseFeeEnabled(testTimestamp) {
+		if config.IsConfigurableMinBaseFee(testTimestamp) {
 			versionByte = 1
 		}
 		expected = []byte{versionByte}

@@ -853,8 +853,8 @@ func (c *ChainConfig) IsOptimismPreBedrock(num *big.Int) bool {
 	return c.IsOptimism() && !c.IsBedrock(num)
 }
 
-// IsConfigurableMinBaseFeeEnabled returns true if the configurable minBaseFee feature is enabled.
-func (c *ChainConfig) IsConfigurableMinBaseFeeEnabled(time uint64) bool {
+// IsConfigurableMinBaseFee returns true if the configurable minBaseFee feature is enabled.
+func (c *ChainConfig) IsConfigurableMinBaseFee(time uint64) bool {
 	return c.IsOptimismJovian(time)
 }
 
