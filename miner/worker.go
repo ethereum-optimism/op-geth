@@ -74,6 +74,9 @@ type environment struct {
 	coinbase common.Address
 	evm      *vm.EVM
 
+	// OP-Stack addition: calldata footprint
+	daFootprint uint64
+
 	header   *types.Header
 	txs      []*types.Transaction
 	receipts []*types.Receipt
@@ -196,6 +199,11 @@ func (miner *Miner) generateWork(genParam *generateParams, witness bool) *newPay
 		} else if errors.Is(err, errBlockInterruptedByResolve) {
 			log.Info("Block building got interrupted by payload resolution")
 		}
+	}
+
+	// OP-Stack addition: Jovian maxes the block.gasUsed with the calldata footprint
+	if miner.chainConfig.IsJovian(work.header.Time) && work.daFootprint > work.header.GasUsed {
+		work.header.GasUsed = work.daFootprint
 	}
 
 	body := types.Body{Transactions: work.txs, Withdrawals: genParam.withdrawals}
@@ -480,6 +488,8 @@ func (miner *Miner) applyTransaction(env *environment, tx *types.Transaction) (*
 	return receipt, err
 }
 
+var minTransactionDAFootprint = new(big.Int).Mul(types.MinTransactionSize, big.NewInt(params.DAFootprintGasScalar))
+
 func (miner *Miner) commitTransactions(env *environment, plainTxs, blobTxs *transactionsByPriceAndNonce, interrupt *atomic.Int32) error {
 	var (
 		isCancun = miner.chainConfig.IsCancun(env.header.Number, env.header.Time)
@@ -488,7 +498,12 @@ func (miner *Miner) commitTransactions(env *environment, plainTxs, blobTxs *tran
 	if env.gasPool == nil {
 		env.gasPool = new(core.GasPool).AddGas(gasLimit)
 	}
+
+	// OP-Stack additions: throttling and DA footprint limit
 	blockDABytes := new(big.Int)
+	daFootprintLeft := big.NewInt(int64(gasLimit))
+	isJovian := miner.chainConfig.IsJovian(env.header.Time)
+
 	for {
 		// Check interruption signal and abort building if it's fired.
 		if interrupt != nil {
@@ -499,6 +514,11 @@ func (miner *Miner) commitTransactions(env *environment, plainTxs, blobTxs *tran
 		// If we don't have enough gas for any further transactions then we're done.
 		if env.gasPool.Gas() < params.TxGas {
 			log.Trace("Not enough gas for further transactions", "have", env.gasPool, "want", params.TxGas)
+			break
+		}
+		// If we don't have enough DA space for any further transactions then we're done.
+		if isJovian && daFootprintLeft.Cmp(minTransactionDAFootprint) < 0 {
+			log.Debug("Not enough DA space for further transactions", "have", daFootprintLeft, "want", minTransactionDAFootprint)
 			break
 		}
 		// If we don't have enough blob space for any further blob transactions,
@@ -545,6 +565,19 @@ func (miner *Miner) commitTransactions(env *environment, plainTxs, blobTxs *tran
 			left := eip4844.MaxBlobsPerBlock(miner.chainConfig, env.header.Time) - env.blobs
 			if left < int(ltx.BlobGas/params.BlobTxBlobGasPerBlob) {
 				log.Trace("Not enough blob space left for transaction", "hash", ltx.Hash, "left", left, "needed", ltx.BlobGas/params.BlobTxBlobGasPerBlob)
+				txs.Pop()
+				continue
+			}
+		}
+
+		// OP-Stack addition: Jovian DA footprint limit
+		var txDAFootprint *big.Int
+		// Note that commitTransaction is only called after deposit transactions have already been committed,
+		// so we don't need to resolve the transaction here and exclude deposits.
+		if isJovian {
+			txDAFootprint = new(big.Int).Mul(ltx.DABytes, big.NewInt(params.DAFootprintGasScalar))
+			if daFootprintLeft.Cmp(txDAFootprint) < 0 {
+				log.Debug("Not enough DA space left for transaction", "hash", ltx.Hash, "left", daFootprintLeft, "needed", txDAFootprint)
 				txs.Pop()
 				continue
 			}
@@ -622,6 +655,10 @@ func (miner *Miner) commitTransactions(env *environment, plainTxs, blobTxs *tran
 		case errors.Is(err, nil):
 			// Everything ok, collect the logs and shift in the next transaction from the same account
 			blockDABytes = daBytesAfter
+			if isJovian {
+				daFootprintLeft.Sub(daFootprintLeft, txDAFootprint)
+				env.daFootprint += txDAFootprint.Uint64() // note, it's guaranteed to not overflow because of the max calldata size
+			}
 			txs.Shift()
 
 		default:
