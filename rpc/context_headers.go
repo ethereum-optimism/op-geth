@@ -19,6 +19,8 @@ package rpc
 import (
 	"context"
 	"net/http"
+	
+	"github.com/ethereum/go-ethereum/tracing"
 )
 
 type mdHeaderKey struct{}
@@ -53,4 +55,14 @@ func setHeaders(dst http.Header, src http.Header) http.Header {
 		dst[http.CanonicalHeaderKey(key)] = values
 	}
 	return dst
+}
+
+// NewContextWithTraceHeaders wraps the given context, extracting trace context headers.
+// This function extracts W3C TraceContext headers (traceparent, tracestate, baggage)
+// and propagates them through the OpenTelemetry tracing system if tracing is enabled.
+func NewContextWithTraceHeaders(ctx context.Context, headers http.Header) context.Context {
+	if !tracing.IsEnabled() {
+		return ctx
+	}
+	return tracing.ExtractTraceContextFromHeaders(ctx, headers)
 }

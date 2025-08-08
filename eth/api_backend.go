@@ -43,6 +43,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/ethereum/go-ethereum/tracing"
 )
 
 // EthAPIBackend implements ethapi.Backend and tracers.Backend for full nodes
@@ -287,11 +288,17 @@ func (b *EthAPIBackend) SendTx(ctx context.Context, signedTx *types.Transaction)
 
 	// OP-Stack: forward to remote sequencer RPC
 	if b.eth.seqRPCService != nil {
+		// Start tracing span for transaction forwarding
+		ctx, span := tracing.StartTxForwardSpan(ctx, signedTx.Hash().Hex(), "sequencer-rpc")
+		defer span.End()
+
 		data, err := signedTx.MarshalBinary()
 		if err != nil {
+			tracing.SetSpanError(span, err)
 			return err
 		}
 		if err := b.eth.seqRPCService.CallContext(ctx, nil, "eth_sendRawTransaction", hexutil.Encode(data)); err != nil {
+			tracing.SetSpanError(span, err)
 			return err
 		}
 		if b.disableTxPool {

@@ -47,6 +47,7 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/ethereum/go-ethereum/tracing"
 	"github.com/ethereum/go-ethereum/trie"
 )
 
@@ -1742,7 +1743,25 @@ func (api *TransactionAPI) SendRawTransaction(ctx context.Context, input hexutil
 	if err := tx.UnmarshalBinary(input); err != nil {
 		return common.Hash{}, err
 	}
-	return SubmitTransaction(ctx, api.b, tx)
+
+	// Start tracing span for sendRawTransaction
+	ctx, span := tracing.StartSendRawTransactionSpan(ctx, tx.Hash().Hex())
+	defer span.End()
+
+	// Add transaction attributes to span
+	if from, err := types.Sender(types.LatestSignerForChainID(tx.ChainId()), tx); err == nil {
+		var to string
+		if tx.To() != nil {
+			to = tx.To().Hex()
+		}
+		tracing.AddTransactionAttributes(span, tx.Hash().Hex(), from.Hex(), to, tx.Gas(), tx.GasPrice().String(), tx.Value().String())
+	}
+
+	hash, err := SubmitTransaction(ctx, api.b, tx)
+	if err != nil {
+		tracing.SetSpanError(span, err)
+	}
+	return hash, err
 }
 
 // Sign calculates an ECDSA signature for:

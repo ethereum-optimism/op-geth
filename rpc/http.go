@@ -327,6 +327,9 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	ctx = context.WithValue(ctx, peerInfoContextKey{}, connInfo)
 
+	// Extract trace context from HTTP headers if tracing is enabled
+	ctx = NewContextWithTraceHeaders(ctx, r.Header)
+
 	// All checks passed, create a codec that reads directly from the request body
 	// until EOF, writes the response to w, and orders the server to process a
 	// single request.

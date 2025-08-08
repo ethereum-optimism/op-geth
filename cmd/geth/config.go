@@ -44,6 +44,7 @@ import (
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/ethereum/go-ethereum/tracing"
 	"github.com/naoina/toml"
 	"github.com/urfave/cli/v2"
 )
@@ -237,6 +238,14 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 	utils.SetupMetrics(&cfg.Metrics)
 
 	backend, eth := utils.RegisterEthService(stack, &cfg.Eth)
+
+	// Initialize OpenTelemetry tracing
+	if tracingCfg := utils.SetTracing(ctx); tracingCfg.Enabled {
+		if err := tracing.Initialize(tracingCfg); err != nil {
+			utils.Fatalf("Failed to initialize tracing: %v", err)
+		}
+		log.Info("OpenTelemetry tracing enabled", "endpoint", tracingCfg.Endpoint, "service", tracingCfg.ServiceName)
+	}
 
 	// Create gauge with geth system and build information
 	if eth != nil { // The 'eth' backend may be nil in light mode
