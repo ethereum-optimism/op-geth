@@ -240,8 +240,8 @@ func CalcBaseFee(config *params.ChainConfig, parent *types.Header, time uint64) 
 	}
 
 	// Enforce minimum base fee if needed
-	// If it's zero then it's before the minimum base fee feature was enabled
-	if minBaseFeeLog2 > 0 {
+	// minBaseFeeLog2 implies the minimum base fee feature is disabled (or not yet enabled)
+	if minBaseFeeLog2 > 0 && config.IsConfigurableMinBaseFee(parent.Time) {
 		// compute 2^minBaseFeeLog2
 		minBaseFee := new(big.Int).Lsh(common.Big1, uint(minBaseFeeLog2))
 		if baseFee.Cmp(minBaseFee) < 0 {

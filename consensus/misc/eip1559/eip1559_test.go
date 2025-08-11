@@ -65,8 +65,6 @@ func opConfig() *params.ChainConfig {
 	config.HoloceneTime = &ht
 	jt := uint64(14) // Jovian time
 	config.JovianTime = &jt
-	minBaseFeeTime := uint64(14) // Minimum base fee feature time
-	config.MinBaseFeeTime = &minBaseFeeTime
 	config.Optimism = &params.OptimismConfig{
 		EIP1559Elasticity:        6,
 		EIP1559Denominator:       50,
@@ -227,7 +225,7 @@ func TestCalcBaseFeeOptimismHolocene(t *testing.T) {
 // It tests that the minimum base fee is enforced when the computed base fee is less than the minimum base fee.
 func TestCalcBaseFeeMinBaseFee(t *testing.T) {
 	parentGasLimit := uint64(30_000_000)
-	minBaseFee := int64(1_048_576)
+	minBaseFee := int64(1_048_576) // 2**20
 	denom := uint64(50)
 	elasticity := uint64(3)
 
