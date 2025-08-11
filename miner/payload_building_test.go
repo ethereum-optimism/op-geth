@@ -128,7 +128,7 @@ func newTestWorkerBackend(t *testing.T, chainConfig *params.ChainConfig, engine 
 	default:
 		t.Fatalf("unexpected consensus engine type: %T", engine)
 	}
-	if chainConfig.MinBaseFeeTime != nil {
+	if chainConfig.JovianTime != nil {
 		gspec.ExtraData = []byte{1, 0, 1, 2, 3, 4, 5, 6, 7, 8}
 	} else if chainConfig.HoloceneTime != nil {
 		// genesis block extraData needs to be correct format
@@ -223,7 +223,6 @@ func jovianConfig() *params.ChainConfig {
 	config.CanyonTime = &t
 	config.HoloceneTime = &t
 	config.JovianTime = &t
-	config.MinBaseFeeTime = &t
 	canyonDenom := uint64(250)
 	config.Optimism = &params.OptimismConfig{
 		EIP1559Elasticity:        6,
@@ -321,7 +320,7 @@ func testBuildPayload(t *testing.T, noTxPool, interrupt bool, params1559 []byte,
 			expected = append(expected, params1559...)
 		}
 		if versionByte == 1 {
-			expected = append(expected, byte(minBaseFeeLog2))
+			expected = append(expected, minBaseFeeLog2)
 		}
 	}
 	if payload.full != nil && !bytes.Equal(payload.full.Header().Extra, expected) {
@@ -332,7 +331,7 @@ func testBuildPayload(t *testing.T, noTxPool, interrupt bool, params1559 []byte,
 	}
 
 	// Test minBaseFeeLog2 value in extraData
-	if minBaseFeeLog2 != 0 && payload.full != nil {
+	if config.IsConfigurableMinBaseFee(testTimestamp) && payload.full != nil {
 		_, _, extractedMinBaseFeeLog2 := eip1559.DecodeMinBaseFeeExtraData(payload.full.Header().Extra)
 		if extractedMinBaseFeeLog2 != minBaseFeeLog2 {
 			t.Fatalf("minBaseFeeLog2 doesn't match. want: %d, got %d", minBaseFeeLog2, extractedMinBaseFeeLog2)
@@ -392,10 +391,9 @@ func testBuildPayloadWrongConfig(t *testing.T, params1559 []byte, config *params
 	db := rawdb.NewMemoryDatabase()
 	wrongConfig := *config
 	if len(params1559) != 0 {
-		// deactivate holocene and make sure non-empty params get rejected
+		// deactivate holocene and jovian and make sure non-empty params get rejected
 		wrongConfig.HoloceneTime = nil
 		wrongConfig.JovianTime = nil
-		wrongConfig.MinBaseFeeTime = nil
 	}
 	w, b := newTestWorker(t, &wrongConfig, ethash.NewFaker(), db, 0)
 
