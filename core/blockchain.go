@@ -1176,7 +1176,7 @@ func (bc *BlockChain) writeHeadBlock(block *types.Block) {
 
 	bc.currentBlock.Store(block.Header())
 	headBlockGauge.Update(int64(block.NumberU64()))
-	headBaseFeeGauge.Update(block.Header().BaseFee.Int64())
+	headBaseFeeGauge.TryUpdate(block.Header().BaseFee)
 }
 
 // stopWithoutSaving stops the blockchain service. If any imports are currently in progress
@@ -1342,7 +1342,7 @@ func (bc *BlockChain) InsertReceiptChain(blockChain types.Blocks, receiptChain [
 		bc.currentSnapBlock.Store(header)
 		headHeaderGauge.Update(header.Number.Int64())
 		headFastBlockGauge.Update(header.Number.Int64())
-		headBaseFeeGauge.Update(header.BaseFee.Int64())
+		headBaseFeeGauge.TryUpdate(header.BaseFee)
 		return nil
 	}
 	// writeAncient writes blockchain and corresponding receipt chain into ancient store.
@@ -2662,7 +2662,7 @@ func (bc *BlockChain) InsertHeadersBeforeCutoff(headers []*types.Header) (int, e
 	bc.currentSnapBlock.Store(last)
 	headHeaderGauge.Update(last.Number.Int64())
 	headFastBlockGauge.Update(last.Number.Int64())
-	headBaseFeeGauge.Update(last.BaseFee.Int64())
+	headBaseFeeGauge.TryUpdate(last.BaseFee)
 	return 0, nil
 }
 
