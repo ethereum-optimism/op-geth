@@ -1643,23 +1643,6 @@ func TestParentBeaconBlockRoot(t *testing.T) {
 	}
 }
 
-// OP Stack test diff: verify that nil payload attributes does not cause a panic
-func TestForkChoiceUpdatedNilPayloadAttributes(t *testing.T) {
-	genesis, blocks := generateMergeChain(10, true)
-	n, ethservice := startEthService(t, genesis, blocks)
-	defer n.Close()
-	api := NewConsensusAPI(ethservice)
-	cfg := api.eth.BlockChain().Config()
-	cfg.Optimism = &params.OptimismConfig{}
-	if !cfg.IsOptimism() {
-		t.Fatalf("expected optimism config")
-	}
-	fcState := engine.ForkchoiceStateV1{
-		HeadBlockHash: common.Hash{42},
-	}
-	_, _ = api.forkchoiceUpdated(fcState, nil, engine.PayloadV3, false)
-}
-
 // OP Stack test diff: since we cut block-building short, we need to explicitly wait for a full payload to be built
 func waitForPayloadToBuild(payload *miner.Payload) {
 	payload.WaitFull()

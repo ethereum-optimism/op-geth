@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/beacon/engine"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/stretchr/testify/require"
@@ -221,4 +222,21 @@ func TestCheckOptimismPayloadAttributes(t *testing.T) {
 			}
 		})
 	}
+}
+
+// OP Stack test diff: verify that nil payload attributes does not cause a panic
+func TestForkChoiceUpdatedNilPayloadAttributes(t *testing.T) {
+	genesis, blocks := generateMergeChain(10, true)
+	n, ethservice := startEthService(t, genesis, blocks)
+	defer n.Close()
+	api := NewConsensusAPI(ethservice)
+	cfg := api.eth.BlockChain().Config()
+	cfg.Optimism = &params.OptimismConfig{}
+	if !cfg.IsOptimism() {
+		t.Fatalf("expected optimism config")
+	}
+	fcState := engine.ForkchoiceStateV1{
+		HeadBlockHash: common.Hash{42},
+	}
+	_, _ = api.forkchoiceUpdated(fcState, nil, engine.PayloadV3, false)
 }
