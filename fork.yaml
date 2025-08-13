@@ -196,9 +196,12 @@ def:
           globs:
             - "eth/handler.go"
             - "eth/handler_eth.go"
-        - title: Warn on missing hardfork data
+        - title: Warn on missing hardfork data and emit additional metrics
           globs:
             - "core/blockchain.go"
+        - title: Additional metrics
+          globs:
+            - "core/headerchain.go"
         - title: Optional Engine API extensions
           globs:
             - "eth/catalyst/superchain.go"
@@ -368,6 +371,11 @@ def:
             not updated to handle the newly added `withdrawalsRoot` field in the block header.
           globs:
             - "cmd/evm/internal/t8ntool/block.go"
+        - title: Metrics
+          description: |
+            Adds support for safely updating gauges from optional big.Int values.
+          globs:
+            - "metrics/gauge.go"
     - title: "Testing"
       description: Additional or modified tests, not already captured by the above diff
       ignore:
