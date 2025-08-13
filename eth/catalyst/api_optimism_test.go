@@ -2,6 +2,7 @@ package catalyst
 
 import (
 	"errors"
+	"math"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/beacon/engine"
@@ -10,6 +11,14 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/stretchr/testify/require"
 )
+
+func postCanyonPreIsthmus() *params.ChainConfig {
+	cfg := new(params.ChainConfig)
+	cfg.CanyonTime = new(uint64)
+	future := uint64(math.MaxUint64)
+	cfg.IsthmusTime = &future
+	return cfg
+}
 
 func preHolocene() *params.ChainConfig {
 	cfg := new(params.ChainConfig)
@@ -39,6 +48,34 @@ func TestCheckOptimismPayload(t *testing.T) {
 		cfg      *params.ChainConfig
 		expected error
 	}{
+		{
+			name: "valid payload post-Canyon/pre-Isthmus",
+			params: engine.ExecutableData{
+				Timestamp:       0,
+				ExtraData:       []byte{},
+				WithdrawalsRoot: &types.EmptyWithdrawalsHash,
+			},
+			cfg: postCanyonPreIsthmus(),
+		},
+		{
+			name: "nil withdrawalsRoot payload post-Canyon/pre-Isthmus",
+			params: engine.ExecutableData{
+				Timestamp:       0,
+				ExtraData:       []byte{},
+				WithdrawalsRoot: nil,
+			},
+			cfg:      postCanyonPreIsthmus(),
+			expected: errors.New("withdrawalsRoot not equal to MPT root of empty list post-Canyon and pre-Isthmus"),
+		}, {
+			name: "incorrect withdrawalsRoot payload post-Canyon/pre-Isthmus",
+			params: engine.ExecutableData{
+				Timestamp:       0,
+				ExtraData:       []byte{},
+				WithdrawalsRoot: &(types.EmptyVerkleHash),
+			},
+			cfg:      postCanyonPreIsthmus(),
+			expected: errors.New("withdrawalsRoot not equal to MPT root of empty list post-Canyon and pre-Isthmus"),
+		},
 		{
 			name: "valid payload pre-Holocene",
 			params: engine.ExecutableData{

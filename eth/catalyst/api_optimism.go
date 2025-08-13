@@ -5,11 +5,20 @@ import (
 
 	"github.com/ethereum/go-ethereum/beacon/engine"
 	"github.com/ethereum/go-ethereum/consensus/misc/eip1559"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/params"
 )
 
 // checkOptimismPayload performs Optimism-specific checks on the payload data (called during [(*ConsensusAPI).newPayload]).
 func checkOptimismPayload(params engine.ExecutableData, cfg *params.ChainConfig) error {
+
+	// Canyon
+	if cfg.IsCanyon(params.Timestamp) && !cfg.IsIsthmus(params.Timestamp) {
+		if params.WithdrawalsRoot == nil || *params.WithdrawalsRoot != types.EmptyWithdrawalsHash {
+			return errors.New("withdrawalsRoot not equal to MPT root of empty list post-Canyon and pre-Isthmus")
+		}
+	}
+
 	// Holocene
 	if cfg.IsHolocene(params.Timestamp) {
 		if err := eip1559.ValidateHoloceneExtraData(params.ExtraData); err != nil {
