@@ -51,10 +51,8 @@ func checkOptimismPayloadAttributes(payloadAttributes *engine.PayloadAttributes,
 	}
 
 	// Isthmus
-	if cfg.IsIsthmus(payloadAttributes.Timestamp) {
-		if payloadAttributes.Withdrawals == nil || len(payloadAttributes.Withdrawals) != 0 {
-			return errors.New("non-empty or nil withdrawals post-isthmus")
-		}
+	if cfg.IsIsthmus(payloadAttributes.Timestamp) && payloadAttributes.Withdrawals == nil || len(payloadAttributes.Withdrawals) != 0 {
+		return errors.New("non-empty or nil withdrawals post-isthmus")
 	}
 
 	return nil
