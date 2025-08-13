@@ -441,11 +441,9 @@ func (api *ConsensusAPI) forkchoiceUpdated(update engine.ForkchoiceStateV1, payl
 
 	if payloadAttributes != nil {
 		var eip1559Params []byte
-		if api.eth.BlockChain().Config().Optimism != nil {
-			if api.eth.BlockChain().Config().IsHolocene(payloadAttributes.Timestamp) {
-				// Validation performed above in checkOptimismPayloadAttributes
-				eip1559Params = bytes.Clone(payloadAttributes.EIP1559Params)
-			}
+		if api.eth.BlockChain().Config().IsOptimismHolocene(payloadAttributes.Timestamp) {
+			// Validation performed above in checkOptimismPayloadAttributes
+			eip1559Params = bytes.Clone(payloadAttributes.EIP1559Params)
 		}
 		transactions := make(types.Transactions, 0, len(payloadAttributes.Transactions))
 		for i, otx := range payloadAttributes.Transactions {
