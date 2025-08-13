@@ -124,7 +124,14 @@ func TestCheckOptimismPayloadAttributes(t *testing.T) {
 		payloadAttributes *engine.PayloadAttributes
 		cfg               *params.ChainConfig
 		expected          error
+		shouldPanic       bool
 	}{
+		{
+			name:              "nil payload attributes",
+			payloadAttributes: nil,
+			cfg:               preHolocene(),
+			shouldPanic:       true,
+		},
 		{
 			name: "valid payload attributes pre-Holocene",
 			payloadAttributes: &engine.PayloadAttributes{
@@ -200,11 +207,17 @@ func TestCheckOptimismPayloadAttributes(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			err := checkOptimismPayloadAttributes(test.payloadAttributes, test.cfg)
-			if test.expected == nil {
-				require.NoError(t, err)
+			if test.shouldPanic {
+				require.Panics(t, func() {
+					checkOptimismPayloadAttributes(test.payloadAttributes, test.cfg)
+				})
 			} else {
-				require.EqualError(t, err, test.expected.Error())
+				err := checkOptimismPayloadAttributes(test.payloadAttributes, test.cfg)
+				if test.expected == nil {
+					require.NoError(t, err)
+				} else {
+					require.EqualError(t, err, test.expected.Error())
+				}
 			}
 		})
 	}

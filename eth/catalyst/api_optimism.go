@@ -35,6 +35,7 @@ func checkOptimismPayload(params engine.ExecutableData, cfg *params.ChainConfig)
 }
 
 // checkOptimismPayloadAttributes performs Optimism-specific checks on the payload attributes (called during [(*ConsensusAPI).forkChoiceUpdated].
+// Will panic if payloadAttributes is nil.
 func checkOptimismPayloadAttributes(payloadAttributes *engine.PayloadAttributes, cfg *params.ChainConfig) error {
 	if payloadAttributes.GasLimit == nil {
 		return errors.New("gasLimit parameter is required")
