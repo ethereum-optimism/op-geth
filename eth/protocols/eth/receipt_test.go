@@ -63,6 +63,32 @@ var receiptsTests = []struct {
 		input: []types.ReceiptForStorage{{CumulativeGasUsed: 555, Status: 1, Logs: receiptsTestLogs2}},
 		txs:   []*types.Transaction{types.NewTx(&types.AccessListTx{})},
 	},
+
+	// OP-Stack additional tests for deposit txs
+	{
+		input: []types.ReceiptForStorage{{CumulativeGasUsed: 555, Status: 1, Logs: nil}},
+		txs:   []*types.Transaction{types.NewTx(&types.DepositTx{})},
+	},
+	{
+		input: []types.ReceiptForStorage{{CumulativeGasUsed: 555, Status: 1, Logs: nil, DepositNonce: u64(0x7a7)}},
+		txs:   []*types.Transaction{types.NewTx(&types.DepositTx{})},
+	},
+	{
+		input: []types.ReceiptForStorage{{CumulativeGasUsed: 555, Status: 1, Logs: nil, DepositNonce: u64(0x7a7), DepositReceiptVersion: u64(types.CanyonDepositReceiptVersion)}}, // 7
+		txs:   []*types.Transaction{types.NewTx(&types.DepositTx{})},
+	},
+	{
+		input: []types.ReceiptForStorage{{CumulativeGasUsed: 555, Status: 1, Logs: receiptsTestLogs1}},
+		txs:   []*types.Transaction{types.NewTx(&types.DepositTx{})},
+	},
+	{
+		input: []types.ReceiptForStorage{{CumulativeGasUsed: 555, Status: 1, Logs: receiptsTestLogs1, DepositNonce: u64(0x7a7)}},
+		txs:   []*types.Transaction{types.NewTx(&types.DepositTx{})},
+	},
+	{
+		input: []types.ReceiptForStorage{{CumulativeGasUsed: 555, Status: 1, Logs: receiptsTestLogs2, DepositNonce: u64(0x7a7), DepositReceiptVersion: u64(types.CanyonDepositReceiptVersion)}},
+		txs:   []*types.Transaction{types.NewTx(&types.DepositTx{})},
+	},
 }
 
 func init() {

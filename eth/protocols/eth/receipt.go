@@ -36,6 +36,10 @@ type Receipt struct {
 	PostStateOrStatus []byte
 	GasUsed           uint64
 	Logs              rlp.RawValue
+
+	// OP-Stack additions for deposit receipts
+	DepositNonce          *uint64
+	DepositReceiptVersion *uint64
 }
 
 func newReceipt(tr *types.Receipt) Receipt {
@@ -46,6 +50,11 @@ func newReceipt(tr *types.Receipt) Receipt {
 		r.PostStateOrStatus = new(big.Int).SetUint64(tr.Status).Bytes()
 	}
 	r.Logs, _ = rlp.EncodeToBytes(tr.Logs)
+
+	// OP-Stack addition for deposit receipts - these fields will be nil for non-deposit receipts
+	r.DepositNonce = tr.DepositNonce
+	r.DepositReceiptVersion = tr.DepositReceiptVersion
+
 	return r
 }
 
@@ -117,7 +126,43 @@ func (r *Receipt) decodeInnerList(s *rlp.Stream, readTxType, readBloom bool) err
 	if err != nil {
 		return fmt.Errorf("invalid logs: %w", err)
 	}
+
+	// OP-Stack addition: read the deposit nonce and version, if present.
+	if r.TxType == types.DepositTxType && s.MoreDataInList() {
+		dn, err := s.Uint64()
+		if err != nil {
+			return fmt.Errorf("invalid deposit nonce: %w", err)
+		}
+		r.DepositNonce = &dn
+
+		if s.MoreDataInList() {
+			drv, err := s.Uint64()
+			if err != nil {
+				return fmt.Errorf("invalid deposit receipt version: %w", err)
+			}
+			r.DepositReceiptVersion = &drv
+		}
+	}
+
 	return s.ListEnd()
+}
+
+// OP-Stack addition for deposit receipts
+func (r *Receipt) maybeWriteDepositFields(w *rlp.EncoderBuffer, onlyWithVersion bool) {
+	// Post-Regolith+pre-Canyon receipts may have been stored in DBs with
+	// the deposit nonce but not the version.
+	// And post-Regolith+pre-Canyon receipt hashes didn't include the deposit nonce, so we
+	// need the onlyWithVersion variant for [encodeForHash] to detect this case.
+	if onlyWithVersion && r.DepositReceiptVersion == nil {
+		return
+	}
+
+	if r.DepositNonce != nil {
+		w.WriteUint64(*r.DepositNonce)
+		if r.DepositReceiptVersion != nil {
+			w.WriteUint64(*r.DepositReceiptVersion)
+		}
+	}
 }
 
 // encodeForStorage produces the the storage encoding, i.e. the result matches
@@ -127,6 +172,7 @@ func (r *Receipt) encodeForStorage(w *rlp.EncoderBuffer) {
 	w.WriteBytes(r.PostStateOrStatus)
 	w.WriteUint64(r.GasUsed)
 	w.Write(r.Logs)
+	r.maybeWriteDepositFields(w, false)
 	w.ListEnd(list)
 }
 
@@ -140,6 +186,7 @@ func (r *Receipt) encodeForNetwork68(buf *receiptListBuffers, w *rlp.EncoderBuff
 		bloom := r.bloom(&buf.bloom)
 		w.WriteBytes(bloom[:])
 		w.Write(r.Logs)
+		r.maybeWriteDepositFields(w, false)
 		w.ListEnd(list)
 	}
 
@@ -162,6 +209,7 @@ func (r *Receipt) encodeForNetwork69(w *rlp.EncoderBuffer) {
 	w.WriteBytes(r.PostStateOrStatus)
 	w.WriteUint64(r.GasUsed)
 	w.Write(r.Logs)
+	r.maybeWriteDepositFields(w, false)
 	w.ListEnd(list)
 }
 
@@ -180,6 +228,9 @@ func (r *Receipt) encodeForHash(buf *receiptListBuffers, out *bytes.Buffer) {
 	bloom := r.bloom(&buf.bloom)
 	w.WriteBytes(bloom[:])
 	w.Write(r.Logs)
+	// Note that deposit fields must NOT be included in the receipt hash pre-Canyon,
+	// which is detected by checking for the presence of the version field.
+	r.maybeWriteDepositFields(w, true)
 	w.ListEnd(l)
 	w.Flush()
 }
