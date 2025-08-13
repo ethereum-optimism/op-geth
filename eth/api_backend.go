@@ -40,6 +40,7 @@ import (
 	"github.com/ethereum/go-ethereum/eth/tracers"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
+	"github.com/ethereum/go-ethereum/internal/tracing"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
@@ -277,6 +278,9 @@ func (b *EthAPIBackend) SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscri
 }
 
 func (b *EthAPIBackend) SendTx(ctx context.Context, signedTx *types.Transaction) error {
+	// Add tracing context if available
+	traceParent, _ := tracing.GetTraceParent(ctx)
+
 	if b.ChainConfig().IsOptimism() && signedTx.Type() == types.BlobTxType {
 		return types.ErrTxTypeNotSupported
 	}
@@ -291,15 +295,34 @@ func (b *EthAPIBackend) SendTx(ctx context.Context, signedTx *types.Transaction)
 		if err != nil {
 			return err
 		}
+
+		// Log before sending to op-node/sequencer
+		if traceParent != "" {
+			log.Info("Forwarding transaction to sequencer", "hash", signedTx.Hash().Hex(), "trace", traceParent)
+		}
+
 		if err := b.eth.seqRPCService.CallContext(ctx, nil, "eth_sendRawTransaction", hexutil.Encode(data)); err != nil {
+			if traceParent != "" {
+				log.Warn("Failed to forward transaction to sequencer", "hash", signedTx.Hash().Hex(), "trace", traceParent, "err", err)
+			}
 			return err
+		}
+
+		if traceParent != "" {
+			log.Info("Successfully forwarded transaction to sequencer", "hash", signedTx.Hash().Hex(), "trace", traceParent)
 		}
 		if b.disableTxPool {
 			return nil
 		}
 		// Retain tx in local tx pool after forwarding, for local RPC usage.
 		if err := b.eth.txPool.Add([]*types.Transaction{signedTx}, false)[0]; err != nil {
-			log.Warn("successfully sent tx to sequencer, but failed to persist in local tx pool", "err", err, "tx", signedTx.Hash())
+			if traceParent != "" {
+				log.Warn("successfully sent tx to sequencer, but failed to persist in local tx pool", "err", err, "tx", signedTx.Hash(), "trace", traceParent)
+			} else {
+				log.Warn("successfully sent tx to sequencer, but failed to persist in local tx pool", "err", err, "tx", signedTx.Hash())
+			}
+		} else if traceParent != "" {
+			log.Info("Transaction added to local tx pool after sequencer", "hash", signedTx.Hash().Hex(), "trace", traceParent)
 		}
 		return nil
 	}
@@ -307,7 +330,20 @@ func (b *EthAPIBackend) SendTx(ctx context.Context, signedTx *types.Transaction)
 		return nil
 	}
 
-	return b.eth.txPool.Add([]*types.Transaction{signedTx}, false)[0]
+	// Add to transaction pool (non-sequencer mode)
+	if traceParent != "" {
+		log.Info("Adding transaction to local tx pool", "hash", signedTx.Hash().Hex(), "trace", traceParent)
+	}
+	if err := b.eth.txPool.Add([]*types.Transaction{signedTx}, false)[0]; err != nil {
+		if traceParent != "" {
+			log.Warn("Failed to add transaction to tx pool", "hash", signedTx.Hash().Hex(), "trace", traceParent, "err", err)
+		}
+		return err
+	}
+	if traceParent != "" {
+		log.Info("Successfully added transaction to tx pool", "hash", signedTx.Hash().Hex(), "trace", traceParent)
+	}
+	return nil
 }
 
 func (b *EthAPIBackend) GetPoolTransactions() (types.Transactions, error) {

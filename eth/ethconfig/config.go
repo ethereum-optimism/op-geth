@@ -149,6 +149,9 @@ type Config struct {
 	// send-transaction variants. The unit is ether.
 	RPCTxFeeCap float64
 
+	// RPCTracing enables distributed tracing for JSON-RPC requests.
+	RPCTracing bool
+
 	// OverrideCancun (TODO: remove after the fork)
 	OverrideCancun *uint64 `toml:",omitempty"`
 

@@ -607,6 +607,11 @@ var (
 		Value:    ethconfig.Defaults.RPCTxFeeCap,
 		Category: flags.APICategory,
 	}
+	EnableTracingFlag = &cli.BoolFlag{
+		Name:     "enable-tracing",
+		Usage:    "Enable distributed tracing for JSON-RPC requests",
+		Category: flags.APICategory,
+	}
 	// Authenticated RPC HTTP settings
 	AuthListenFlag = &cli.StringFlag{
 		Name:     "authrpc.addr",
@@ -1875,6 +1880,12 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 	}
 	if ctx.IsSet(RPCGlobalTxFeeCapFlag.Name) {
 		cfg.RPCTxFeeCap = ctx.Float64(RPCGlobalTxFeeCapFlag.Name)
+	}
+	if ctx.IsSet(EnableTracingFlag.Name) {
+		cfg.RPCTracing = ctx.Bool(EnableTracingFlag.Name)
+		// Also set the node HTTP tracing config
+		stackConfig := stack.Config()
+		stackConfig.HTTPTracing = cfg.RPCTracing
 	}
 	if ctx.IsSet(NoDiscoverFlag.Name) {
 		cfg.EthDiscoveryURLs, cfg.SnapDiscoveryURLs = []string{}, []string{}

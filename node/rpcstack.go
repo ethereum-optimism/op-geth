@@ -58,6 +58,7 @@ type rpcEndpointConfig struct {
 	batchItemLimit         int
 	batchResponseSizeLimit int
 	httpBodyLimit          int
+	enableTracing          bool
 }
 
 type rpcHandler struct {
@@ -309,6 +310,7 @@ func (h *httpServer) enableRPC(apis []rpc.API, config httpConfig) error {
 	if config.httpBodyLimit > 0 {
 		srv.SetHTTPBodyLimit(config.httpBodyLimit)
 	}
+	srv.SetTracingEnabled(config.enableTracing)
 	if err := RegisterApis(apis, config.Modules, srv); err != nil {
 		return err
 	}
@@ -344,6 +346,7 @@ func (h *httpServer) enableWS(apis []rpc.API, config wsConfig) error {
 	if config.httpBodyLimit > 0 {
 		srv.SetHTTPBodyLimit(config.httpBodyLimit)
 	}
+	srv.SetTracingEnabled(config.enableTracing)
 	if err := RegisterApis(apis, config.Modules, srv); err != nil {
 		return err
 	}

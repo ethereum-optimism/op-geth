@@ -54,6 +54,7 @@ type Server struct {
 	batchItemLimit     int
 	batchResponseLimit int
 	httpBodyLimit      int
+	enableTracing      bool
 
 	recorder Recorder // optional, may be nil
 }
@@ -93,6 +94,13 @@ func (s *Server) SetBatchLimits(itemLimit, maxResponseSize int) {
 // This method should be called before processing any requests via ServeHTTP.
 func (s *Server) SetHTTPBodyLimit(limit int) {
 	s.httpBodyLimit = limit
+}
+
+// SetTracingEnabled enables or disables distributed tracing for RPC requests.
+//
+// This method should be called before processing any requests via ServeHTTP.
+func (s *Server) SetTracingEnabled(enabled bool) {
+	s.enableTracing = enabled
 }
 
 // RegisterName creates a service for the given receiver type under the given name. When no

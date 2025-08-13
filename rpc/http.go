@@ -30,6 +30,8 @@ import (
 	"strconv"
 	"sync"
 	"time"
+
+	"github.com/ethereum/go-ethereum/internal/tracing"
 )
 
 const (
@@ -326,6 +328,12 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	connInfo.HTTP.UserAgent = r.Header.Get("User-Agent")
 	ctx := r.Context()
 	ctx = context.WithValue(ctx, peerInfoContextKey{}, connInfo)
+
+	// Enable tracing if configured
+	if s.enableTracing {
+		ctx = tracing.EnableTracing(ctx)
+		ctx = tracing.ExtractTraceContext(r, ctx)
+	}
 
 	// All checks passed, create a codec that reads directly from the request body
 	// until EOF, writes the response to w, and orders the server to process a
