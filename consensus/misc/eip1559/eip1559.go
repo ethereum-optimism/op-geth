@@ -146,11 +146,8 @@ func DecodeMinBaseFeeExtraData(extra []byte) (uint64, uint64, uint8, uint8) {
 		return denominator, elasticity, 0, 0
 	} else if len(extra) == 10 {
 		// Decode extraData when the minimum base fee fork is enabled
-		denominator := binary.BigEndian.Uint32(extra[1:5])
-		elasticity := binary.BigEndian.Uint32(extra[5:9])
-		minBaseFeeFactors := extra[9]
-		significand := uint8(minBaseFeeFactors >> 4 & 0x0F)
-		exponent := uint8(minBaseFeeFactors & 0x0F)
+		denominator, elasticity := DecodeHolocene1559Params(extra[1:9])
+		significand, exponent := DecodeMinBaseFeeFactors(extra[9])
 		return uint64(denominator), uint64(elasticity), significand, exponent
 	}
 	return 0, 0, 0, 0
@@ -168,6 +165,16 @@ func EncodeMinBaseFeeExtraData(denom, elasticity uint64, minBaseFeeFactors uint8
 	binary.BigEndian.PutUint32(r[5:9], uint32(elasticity))
 	r[9] = minBaseFeeFactors
 	return r
+}
+
+// EncodeMinBaseFeeFactors encodes the significand and exponent into a single byte.
+func EncodeMinBaseFeeFactors(significand, exponent uint8) uint8 {
+	return (significand << 4) | (exponent & 0x0F)
+}
+
+// DecodeMinBaseFeeFactors decodes the significand and exponent from a single byte.
+func DecodeMinBaseFeeFactors(minBaseFeeFactors uint8) (uint8, uint8) {
+	return uint8(minBaseFeeFactors >> 4 & 0x0F), uint8(minBaseFeeFactors & 0x0F)
 }
 
 // ValidateMinBaseFeeExtraData checks if the header extraData is valid according to the minimum base fee feature.

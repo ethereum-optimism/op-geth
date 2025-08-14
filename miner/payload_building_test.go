@@ -332,9 +332,9 @@ func testBuildPayload(t *testing.T, noTxPool, interrupt bool, params1559 []byte,
 
 	// Test minBaseFeeFactors value in extraData
 	if config.IsConfigurableMinBaseFee(testTimestamp) && payload.full != nil {
-		_, _, extractedMinBaseFeeFactors := eip1559.DecodeMinBaseFeeExtraData(payload.full.Header().Extra)
-		if extractedMinBaseFeeFactors != minBaseFeeFactors {
-			t.Fatalf("minBaseFeeFactors doesn't match. want: %d, got %d", minBaseFeeFactors, extractedMinBaseFeeFactors)
+		_, _, significand, exponent := eip1559.DecodeMinBaseFeeExtraData(payload.full.Header().Extra)
+		if eip1559.EncodeMinBaseFeeFactors(significand, exponent) != minBaseFeeFactors {
+			t.Fatalf("minBaseFeeFactors doesn't match. want: %d, got %d", minBaseFeeFactors, significand)
 		}
 	}
 
