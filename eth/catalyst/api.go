@@ -28,7 +28,6 @@ import (
 	"github.com/ethereum/go-ethereum/beacon/engine"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/consensus/misc/eip1559"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/stateless"
@@ -319,6 +318,14 @@ func (api *ConsensusAPI) forkchoiceUpdated(update engine.ForkchoiceStateV1, payl
 		log.Warn("Forkchoice requested update to zero hash")
 		return engine.STATUS_INVALID, nil // TODO(karalabe): Why does someone send us this?
 	}
+
+	// OP-Stack diff payload attributes validation:
+	if cfg := api.eth.BlockChain().Config(); cfg.IsOptimism() && payloadAttributes != nil {
+		if err := checkOptimismPayloadAttributes(payloadAttributes, cfg); err != nil {
+			return engine.STATUS_INVALID, engine.InvalidPayloadAttributes.With(err)
+		}
+	}
+
 	// Stash away the last update to warn the user if the beacon client goes offline
 	api.lastForkchoiceLock.Lock()
 	api.lastForkchoiceUpdate = time.Now()
@@ -434,19 +441,9 @@ func (api *ConsensusAPI) forkchoiceUpdated(update engine.ForkchoiceStateV1, payl
 
 	if payloadAttributes != nil {
 		var eip1559Params []byte
-		if api.eth.BlockChain().Config().Optimism != nil {
-			if payloadAttributes.GasLimit == nil {
-				return engine.STATUS_INVALID, engine.InvalidPayloadAttributes.With(errors.New("gasLimit parameter is required"))
-			}
-			if api.eth.BlockChain().Config().IsHolocene(payloadAttributes.Timestamp) {
-				if err := eip1559.ValidateHolocene1559Params(payloadAttributes.EIP1559Params); err != nil {
-					return engine.STATUS_INVALID, engine.InvalidPayloadAttributes.With(err)
-				}
-				eip1559Params = bytes.Clone(payloadAttributes.EIP1559Params)
-			} else if len(payloadAttributes.EIP1559Params) != 0 {
-				return engine.STATUS_INVALID,
-					engine.InvalidPayloadAttributes.With(errors.New("eip155Params not supported prior to Holocene upgrade"))
-			}
+		if api.eth.BlockChain().Config().IsOptimismHolocene(payloadAttributes.Timestamp) {
+			// Validation performed above in checkOptimismPayloadAttributes
+			eip1559Params = bytes.Clone(payloadAttributes.EIP1559Params)
 		}
 		transactions := make(types.Transactions, 0, len(payloadAttributes.Transactions))
 		for i, otx := range payloadAttributes.Transactions {
@@ -663,10 +660,6 @@ func (api *ConsensusAPI) NewPayloadV4(params engine.ExecutableData, versionedHas
 		return engine.PayloadStatusV1{Status: engine.INVALID}, engine.UnsupportedFork.With(errors.New("newPayloadV4 must only be called for prague payloads"))
 	}
 
-	if api.eth.BlockChain().Config().IsIsthmus(params.Timestamp) && params.WithdrawalsRoot == nil {
-		return engine.PayloadStatusV1{Status: engine.INVALID}, engine.InvalidParams.With(errors.New("nil withdrawalsRoot post-isthmus"))
-	}
-
 	requests := convertRequests(executionRequests)
 	if err := validateRequests(requests); err != nil {
 		return engine.PayloadStatusV1{Status: engine.INVALID}, engine.InvalidParams.With(err)
@@ -870,14 +863,10 @@ func (api *ConsensusAPI) newPayload(params engine.ExecutableData, versionedHashe
 	// Hence, we use a lock here, to be sure that the previous call has finished before we
 	// check whether we already have the block locally.
 
-	// OP-Stack diff: payload must have empty extraData before Holocene and hold eip-1559 params after Holocene.
-	if cfg := api.eth.BlockChain().Config(); cfg.IsHolocene(params.Timestamp) {
-		if err := eip1559.ValidateHoloceneExtraData(params.ExtraData); err != nil {
+	// OP-Stack diff payload validation:
+	if cfg := api.eth.BlockChain().Config(); cfg.IsOptimism() {
+		if err := checkOptimismPayload(params, cfg); err != nil {
 			return api.invalid(err, nil), nil
-		}
-	} else if cfg.IsOptimism() {
-		if len(params.ExtraData) > 0 {
-			return api.invalid(errors.New("extraData must be empty before Holocene"), nil), nil
 		}
 	}
 
