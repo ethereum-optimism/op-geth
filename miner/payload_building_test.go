@@ -233,16 +233,16 @@ func jovianConfig() *params.ChainConfig {
 }
 
 // newPayloadArgs returns a BuildPaylooadArgs with the given parentHash, eip-1559 params,
-// minBaseFeeLog2, testTimestamp for Timestamp, and testRecipient for recipient. NoTxPool is set to true.
-func newPayloadArgs(parentHash common.Hash, params1559 []byte, minBaseFeeLog2 uint8) *BuildPayloadArgs {
+// minBaseFeeFactors, testTimestamp for Timestamp, and testRecipient for recipient. NoTxPool is set to true.
+func newPayloadArgs(parentHash common.Hash, params1559 []byte, minBaseFeeFactors uint8) *BuildPayloadArgs {
 	return &BuildPayloadArgs{
-		Parent:         parentHash,
-		Timestamp:      testTimestamp,
-		Random:         common.Hash{},
-		FeeRecipient:   testRecipient,
-		NoTxPool:       true,
-		EIP1559Params:  params1559,
-		MinBaseFeeLog2: minBaseFeeLog2,
+		Parent:            parentHash,
+		Timestamp:         testTimestamp,
+		Random:            common.Hash{},
+		FeeRecipient:      testRecipient,
+		NoTxPool:          true,
+		EIP1559Params:     params1559,
+		MinBaseFeeFactors: minBaseFeeFactors,
 	}
 }
 
@@ -250,9 +250,9 @@ func testBuildPayload(t *testing.T, noTxPool, interrupt bool, params1559 []byte,
 	t.Parallel()
 	db := rawdb.NewMemoryDatabase()
 
-	minBaseFeeLog2 := uint8(0)
+	minBaseFeeFactors := uint8(0)
 	if config.IsConfigurableMinBaseFee(testTimestamp) {
-		minBaseFeeLog2 = 1
+		minBaseFeeFactors = uint8(1)<<4 | uint8(9) // 1e9
 	}
 	w, b := newTestWorker(t, config, ethash.NewFaker(), db, 0)
 
@@ -265,7 +265,7 @@ func testBuildPayload(t *testing.T, noTxPool, interrupt bool, params1559 []byte,
 		b.txPool.Add(txs, false)
 	}
 
-	args := newPayloadArgs(b.chain.CurrentBlock().Hash(), params1559, minBaseFeeLog2)
+	args := newPayloadArgs(b.chain.CurrentBlock().Hash(), params1559, minBaseFeeFactors)
 	args.NoTxPool = noTxPool
 
 	// payload resolution now interrupts block building, so we have to
@@ -320,7 +320,7 @@ func testBuildPayload(t *testing.T, noTxPool, interrupt bool, params1559 []byte,
 			expected = append(expected, params1559...)
 		}
 		if versionByte == 1 {
-			expected = append(expected, minBaseFeeLog2)
+			expected = append(expected, minBaseFeeFactors)
 		}
 	}
 	if payload.full != nil && !bytes.Equal(payload.full.Header().Extra, expected) {
@@ -330,11 +330,11 @@ func testBuildPayload(t *testing.T, noTxPool, interrupt bool, params1559 []byte,
 		t.Fatalf("ExtraData doesn't match on empty block. want: %x, got %x", expected, payload.empty.Header().Extra)
 	}
 
-	// Test minBaseFeeLog2 value in extraData
+	// Test minBaseFeeFactors value in extraData
 	if config.IsConfigurableMinBaseFee(testTimestamp) && payload.full != nil {
-		_, _, extractedMinBaseFeeLog2 := eip1559.DecodeMinBaseFeeExtraData(payload.full.Header().Extra)
-		if extractedMinBaseFeeLog2 != minBaseFeeLog2 {
-			t.Fatalf("minBaseFeeLog2 doesn't match. want: %d, got %d", minBaseFeeLog2, extractedMinBaseFeeLog2)
+		_, _, extractedMinBaseFeeFactors := eip1559.DecodeMinBaseFeeExtraData(payload.full.Header().Extra)
+		if extractedMinBaseFeeFactors != minBaseFeeFactors {
+			t.Fatalf("minBaseFeeFactors doesn't match. want: %d, got %d", minBaseFeeFactors, extractedMinBaseFeeFactors)
 		}
 	}
 

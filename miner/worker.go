@@ -116,12 +116,12 @@ type generateParams struct {
 	beaconRoot  *common.Hash      // The beacon root (cancun field).
 	noTxs       bool              // Flag whether an empty block without any transaction is expected
 
-	txs            types.Transactions // Deposit transactions to include at the start of the block
-	gasLimit       *uint64            // Optional gas limit override
-	eip1559Params  []byte             // Optional EIP-1559 parameters
-	interrupt      *atomic.Int32      // Optional interruption signal to pass down to worker.generateWork
-	isUpdate       bool               // Optional flag indicating that this is building a discardable update
-	minBaseFeeLog2 uint8              // Optional minBaseFeeLog2 for configurable minBaseFee feature
+	txs               types.Transactions // Deposit transactions to include at the start of the block
+	gasLimit          *uint64            // Optional gas limit override
+	eip1559Params     []byte             // Optional EIP-1559 parameters
+	interrupt         *atomic.Int32      // Optional interruption signal to pass down to worker.generateWork
+	isUpdate          bool               // Optional flag indicating that this is building a discardable update
+	minBaseFeeFactors uint8              // Optional significand and exponent (base 10) of the minimum base fee
 
 	rpcCtx context.Context // context to control block-building RPC work. No RPC allowed if nil.
 }
@@ -297,7 +297,7 @@ func (miner *Miner) prepareWork(genParams *generateParams, witness bool) (*envir
 			e = miner.chainConfig.ElasticityMultiplier()
 		}
 		if cfg.IsConfigurableMinBaseFee(header.Time) {
-			header.Extra = eip1559.EncodeMinBaseFeeExtraData(d, e, genParams.minBaseFeeLog2)
+			header.Extra = eip1559.EncodeMinBaseFeeExtraData(d, e, genParams.minBaseFeeFactors)
 		} else {
 			header.Extra = eip1559.EncodeHoloceneExtraData(d, e)
 		}

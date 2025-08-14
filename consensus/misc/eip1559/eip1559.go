@@ -137,26 +137,28 @@ func ValidateHoloceneExtraData(extra []byte) error {
 //
 // Returns 0,0,0 if the format is invalid, though ValidateMinBaseFeeExtraData should be used instead of this function for
 // validity checking.
-func DecodeMinBaseFeeExtraData(extra []byte) (uint64, uint64, uint8) {
+func DecodeMinBaseFeeExtraData(extra []byte) (uint64, uint64, uint8, uint8) {
 	// Best effort to decode the extraData for every block in the chain's history,
 	// including blocks before the minimum base fee feature was enabled.
 	if len(extra) == 9 {
 		// This is Holocene extraData
 		denominator, elasticity := DecodeHolocene1559Params(extra[1:9])
-		return denominator, elasticity, 0
+		return denominator, elasticity, 0, 0
 	} else if len(extra) == 10 {
-		// This is the case when minBaseFeeLog2 feature is enabled
+		// Decode extraData when the minimum base fee fork is enabled
 		denominator := binary.BigEndian.Uint32(extra[1:5])
 		elasticity := binary.BigEndian.Uint32(extra[5:9])
-		minBaseFeeLog2 := extra[9]
-		return uint64(denominator), uint64(elasticity), minBaseFeeLog2
+		minBaseFeeFactors := extra[9]
+		significand := uint8(minBaseFeeFactors >> 4)
+		exponent := uint8(minBaseFeeFactors & 0x0F)
+		return uint64(denominator), uint64(elasticity), significand, exponent
 	}
-	return 0, 0, 0
+	return 0, 0, 0, 0
 }
 
-// EncodeMinBaseFeeExtraData encodes the EIP-1559 and minBaseFeeLog2 parameters into the header 'ExtraData' format.
+// EncodeMinBaseFeeExtraData encodes the EIP-1559 and minBaseFeeFactors parameters into the header 'ExtraData' format.
 // Will panic if EIP-1559 parameters are outside uint32 range.
-func EncodeMinBaseFeeExtraData(denom, elasticity uint64, minBaseFeeLog2 uint8) []byte {
+func EncodeMinBaseFeeExtraData(denom, elasticity uint64, minBaseFeeFactors uint8) []byte {
 	r := make([]byte, 10)
 	if denom > gomath.MaxUint32 || elasticity > gomath.MaxUint32 {
 		panic("eip-1559 parameters out of uint32 range")
@@ -164,7 +166,7 @@ func EncodeMinBaseFeeExtraData(denom, elasticity uint64, minBaseFeeLog2 uint8) [
 	r[0] = 1
 	binary.BigEndian.PutUint32(r[1:5], uint32(denom))
 	binary.BigEndian.PutUint32(r[5:9], uint32(elasticity))
-	r[9] = minBaseFeeLog2
+	r[9] = minBaseFeeFactors
 	return r
 }
 
@@ -188,9 +190,9 @@ func CalcBaseFee(config *params.ChainConfig, parent *types.Header, time uint64) 
 	}
 	elasticity := config.ElasticityMultiplier()
 	denominator := config.BaseFeeChangeDenominator(time)
-	var minBaseFeeLog2 uint8
+	var significand, exponent uint8
 	if config.IsConfigurableMinBaseFee(parent.Time) {
-		denominator, elasticity, minBaseFeeLog2 = DecodeMinBaseFeeExtraData(parent.Extra)
+		denominator, elasticity, significand, exponent = DecodeMinBaseFeeExtraData(parent.Extra)
 		if denominator == 0 {
 			// this shouldn't happen as the ExtraData should have been validated prior
 			panic("invalid eip-1559 params in extradata")
@@ -240,10 +242,13 @@ func CalcBaseFee(config *params.ChainConfig, parent *types.Header, time uint64) 
 	}
 
 	// Enforce minimum base fee if needed
-	// minBaseFeeLog2 implies the minimum base fee feature is disabled (or not yet enabled)
-	if minBaseFeeLog2 > 0 && config.IsConfigurableMinBaseFee(parent.Time) {
-		// compute 2^minBaseFeeLog2
-		minBaseFee := new(big.Int).Lsh(common.Big1, uint(minBaseFeeLog2))
+	// Significand and exponent are both 0 when the minimum base fee feature is disabled (or not yet enabled)
+	if (significand > 0 || exponent > 0) && config.IsConfigurableMinBaseFee(parent.Time) {
+		// Compute the minimum base fee using the significand and exponent.
+		minBaseFee := new(big.Int).Mul(
+			big.NewInt(int64(significand)),
+			new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(exponent)), nil),
+		)
 		if baseFee.Cmp(minBaseFee) < 0 {
 			baseFee = minBaseFee
 		}
