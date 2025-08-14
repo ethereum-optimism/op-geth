@@ -248,9 +248,8 @@ func CalcBaseFee(config *params.ChainConfig, parent *types.Header, time uint64) 
 		baseFee = parent.BaseFee
 	}
 
-	// Enforce minimum base fee if needed
-	// Significand and exponent are both 0 when the minimum base fee feature is disabled (or not yet enabled)
-	if (significand > 0 || exponent > 0) && config.IsConfigurableMinBaseFee(parent.Time) {
+	// Enforce minimum base fee. If the significand is 0, the minimum base fee is 0, which has no effect.
+	if config.IsConfigurableMinBaseFee(parent.Time) {
 		// Compute the minimum base fee using the significand and exponent.
 		minBaseFee := new(big.Int).Mul(
 			big.NewInt(int64(significand)),
