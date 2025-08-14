@@ -149,7 +149,7 @@ func DecodeMinBaseFeeExtraData(extra []byte) (uint64, uint64, uint8, uint8) {
 		denominator := binary.BigEndian.Uint32(extra[1:5])
 		elasticity := binary.BigEndian.Uint32(extra[5:9])
 		minBaseFeeFactors := extra[9]
-		significand := uint8(minBaseFeeFactors >> 4)
+		significand := uint8(minBaseFeeFactors >> 4 & 0x0F)
 		exponent := uint8(minBaseFeeFactors & 0x0F)
 		return uint64(denominator), uint64(elasticity), significand, exponent
 	}
