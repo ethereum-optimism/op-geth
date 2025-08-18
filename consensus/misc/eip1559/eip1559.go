@@ -174,7 +174,7 @@ func EncodeMinBaseFeeFactors(significand, exponent uint8) uint8 {
 
 // DecodeMinBaseFeeFactors decodes the significand and exponent from a single byte.
 func DecodeMinBaseFeeFactors(minBaseFeeFactors uint8) (uint8, uint8) {
-	return uint8(minBaseFeeFactors >> 4 & 0x0F), uint8(minBaseFeeFactors & 0x0F)
+	return uint8(minBaseFeeFactors >> 4), uint8(minBaseFeeFactors & 0x0F)
 }
 
 // ValidateMinBaseFeeExtraData checks if the header extraData is valid according to the minimum base fee feature.

@@ -19,7 +19,7 @@ func checkOptimismPayload(params engine.ExecutableData, cfg *params.ChainConfig)
 	}
 
 	// Jovian
-	if cfg.IsJovian(params.Timestamp) {
+	if cfg.IsConfigurableMinBaseFee(params.Timestamp) {
 		if err := eip1559.ValidateMinBaseFeeExtraData(params.ExtraData); err != nil {
 			return err
 		}
