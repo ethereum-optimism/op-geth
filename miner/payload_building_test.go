@@ -19,6 +19,7 @@ package miner
 import (
 	"bytes"
 	"crypto/rand"
+	"encoding/binary"
 	"math/big"
 	"reflect"
 	"testing"
@@ -128,7 +129,7 @@ func newTestWorkerBackend(t *testing.T, chainConfig *params.ChainConfig, engine 
 		t.Fatalf("unexpected consensus engine type: %T", engine)
 	}
 	if chainConfig.JovianTime != nil {
-		gspec.ExtraData = []byte{1, 0, 1, 2, 3, 4, 5, 6, 7, 8}
+		gspec.ExtraData = eip1559.EncodeMinBaseFeeExtraData(250, 6, 1e9)
 	} else if chainConfig.HoloceneTime != nil {
 		// genesis block extraData needs to be correct format
 		gspec.ExtraData = []byte{0, 0, 1, 2, 3, 4, 5, 6, 7}
@@ -232,16 +233,16 @@ func jovianConfig() *params.ChainConfig {
 }
 
 // newPayloadArgs returns a BuildPaylooadArgs with the given parentHash, eip-1559 params,
-// minBaseFeeFactors, testTimestamp for Timestamp, and testRecipient for recipient. NoTxPool is set to true.
-func newPayloadArgs(parentHash common.Hash, params1559 []byte, minBaseFeeFactors uint8) *BuildPayloadArgs {
+// minBaseFee, testTimestamp for Timestamp, and testRecipient for recipient. NoTxPool is set to true.
+func newPayloadArgs(parentHash common.Hash, params1559 []byte, minBaseFee uint64) *BuildPayloadArgs {
 	return &BuildPayloadArgs{
-		Parent:            parentHash,
-		Timestamp:         testTimestamp,
-		Random:            common.Hash{},
-		FeeRecipient:      testRecipient,
-		NoTxPool:          true,
-		EIP1559Params:     params1559,
-		MinBaseFeeFactors: minBaseFeeFactors,
+		Parent:        parentHash,
+		Timestamp:     testTimestamp,
+		Random:        common.Hash{},
+		FeeRecipient:  testRecipient,
+		NoTxPool:      true,
+		EIP1559Params: params1559,
+		MinBaseFee:    minBaseFee,
 	}
 }
 
@@ -249,9 +250,9 @@ func testBuildPayload(t *testing.T, noTxPool, interrupt bool, params1559 []byte,
 	t.Parallel()
 	db := rawdb.NewMemoryDatabase()
 
-	minBaseFeeFactors := uint8(0)
+	minBaseFee := uint64(0)
 	if config.IsConfigurableMinBaseFee(testTimestamp) {
-		minBaseFeeFactors = uint8(1)<<4 | uint8(9) // 1e9
+		minBaseFee = 1e9
 	}
 	w, b := newTestWorker(t, config, ethash.NewFaker(), db, 0)
 
@@ -264,7 +265,7 @@ func testBuildPayload(t *testing.T, noTxPool, interrupt bool, params1559 []byte,
 		b.txPool.Add(txs, false)
 	}
 
-	args := newPayloadArgs(b.chain.CurrentBlock().Hash(), params1559, minBaseFeeFactors)
+	args := newPayloadArgs(b.chain.CurrentBlock().Hash(), params1559, minBaseFee)
 	args.NoTxPool = noTxPool
 
 	// payload resolution now interrupts block building, so we have to
@@ -319,7 +320,9 @@ func testBuildPayload(t *testing.T, noTxPool, interrupt bool, params1559 []byte,
 			expected = append(expected, params1559...)
 		}
 		if versionByte == 1 {
-			expected = append(expected, minBaseFeeFactors)
+			buf := make([]byte, 8)
+			binary.BigEndian.PutUint64(buf, minBaseFee)
+			expected = append(expected, buf...)
 		}
 	}
 	if payload.full != nil && !bytes.Equal(payload.full.Header().Extra, expected) {
@@ -329,11 +332,11 @@ func testBuildPayload(t *testing.T, noTxPool, interrupt bool, params1559 []byte,
 		t.Fatalf("ExtraData doesn't match on empty block. want: %x, got %x", expected, payload.empty.Header().Extra)
 	}
 
-	// Test minBaseFeeFactors value in extraData
+	// Test minBaseFee value in extraData
 	if config.IsConfigurableMinBaseFee(testTimestamp) && payload.full != nil {
-		_, _, significand, exponent := eip1559.DecodeMinBaseFeeExtraData(payload.full.Header().Extra)
-		if eip1559.EncodeMinBaseFeeFactors(significand, exponent) != minBaseFeeFactors {
-			t.Fatalf("minBaseFeeFactors doesn't match. want: %d, got %d", minBaseFeeFactors, significand)
+		_, _, extractedMinBaseFee := eip1559.DecodeMinBaseFeeExtraData(payload.full.Header().Extra)
+		if extractedMinBaseFee != minBaseFee {
+			t.Fatalf("minBaseFee doesn't match. want: %d, got %d", minBaseFee, extractedMinBaseFee)
 		}
 	}
 
