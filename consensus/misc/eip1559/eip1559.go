@@ -148,7 +148,7 @@ func DecodeMinBaseFeeExtraData(extra []byte) (uint64, uint64, uint8, uint8) {
 		// Decode extraData when the minimum base fee fork is enabled
 		denominator, elasticity := DecodeHolocene1559Params(extra[1:9])
 		significand, exponent := DecodeMinBaseFeeFactors(extra[9])
-		return uint64(denominator), uint64(elasticity), significand, exponent
+		return denominator, elasticity, significand, exponent
 	}
 	return 0, 0, 0, 0
 }
@@ -174,7 +174,7 @@ func EncodeMinBaseFeeFactors(significand, exponent uint8) uint8 {
 
 // DecodeMinBaseFeeFactors decodes the significand and exponent from a single byte.
 func DecodeMinBaseFeeFactors(minBaseFeeFactors uint8) (uint8, uint8) {
-	return uint8(minBaseFeeFactors >> 4), uint8(minBaseFeeFactors & 0x0F)
+	return minBaseFeeFactors >> 4, minBaseFeeFactors & 0x0F
 }
 
 // ValidateMinBaseFeeExtraData checks if the header extraData is valid according to the minimum base fee feature.

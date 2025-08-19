@@ -18,15 +18,12 @@ func checkOptimismPayload(params engine.ExecutableData, cfg *params.ChainConfig)
 		}
 	}
 
-	// Jovian
+	// ExtraData validation for Holocene and Jovian
 	if cfg.IsConfigurableMinBaseFee(params.Timestamp) {
 		if err := eip1559.ValidateMinBaseFeeExtraData(params.ExtraData); err != nil {
 			return err
 		}
-	}
-
-	// Holocene
-	if cfg.IsHolocene(params.Timestamp) {
+	} else if cfg.IsHolocene(params.Timestamp) {
 		if err := eip1559.ValidateHoloceneExtraData(params.ExtraData); err != nil {
 			return err
 		}
