@@ -5,38 +5,35 @@ import (
 
 	"github.com/ethereum/go-ethereum/beacon/engine"
 	"github.com/ethereum/go-ethereum/consensus/misc/eip1559"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/params"
 )
 
 // checkOptimismPayload performs Optimism-specific checks on the payload data (called during [(*ConsensusAPI).newPayload]).
 func checkOptimismPayload(params engine.ExecutableData, cfg *params.ChainConfig) error {
-	// Canyon
-	if cfg.IsCanyon(params.Timestamp) && !cfg.IsIsthmus(params.Timestamp) {
-		if params.WithdrawalsRoot == nil || *params.WithdrawalsRoot != types.EmptyWithdrawalsHash {
-			return errors.New("withdrawalsRoot not equal to MPT root of empty list post-Canyon and pre-Isthmus")
+	// (non)-nil withdrawals is already checked by Shanghai rules.
+	// Canyon - empty withdrawals
+	if cfg.IsCanyon(params.Timestamp) {
+		if len(params.Withdrawals) != 0 {
+			return errors.New("non-empty withdrawals post-Canyon")
 		}
 	}
 
-	// Holocene
+	// Holocene - extraData
 	if cfg.IsHolocene(params.Timestamp) {
 		if err := eip1559.ValidateHoloceneExtraData(params.ExtraData); err != nil {
 			return err
 		}
-	} else {
-		if len(params.ExtraData) > 0 {
-			return errors.New("extraData must be empty before Holocene")
-		}
+	} else if len(params.ExtraData) > 0 { // pre-Holocene
+		return errors.New("extraData must be empty before Holocene")
 	}
 
-	// Isthmus
+	// Isthmus - withdrawalsRoot
 	if cfg.IsIsthmus(params.Timestamp) {
-		if params.Withdrawals == nil || len(params.Withdrawals) != 0 {
-			return errors.New("non-empty or nil withdrawals post-isthmus")
-		}
 		if params.WithdrawalsRoot == nil {
-			return errors.New("nil withdrawalsRoot post-isthmus")
+			return errors.New("nil withdrawalsRoot post-Isthmus")
 		}
+	} else if params.WithdrawalsRoot != nil { // pre-Isthmus
+		return errors.New("non-nil withdrawalsRoot pre-Isthmus")
 	}
 
 	return nil
@@ -49,19 +46,24 @@ func checkOptimismPayloadAttributes(payloadAttributes *engine.PayloadAttributes,
 		return errors.New("gasLimit parameter is required")
 	}
 
-	// Holocene
+	// (non)-nil withdrawals is already checked by Shanghai rules.
+	// Canyon - empty withdrawals
+	if cfg.IsCanyon(payloadAttributes.Timestamp) {
+		if len(payloadAttributes.Withdrawals) != 0 {
+			return errors.New("non-empty withdrawals post-Canyon")
+		}
+	}
+
+	// Holocene - extraData
 	if cfg.IsHolocene(payloadAttributes.Timestamp) {
 		if err := eip1559.ValidateHolocene1559Params(payloadAttributes.EIP1559Params); err != nil {
 			return err
 		}
-	} else if len(payloadAttributes.EIP1559Params) != 0 {
-		return errors.New("eip155Params not supported prior to Holocene upgrade")
+	} else if len(payloadAttributes.EIP1559Params) != 0 { // pre-Holocene
+		return errors.New("non-empty eip155Params pre-Holocene")
 	}
 
-	// Isthmus
-	if cfg.IsIsthmus(payloadAttributes.Timestamp) && payloadAttributes.Withdrawals == nil || len(payloadAttributes.Withdrawals) != 0 {
-		return errors.New("non-empty or nil withdrawals post-isthmus")
-	}
+	// Note: PayloadAttributes don't contain the Isthmus withdrawalsRoot, it's set during block assembly.
 
 	return nil
 }

@@ -359,8 +359,13 @@ func BlockToExecutableData(block *types.Block, fees *big.Int, sidecars []*types.
 		BlobGasUsed:      block.BlobGasUsed(),
 		ExcessBlobGas:    block.ExcessBlobGas(),
 		ExecutionWitness: block.ExecutionWitness(),
-		// OP-Stack addition: withdrawals list alone does not express the withdrawals storage-root.
-		WithdrawalsRoot: block.WithdrawalsRoot(),
+	}
+
+	// OP-Stack: only Isthmus execution payloads must set the withdrawals root.
+	// They are guaranteed to not be the empty withdrawals hash, which is set pre-Isthmus (post-Canyon).
+	if wr := block.WithdrawalsRoot(); wr != nil && *wr != types.EmptyWithdrawalsHash {
+		wr := *wr
+		data.WithdrawalsRoot = &wr
 	}
 
 	// Add blobs.

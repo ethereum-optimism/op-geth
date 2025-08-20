@@ -2,7 +2,6 @@ package catalyst
 
 import (
 	"errors"
-	"math"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/beacon/engine"
@@ -12,34 +11,32 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func postCanyonPreIsthmus() *params.ChainConfig {
+func preCanyon() *params.ChainConfig {
 	cfg := new(params.ChainConfig)
-	cfg.CanyonTime = new(uint64)
-	future := uint64(math.MaxUint64)
-	cfg.IsthmusTime = &future
 	return cfg
 }
 
-func preHolocene() *params.ChainConfig {
-	cfg := new(params.ChainConfig)
+func postCanyon() *params.ChainConfig {
+	cfg := preCanyon()
+	cfg.CanyonTime = new(uint64)
 	return cfg
 }
 
 func postHolocene() *params.ChainConfig {
-	cfg := new(params.ChainConfig)
+	cfg := postCanyon()
 	cfg.HoloceneTime = new(uint64)
 	return cfg
 }
 
 func postIsthmus() *params.ChainConfig {
-	cfg := new(params.ChainConfig)
-	cfg.HoloceneTime = new(uint64)
+	cfg := postHolocene()
 	cfg.IsthmusTime = new(uint64)
 	return cfg
 }
 
 var valid1559Params = []byte{0, 1, 2, 3, 4, 5, 6, 7}
 var validExtraData = []byte{0, 1, 2, 3, 4, 5, 6, 7, 8}
+var emptyWithdrawals = make([]*types.Withdrawal, 0)
 
 func TestCheckOptimismPayload(t *testing.T) {
 	tests := []struct {
@@ -49,56 +46,54 @@ func TestCheckOptimismPayload(t *testing.T) {
 		expected error
 	}{
 		{
-			name: "valid payload post-Canyon/pre-Isthmus",
+			name: "valid payload pre-Canyon",
 			params: engine.ExecutableData{
-				Timestamp:       0,
-				ExtraData:       []byte{},
-				WithdrawalsRoot: &types.EmptyWithdrawalsHash,
-			},
-			cfg: postCanyonPreIsthmus(),
-		},
-		{
-			name: "nil withdrawalsRoot payload post-Canyon/pre-Isthmus",
-			params: engine.ExecutableData{
-				Timestamp:       0,
-				ExtraData:       []byte{},
-				WithdrawalsRoot: nil,
-			},
-			cfg:      postCanyonPreIsthmus(),
-			expected: errors.New("withdrawalsRoot not equal to MPT root of empty list post-Canyon and pre-Isthmus"),
-		}, {
-			name: "incorrect withdrawalsRoot payload post-Canyon/pre-Isthmus",
-			params: engine.ExecutableData{
-				Timestamp:       0,
-				ExtraData:       []byte{},
-				WithdrawalsRoot: &(types.EmptyVerkleHash),
-			},
-			cfg:      postCanyonPreIsthmus(),
-			expected: errors.New("withdrawalsRoot not equal to MPT root of empty list post-Canyon and pre-Isthmus"),
-		},
-		{
-			name: "valid payload pre-Holocene",
-			params: engine.ExecutableData{
-				Timestamp: 0,
 				ExtraData: []byte{},
 			},
-			cfg:      preHolocene(),
+			cfg:      preCanyon(),
 			expected: nil,
 		},
 		{
-			name: "invalid payload pre-Holocene with extraData",
+			name: "valid payload post-Canyon",
 			params: engine.ExecutableData{
-				Timestamp: 0,
-				ExtraData: []byte{1, 2, 3},
+				ExtraData:   []byte{},
+				Withdrawals: emptyWithdrawals,
 			},
-			cfg:      preHolocene(),
+			cfg: postCanyon(),
+		},
+		{
+			name: "invalid empty withdrawals post-Canyon",
+			params: engine.ExecutableData{
+				ExtraData:   []byte{},
+				Withdrawals: make([]*types.Withdrawal, 1),
+			},
+			cfg:      postCanyon(),
+			expected: errors.New("non-empty withdrawals post-Canyon"),
+		},
+		{
+			name: "non-nil withdrawalsRoot pre-Isthmus",
+			params: engine.ExecutableData{
+				ExtraData:       []byte{},
+				Withdrawals:     emptyWithdrawals,
+				WithdrawalsRoot: &types.EmptyWithdrawalsHash,
+			},
+			cfg:      postCanyon(),
+			expected: errors.New("non-nil withdrawalsRoot pre-Isthmus"),
+		},
+		{
+			name: "invalid non-empty extraData pre-Holocene",
+			params: engine.ExecutableData{
+				ExtraData:   []byte{1, 2, 3},
+				Withdrawals: emptyWithdrawals,
+			},
+			cfg:      postCanyon(),
 			expected: errors.New("extraData must be empty before Holocene"),
 		},
 		{
-			name: "invalid payload pre-Holocene with extraData",
+			name: "invalid extraData post-Holocene",
 			params: engine.ExecutableData{
-				Timestamp: 0,
-				ExtraData: []byte{1, 2, 3},
+				ExtraData:   []byte{1, 2, 3},
+				Withdrawals: emptyWithdrawals,
 			},
 			cfg:      postHolocene(),
 			expected: errors.New("holocene extraData should be 9 bytes, got 3"),
@@ -106,41 +101,40 @@ func TestCheckOptimismPayload(t *testing.T) {
 		{
 			name: "valid payload post-Holocene with extraData",
 			params: engine.ExecutableData{
-				Timestamp: 0,
-				ExtraData: validExtraData,
+				ExtraData:   validExtraData,
+				Withdrawals: emptyWithdrawals,
 			},
 			cfg:      postHolocene(),
 			expected: nil,
 		},
 		{
-			name: "nil withdrawals post-isthmus",
+			name: "invalid non-nil withdrawalsRoot post-Holocene",
 			params: engine.ExecutableData{
-				Timestamp:   0,
-				Withdrawals: nil,
-				ExtraData:   validExtraData,
+				ExtraData:       validExtraData,
+				Withdrawals:     emptyWithdrawals,
+				WithdrawalsRoot: &types.EmptyWithdrawalsHash,
 			},
-			cfg:      postIsthmus(),
-			expected: errors.New("non-empty or nil withdrawals post-isthmus"),
+			cfg:      postHolocene(),
+			expected: errors.New("non-nil withdrawalsRoot pre-Isthmus"),
 		},
 		{
-			name: "non-empty withdrawals post-isthmus",
+			name: "valid payload post-Isthmus",
 			params: engine.ExecutableData{
-				Timestamp:   0,
-				Withdrawals: make([]*types.Withdrawal, 1),
-				ExtraData:   validExtraData,
+				ExtraData:       validExtraData,
+				Withdrawals:     emptyWithdrawals,
+				WithdrawalsRoot: &types.EmptyWithdrawalsHash,
 			},
 			cfg:      postIsthmus(),
-			expected: errors.New("non-empty or nil withdrawals post-isthmus"),
+			expected: nil,
 		},
 		{
-			name: "nil withdrawals root post-isthmus",
+			name: "invalid nil withdrawals root post-isthmus",
 			params: engine.ExecutableData{
-				Timestamp:   0,
-				Withdrawals: make([]*types.Withdrawal, 0),
+				Withdrawals: emptyWithdrawals,
 				ExtraData:   validExtraData,
 			},
 			cfg:      postIsthmus(),
-			expected: errors.New("nil withdrawalsRoot post-isthmus"),
+			expected: errors.New("nil withdrawalsRoot post-Isthmus"),
 		},
 	}
 
@@ -165,80 +159,62 @@ func TestCheckOptimismPayloadAttributes(t *testing.T) {
 		shouldPanic       bool
 	}{
 		{
-			name:              "nil payload attributes",
+			name:              "nil payload attributes panic",
 			payloadAttributes: nil,
-			cfg:               preHolocene(),
+			cfg:               preCanyon(),
 			shouldPanic:       true,
 		},
 		{
-			name: "valid payload attributes pre-Holocene",
+			name: "valid payload attributes pre-Canyon",
 			payloadAttributes: &engine.PayloadAttributes{
-				Timestamp: 0,
-				GasLimit:  new(uint64),
+				GasLimit: new(uint64),
 			},
-			cfg:      preHolocene(),
+			cfg:      preCanyon(),
 			expected: nil,
 		},
 		{
-			name: "invalid payload attributes pre-Holocene with gasLimit",
+			name: "invalid nil gasLimit",
 			payloadAttributes: &engine.PayloadAttributes{
-				Timestamp: 0,
-				GasLimit:  nil,
+				GasLimit: nil,
 			},
-			cfg:      preHolocene(),
+			cfg:      preCanyon(),
 			expected: errors.New("gasLimit parameter is required"),
 		},
 		{
-			name: "invalid payload attributes pre-Holocene with eip1559Params",
+			name: "invalid non-empty withdrawals post-Canyon",
 			payloadAttributes: &engine.PayloadAttributes{
-				Timestamp:     0,
-				GasLimit:      new(uint64),
-				EIP1559Params: valid1559Params,
-			},
-			cfg:      preHolocene(),
-			expected: errors.New("eip155Params not supported prior to Holocene upgrade"),
-		},
-		{
-			name: "valid payload attributes post-Holocene with gasLimit",
-			payloadAttributes: &engine.PayloadAttributes{
-				Timestamp:     0,
-				GasLimit:      new(uint64),
-				EIP1559Params: valid1559Params,
-			},
-			cfg:      postHolocene(),
-			expected: nil,
-		},
-		{
-			name: "non-empty withdrawals post-isthmus",
-			payloadAttributes: &engine.PayloadAttributes{
-				Timestamp:     0,
 				GasLimit:      new(uint64),
 				EIP1559Params: valid1559Params,
 				Withdrawals:   make([]*types.Withdrawal, 1),
 			},
-			cfg:      postIsthmus(),
-			expected: errors.New("non-empty or nil withdrawals post-isthmus"),
+			cfg:      postCanyon(),
+			expected: errors.New("non-empty withdrawals post-Canyon"),
 		},
 		{
-			name: "nil withdrawals post-isthmus",
+			name: "invalid non-empty eip1559Params pre-Holocene",
 			payloadAttributes: &engine.PayloadAttributes{
-				Timestamp:     0,
 				GasLimit:      new(uint64),
 				EIP1559Params: valid1559Params,
-				Withdrawals:   nil,
 			},
-			cfg:      postIsthmus(),
-			expected: errors.New("non-empty or nil withdrawals post-isthmus"),
+			cfg:      postCanyon(),
+			expected: errors.New("non-empty eip155Params pre-Holocene"),
 		},
 		{
-			name: "empty withdrawals post-isthmus",
+			name: "invalid eip1559Params post-Holocene",
 			payloadAttributes: &engine.PayloadAttributes{
-				Timestamp:     0,
+				GasLimit:      new(uint64),
+				EIP1559Params: append(valid1559Params, 77),
+			},
+			cfg:      postHolocene(),
+			expected: errors.New("holocene eip-1559 params should be 8 bytes, got 9"),
+		},
+		{
+			name: "valid payload attributes post-Holocene",
+			payloadAttributes: &engine.PayloadAttributes{
 				GasLimit:      new(uint64),
 				EIP1559Params: valid1559Params,
-				Withdrawals:   make([]*types.Withdrawal, 0),
 			},
-			cfg:      postIsthmus(),
+			cfg:      postHolocene(),
 			expected: nil,
 		},
 	}
