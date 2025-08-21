@@ -137,50 +137,40 @@ func ValidateHoloceneExtraData(extra []byte) error {
 //
 // Returns 0,0,0 if the format is invalid, though ValidateMinBaseFeeExtraData should be used instead of this function for
 // validity checking.
-func DecodeMinBaseFeeExtraData(extra []byte) (uint64, uint64, uint8, uint8) {
+func DecodeMinBaseFeeExtraData(extra []byte) (uint64, uint64, uint64) {
 	// Best effort to decode the extraData for every block in the chain's history,
 	// including blocks before the minimum base fee feature was enabled.
 	if len(extra) == 9 {
 		// This is Holocene extraData
 		denominator, elasticity := DecodeHolocene1559Params(extra[1:9])
-		return denominator, elasticity, 0, 0
-	} else if len(extra) == 10 {
+		return denominator, elasticity, 0
+	} else if len(extra) == 17 {
 		// Decode extraData when the minimum base fee fork is enabled
 		denominator, elasticity := DecodeHolocene1559Params(extra[1:9])
-		significand, exponent := DecodeMinBaseFeeFactors(extra[9])
-		return denominator, elasticity, significand, exponent
+		minBaseFee := binary.BigEndian.Uint64(extra[9:])
+		return denominator, elasticity, minBaseFee
 	}
-	return 0, 0, 0, 0
+	return 0, 0, 0
 }
 
-// EncodeMinBaseFeeExtraData encodes the EIP-1559 and minBaseFeeFactors parameters into the header 'ExtraData' format.
+// EncodeMinBaseFeeExtraData encodes the EIP-1559 and minBaseFee parameters into the header 'ExtraData' format.
 // Will panic if EIP-1559 parameters are outside uint32 range.
-func EncodeMinBaseFeeExtraData(denom, elasticity uint64, minBaseFeeFactors uint8) []byte {
-	r := make([]byte, 10)
+func EncodeMinBaseFeeExtraData(denom, elasticity uint64, minBaseFee uint64) []byte {
+	r := make([]byte, 17)
 	if denom > gomath.MaxUint32 || elasticity > gomath.MaxUint32 {
 		panic("eip-1559 parameters out of uint32 range")
 	}
 	r[0] = 1
 	binary.BigEndian.PutUint32(r[1:5], uint32(denom))
 	binary.BigEndian.PutUint32(r[5:9], uint32(elasticity))
-	r[9] = minBaseFeeFactors
+	binary.BigEndian.PutUint64(r[9:], minBaseFee)
 	return r
-}
-
-// EncodeMinBaseFeeFactors encodes the significand and exponent into a single byte.
-func EncodeMinBaseFeeFactors(significand, exponent uint8) uint8 {
-	return (significand << 4) | (exponent & 0x0F)
-}
-
-// DecodeMinBaseFeeFactors decodes the significand and exponent from a single byte.
-func DecodeMinBaseFeeFactors(minBaseFeeFactors uint8) (uint8, uint8) {
-	return minBaseFeeFactors >> 4, minBaseFeeFactors & 0x0F
 }
 
 // ValidateMinBaseFeeExtraData checks if the header extraData is valid according to the minimum base fee feature.
 func ValidateMinBaseFeeExtraData(extra []byte) error {
-	if len(extra) != 10 {
-		return fmt.Errorf("minBaseFee extraData should be 10 bytes, got %d", len(extra))
+	if len(extra) != 17 {
+		return fmt.Errorf("minBaseFee extraData should be 17 bytes, got %d", len(extra))
 	}
 	if extra[0] != 1 {
 		return fmt.Errorf("minBaseFee extraData should have 1 version byte, got %d", extra[0])
@@ -197,9 +187,9 @@ func CalcBaseFee(config *params.ChainConfig, parent *types.Header, time uint64) 
 	}
 	elasticity := config.ElasticityMultiplier()
 	denominator := config.BaseFeeChangeDenominator(time)
-	var significand, exponent uint8
+	var minBaseFee uint64
 	if config.IsConfigurableMinBaseFee(parent.Time) {
-		denominator, elasticity, significand, exponent = DecodeMinBaseFeeExtraData(parent.Extra)
+		denominator, elasticity, minBaseFee = DecodeMinBaseFeeExtraData(parent.Extra)
 		if denominator == 0 {
 			// this shouldn't happen as the ExtraData should have been validated prior
 			panic("invalid eip-1559 params in extradata")
@@ -248,15 +238,11 @@ func CalcBaseFee(config *params.ChainConfig, parent *types.Header, time uint64) 
 		baseFee = parent.BaseFee
 	}
 
-	// Enforce minimum base fee. If the significand is 0, the minimum base fee is 0, which has no effect.
+	// Enforce minimum base fee. If the minimum base fee is 0, it has no effect.
 	if config.IsConfigurableMinBaseFee(parent.Time) {
-		// Compute the minimum base fee using the significand and exponent.
-		minBaseFee := new(big.Int).Mul(
-			big.NewInt(int64(significand)),
-			new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(exponent)), nil),
-		)
-		if baseFee.Cmp(minBaseFee) < 0 {
-			baseFee = minBaseFee
+		minBaseFeeBig := new(big.Int).SetUint64(minBaseFee)
+		if baseFee.Cmp(minBaseFeeBig) < 0 {
+			baseFee = minBaseFeeBig
 		}
 	}
 	return baseFee

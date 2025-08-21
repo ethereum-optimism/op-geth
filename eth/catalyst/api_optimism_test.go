@@ -47,7 +47,7 @@ func postJovian() *params.ChainConfig {
 var valid1559Params = []byte{0, 1, 2, 3, 4, 5, 6, 7}
 var validExtraData = []byte{0, 1, 2, 3, 4, 5, 6, 7, 8}
 var emptyWithdrawals = make([]*types.Withdrawal, 0)
-var validJovianExtraData = append(append([]byte{1}, valid1559Params...), byte(0)) // version=1, 8 bytes params, 1 byte factors
+var validJovianExtraData = append(append([]byte{1}, valid1559Params...), []byte{0, 0, 0, 0, 0, 0, 0, 0}...) // version=1, 8 bytes params, 8 byte minBaseFee
 
 func TestCheckOptimismPayload(t *testing.T) {
 	tests := []struct {
@@ -148,7 +148,7 @@ func TestCheckOptimismPayload(t *testing.T) {
 			expected: errors.New("nil withdrawalsRoot post-Isthmus"),
 		},
 		{
-			name: "valid payload post-Jovian with 10-byte extraData",
+			name: "valid payload post-Jovian with 17-byte extraData",
 			params: engine.ExecutableData{
 				Timestamp: 0,
 				ExtraData: validJovianExtraData,
@@ -163,7 +163,7 @@ func TestCheckOptimismPayload(t *testing.T) {
 				ExtraData: validExtraData,
 			},
 			cfg:      postJovian(),
-			expected: errors.New("minBaseFee extraData should be 10 bytes, got 9"),
+			expected: errors.New("minBaseFee extraData should be 17 bytes, got 9"),
 		},
 	}
 
