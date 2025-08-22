@@ -133,7 +133,7 @@ func ValidateHoloceneExtraData(extra []byte) error {
 }
 
 // DecodeMinBaseFeeExtraData decodes the extraData parameters from the encoded form defined here:
-// https://github.com/ethereum-optimism/design-docs/blob/main/protocol/minimum-base-fee.md#minimum-base-fee-in-block-header
+// https://specs.optimism.io/protocol/jovian/exec-engine.html
 //
 // Returns 0,0,0 if the format is invalid, though ValidateMinBaseFeeExtraData should be used instead of this function for
 // validity checking.
@@ -173,7 +173,7 @@ func ValidateMinBaseFeeExtraData(extra []byte) error {
 		return fmt.Errorf("minBaseFee extraData should be 17 bytes, got %d", len(extra))
 	}
 	if extra[0] != 1 {
-		return fmt.Errorf("minBaseFee extraData should have 1 version byte, got %d", extra[0])
+		return fmt.Errorf("minBaseFee version should be 1, got %d", extra[0])
 	}
 	return ValidateHolocene1559Params(extra[1:9])
 }
@@ -189,11 +189,10 @@ func CalcBaseFee(config *params.ChainConfig, parent *types.Header, time uint64) 
 	denominator := config.BaseFeeChangeDenominator(time)
 	var minBaseFee uint64
 	if config.IsConfigurableMinBaseFee(parent.Time) {
-		denominator, elasticity, minBaseFee = DecodeMinBaseFeeExtraData(parent.Extra)
-		if denominator == 0 {
-			// this shouldn't happen as the ExtraData should have been validated prior
-			panic("invalid eip-1559 params in extradata")
+		if err := ValidateMinBaseFeeExtraData(parent.Extra); err != nil {
+			panic(err)
 		}
+		denominator, elasticity, minBaseFee = DecodeMinBaseFeeExtraData(parent.Extra)
 	} else if config.IsHolocene(parent.Time) {
 		denominator, elasticity = DecodeHoloceneExtraData(parent.Extra)
 		if denominator == 0 {

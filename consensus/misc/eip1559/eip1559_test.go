@@ -225,36 +225,35 @@ func TestCalcBaseFeeOptimismHolocene(t *testing.T) {
 // It tests that the minimum base fee is enforced when the computed base fee is less than the minimum base fee.
 func TestCalcBaseFeeMinBaseFee(t *testing.T) {
 	parentGasLimit := uint64(30_000_000)
-	minBaseFee := int64(1e9)
 	denom := uint64(50)
 	elasticity := uint64(3)
 
 	tests := []struct {
 		parentBaseFee   int64
 		parentGasUsed   uint64
-		expectedBaseFee int64
+		expectedBaseFee uint64
 		minBaseFee      uint64
 	}{
 		// Test 1: gas used is exactly the target gas, but the base fee is set too low so
-		// it will be set to the minBaseFee
-		{1, parentGasLimit / elasticity, minBaseFee, 1e9},
-		// Test 2: gas used exceeds gas target, but the new calculated fee is still
-		// too low so it will be set to the minBaseFee
-		{1, parentGasLimit/elasticity + 1_000_000, minBaseFee, 1e9},
-		// Test 3: gas used exceeds gas target, but the new calculated fee is higher
-		// than the minBaseFee so we keep it as is. See the calculation below:
+		// the base fee is expected to be the minBaseFee
+		{1, parentGasLimit / elasticity, 1e9, 1e9},
+		// Test 2: gas used exceeds gas target, but the new calculated base fee is still
+		// too low so the base fee is expected to be the minBaseFee
+		{1, parentGasLimit/elasticity + 1_000_000, 1e9, 1e9},
+		// Test 3: gas used exceeds gas target, but the new calculated base fee is higher
+		// than the minBaseFee, so don't enforce minBaseFee. See the calculation below:
 		// gasUsedDelta = gasUsed - parentGasTarget = 20_000_000 - 30_000_000 / 3 = 10_000_000
 		// 2e9 * 10_000_000 / 10_000_000 / 50 = 40_000_000
-		// 2e9 + 40_000_000 = 2_040_000_000, which is greater than 2^20
+		// 2e9 + 40_000_000 = 2_040_000_000, which is greater than minBaseFee
 		{2e9, parentGasLimit/elasticity + 10_000_000, 2_040_000_000, 1e9},
-		// Test 4: gas used is below target, but the new calculated fee is still
-		// too low so it will be set to the minBaseFee
-		{1, parentGasLimit/elasticity - 1_000_000, minBaseFee, 1e9},
-		// Test 5: gas used is below target, and the new calculated fee is higher
-		// than the minBaseFee so we keep it as is. See the calculation below:
+		// Test 4: gas used is below target, but the new calculated base fee is still
+		// too low so the base fee is expected to be the minBaseFee
+		{1, parentGasLimit/elasticity - 1_000_000, 1e9, 1e9},
+		// Test 5: gas used is below target, and the new calculated base fee is higher
+		// than the minBaseFee, so don't enforce minBaseFee. See the calculation below:
 		// gasUsedDelta = gasUsed - parentGasTarget = 9_000_000 - 30_000_000 / 3 = -1_000_000
 		// 2_097_152 * -1_000_000 / 10_000_000 / 50 = -4194.304
-		// 2_097_152 - 4194.304 = 2_092_957.696, which is greater than 2e6
+		// 2_097_152 - 4194.304 = 2_092_957.696, which is greater than minBaseFee
 		{2_097_152, parentGasLimit/elasticity - 1_000_000, 2_092_958, 2e6},
 	}
 	for i, test := range tests {
@@ -266,8 +265,51 @@ func TestCalcBaseFeeMinBaseFee(t *testing.T) {
 			Time:     14,
 			Extra:    EncodeMinBaseFeeExtraData(denom, elasticity, test.minBaseFee),
 		}
-		if have, want := CalcBaseFee(opConfig(), parent, parent.Time+2), big.NewInt(test.expectedBaseFee); have.Cmp(want) != 0 {
+		if have, want := CalcBaseFee(opConfig(), parent, parent.Time+2), big.NewInt(int64(test.expectedBaseFee)); have.Cmp(want) != 0 {
 			t.Errorf("test %d: have %d  want %d, ", i, have, want)
 		}
+	}
+}
+
+// TestMinBaseFeeActivation tests the minimum base fee feature activation by seeing if a block
+// before the activation time doesn't enforce the minimum base fee, and a block on the activation time does.
+func TestMinBaseFeeActivation(t *testing.T) {
+	parentGasLimit := uint64(30_000_000)
+	denom := uint64(50)
+	elasticity := uint64(3)
+
+	// Block 1: Jovian activates at time 14
+	preActivationParent := &types.Header{
+		Number:   common.Big32,
+		GasLimit: parentGasLimit,
+		GasUsed:  parentGasLimit / elasticity,
+		BaseFee:  big.NewInt(1),
+		Time:     13,                                         // before Jovian activation
+		Extra:    EncodeHoloceneExtraData(denom, elasticity), // No min base fee in extradata
+	}
+
+	// base fee before activation should remain 1 since gas usage == target
+	preActivationBaseFee := CalcBaseFee(opConfig(), preActivationParent, 14)
+	expectedPreActivation := big.NewInt(1)
+	if preActivationBaseFee.Cmp(expectedPreActivation) != 0 {
+		t.Errorf("Pre-activation: expected %d, got %d", expectedPreActivation, preActivationBaseFee)
+	}
+
+	// Block 2: After Jovian activation (time 14)
+	// The minimum base fee feature is now active and should enforce the minimum
+	postActivationParent := &types.Header{
+		Number:   common.Big32,
+		GasLimit: parentGasLimit,
+		GasUsed:  parentGasLimit / elasticity,
+		BaseFee:  preActivationBaseFee,
+		Time:     14,
+		Extra:    EncodeMinBaseFeeExtraData(denom, elasticity, 1e9),
+	}
+
+	// calculated base fee is less than minBaseFee, so it should be enforced to minBaseFee
+	postActivationBaseFee := CalcBaseFee(opConfig(), postActivationParent, 15)
+	expectedPostActivation := big.NewInt(int64(1e9))
+	if postActivationBaseFee.Cmp(expectedPostActivation) != 0 {
+		t.Errorf("Post-activation: expected %d, got %d", expectedPostActivation, postActivationBaseFee)
 	}
 }
