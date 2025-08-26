@@ -39,7 +39,6 @@ import (
 	"github.com/ethereum/go-ethereum/trie/trienode"
 	"github.com/ethereum/go-ethereum/trie/utils"
 	"github.com/holiman/uint256"
-	"golang.org/x/sync/errgroup"
 )
 
 // TriesInMemory represents the number of layers that are kept in RAM.
@@ -155,6 +154,9 @@ type StateDB struct {
 	StorageLoaded  int          // Number of storage slots retrieved from the database during the state transition
 	StorageUpdated atomic.Int64 // Number of storage slots updated during the state transition
 	StorageDeleted atomic.Int64 // Number of storage slots deleted during the state transition
+
+	// singlethreaded avoids creation of additional threads when set to true for compatibility with cannon.
+	singlethreaded bool
 }
 
 // New creates a new state from a given trie.
@@ -186,6 +188,10 @@ func NewWithReader(root common.Hash, db Database, reader Reader) (*StateDB, erro
 		sdb.accessEvents = NewAccessEvents(db.PointCache())
 	}
 	return sdb, nil
+}
+
+func (s *StateDB) MakeSinglethreaded() {
+	s.singlethreaded = true
 }
 
 // StartPrefetcher initializes a new trie prefetcher to pull in nodes from the
@@ -415,6 +421,40 @@ func (s *StateDB) HasSelfDestructed(addr common.Address) bool {
 		return stateObject.selfDestructed
 	}
 	return false
+}
+
+// CheckTransactionConditional validates the account preconditions against the statedb.
+//
+// NOTE: A lock is not held on the db while the conditional is checked. The caller must
+// ensure no state changes occur while this check is executed.
+func (s *StateDB) CheckTransactionConditional(cond *types.TransactionConditional) error {
+	cost := cond.Cost()
+
+	// The max cost is an inclusive limit.
+	if cost > params.TransactionConditionalMaxCost {
+		return fmt.Errorf("conditional cost, %d, exceeded max: %d", cost, params.TransactionConditionalMaxCost)
+	}
+
+	for addr, acct := range cond.KnownAccounts {
+		if root, isRoot := acct.Root(); isRoot {
+			storageRoot := s.GetStorageRoot(addr)
+			if storageRoot == (common.Hash{}) { // if the root is not found, replace with the empty root hash
+				storageRoot = types.EmptyRootHash
+			}
+			if root != storageRoot {
+				return fmt.Errorf("failed account storage root constraint. Got %s, Expected %s", storageRoot, root)
+			}
+		}
+		if slots, isSlots := acct.Slots(); isSlots {
+			for key, state := range slots {
+				accState := s.GetState(addr, key)
+				if state != accState {
+					return fmt.Errorf("failed account storage slot key %s constraint. Got %s, Expected %s", key, accState, state)
+				}
+			}
+		}
+	}
+	return nil
 }
 
 /*
@@ -816,9 +856,9 @@ func (s *StateDB) IntermediateRoot(deleteEmptyObjects bool) common.Hash {
 	// method will internally call a blocking trie fetch from the prefetcher,
 	// so there's no need to explicitly wait for the prefetchers to finish.
 	var (
-		start   = time.Now()
-		workers errgroup.Group
+		start = time.Now()
 	)
+	workers := newWorkerGroup(s.singlethreaded)
 	if s.db.TrieDB().IsVerkle() {
 		// Whilst MPT storage tries are independent, Verkle has one single trie
 		// for all the accounts and all the storage slots merged together. The
@@ -1200,10 +1240,10 @@ func (s *StateDB) commit(deleteEmptyObjects bool, noStorageWiping bool) (*stateU
 	// off some milliseconds from the commit operation. Also accumulate the code
 	// writes to run in parallel with the computations.
 	var (
-		start   = time.Now()
-		root    common.Hash
-		workers errgroup.Group
+		start = time.Now()
+		root  common.Hash
 	)
+	workers := newWorkerGroup(s.singlethreaded)
 	// Schedule the account trie first since that will be the biggest, so give
 	// it the most time to crunch.
 	//
@@ -1430,6 +1470,12 @@ func (s *StateDB) AddressInAccessList(addr common.Address) bool {
 // SlotInAccessList returns true if the given (address, slot)-tuple is in the access list.
 func (s *StateDB) SlotInAccessList(addr common.Address, slot common.Hash) (addressPresent bool, slotPresent bool) {
 	return s.accessList.Contains(addr, slot)
+}
+
+// OpenStorageTrie opens the storage trie for the storage root of the provided address.
+func (s *StateDB) OpenStorageTrie(addr common.Address) (Trie, error) {
+	storageRoot := s.GetStorageRoot(addr)
+	return s.db.OpenStorageTrie(s.originalRoot, addr, storageRoot, s.trie)
 }
 
 // markDelete is invoked when an account is deleted but the deletion is

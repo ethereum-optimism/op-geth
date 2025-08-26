@@ -17,6 +17,7 @@
 package params
 
 import (
+	"fmt"
 	"math"
 	"math/big"
 	"reflect"
@@ -32,6 +33,8 @@ func TestCheckCompatible(t *testing.T) {
 		headBlock     uint64
 		headTimestamp uint64
 		wantErr       *ConfigCompatError
+
+		genesisTimestamp *uint64
 	}
 	tests := []test{
 		{stored: AllEthashProtocolChanges, new: AllEthashProtocolChanges, headBlock: 0, headTimestamp: 0, wantErr: nil},
@@ -110,13 +113,70 @@ func TestCheckCompatible(t *testing.T) {
 				RewindToTime: 9,
 			},
 		},
+		{
+			stored:           &ChainConfig{CanyonTime: newUint64(10)},
+			new:              &ChainConfig{CanyonTime: newUint64(20)},
+			headTimestamp:    25,
+			genesisTimestamp: newUint64(2),
+			wantErr: &ConfigCompatError{
+				What:         "Canyon fork timestamp",
+				StoredTime:   newUint64(10),
+				NewTime:      newUint64(20),
+				RewindToTime: 9,
+			},
+		},
+		{
+			stored:           &ChainConfig{CanyonTime: newUint64(10)},
+			new:              &ChainConfig{CanyonTime: newUint64(20)},
+			headTimestamp:    25,
+			genesisTimestamp: nil,
+			wantErr: &ConfigCompatError{
+				What:         "Canyon fork timestamp",
+				StoredTime:   newUint64(10),
+				NewTime:      newUint64(20),
+				RewindToTime: 9,
+			},
+		},
+		{
+			stored:           &ChainConfig{CanyonTime: newUint64(10)},
+			new:              &ChainConfig{CanyonTime: newUint64(20)},
+			headTimestamp:    25,
+			genesisTimestamp: newUint64(24),
+			wantErr:          nil,
+		},
+		{
+			stored:           &ChainConfig{HoloceneTime: newUint64(10)},
+			new:              &ChainConfig{HoloceneTime: newUint64(20)},
+			headTimestamp:    25,
+			genesisTimestamp: newUint64(15),
+			wantErr: &ConfigCompatError{
+				What:         "Holocene fork timestamp",
+				StoredTime:   newUint64(10),
+				NewTime:      newUint64(20),
+				RewindToTime: 9,
+			},
+		},
+		{
+			stored:           &ChainConfig{HoloceneTime: newUint64(10)},
+			new:              &ChainConfig{HoloceneTime: newUint64(20)},
+			headTimestamp:    15,
+			genesisTimestamp: newUint64(5),
+			wantErr: &ConfigCompatError{
+				What:         "Holocene fork timestamp",
+				StoredTime:   newUint64(10),
+				NewTime:      newUint64(20),
+				RewindToTime: 9,
+			},
+		},
 	}
 
-	for _, test := range tests {
-		err := test.stored.CheckCompatible(test.new, test.headBlock, test.headTimestamp)
-		if !reflect.DeepEqual(err, test.wantErr) {
-			t.Errorf("error mismatch:\nstored: %v\nnew: %v\nheadBlock: %v\nheadTimestamp: %v\nerr: %v\nwant: %v", test.stored, test.new, test.headBlock, test.headTimestamp, err, test.wantErr)
-		}
+	for i, test := range tests {
+		t.Run(fmt.Sprintf("case %d", i), func(t *testing.T) {
+			err := test.stored.CheckCompatible(test.new, test.headBlock, test.headTimestamp, test.genesisTimestamp)
+			if !reflect.DeepEqual(err, test.wantErr) {
+				t.Errorf("error mismatch:\nstored: %v\nnew: %v\nheadBlock: %v\nheadTimestamp: %v\nerr: %v\nwant: %v", test.stored, test.new, test.headBlock, test.headTimestamp, err, test.wantErr)
+			}
+		})
 	}
 }
 
@@ -154,4 +214,153 @@ func TestTimestampCompatError(t *testing.T) {
 
 	require.Equal(t, newTimestampCompatError(errWhat, newUint64(0), newUint64(1681338455)).Error(),
 		"mismatching Shanghai fork timestamp in database (have timestamp 0, want timestamp 1681338455, rewindto timestamp 0)")
+}
+
+func TestConfigRulesRegolith(t *testing.T) {
+	c := &ChainConfig{
+		RegolithTime: newUint64(500),
+		LondonBlock:  new(big.Int),
+		Optimism:     &OptimismConfig{},
+	}
+	var stamp uint64
+	if r := c.Rules(big.NewInt(0), true, stamp); r.IsOptimismRegolith {
+		t.Errorf("expected %v to not be regolith", stamp)
+	}
+	stamp = 500
+	if r := c.Rules(big.NewInt(0), true, stamp); !r.IsOptimismRegolith {
+		t.Errorf("expected %v to be regolith", stamp)
+	}
+	stamp = math.MaxInt64
+	if r := c.Rules(big.NewInt(0), true, stamp); !r.IsOptimismRegolith {
+		t.Errorf("expected %v to be regolith", stamp)
+	}
+}
+
+func TestCheckOptimismValidity(t *testing.T) {
+	validOpConfig := &OptimismConfig{
+		EIP1559Denominator:       10,
+		EIP1559Elasticity:        50,
+		EIP1559DenominatorCanyon: newUint64(250),
+	}
+
+	tests := []struct {
+		name    string
+		config  *ChainConfig
+		wantErr *string
+	}{
+		{
+			name: "valid",
+			config: &ChainConfig{
+				Optimism:     validOpConfig,
+				CanyonTime:   newUint64(100),
+				ShanghaiTime: newUint64(100),
+				CancunTime:   newUint64(200),
+				EcotoneTime:  newUint64(200),
+				PragueTime:   newUint64(300),
+				IsthmusTime:  newUint64(300),
+			},
+			wantErr: nil,
+		},
+		{
+			name: "zero EIP1559Denominator",
+			config: &ChainConfig{
+				Optimism: &OptimismConfig{
+					EIP1559Denominator: 0,
+					EIP1559Elasticity:  50,
+				},
+			},
+			wantErr: ptr("zero EIP1559Denominator"),
+		},
+		{
+			name: "zero EIP1559Elasticity",
+			config: &ChainConfig{
+				Optimism: &OptimismConfig{
+					EIP1559Denominator: 10,
+					EIP1559Elasticity:  0,
+				},
+			},
+			wantErr: ptr("zero EIP1559Elasticity"),
+		},
+		{
+			name: "missing EIP1559DenominatorCanyon",
+			config: &ChainConfig{
+				Optimism: &OptimismConfig{
+					EIP1559Denominator: 10,
+					EIP1559Elasticity:  50,
+				},
+				CanyonTime: newUint64(100),
+			},
+			wantErr: ptr("missing or zero EIP1559DenominatorCanyon"),
+		},
+		{
+			name: "ShanghaiTime not equal to CanyonTime",
+			config: &ChainConfig{
+				Optimism:     validOpConfig,
+				ShanghaiTime: newUint64(100),
+				CanyonTime:   newUint64(200),
+			},
+			wantErr: ptr("ShanghaiTime (100) must equal CanyonTime (200)"),
+		},
+		{
+			name: "CancunTime not equal to EcotoneTime",
+			config: &ChainConfig{
+				Optimism:    validOpConfig,
+				CancunTime:  newUint64(200),
+				EcotoneTime: newUint64(300),
+			},
+			wantErr: ptr("CancunTime (200) must equal EcotoneTime (300)"),
+		},
+		{
+			name: "PragueTime not equal to IsthmusTime",
+			config: &ChainConfig{
+				Optimism:    validOpConfig,
+				PragueTime:  newUint64(300),
+				IsthmusTime: newUint64(400),
+			},
+			wantErr: ptr("PragueTime (300) must equal IsthmusTime (400)"),
+		},
+		{
+			name: "nil ShanghaiTime",
+			config: &ChainConfig{
+				Optimism:   validOpConfig,
+				CanyonTime: newUint64(200),
+			},
+			wantErr: ptr("ShanghaiTime (<nil>) must equal CanyonTime (200)"),
+		},
+		{
+			name: "nil CancunTime",
+			config: &ChainConfig{
+				Optimism:    validOpConfig,
+				EcotoneTime: newUint64(300),
+			},
+			wantErr: ptr("CancunTime (<nil>) must equal EcotoneTime (300)"),
+		},
+		{
+			name: "nil PragueTime",
+			config: &ChainConfig{
+				Optimism: &OptimismConfig{
+					EIP1559Denominator:       10,
+					EIP1559Elasticity:        50,
+					EIP1559DenominatorCanyon: newUint64(250),
+				},
+				IsthmusTime: newUint64(400),
+			},
+			wantErr: ptr("PragueTime (<nil>) must equal IsthmusTime (400)"),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.config.CheckOptimismValidity()
+			if tt.wantErr != nil {
+				require.EqualError(t, err, *tt.wantErr)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+func ptr[T any](t T) *T {
+	return &t
 }

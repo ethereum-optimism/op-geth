@@ -613,7 +613,6 @@ func ReadReceipts(db ethdb.Reader, hash common.Hash, number uint64, time uint64,
 		return nil
 	}
 	header := ReadHeader(db, hash, number)
-
 	var baseFee *big.Int
 	if header == nil {
 		baseFee = big.NewInt(0)
@@ -671,6 +670,15 @@ type storedReceiptRLP struct {
 	PostStateOrStatus []byte
 	CumulativeGasUsed uint64
 	Logs              []*types.Log
+
+	// Remaining fields are declared to allow the receipt RLP to be parsed without errors.
+	// However, they must not be used as they may not be populated correctly due to multiple receipt formats
+	// being combined into a single list of optional fields which can be mistaken for each other.
+	// DepositNonce (*uint64) from Regolith deposit tx receipts will be parsed into L1GasUsed
+	L1GasUsed  *big.Int `rlp:"optional"` // OVM legacy
+	L1GasPrice *big.Int `rlp:"optional"` // OVM legacy
+	L1Fee      *big.Int `rlp:"optional"` // OVM legacy
+	FeeScalar  string   `rlp:"optional"` // OVM legacy
 }
 
 // ReceiptLogs is a barebone version of ReceiptForStorage which only keeps

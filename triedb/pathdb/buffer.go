@@ -122,7 +122,10 @@ func (b *buffer) empty() bool {
 // full returns an indicator if the size of accumulated content exceeds the
 // configured threshold.
 func (b *buffer) full() bool {
-	return b.size() > b.limit
+	// Limit not just by data size, but also the number of layers:
+	// if we allow the write-buffer to become larger,
+	// the journal becomes critical to not roll back to an unavailable state.
+	return b.size() > b.limit || b.layers >= uint64(maxDiffLayers)
 }
 
 // size returns the approximate memory size of the held content.

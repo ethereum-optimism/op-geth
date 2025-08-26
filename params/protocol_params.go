@@ -22,6 +22,17 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
+var (
+	// The base fee portion of the transaction fee accumulates at this predeploy
+	OptimismBaseFeeRecipient = common.HexToAddress("0x4200000000000000000000000000000000000019")
+	// The L1 portion of the transaction fee accumulates at this predeploy
+	OptimismL1FeeRecipient = common.HexToAddress("0x420000000000000000000000000000000000001A")
+	// The L2 withdrawals contract predeploy address
+	OptimismL2ToL1MessagePasser = common.HexToAddress("0x4200000000000000000000000000000000000016")
+	// The operator fee portion of the transaction fee accumulates at this predeploy
+	OptimismOperatorFeeRecipient = common.HexToAddress("0x420000000000000000000000000000000000001B")
+)
+
 const (
 	GasLimitBoundDivisor uint64 = 1024               // The bound divisor of the gas limit, used in update calculations.
 	MinGasLimit          uint64 = 5000               // Minimum the gas limit may ever be.
@@ -156,6 +167,8 @@ const (
 	Bn256PairingPerPointGasByzantium uint64 = 80000  // Byzantium per-point price for an elliptic curve pairing check
 	Bn256PairingPerPointGasIstanbul  uint64 = 34000  // Per-point price for an elliptic curve pairing check
 
+	Bn256PairingMaxInputSizeGranite uint64 = 112687 // Maximum input size for an elliptic curve pairing check
+
 	Bls12381G1AddGas          uint64 = 375   // Price for BLS12-381 elliptic curve G1 point addition
 	Bls12381G1MulGas          uint64 = 12000 // Price for BLS12-381 elliptic curve G1 point scalar multiplication
 	Bls12381G2AddGas          uint64 = 600   // Price for BLS12-381 elliptic curve G2 point addition
@@ -165,7 +178,12 @@ const (
 	Bls12381MapG1Gas          uint64 = 5500  // Gas price for BLS12-381 mapping field element to G1 operation
 	Bls12381MapG2Gas          uint64 = 23800 // Gas price for BLS12-381 mapping field element to G2 operation
 
-	P256VerifyGas uint64 = 6900 // secp256r1 elliptic curve signature verifier gas price
+	P256VerifyGasFjord uint64 = 3450 // secp256r1 elliptic curve signature verifier gas price (RIP-7212 value)
+	P256VerifyGas      uint64 = 6900 // secp256r1 elliptic curve signature verifier gas price
+
+	Bls12381G1MulMaxInputSizeIsthmus   uint64 = 513760 // Maximum input size for BLS12-381 G1 multiple-scalar-multiply operation
+	Bls12381G2MulMaxInputSizeIsthmus   uint64 = 488448 // Maximum input size for BLS12-381 G2 multiple-scalar-multiply operation
+	Bls12381PairingMaxInputSizeIsthmus uint64 = 235008 // Maximum input size for BLS12-381 pairing check
 
 	// The Refund Quotient is the cap on how much of the used gas can be refunded. Before EIP-3529,
 	// up to half the consumed gas could be refunded. Redefined as 1/5th in EIP-3529

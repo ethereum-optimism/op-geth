@@ -36,6 +36,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/ethereum/go-ethereum/superchain"
 	"github.com/ethereum/go-ethereum/trie"
 	"github.com/ethereum/go-ethereum/triedb"
 	"github.com/ethereum/go-ethereum/triedb/pathdb"
@@ -73,6 +74,11 @@ type Genesis struct {
 	BaseFee       *big.Int    `json:"baseFeePerGas"` // EIP-1559
 	ExcessBlobGas *uint64     `json:"excessBlobGas"` // EIP-4844
 	BlobGasUsed   *uint64     `json:"blobGasUsed"`   // EIP-4844
+
+	// StateHash represents the genesis state, to allow instantiation of a chain with missing initial state.
+	// Chains with history pruning, or extraordinarily large genesis allocation (e.g. after a regenesis event)
+	// may utilize this to get started, and then state-sync the latest state, while still verifying the header chain.
+	StateHash *common.Hash `json:"stateHash,omitempty"`
 }
 
 // copy copies the genesis.
@@ -122,12 +128,21 @@ func ReadGenesis(db ethdb.Database) (*Genesis, error) {
 	genesis.BaseFee = genesisHeader.BaseFee
 	genesis.ExcessBlobGas = genesisHeader.ExcessBlobGas
 	genesis.BlobGasUsed = genesisHeader.BlobGasUsed
+	// A nil or empty alloc, with a non-matching state-root in the block header, intents to override the state-root.
+	if genesis.Alloc == nil || (len(genesis.Alloc) == 0 && genesisHeader.Root != types.EmptyRootHash) {
+		h := genesisHeader.Root // the genesis block is encoded as RLP in the DB and will contain the state-root
+		genesis.StateHash = &h
+		genesis.Alloc = nil
+	}
 
 	return &genesis, nil
 }
 
-// hashAlloc computes the state root according to the genesis specification.
-func hashAlloc(ga *types.GenesisAlloc, isVerkle bool) (common.Hash, error) {
+// hashAlloc returns the following:
+// * computed state root according to the genesis specification.
+// * storage root of the L2ToL1MessagePasser contract.
+// * error if any, when committing the genesis state (if so, state root and storage root will be empty).
+func hashAlloc(ga *types.GenesisAlloc, isVerkle, isIsthmus bool) (common.Hash, common.Hash, error) {
 	// If a genesis-time verkle trie is requested, create a trie config
 	// with the verkle trie enabled so that the tree can be initialized
 	// as such.
@@ -147,7 +162,7 @@ func hashAlloc(ga *types.GenesisAlloc, isVerkle bool) (common.Hash, error) {
 	db := rawdb.NewMemoryDatabase()
 	statedb, err := state.New(emptyRoot, state.NewDatabase(triedb.NewDatabase(db, config), nil))
 	if err != nil {
-		return common.Hash{}, err
+		return common.Hash{}, common.Hash{}, err
 	}
 	for addr, account := range *ga {
 		if account.Balance != nil {
@@ -159,19 +174,31 @@ func hashAlloc(ga *types.GenesisAlloc, isVerkle bool) (common.Hash, error) {
 			statedb.SetState(addr, key, value)
 		}
 	}
-	return statedb.Commit(0, false, false)
+
+	stateRoot, err := statedb.Commit(0, false, false)
+	if err != nil {
+		return common.Hash{}, common.Hash{}, err
+	}
+	// get the storage root of the L2ToL1MessagePasser contract
+	var storageRootMessagePasser common.Hash
+	if isIsthmus {
+		storageRootMessagePasser = statedb.GetStorageRoot(params.OptimismL2ToL1MessagePasser)
+	}
+
+	return stateRoot, storageRootMessagePasser, nil
 }
 
 // flushAlloc is very similar with hash, but the main difference is all the
-// generated states will be persisted into the given database.
-func flushAlloc(ga *types.GenesisAlloc, triedb *triedb.Database) (common.Hash, error) {
+// generated states will be persisted into the given database. Returns the
+// same values as hashAlloc.
+func flushAlloc(ga *types.GenesisAlloc, triedb *triedb.Database, isIsthmus bool) (common.Hash, common.Hash, error) {
 	emptyRoot := types.EmptyRootHash
 	if triedb.IsVerkle() {
 		emptyRoot = types.EmptyVerkleHash
 	}
 	statedb, err := state.New(emptyRoot, state.NewDatabase(triedb, nil))
 	if err != nil {
-		return common.Hash{}, err
+		return common.Hash{}, common.Hash{}, err
 	}
 	for addr, account := range *ga {
 		if account.Balance != nil {
@@ -187,15 +214,20 @@ func flushAlloc(ga *types.GenesisAlloc, triedb *triedb.Database) (common.Hash, e
 	}
 	root, err := statedb.Commit(0, false, false)
 	if err != nil {
-		return common.Hash{}, err
+		return common.Hash{}, common.Hash{}, err
+	}
+	// get the storage root of the L2ToL1MessagePasser contract
+	var storageRootMessagePasser common.Hash
+	if isIsthmus {
+		storageRootMessagePasser = statedb.GetStorageRoot(params.OptimismL2ToL1MessagePasser)
 	}
 	// Commit newly generated states into disk if it's not empty.
 	if root != types.EmptyRootHash {
 		if err := triedb.Commit(root, true); err != nil {
-			return common.Hash{}, err
+			return common.Hash{}, common.Hash{}, err
 		}
 	}
-	return root, nil
+	return root, storageRootMessagePasser, nil
 }
 
 func getGenesisState(db ethdb.Database, blockhash common.Hash) (alloc types.GenesisAlloc, err error) {
@@ -260,6 +292,17 @@ func (e *GenesisMismatchError) Error() string {
 type ChainOverrides struct {
 	OverrideOsaka  *uint64
 	OverrideVerkle *uint64
+
+	// OP-Stack additions
+	OverrideOptimismCanyon   *uint64
+	OverrideOptimismEcotone  *uint64
+	OverrideOptimismFjord    *uint64
+	OverrideOptimismGranite  *uint64
+	OverrideOptimismHolocene *uint64
+	OverrideOptimismIsthmus  *uint64
+	OverrideOptimismJovian   *uint64
+	OverrideOptimismInterop  *uint64
+	ApplySuperchainUpgrades  bool
 }
 
 // apply applies the chain overrides on the supplied chain config.
@@ -267,12 +310,80 @@ func (o *ChainOverrides) apply(cfg *params.ChainConfig) error {
 	if o == nil || cfg == nil {
 		return nil
 	}
+
+	// OP-Stack: If applying the superchain-registry to a known OP-Stack chain,
+	// then override the local chain-config with that from the registry.
+	if o.ApplySuperchainUpgrades && cfg.IsOptimism() && cfg.ChainID != nil && cfg.ChainID.IsUint64() {
+		getChainConfig := func() (*params.ChainConfig, error) {
+			chain, err := superchain.GetChain(cfg.ChainID.Uint64())
+			if err != nil {
+				return nil, err
+			}
+			chainConf, err := chain.Config()
+			if err != nil {
+				return nil, err
+			}
+			genConf, err := params.LoadOPStackChainConfig(chainConf)
+			if err != nil {
+				return nil, err
+			}
+			return genConf, err
+		}
+
+		if genConf, err := getChainConfig(); err == nil {
+			*cfg = *genConf
+		} else {
+			log.Warn("failed to load chain config from superchain-registry, skipping override", "err", err, "chain_id", cfg.ChainID)
+		}
+	}
+
 	if o.OverrideOsaka != nil {
 		cfg.OsakaTime = o.OverrideOsaka
 	}
 	if o.OverrideVerkle != nil {
 		cfg.VerkleTime = o.OverrideVerkle
 	}
+
+	// OP-Stack overrides
+	if o.OverrideOptimismCanyon != nil {
+		cfg.CanyonTime = o.OverrideOptimismCanyon
+		cfg.ShanghaiTime = o.OverrideOptimismCanyon
+		if cfg.Optimism != nil && (cfg.Optimism.EIP1559DenominatorCanyon == nil || *cfg.Optimism.EIP1559DenominatorCanyon == 0) {
+			eip1559DenominatorCanyon := uint64(250)
+			cfg.Optimism.EIP1559DenominatorCanyon = &eip1559DenominatorCanyon
+		}
+	}
+	if o.OverrideOptimismEcotone != nil {
+		cfg.EcotoneTime = o.OverrideOptimismEcotone
+		cfg.CancunTime = o.OverrideOptimismEcotone
+	}
+	if o.OverrideOptimismFjord != nil {
+		cfg.FjordTime = o.OverrideOptimismFjord
+	}
+	if o.OverrideOptimismGranite != nil {
+		cfg.GraniteTime = o.OverrideOptimismGranite
+	}
+	if o.OverrideOptimismHolocene != nil {
+		cfg.HoloceneTime = o.OverrideOptimismHolocene
+	}
+	if o.OverrideOptimismIsthmus != nil {
+		cfg.IsthmusTime = o.OverrideOptimismIsthmus
+		cfg.PragueTime = o.OverrideOptimismIsthmus
+	}
+	if o.OverrideOptimismJovian != nil {
+		cfg.JovianTime = o.OverrideOptimismJovian
+	}
+	if o.OverrideOptimismInterop != nil {
+		cfg.InteropTime = o.OverrideOptimismInterop
+	}
+
+	// We check for validity after applying the overrides, even if there weren't any.
+	// This has the added benefit that the check always happens when
+	// applying overrides, which is at the right places during genesis setup.
+	if verr := cfg.CheckOptimismValidity(); verr != nil {
+		return fmt.Errorf("OP-Stack invalidity after applying overrides: %w", verr)
+	}
+
 	return cfg.CheckConfigForkOrder()
 }
 
@@ -318,12 +429,18 @@ func SetupGenesisBlockWithOverride(db ethdb.Database, triedb *triedb.Database, g
 		}
 		return genesis.Config, block.Hash(), nil, nil
 	}
+	log.Info("Genesis hash", "hash", ghash)
+	// OP-Stack note: the OP-Mainnet bedrock-migration snapshot has a genesis hash, header and storedCfg.
+	// The only thing to do to it is to apply the overrides, to apply later superchain-upgrades.
+
 	// Commit the genesis if the genesis block exists in the ancient database
 	// but the key-value database is empty without initializing the genesis
 	// fields. This scenario can occur when the node is created from scratch
 	// with an existing ancient store.
 	storedCfg := rawdb.ReadChainConfig(db, ghash)
 	if storedCfg == nil {
+		// OP-Stack note: a new chain, initialized with op-network CLI flag, hits this case.
+
 		// Ensure the stored genesis block matches with the given genesis. Private
 		// networks must explicitly specify the genesis in the config file, mainnet
 		// genesis will be used as default and the initialization will always fail.
@@ -358,12 +475,16 @@ func SetupGenesisBlockWithOverride(db ethdb.Database, triedb *triedb.Database, g
 			return nil, common.Hash{}, nil, &GenesisMismatchError{ghash, hash}
 		}
 	}
+
 	// Check config compatibility and write the config. Compatibility errors
 	// are returned to the caller unless we're already at block zero.
 	head := rawdb.ReadHeadHeader(db)
 	if head == nil {
 		return nil, common.Hash{}, nil, errors.New("missing head header")
 	}
+
+	// OP-Stack warning: tricky upstream code: method with nil-receiver case.
+	// Returns genesis.Config if genesis is not nil. Falls back to storedCfg otherwise. And some special L1 cases.
 	newCfg := genesis.chainConfigOrDefault(ghash, storedCfg)
 	if err := overrides.apply(newCfg); err != nil {
 		return nil, common.Hash{}, nil, err
@@ -374,17 +495,35 @@ func SetupGenesisBlockWithOverride(db ethdb.Database, triedb *triedb.Database, g
 		return nil, common.Hash{}, nil, err
 	}
 
+	// OP-Stack note: Always apply overrides.
+	// The genesis function arg may be nil, and stored-config may be non-nil at the same time.
+	// This is important to apply superchain-upgrades to existing DBs, where the network CLI flag is not used.
+	if err := overrides.apply(newCfg); err != nil {
+		return nil, common.Hash{}, nil, err
+	}
+
+	var genesisTimestamp *uint64
+	if genesis != nil {
+		genesisTimestamp = &genesis.Timestamp
+	}
+	// OP-Stack diff: provide genesis timestamp (may be nil), to check bedrock-migration compat with config.
 	// TODO(rjl493456442) better to define the comparator of chain config
 	// and short circuit if the chain config is not changed.
-	compatErr := storedCfg.CheckCompatible(newCfg, head.Number.Uint64(), head.Time)
+	compatErr := storedCfg.CheckCompatible(newCfg, head.Number.Uint64(), head.Time, genesisTimestamp)
 	if compatErr != nil && ((head.Number.Uint64() != 0 && compatErr.RewindToBlock != 0) || (head.Time != 0 && compatErr.RewindToTime != 0)) {
 		return newCfg, ghash, compatErr, nil
 	}
+
 	// Don't overwrite if the old is identical to the new. It's useful
 	// for the scenarios that database is opened in the read-only mode.
 	storedData, _ := json.Marshal(storedCfg)
 	if newData, _ := json.Marshal(newCfg); !bytes.Equal(storedData, newData) {
+		log.Info("Chain configs differ, overwriting stored config with new config.")
+		log.Info("Previously stored chain config", "json", string(storedData))
+		log.Info("New chain config", "json", string(newData), "genesis-nil", genesis == nil)
 		rawdb.WriteChainConfig(db, ghash, newCfg)
+	} else {
+		log.Info("Configured chain config matches existing chain config in storage.")
 	}
 	return newCfg, ghash, nil, nil
 }
@@ -451,15 +590,27 @@ func (g *Genesis) IsVerkle() bool {
 
 // ToBlock returns the genesis block according to genesis specification.
 func (g *Genesis) ToBlock() *types.Block {
-	root, err := hashAlloc(&g.Alloc, g.IsVerkle())
-	if err != nil {
+	var stateRoot, storageRootMessagePasser common.Hash
+	var err error
+	if g.StateHash != nil {
+		if len(g.Alloc) > 0 {
+			panic(fmt.Errorf("cannot both have genesis hash %s "+
+				"and non-empty state-allocation", *g.StateHash))
+		}
+		// g.StateHash is only relevant for pre-bedrock (and hence pre-isthmus) chains.
+		// we bail here since this is not a valid usage of StateHash
+		if g.Config.IsOptimismIsthmus(g.Timestamp) {
+			panic(fmt.Errorf("stateHash usage disallowed in chain with isthmus active at genesis"))
+		}
+		stateRoot = *g.StateHash
+	} else if stateRoot, storageRootMessagePasser, err = hashAlloc(&g.Alloc, g.IsVerkle(), g.Config.IsOptimismIsthmus(g.Timestamp)); err != nil {
 		panic(err)
 	}
-	return g.toBlockWithRoot(root)
+	return g.toBlockWithRoot(stateRoot, storageRootMessagePasser)
 }
 
 // toBlockWithRoot constructs the genesis block with the given genesis state root.
-func (g *Genesis) toBlockWithRoot(root common.Hash) *types.Block {
+func (g *Genesis) toBlockWithRoot(stateRoot, storageRootMessagePasser common.Hash) *types.Block {
 	head := &types.Header{
 		Number:     new(big.Int).SetUint64(g.Number),
 		Nonce:      types.EncodeNonce(g.Nonce),
@@ -472,7 +623,7 @@ func (g *Genesis) toBlockWithRoot(root common.Hash) *types.Block {
 		Difficulty: g.Difficulty,
 		MixDigest:  g.Mixhash,
 		Coinbase:   g.Coinbase,
-		Root:       root,
+		Root:       stateRoot,
 	}
 	if g.GasLimit == 0 {
 		head.GasLimit = params.GenesisGasLimit
@@ -491,9 +642,7 @@ func (g *Genesis) toBlockWithRoot(root common.Hash) *types.Block {
 			head.BaseFee = new(big.Int).SetUint64(params.InitialBaseFee)
 		}
 	}
-	var (
-		withdrawals []*types.Withdrawal
-	)
+	var withdrawals []*types.Withdrawal
 	if conf := g.Config; conf != nil {
 		num := big.NewInt(int64(g.Number))
 		if conf.IsShanghai(num, g.Timestamp) {
@@ -518,8 +667,17 @@ func (g *Genesis) toBlockWithRoot(root common.Hash) *types.Block {
 		if conf.IsPrague(num, g.Timestamp) {
 			head.RequestsHash = &types.EmptyRequestsHash
 		}
+		// If Isthmus is active at genesis, set the WithdrawalRoot to the storage root of the L2ToL1MessagePasser contract.
+		if g.Config.IsOptimismIsthmus(g.Timestamp) {
+			if storageRootMessagePasser == (common.Hash{}) {
+				// if there was no MessagePasser contract storage, something is wrong
+				// (it should at least store an implementation address and owner address)
+				log.Warn("isthmus: no storage root for L2ToL1MessagePasser contract")
+			}
+			head.WithdrawalsHash = &storageRootMessagePasser
+		}
 	}
-	return types.NewBlock(head, &types.Body{Withdrawals: withdrawals}, nil, trie.NewStackTrie(nil))
+	return types.NewBlock(head, &types.Body{Withdrawals: withdrawals}, nil, trie.NewStackTrie(nil), g.Config)
 }
 
 // Commit writes the block and state of a genesis specification to the database.
@@ -538,12 +696,22 @@ func (g *Genesis) Commit(db ethdb.Database, triedb *triedb.Database) (*types.Blo
 	if config.Clique != nil && len(g.ExtraData) < 32+crypto.SignatureLength {
 		return nil, errors.New("can't start clique chain without signers")
 	}
-	// flush the data to disk and compute the state root
-	root, err := flushAlloc(&g.Alloc, triedb)
-	if err != nil {
-		return nil, err
+	var stateRoot, storageRootMessagePasser common.Hash
+	var err error
+	if len(g.Alloc) == 0 {
+		if g.StateHash == nil {
+			stateRoot = types.EmptyRootHash // default to the hash of the empty state. Some unit-tests rely on this.
+		} else {
+			stateRoot = *g.StateHash
+		}
+	} else {
+		// flush the data to disk and compute the state root
+		stateRoot, storageRootMessagePasser, err = flushAlloc(&g.Alloc, triedb, g.Config.IsIsthmus(g.Timestamp))
+		if err != nil {
+			return nil, err
+		}
 	}
-	block := g.toBlockWithRoot(root)
+	block := g.toBlockWithRoot(stateRoot, storageRootMessagePasser)
 
 	// Marshal the genesis state specification and persist.
 	blob, err := json.Marshal(g.Alloc)

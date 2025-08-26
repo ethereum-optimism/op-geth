@@ -72,6 +72,7 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/netutil"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/ethereum/go-ethereum/superchain"
 	"github.com/ethereum/go-ethereum/triedb"
 	"github.com/ethereum/go-ethereum/triedb/hashdb"
 	"github.com/ethereum/go-ethereum/triedb/pathdb"
@@ -163,6 +164,16 @@ var (
 		Usage:    "Hoodi network: pre-configured proof-of-stake test network",
 		Category: flags.EthCategory,
 	}
+
+	// OP-Stack addition
+	OPNetworkFlag = &cli.StringFlag{
+		Name:    "op-network",
+		Aliases: []string{"beta.op-network"},
+		Usage: "Select a pre-configured OP-Stack network (warning: op-mainnet and op-goerli require special sync," +
+			" datadir is recommended), options: " + strings.Join(superchain.ChainNames(), ", "),
+		Category: flags.EthCategory,
+	}
+
 	// Dev mode
 	DeveloperFlag = &cli.BoolFlag{
 		Name:     "dev",
@@ -251,6 +262,46 @@ var (
 	OverrideVerkle = &cli.Uint64Flag{
 		Name:     "override.verkle",
 		Usage:    "Manually specify the Verkle fork timestamp, overriding the bundled setting",
+		Category: flags.EthCategory,
+	}
+	OverrideOptimismCanyon = &cli.Uint64Flag{
+		Name:     "override.canyon",
+		Usage:    "Manually specify the Optimism Canyon fork timestamp, overriding the bundled setting",
+		Category: flags.EthCategory,
+	}
+	OverrideOptimismEcotone = &cli.Uint64Flag{
+		Name:     "override.ecotone",
+		Usage:    "Manually specify the Optimism Ecotone fork timestamp, overriding the bundled setting",
+		Category: flags.EthCategory,
+	}
+	OverrideOptimismFjord = &cli.Uint64Flag{
+		Name:     "override.fjord",
+		Usage:    "Manually specify the Optimism Fjord fork timestamp, overriding the bundled setting",
+		Category: flags.EthCategory,
+	}
+	OverrideOptimismGranite = &cli.Uint64Flag{
+		Name:     "override.granite",
+		Usage:    "Manually specify the Optimism Granite fork timestamp, overriding the bundled setting",
+		Category: flags.EthCategory,
+	}
+	OverrideOptimismHolocene = &cli.Uint64Flag{
+		Name:     "override.holocene",
+		Usage:    "Manually specify the Optimism Holocene fork timestamp, overriding the bundled setting",
+		Category: flags.EthCategory,
+	}
+	OverrideOptimismIsthmus = &cli.Uint64Flag{
+		Name:     "override.isthmus",
+		Usage:    "Manually specify the Optimism Isthmus fork timestamp, overriding the bundled setting",
+		Category: flags.EthCategory,
+	}
+	OverrideOptimismJovian = &cli.Uint64Flag{
+		Name:     "override.jovian",
+		Usage:    "Manually specify the Optimism Jovian fork timestamp, overriding the bundled setting",
+		Category: flags.EthCategory,
+	}
+	OverrideOptimismInterop = &cli.Uint64Flag{
+		Name:     "override.interop",
+		Usage:    "Manually specify the Optimsim Interop feature-set fork timestamp, overriding the bundled setting",
 		Category: flags.EthCategory,
 	}
 	SyncModeFlag = &cli.StringFlag{
@@ -379,6 +430,11 @@ var (
 		Value:    ethconfig.Defaults.TxPool.Journal,
 		Category: flags.TxPoolCategory,
 	}
+	TxPoolJournalRemotesFlag = &cli.BoolFlag{
+		Name:     "txpool.journalremotes",
+		Usage:    "Includes remote transactions in the journal. Only effective if nolocals is set too.",
+		Category: flags.TxPoolCategory,
+	}
 	TxPoolRejournalFlag = &cli.DurationFlag{
 		Name:     "txpool.rejournal",
 		Usage:    "Time interval to regenerate the local transaction journal",
@@ -425,6 +481,12 @@ var (
 		Name:     "txpool.lifetime",
 		Usage:    "Maximum amount of time non-executable transaction are queued",
 		Value:    ethconfig.Defaults.TxPool.Lifetime,
+		Category: flags.TxPoolCategory,
+	}
+	TxPoolMaxTxGasLimitFlag = &cli.Uint64Flag{
+		Name:     "txpool.maxtxgas",
+		Usage:    "Maximum gas limit for individual transactions (0 = no limit). Transactions exceeding this limit will be rejected by the transaction pool",
+		Value:    0,
 		Category: flags.TxPoolCategory,
 	}
 	// Blob transaction pool settings
@@ -510,6 +572,12 @@ var (
 		Name:     "miner.gaslimit",
 		Usage:    "Target gas ceiling for mined blocks",
 		Value:    ethconfig.Defaults.Miner.GasCeil,
+		Category: flags.MinerCategory,
+	}
+	MinerEffectiveGasLimitFlag = &cli.Uint64Flag{
+		Name:     "miner.effectivegaslimit",
+		Usage:    "If non-zero, an effective gas limit to apply in addition to the block header gaslimit.",
+		Value:    0,
 		Category: flags.MinerCategory,
 	}
 	MinerGasPriceFlag = &flags.BigFlag{
@@ -812,7 +880,7 @@ var (
 		Aliases:  []string{"discv4"},
 		Usage:    "Enables the V4 discovery mechanism",
 		Category: flags.NetworkingCategory,
-		Value:    true,
+		Value:    false,
 	}
 	DiscoveryV5Flag = &cli.BoolFlag{
 		Name:     "discovery.v5",
@@ -876,6 +944,84 @@ var (
 		Usage:    "Gas price below which gpo will ignore transactions",
 		Value:    ethconfig.Defaults.GPO.IgnorePrice.Int64(),
 		Category: flags.GasPriceCategory,
+	}
+	GpoMinSuggestedPriorityFeeFlag = &cli.Int64Flag{
+		Name:     "gpo.minsuggestedpriorityfee",
+		Usage:    "Minimum transaction priority fee to suggest. Used on OP chains when blocks are not full.",
+		Value:    ethconfig.Defaults.GPO.MinSuggestedPriorityFee.Int64(),
+		Category: flags.GasPriceCategory,
+	}
+
+	// Rollup Flags
+	RollupSequencerHTTPFlag = &cli.StringFlag{
+		Name:     "rollup.sequencerhttp",
+		Usage:    "HTTP endpoint for the sequencer mempool",
+		Category: flags.RollupCategory,
+	}
+
+	RollupHistoricalRPCFlag = &cli.StringFlag{
+		Name:     "rollup.historicalrpc",
+		Usage:    "RPC endpoint for historical data.",
+		Category: flags.RollupCategory,
+	}
+
+	RollupHistoricalRPCTimeoutFlag = &cli.StringFlag{
+		Name:     "rollup.historicalrpctimeout",
+		Usage:    "Timeout for historical RPC requests.",
+		Value:    "5s",
+		Category: flags.RollupCategory,
+	}
+
+	RollupInteropRPCFlag = &cli.StringFlag{
+		Name:     "rollup.interoprpc",
+		Usage:    "RPC endpoint for interop message verification (experimental).",
+		Category: flags.RollupCategory,
+	}
+
+	RollupInteropMempoolFilteringFlag = &cli.BoolFlag{
+		Name:     "rollup.interopmempoolfiltering",
+		Usage:    "If using interop, transactions are checked for interop validity before being added to the mempool (experimental).",
+		Category: flags.RollupCategory,
+	}
+
+	RollupDisableTxPoolGossipFlag = &cli.BoolFlag{
+		Name:     "rollup.disabletxpoolgossip",
+		Usage:    "Disable transaction pool gossip.",
+		Category: flags.RollupCategory,
+	}
+	RollupEnableTxPoolAdmissionFlag = &cli.BoolFlag{
+		Name:     "rollup.enabletxpooladmission",
+		Usage:    "Add RPC-submitted transactions to the txpool (on by default if --rollup.sequencerhttp is not set).",
+		Category: flags.RollupCategory,
+	}
+	RollupComputePendingBlock = &cli.BoolFlag{
+		Name:     "rollup.computependingblock",
+		Usage:    "By default the pending block equals the latest block to save resources and not leak txs from the tx-pool, this flag enables computing of the pending block from the tx-pool instead.",
+		Category: flags.RollupCategory,
+	}
+	RollupHaltOnIncompatibleProtocolVersionFlag = &cli.StringFlag{
+		Name:     "rollup.halt",
+		Usage:    "Opt-in option to halt on incompatible protocol version requirements of the given level (major/minor/patch/none), as signaled through the Engine API by the rollup node",
+		Category: flags.RollupCategory,
+	}
+	RollupSuperchainUpgradesFlag = &cli.BoolFlag{
+		Name:     "rollup.superchain-upgrades",
+		Aliases:  []string{"beta.rollup.superchain-upgrades"},
+		Usage:    "Apply superchain-registry config changes to the local chain-configuration",
+		Category: flags.RollupCategory,
+		Value:    true,
+	}
+	RollupSequencerTxConditionalEnabledFlag = &cli.BoolFlag{
+		Name:     "rollup.sequencertxconditionalenabled",
+		Usage:    "Serve the eth_sendRawTransactionConditional endpoint and apply the conditional constraints on mempool inclusion & block building",
+		Category: flags.RollupCategory,
+		Value:    false,
+	}
+	RollupSequencerTxConditionalCostRateLimitFlag = &cli.IntFlag{
+		Name:     "rollup.sequencertxconditionalcostratelimit",
+		Usage:    "Maximum cost -- storage lookups -- allowed for conditional transactions in a given second",
+		Category: flags.RollupCategory,
+		Value:    5000,
 	}
 
 	// Metrics flags
@@ -976,7 +1122,7 @@ var (
 		HoodiFlag,
 	}
 	// NetworkFlags is the flag group of all built-in supported networks.
-	NetworkFlags = append([]cli.Flag{MainnetFlag}, TestnetFlags...)
+	NetworkFlags = append([]cli.Flag{MainnetFlag, OPNetworkFlag}, TestnetFlags...)
 
 	// DatabaseFlags is the flag group of all database flags.
 	DatabaseFlags = []cli.Flag{
@@ -1010,6 +1156,12 @@ func MakeDataDir(ctx *cli.Context) string {
 		if ctx.Bool(HoodiFlag.Name) {
 			return filepath.Join(path, "hoodi")
 		}
+
+		// OP-Stack addition
+		if ctx.IsSet(OPNetworkFlag.Name) {
+			return filepath.Join(path, ctx.String(OPNetworkFlag.Name))
+		}
+
 		return path
 	}
 	Fatalf("Cannot determine default data directory, please set manually (--datadir)")
@@ -1101,6 +1253,13 @@ func setBootstrapNodesV5(ctx *cli.Context, cfg *p2p.Config) {
 		urls = SplitAndTrim(ctx.String(BootnodesFlag.Name))
 	case cfg.BootstrapNodesV5 != nil:
 		return // already set, don't apply defaults.
+	case ctx.IsSet(OPNetworkFlag.Name):
+		network := ctx.String(OPNetworkFlag.Name)
+		if strings.Contains(strings.ToLower(network), "mainnet") {
+			urls = params.V5OPBootnodes
+		} else {
+			urls = params.V5OPTestnetBootnodes
+		}
 	}
 
 	cfg.BootstrapNodesV5 = make([]*enode.Node, 0, len(urls))
@@ -1436,6 +1595,8 @@ func SetDataDir(ctx *cli.Context, cfg *node.Config) {
 		cfg.DataDir = filepath.Join(node.DefaultDataDir(), "holesky")
 	case ctx.Bool(HoodiFlag.Name) && cfg.DataDir == node.DefaultDataDir():
 		cfg.DataDir = filepath.Join(node.DefaultDataDir(), "hoodi")
+	case ctx.IsSet(OPNetworkFlag.Name) && cfg.DataDir == node.DefaultDataDir():
+		cfg.DataDir = filepath.Join(node.DefaultDataDir(), ctx.String(OPNetworkFlag.Name))
 	}
 }
 
@@ -1451,6 +1612,9 @@ func setGPO(ctx *cli.Context, cfg *gasprice.Config) {
 	}
 	if ctx.IsSet(GpoIgnoreGasPriceFlag.Name) {
 		cfg.IgnorePrice = big.NewInt(ctx.Int64(GpoIgnoreGasPriceFlag.Name))
+	}
+	if ctx.IsSet(GpoMinSuggestedPriorityFeeFlag.Name) {
+		cfg.MinSuggestedPriorityFee = big.NewInt(ctx.Int64(GpoMinSuggestedPriorityFeeFlag.Name))
 	}
 }
 
@@ -1470,6 +1634,9 @@ func setTxPool(ctx *cli.Context, cfg *legacypool.Config) {
 	}
 	if ctx.IsSet(TxPoolJournalFlag.Name) {
 		cfg.Journal = ctx.String(TxPoolJournalFlag.Name)
+	}
+	if ctx.IsSet(TxPoolJournalRemotesFlag.Name) {
+		cfg.JournalRemote = ctx.Bool(TxPoolJournalRemotesFlag.Name)
 	}
 	if ctx.IsSet(TxPoolRejournalFlag.Name) {
 		cfg.Rejournal = ctx.Duration(TxPoolRejournalFlag.Name)
@@ -1495,6 +1662,14 @@ func setTxPool(ctx *cli.Context, cfg *legacypool.Config) {
 	if ctx.IsSet(TxPoolLifetimeFlag.Name) {
 		cfg.Lifetime = ctx.Duration(TxPoolLifetimeFlag.Name)
 	}
+	if ctx.IsSet(MinerEffectiveGasLimitFlag.Name) {
+		// While technically this is a miner config parameter, we also want the txpool to enforce
+		// it to avoid accepting transactions that can never be included in a block.
+		cfg.EffectiveGasCeil = ctx.Uint64(MinerEffectiveGasLimitFlag.Name)
+	}
+	if ctx.IsSet(TxPoolMaxTxGasLimitFlag.Name) {
+		cfg.MaxTxGasLimit = ctx.Uint64(TxPoolMaxTxGasLimitFlag.Name)
+	}
 }
 
 func setBlobPool(ctx *cli.Context, cfg *blobpool.Config) {
@@ -1519,6 +1694,9 @@ func setMiner(ctx *cli.Context, cfg *miner.Config) {
 	if ctx.IsSet(MinerGasLimitFlag.Name) {
 		cfg.GasCeil = ctx.Uint64(MinerGasLimitFlag.Name)
 	}
+	if ctx.IsSet(MinerEffectiveGasLimitFlag.Name) {
+		cfg.EffectiveGasCeil = ctx.Uint64(MinerEffectiveGasLimitFlag.Name)
+	}
 	if ctx.IsSet(MinerGasPriceFlag.Name) {
 		cfg.GasPrice = flags.GlobalBig(ctx, MinerGasPriceFlag.Name)
 	}
@@ -1528,6 +1706,9 @@ func setMiner(ctx *cli.Context, cfg *miner.Config) {
 	if ctx.IsSet(MinerNewPayloadTimeoutFlag.Name) {
 		log.Warn("The flag --miner.newpayload-timeout is deprecated and will be removed, please use --miner.recommit")
 		cfg.Recommit = ctx.Duration(MinerNewPayloadTimeoutFlag.Name)
+	}
+	if ctx.IsSet(RollupComputePendingBlock.Name) {
+		cfg.RollupComputePendingBlock = ctx.Bool(RollupComputePendingBlock.Name)
 	}
 }
 
@@ -1562,7 +1743,7 @@ func setRequiredBlocks(ctx *cli.Context, cfg *ethconfig.Config) {
 // SetEthConfig applies eth-related command line flags to the config.
 func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 	// Avoid conflicting network flags, don't allow network id override on preset networks
-	flags.CheckExclusive(ctx, MainnetFlag, DeveloperFlag, SepoliaFlag, HoleskyFlag, HoodiFlag, NetworkIdFlag)
+	flags.CheckExclusive(ctx, MainnetFlag, DeveloperFlag, SepoliaFlag, HoleskyFlag, HoodiFlag, OPNetworkFlag)
 	flags.CheckExclusive(ctx, DeveloperFlag, ExternalSignerFlag) // Can't use both ephemeral unlocked and external signer
 
 	// Set configurations from CLI flags
@@ -1726,6 +1907,29 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 			cfg.EthDiscoveryURLs = SplitAndTrim(urls)
 		}
 	}
+	// Only configure sequencer http flag if we're running in verifier mode i.e. --mine is disabled.
+	if ctx.IsSet(RollupSequencerHTTPFlag.Name) && !ctx.IsSet(MiningEnabledFlag.Name) {
+		cfg.RollupSequencerHTTP = ctx.String(RollupSequencerHTTPFlag.Name)
+	}
+	if ctx.IsSet(RollupHistoricalRPCFlag.Name) {
+		cfg.RollupHistoricalRPC = ctx.String(RollupHistoricalRPCFlag.Name)
+	}
+	if ctx.IsSet(RollupHistoricalRPCTimeoutFlag.Name) {
+		cfg.RollupHistoricalRPCTimeout = ctx.Duration(RollupHistoricalRPCTimeoutFlag.Name)
+	}
+	if ctx.IsSet(RollupInteropRPCFlag.Name) {
+		cfg.InteropMessageRPC = ctx.String(RollupInteropRPCFlag.Name)
+	}
+	if ctx.IsSet(RollupInteropMempoolFilteringFlag.Name) {
+		cfg.InteropMempoolFiltering = ctx.Bool(RollupInteropMempoolFilteringFlag.Name)
+	}
+	cfg.RollupDisableTxPoolGossip = ctx.Bool(RollupDisableTxPoolGossipFlag.Name)
+	cfg.RollupDisableTxPoolAdmission = cfg.RollupSequencerHTTP != "" && !ctx.Bool(RollupEnableTxPoolAdmissionFlag.Name)
+	cfg.RollupHaltOnIncompatibleProtocolVersion = ctx.String(RollupHaltOnIncompatibleProtocolVersionFlag.Name)
+	cfg.ApplySuperchainUpgrades = ctx.Bool(RollupSuperchainUpgradesFlag.Name)
+	cfg.RollupSequencerTxConditionalEnabled = ctx.Bool(RollupSequencerTxConditionalEnabledFlag.Name)
+	cfg.RollupSequencerTxConditionalCostRateLimit = ctx.Int(RollupSequencerTxConditionalCostRateLimitFlag.Name)
+
 	// Override any default configs for hard coded networks.
 	switch {
 	case ctx.Bool(MainnetFlag.Name):
@@ -1808,6 +2012,7 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 				// signal fallback to preexisting chain on disk
 				cfg.Genesis = nil
 
+				// validate genesis has PoS enabled in block 0
 				genesis, err := core.ReadGenesis(chaindb)
 				if err != nil {
 					Fatalf("Could not read genesis from database: %v", err)
@@ -1826,6 +2031,12 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 		if !ctx.IsSet(MinerGasPriceFlag.Name) {
 			cfg.Miner.GasPrice = big.NewInt(1)
 		}
+	case ctx.IsSet(OPNetworkFlag.Name):
+		genesis := MakeGenesis(ctx)
+		if !ctx.IsSet(NetworkIdFlag.Name) {
+			cfg.NetworkId = genesis.Config.ChainID.Uint64()
+		}
+		cfg.Genesis = genesis
 	default:
 		if cfg.NetworkId == 1 {
 			SetDNSDiscoveryDefaults(cfg, params.MainnetGenesisHash)
@@ -2120,8 +2331,7 @@ func tryMakeReadOnlyDatabase(ctx *cli.Context, stack *node.Node) ethdb.Database 
 
 func IsNetworkPreset(ctx *cli.Context) bool {
 	for _, flag := range NetworkFlags {
-		bFlag, _ := flag.(*cli.BoolFlag)
-		if ctx.IsSet(bFlag.Name) {
+		if ctx.IsSet(flag.Names()[0]) {
 			return true
 		}
 	}
@@ -2163,6 +2373,17 @@ func MakeGenesis(ctx *cli.Context) *core.Genesis {
 		genesis = core.DefaultSepoliaGenesisBlock()
 	case ctx.Bool(HoodiFlag.Name):
 		genesis = core.DefaultHoodiGenesisBlock()
+	case ctx.IsSet(OPNetworkFlag.Name):
+		name := ctx.String(OPNetworkFlag.Name)
+		ch, err := superchain.ChainIDByName(name)
+		if err != nil {
+			Fatalf("failed to load OP-Stack chain %q: %v", name, err)
+		}
+		genesis, err := core.LoadOPStackGenesis(ch)
+		if err != nil {
+			Fatalf("failed to load genesis for OP-Stack chain %q (%d): %v", name, ch, err)
+		}
+		return genesis
 	case ctx.Bool(DeveloperFlag.Name):
 		Fatalf("Developer chains are ephemeral")
 	}

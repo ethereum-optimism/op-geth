@@ -42,6 +42,10 @@ type (
 
 func (evm *EVM) precompile(addr common.Address) (PrecompiledContract, bool) {
 	p, ok := evm.precompiles[addr]
+	if evm.Config.PrecompileOverrides != nil {
+		override := evm.Config.PrecompileOverrides(evm.chainRules, p, addr)
+		return override, override != nil
+	}
 	return p, ok
 }
 
@@ -55,6 +59,10 @@ type BlockContext struct {
 	Transfer TransferFunc
 	// GetHash returns the hash corresponding to n
 	GetHash GetHashFunc
+	// L1CostFunc returns the L1 cost of the rollup message, the function may be nil, or return nil
+	L1CostFunc types.L1CostFunc
+	// OperatorCostFunc returns the operator cost. The function may be nil
+	OperatorCostFunc types.OperatorCostFunc
 
 	// Block information
 	Coinbase    common.Address // Provides information for COINBASE
@@ -181,6 +189,14 @@ func (evm *EVM) Interpreter() *EVMInterpreter {
 	return evm.interpreter
 }
 
+// OP-Stack addition
+func (evm *EVM) maybeOverrideCaller(caller common.Address) common.Address {
+	if evm.Config.CallerOverride != nil {
+		return evm.Config.CallerOverride(caller)
+	}
+	return caller
+}
+
 func isSystemCall(caller common.Address) bool {
 	return caller == params.SystemAddress
 }
@@ -190,6 +206,7 @@ func isSystemCall(caller common.Address) bool {
 // the necessary steps to create accounts and reverses the state in case of an
 // execution error or failed value transfer.
 func (evm *EVM) Call(caller common.Address, addr common.Address, input []byte, gas uint64, value *uint256.Int) (ret []byte, leftOverGas uint64, err error) {
+	caller = evm.maybeOverrideCaller(caller)
 	// Capture the tracer start/end events in debug mode
 	if evm.Config.Tracer != nil {
 		evm.captureBegin(evm.depth, CALL, caller, addr, input, gas, value.ToBig())
@@ -276,6 +293,7 @@ func (evm *EVM) Call(caller common.Address, addr common.Address, input []byte, g
 // CallCode differs from Call in the sense that it executes the given address'
 // code with the caller as context.
 func (evm *EVM) CallCode(caller common.Address, addr common.Address, input []byte, gas uint64, value *uint256.Int) (ret []byte, leftOverGas uint64, err error) {
+	caller = evm.maybeOverrideCaller(caller)
 	// Invoke tracer hooks that signal entering/exiting a call frame
 	if evm.Config.Tracer != nil {
 		evm.captureBegin(evm.depth, CALLCODE, caller, addr, input, gas, value.ToBig())
@@ -325,6 +343,7 @@ func (evm *EVM) CallCode(caller common.Address, addr common.Address, input []byt
 // DelegateCall differs from CallCode in the sense that it executes the given address'
 // code with the caller as context and the caller is set to the caller of the caller.
 func (evm *EVM) DelegateCall(originCaller common.Address, caller common.Address, addr common.Address, input []byte, gas uint64, value *uint256.Int) (ret []byte, leftOverGas uint64, err error) {
+	caller = evm.maybeOverrideCaller(caller)
 	// Invoke tracer hooks that signal entering/exiting a call frame
 	if evm.Config.Tracer != nil {
 		// DELEGATECALL inherits value from parent call
@@ -368,6 +387,7 @@ func (evm *EVM) DelegateCall(originCaller common.Address, caller common.Address,
 // Opcodes that attempt to perform such modifications will result in exceptions
 // instead of performing the modifications.
 func (evm *EVM) StaticCall(caller common.Address, addr common.Address, input []byte, gas uint64) (ret []byte, leftOverGas uint64, err error) {
+	caller = evm.maybeOverrideCaller(caller)
 	// Invoke tracer hooks that signal entering/exiting a call frame
 	if evm.Config.Tracer != nil {
 		evm.captureBegin(evm.depth, STATICCALL, caller, addr, input, gas, nil)
@@ -530,7 +550,7 @@ func (evm *EVM) initNewContract(contract *Contract, address common.Address) ([]b
 	}
 
 	// Check whether the max code size has been exceeded, assign err if the case.
-	if evm.chainRules.IsEIP158 && len(ret) > params.MaxCodeSize {
+	if evm.chainRules.IsEIP158 && len(ret) > params.MaxCodeSize && !evm.Config.NoMaxCodeSize {
 		return ret, ErrMaxCodeSizeExceeded
 	}
 
@@ -558,6 +578,7 @@ func (evm *EVM) initNewContract(contract *Contract, address common.Address) ([]b
 
 // Create creates a new contract using code as deployment code.
 func (evm *EVM) Create(caller common.Address, code []byte, gas uint64, value *uint256.Int) (ret []byte, contractAddr common.Address, leftOverGas uint64, err error) {
+	caller = evm.maybeOverrideCaller(caller)
 	contractAddr = crypto.CreateAddress(caller, evm.StateDB.GetNonce(caller))
 	return evm.create(caller, code, gas, value, contractAddr, CREATE)
 }
@@ -567,6 +588,7 @@ func (evm *EVM) Create(caller common.Address, code []byte, gas uint64, value *ui
 // The different between Create2 with Create is Create2 uses keccak256(0xff ++ msg.sender ++ salt ++ keccak256(init_code))[12:]
 // instead of the usual sender-and-nonce-hash as the address where the contract is initialized at.
 func (evm *EVM) Create2(caller common.Address, code []byte, gas uint64, endowment *uint256.Int, salt *uint256.Int) (ret []byte, contractAddr common.Address, leftOverGas uint64, err error) {
+	caller = evm.maybeOverrideCaller(caller)
 	inithash := crypto.HashData(evm.interpreter.hasher, code)
 	contractAddr = crypto.CreateAddress2(caller, salt.Bytes32(), inithash[:])
 	return evm.create(caller, code, gas, endowment, contractAddr, CREATE2)

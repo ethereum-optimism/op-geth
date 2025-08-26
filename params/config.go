@@ -23,6 +23,7 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params/forks"
 )
 
@@ -32,6 +33,12 @@ var (
 	HoleskyGenesisHash = common.HexToHash("0xb5f7f912443c940f21fd611f12828d75b534364ed9e95ca4e307729a4661bde4")
 	SepoliaGenesisHash = common.HexToHash("0x25a5cc106eea7138acab33231d7160d69cb777ee0c2c553fcddf5138993e6dd9")
 	HoodiGenesisHash   = common.HexToHash("0xbbe312868b376a3001692a646dd2d7d1e4406380dfd86b98aa8a34d1557c971b")
+)
+
+const (
+	OPMainnetChainID   = 10
+	BaseMainnetChainID = 8453
+	baseSepoliaChainID = 84532
 )
 
 func newUint64(val uint64) *uint64 { return &val }
@@ -338,6 +345,34 @@ var (
 		Clique:                  nil,
 	}
 	TestRules = TestChainConfig.Rules(new(big.Int), false, 0)
+
+	// OP-Stack chain config with bedrock starting a block 5, introduced for historical endpoint testing, largely based on the clique config
+	OptimismTestCliqueConfig = func() *ChainConfig {
+		conf := *AllCliqueProtocolChanges // copy the config
+		conf.Clique = nil
+		conf.BedrockBlock = big.NewInt(5)
+		conf.Optimism = &OptimismConfig{EIP1559Elasticity: 50, EIP1559Denominator: 10}
+		return &conf
+	}()
+
+	// OP-Stack chain config with all production forks activated, based on the MergedTestChainConfig
+	OptimismTestConfig = func() *ChainConfig {
+		conf := *MergedTestChainConfig // copy the config
+		conf.BlobScheduleConfig = nil
+		conf.BedrockBlock = big.NewInt(0)
+		zero := uint64(0)
+		conf.RegolithTime = &zero
+		conf.CanyonTime = &zero
+		conf.EcotoneTime = &zero
+		conf.FjordTime = &zero
+		conf.GraniteTime = &zero
+		conf.HoloceneTime = &zero
+		conf.IsthmusTime = &zero
+		conf.InteropTime = nil
+		conf.JovianTime = nil
+		conf.Optimism = &OptimismConfig{EIP1559Elasticity: 50, EIP1559Denominator: 10, EIP1559DenominatorCanyon: uint64ptr(250)}
+		return &conf
+	}()
 )
 
 var (
@@ -417,6 +452,19 @@ type ChainConfig struct {
 	BPO4Time     *uint64 `json:"bpo4Time,omitempty"`     // BPO4 switch time (nil = no fork, 0 = already on bpo4)
 	BPO5Time     *uint64 `json:"bpo5Time,omitempty"`     // BPO5 switch time (nil = no fork, 0 = already on bpo5)
 
+	BedrockBlock *big.Int `json:"bedrockBlock,omitempty"` // Bedrock switch block (nil = no fork, 0 = already on optimism bedrock)
+	RegolithTime *uint64  `json:"regolithTime,omitempty"` // Regolith switch time (nil = no fork, 0 = already on optimism regolith)
+	CanyonTime   *uint64  `json:"canyonTime,omitempty"`   // Canyon switch time (nil = no fork, 0 = already on optimism canyon)
+	// Delta: the Delta upgrade does not affect the execution-layer, and is thus not configurable in the chain config.
+	EcotoneTime  *uint64 `json:"ecotoneTime,omitempty"`  // Ecotone switch time (nil = no fork, 0 = already on optimism ecotone)
+	FjordTime    *uint64 `json:"fjordTime,omitempty"`    // Fjord switch time (nil = no fork, 0 = already on Optimism Fjord)
+	GraniteTime  *uint64 `json:"graniteTime,omitempty"`  // Granite switch time (nil = no fork, 0 = already on Optimism Granite)
+	HoloceneTime *uint64 `json:"holoceneTime,omitempty"` // Holocene switch time (nil = no fork, 0 = already on Optimism Holocene)
+	IsthmusTime  *uint64 `json:"isthmusTime,omitempty"`  // Isthmus switch time (nil = no fork, 0 = already on Optimism Isthmus)
+	JovianTime   *uint64 `json:"jovianTime,omitempty"`   // Jovian switch time (nil = no fork, 0 = already on Optimism Jovian)
+
+	InteropTime *uint64 `json:"interopTime,omitempty"` // Interop switch time (nil = no fork, 0 = already on optimism interop)
+
 	// TerminalTotalDifficulty is the amount of total difficulty reached by
 	// the network that triggers the consensus upgrade.
 	TerminalTotalDifficulty *big.Int `json:"terminalTotalDifficulty,omitempty"`
@@ -440,6 +488,9 @@ type ChainConfig struct {
 	Ethash             *EthashConfig       `json:"ethash,omitempty"`
 	Clique             *CliqueConfig       `json:"clique,omitempty"`
 	BlobScheduleConfig *BlobScheduleConfig `json:"blobSchedule,omitempty"`
+
+	// Optimism config, nil if not active
+	Optimism *OptimismConfig `json:"optimism,omitempty"`
 }
 
 // EthashConfig is the consensus engine configs for proof-of-work based sealing.
@@ -461,6 +512,18 @@ func (c CliqueConfig) String() string {
 	return fmt.Sprintf("clique(period: %d, epoch: %d)", c.Period, c.Epoch)
 }
 
+// OptimismConfig is the optimism config.
+type OptimismConfig struct {
+	EIP1559Elasticity        uint64  `json:"eip1559Elasticity"`
+	EIP1559Denominator       uint64  `json:"eip1559Denominator"`
+	EIP1559DenominatorCanyon *uint64 `json:"eip1559DenominatorCanyon,omitempty"`
+}
+
+// String implements the stringer interface, returning the optimism fee config details.
+func (o *OptimismConfig) String() string {
+	return "optimism"
+}
+
 // Description returns a human-readable description of ChainConfig.
 func (c *ChainConfig) Description() string {
 	var banner string
@@ -472,6 +535,8 @@ func (c *ChainConfig) Description() string {
 	}
 	banner += fmt.Sprintf("Chain ID:  %v (%s)\n", c.ChainID, network)
 	switch {
+	case c.Optimism != nil:
+		banner += "Consensus: Optimism\n"
 	case c.Ethash != nil:
 		banner += "Consensus: Beacon (proof-of-stake), merged from Ethash (proof-of-work)\n"
 	case c.Clique != nil:
@@ -550,6 +615,33 @@ func (c *ChainConfig) Description() string {
 	}
 	if c.BPO5Time != nil {
 		banner += fmt.Sprintf(" - BPO5:                      @%-10v\n", *c.BPO5Time)
+	}
+	if c.RegolithTime != nil {
+		banner += fmt.Sprintf(" - Regolith:                    @%-10v\n", *c.RegolithTime)
+	}
+	if c.CanyonTime != nil {
+		banner += fmt.Sprintf(" - Canyon:                      @%-10v\n", *c.CanyonTime)
+	}
+	if c.EcotoneTime != nil {
+		banner += fmt.Sprintf(" - Ecotone:                     @%-10v\n", *c.EcotoneTime)
+	}
+	if c.FjordTime != nil {
+		banner += fmt.Sprintf(" - Fjord:                       @%-10v\n", *c.FjordTime)
+	}
+	if c.GraniteTime != nil {
+		banner += fmt.Sprintf(" - Granite:                     @%-10v\n", *c.GraniteTime)
+	}
+	if c.HoloceneTime != nil {
+		banner += fmt.Sprintf(" - Holocene:                    @%-10v\n", *c.HoloceneTime)
+	}
+	if c.IsthmusTime != nil {
+		banner += fmt.Sprintf(" - Isthmus:                     @%-10v\n", *c.IsthmusTime)
+	}
+	if c.JovianTime != nil {
+		banner += fmt.Sprintf(" - Jovian:                      @%-10v\n", *c.JovianTime)
+	}
+	if c.InteropTime != nil {
+		banner += fmt.Sprintf(" - Interop:                     @%-10v\n", *c.InteropTime)
 	}
 	return banner
 }
@@ -723,9 +815,97 @@ func (c *ChainConfig) IsEIP4762(num *big.Int, time uint64) bool {
 	return c.IsVerkle(num, time)
 }
 
+// IsBedrock returns whether num is either equal to the Bedrock fork block or greater.
+func (c *ChainConfig) IsBedrock(num *big.Int) bool {
+	return isBlockForked(c.BedrockBlock, num)
+}
+
+func (c *ChainConfig) IsRegolith(time uint64) bool {
+	return isTimestampForked(c.RegolithTime, time)
+}
+
+func (c *ChainConfig) IsCanyon(time uint64) bool {
+	return isTimestampForked(c.CanyonTime, time)
+}
+
+func (c *ChainConfig) IsEcotone(time uint64) bool {
+	return isTimestampForked(c.EcotoneTime, time)
+}
+
+func (c *ChainConfig) IsFjord(time uint64) bool {
+	return isTimestampForked(c.FjordTime, time)
+}
+
+func (c *ChainConfig) IsGranite(time uint64) bool {
+	return isTimestampForked(c.GraniteTime, time)
+}
+
+func (c *ChainConfig) IsHolocene(time uint64) bool {
+	return isTimestampForked(c.HoloceneTime, time)
+}
+
+func (c *ChainConfig) IsIsthmus(time uint64) bool {
+	return isTimestampForked(c.IsthmusTime, time)
+}
+
+func (c *ChainConfig) IsJovian(time uint64) bool {
+	return isTimestampForked(c.JovianTime, time)
+}
+
+func (c *ChainConfig) IsInterop(time uint64) bool {
+	return isTimestampForked(c.InteropTime, time)
+}
+
+// IsOptimism returns whether the node is an optimism node or not.
+func (c *ChainConfig) IsOptimism() bool {
+	return c.Optimism != nil
+}
+
+// IsOptimismBedrock returns true iff this is an optimism node & bedrock is active
+func (c *ChainConfig) IsOptimismBedrock(num *big.Int) bool {
+	return c.IsOptimism() && c.IsBedrock(num)
+}
+
+func (c *ChainConfig) IsOptimismRegolith(time uint64) bool {
+	return c.IsOptimism() && c.IsRegolith(time)
+}
+
+func (c *ChainConfig) IsOptimismCanyon(time uint64) bool {
+	return c.IsOptimism() && c.IsCanyon(time)
+}
+
+func (c *ChainConfig) IsOptimismEcotone(time uint64) bool {
+	return c.IsOptimism() && c.IsEcotone(time)
+}
+
+func (c *ChainConfig) IsOptimismFjord(time uint64) bool {
+	return c.IsOptimism() && c.IsFjord(time)
+}
+
+func (c *ChainConfig) IsOptimismGranite(time uint64) bool {
+	return c.IsOptimism() && c.IsGranite(time)
+}
+
+func (c *ChainConfig) IsOptimismHolocene(time uint64) bool {
+	return c.IsOptimism() && c.IsHolocene(time)
+}
+
+func (c *ChainConfig) IsOptimismIsthmus(time uint64) bool {
+	return c.IsOptimism() && c.IsIsthmus(time)
+}
+
+func (c *ChainConfig) IsOptimismJovian(time uint64) bool {
+	return c.IsOptimism() && c.IsJovian(time)
+}
+
+// IsOptimismPreBedrock returns true iff this is an optimism node & bedrock is not yet active
+func (c *ChainConfig) IsOptimismPreBedrock(num *big.Int) bool {
+	return c.IsOptimism() && !c.IsBedrock(num)
+}
+
 // CheckCompatible checks whether scheduled fork transitions have been imported
 // with a mismatching chain configuration.
-func (c *ChainConfig) CheckCompatible(newcfg *ChainConfig, height uint64, time uint64) *ConfigCompatError {
+func (c *ChainConfig) CheckCompatible(newcfg *ChainConfig, height, time uint64, genesisTimestamp *uint64) *ConfigCompatError {
 	var (
 		bhead = new(big.Int).SetUint64(height)
 		btime = time
@@ -733,7 +913,8 @@ func (c *ChainConfig) CheckCompatible(newcfg *ChainConfig, height uint64, time u
 	// Iterate checkCompatible to find the lowest conflict.
 	var lasterr *ConfigCompatError
 	for {
-		err := c.checkCompatible(newcfg, bhead, btime)
+		err := c.checkCompatible(newcfg, bhead, btime, genesisTimestamp)
+		log.Info("Checking compatibility", "height", bhead, "time", btime, "error", err)
 		if err == nil || (lasterr != nil && err.RewindToBlock == lasterr.RewindToBlock && err.RewindToTime == lasterr.RewindToTime) {
 			break
 		}
@@ -820,6 +1001,15 @@ func (c *ChainConfig) CheckConfigForkOrder() error {
 		}
 	}
 
+	// OP-Stack chains don't support blobs, and must have a nil BlobScheduleConfig.
+	if c.IsOptimism() {
+		if c.BlobScheduleConfig == nil {
+			return nil
+		} else {
+			return errors.New("OP-Stack chains must have empty blob configuration")
+		}
+	}
+
 	// Check that all forks with blobs explicitly define the blob schedule configuration.
 	bsc := c.BlobScheduleConfig
 	if bsc == nil {
@@ -867,7 +1057,7 @@ func (bc *BlobConfig) validate() error {
 	return nil
 }
 
-func (c *ChainConfig) checkCompatible(newcfg *ChainConfig, headNumber *big.Int, headTimestamp uint64) *ConfigCompatError {
+func (c *ChainConfig) checkCompatible(newcfg *ChainConfig, headNumber *big.Int, headTimestamp uint64, genesisTimestamp *uint64) *ConfigCompatError {
 	if isForkBlockIncompatible(c.HomesteadBlock, newcfg.HomesteadBlock, headNumber) {
 		return newBlockCompatError("Homestead fork block", c.HomesteadBlock, newcfg.HomesteadBlock)
 	}
@@ -923,46 +1113,89 @@ func (c *ChainConfig) checkCompatible(newcfg *ChainConfig, headNumber *big.Int, 
 	if isForkBlockIncompatible(c.MergeNetsplitBlock, newcfg.MergeNetsplitBlock, headNumber) {
 		return newBlockCompatError("Merge netsplit fork block", c.MergeNetsplitBlock, newcfg.MergeNetsplitBlock)
 	}
-	if isForkTimestampIncompatible(c.ShanghaiTime, newcfg.ShanghaiTime, headTimestamp) {
+	if isForkTimestampIncompatible(c.ShanghaiTime, newcfg.ShanghaiTime, headTimestamp, genesisTimestamp) {
 		return newTimestampCompatError("Shanghai fork timestamp", c.ShanghaiTime, newcfg.ShanghaiTime)
 	}
-	if isForkTimestampIncompatible(c.CancunTime, newcfg.CancunTime, headTimestamp) {
+	if isForkTimestampIncompatible(c.CancunTime, newcfg.CancunTime, headTimestamp, genesisTimestamp) {
 		return newTimestampCompatError("Cancun fork timestamp", c.CancunTime, newcfg.CancunTime)
 	}
-	if isForkTimestampIncompatible(c.PragueTime, newcfg.PragueTime, headTimestamp) {
+	if isForkTimestampIncompatible(c.PragueTime, newcfg.PragueTime, headTimestamp, genesisTimestamp) {
 		return newTimestampCompatError("Prague fork timestamp", c.PragueTime, newcfg.PragueTime)
 	}
-	if isForkTimestampIncompatible(c.OsakaTime, newcfg.OsakaTime, headTimestamp) {
+	if isForkTimestampIncompatible(c.OsakaTime, newcfg.OsakaTime, headTimestamp, genesisTimestamp) {
 		return newTimestampCompatError("Osaka fork timestamp", c.OsakaTime, newcfg.OsakaTime)
 	}
-	if isForkTimestampIncompatible(c.VerkleTime, newcfg.VerkleTime, headTimestamp) {
+	if isForkTimestampIncompatible(c.VerkleTime, newcfg.VerkleTime, headTimestamp, genesisTimestamp) {
 		return newTimestampCompatError("Verkle fork timestamp", c.VerkleTime, newcfg.VerkleTime)
 	}
-	if isForkTimestampIncompatible(c.BPO1Time, newcfg.BPO1Time, headTimestamp) {
+	if isForkTimestampIncompatible(c.BPO1Time, newcfg.BPO1Time, headTimestamp, genesisTimestamp) {
 		return newTimestampCompatError("BPO1 fork timestamp", c.BPO1Time, newcfg.BPO1Time)
 	}
-	if isForkTimestampIncompatible(c.BPO2Time, newcfg.BPO2Time, headTimestamp) {
+	if isForkTimestampIncompatible(c.BPO2Time, newcfg.BPO2Time, headTimestamp, genesisTimestamp) {
 		return newTimestampCompatError("BPO2 fork timestamp", c.BPO2Time, newcfg.BPO2Time)
 	}
-	if isForkTimestampIncompatible(c.BPO3Time, newcfg.BPO3Time, headTimestamp) {
+	if isForkTimestampIncompatible(c.BPO3Time, newcfg.BPO3Time, headTimestamp, genesisTimestamp) {
 		return newTimestampCompatError("BPO3 fork timestamp", c.BPO3Time, newcfg.BPO3Time)
 	}
-	if isForkTimestampIncompatible(c.BPO4Time, newcfg.BPO4Time, headTimestamp) {
+	if isForkTimestampIncompatible(c.BPO4Time, newcfg.BPO4Time, headTimestamp, genesisTimestamp) {
 		return newTimestampCompatError("BPO4 fork timestamp", c.BPO4Time, newcfg.BPO4Time)
 	}
-	if isForkTimestampIncompatible(c.BPO5Time, newcfg.BPO5Time, headTimestamp) {
+	if isForkTimestampIncompatible(c.BPO5Time, newcfg.BPO5Time, headTimestamp, genesisTimestamp) {
 		return newTimestampCompatError("BPO5 fork timestamp", c.BPO5Time, newcfg.BPO5Time)
+	}
+	if isForkBlockIncompatible(c.BedrockBlock, newcfg.BedrockBlock, headNumber) {
+		return newBlockCompatError("Bedrock fork block", c.BedrockBlock, newcfg.BedrockBlock)
+	}
+	if isForkTimestampIncompatible(c.RegolithTime, newcfg.RegolithTime, headTimestamp, genesisTimestamp) {
+		return newTimestampCompatError("Regolith fork timestamp", c.RegolithTime, newcfg.RegolithTime)
+	}
+	if isForkTimestampIncompatible(c.CanyonTime, newcfg.CanyonTime, headTimestamp, genesisTimestamp) {
+		return newTimestampCompatError("Canyon fork timestamp", c.CanyonTime, newcfg.CanyonTime)
+	}
+	if isForkTimestampIncompatible(c.EcotoneTime, newcfg.EcotoneTime, headTimestamp, genesisTimestamp) {
+		return newTimestampCompatError("Ecotone fork timestamp", c.EcotoneTime, newcfg.EcotoneTime)
+	}
+	if isForkTimestampIncompatible(c.FjordTime, newcfg.FjordTime, headTimestamp, genesisTimestamp) {
+		return newTimestampCompatError("Fjord fork timestamp", c.FjordTime, newcfg.FjordTime)
+	}
+	if isForkTimestampIncompatible(c.GraniteTime, newcfg.GraniteTime, headTimestamp, genesisTimestamp) {
+		return newTimestampCompatError("Granite fork timestamp", c.GraniteTime, newcfg.GraniteTime)
+	}
+	if isForkTimestampIncompatible(c.HoloceneTime, newcfg.HoloceneTime, headTimestamp, genesisTimestamp) {
+		return newTimestampCompatError("Holocene fork timestamp", c.HoloceneTime, newcfg.HoloceneTime)
+	}
+	if isForkTimestampIncompatible(c.IsthmusTime, newcfg.IsthmusTime, headTimestamp, genesisTimestamp) {
+		return newTimestampCompatError("Isthmus fork timestamp", c.IsthmusTime, newcfg.IsthmusTime)
+	}
+	if isForkTimestampIncompatible(c.JovianTime, newcfg.JovianTime, headTimestamp, genesisTimestamp) {
+		return newTimestampCompatError("Jovian fork timestamp", c.JovianTime, newcfg.JovianTime)
+	}
+	if isForkTimestampIncompatible(c.InteropTime, newcfg.InteropTime, headTimestamp, genesisTimestamp) {
+		return newTimestampCompatError("Interop fork timestamp", c.InteropTime, newcfg.InteropTime)
 	}
 	return nil
 }
 
 // BaseFeeChangeDenominator bounds the amount the base fee can change between blocks.
-func (c *ChainConfig) BaseFeeChangeDenominator() uint64 {
+// The time parameters is the timestamp of the block to determine if Canyon is active or not
+func (c *ChainConfig) BaseFeeChangeDenominator(time uint64) uint64 {
+	if c.Optimism != nil {
+		if c.IsCanyon(time) {
+			if c.Optimism.EIP1559DenominatorCanyon == nil || *c.Optimism.EIP1559DenominatorCanyon == 0 {
+				panic("invalid ChainConfig.Optimism.EIP1559DenominatorCanyon value: '0' or 'nil'")
+			}
+			return *c.Optimism.EIP1559DenominatorCanyon
+		}
+		return c.Optimism.EIP1559Denominator
+	}
 	return DefaultBaseFeeChangeDenominator
 }
 
 // ElasticityMultiplier bounds the maximum gas limit an EIP-1559 block may have.
 func (c *ChainConfig) ElasticityMultiplier() uint64 {
+	if c.Optimism != nil {
+		return c.Optimism.EIP1559Elasticity
+	}
 	return DefaultElasticityMultiplier
 }
 
@@ -1003,7 +1236,7 @@ func (c *ChainConfig) Timestamp(fork forks.Fork) *uint64 {
 }
 
 // isForkBlockIncompatible returns true if a fork scheduled at block s1 cannot be
-// rescheduled to block s2 because head is already past the fork.
+// rescheduled to block s2 because head is already past the fork and the fork was scheduled after genesis
 func isForkBlockIncompatible(s1, s2, head *big.Int) bool {
 	return (isBlockForked(s1, head) || isBlockForked(s2, head)) && !configBlockEqual(s1, s2)
 }
@@ -1030,8 +1263,15 @@ func configBlockEqual(x, y *big.Int) bool {
 
 // isForkTimestampIncompatible returns true if a fork scheduled at timestamp s1
 // cannot be rescheduled to timestamp s2 because head is already past the fork.
-func isForkTimestampIncompatible(s1, s2 *uint64, head uint64) bool {
-	return (isTimestampForked(s1, head) || isTimestampForked(s2, head)) && !configTimestampEqual(s1, s2)
+func isForkTimestampIncompatible(s1, s2 *uint64, head uint64, genesis *uint64) bool {
+	return (isTimestampForked(s1, head) || isTimestampForked(s2, head)) && !configTimestampEqual(s1, s2) && !(isTimestampPreGenesis(s1, genesis) && isTimestampPreGenesis(s2, genesis))
+}
+
+func isTimestampPreGenesis(s, genesis *uint64) bool {
+	if s == nil || genesis == nil {
+		return false
+	}
+	return *s < *genesis
 }
 
 // isTimestampForked returns whether a fork scheduled at timestamp s is active
@@ -1144,6 +1384,10 @@ type Rules struct {
 	IsBerlin, IsLondon                                      bool
 	IsMerge, IsShanghai, IsCancun, IsPrague, IsOsaka        bool
 	IsVerkle                                                bool
+	IsOptimismBedrock, IsOptimismRegolith                   bool
+	IsOptimismCanyon, IsOptimismFjord                       bool
+	IsOptimismGranite, IsOptimismHolocene                   bool
+	IsOptimismIsthmus                                       bool
 }
 
 // Rules ensures c's ChainID is not nil.
@@ -1175,5 +1419,60 @@ func (c *ChainConfig) Rules(num *big.Int, isMerge bool, timestamp uint64) Rules 
 		IsOsaka:          isMerge && c.IsOsaka(num, timestamp),
 		IsVerkle:         isVerkle,
 		IsEIP4762:        isVerkle,
+		// Optimism
+		IsOptimismBedrock:  isMerge && c.IsOptimismBedrock(num),
+		IsOptimismRegolith: isMerge && c.IsOptimismRegolith(timestamp),
+		IsOptimismCanyon:   isMerge && c.IsOptimismCanyon(timestamp),
+		IsOptimismFjord:    isMerge && c.IsOptimismFjord(timestamp),
+		IsOptimismGranite:  isMerge && c.IsOptimismGranite(timestamp),
+		IsOptimismHolocene: isMerge && c.IsOptimismHolocene(timestamp),
+		IsOptimismIsthmus:  isMerge && c.IsOptimismIsthmus(timestamp),
 	}
+}
+
+func (c *ChainConfig) HasOptimismWithdrawalsRoot(blockTime uint64) bool {
+	return c.IsOptimismIsthmus(blockTime)
+}
+
+// CheckOptimismValidity checks for OP Stack chains:
+// - the EIP159 params are set
+// - the Ethereum forks are set to the same time as the OP Stack forks that imply them
+func (c *ChainConfig) CheckOptimismValidity() error {
+	if c.Optimism == nil {
+		return nil
+	}
+
+	if c.Optimism.EIP1559Denominator == 0 {
+		return errors.New("zero EIP1559Denominator")
+	}
+	if c.Optimism.EIP1559Elasticity == 0 {
+		return errors.New("zero EIP1559Elasticity")
+	}
+	if c.CanyonTime != nil && (c.Optimism.EIP1559DenominatorCanyon == nil || *c.Optimism.EIP1559DenominatorCanyon == 0) {
+		return errors.New("missing or zero EIP1559DenominatorCanyon")
+	}
+
+	if !equalPtrValues(c.ShanghaiTime, c.CanyonTime) {
+		return fmt.Errorf("ShanghaiTime (%s) must equal CanyonTime (%s)", ptrValueString(c.ShanghaiTime), ptrValueString(c.CanyonTime))
+	}
+	if !equalPtrValues(c.CancunTime, c.EcotoneTime) {
+		return fmt.Errorf("CancunTime (%s) must equal EcotoneTime (%s)", ptrValueString(c.CancunTime), ptrValueString(c.EcotoneTime))
+	}
+	if !equalPtrValues(c.PragueTime, c.IsthmusTime) {
+		return fmt.Errorf("PragueTime (%s) must equal IsthmusTime (%s)", ptrValueString(c.PragueTime), ptrValueString(c.IsthmusTime))
+	}
+
+	return nil
+}
+
+func equalPtrValues[T comparable](a, b *T) bool {
+	// also captures nil == nil
+	return a == b || (a != nil && b != nil && *a == *b)
+}
+
+func ptrValueString[T any](t *T) string {
+	if t == nil {
+		return "<nil>"
+	}
+	return fmt.Sprintf("%v", *t)
 }

@@ -42,9 +42,11 @@ type sigCache struct {
 func MakeSigner(config *params.ChainConfig, blockNumber *big.Int, blockTime uint64) Signer {
 	var signer Signer
 	switch {
-	case config.IsPrague(blockNumber, blockTime):
+	case config.IsIsthmus(blockTime):
+		signer = NewIsthmusSigner(config.ChainID)
+	case config.IsPrague(blockNumber, blockTime) && !config.IsOptimism():
 		signer = NewPragueSigner(config.ChainID)
-	case config.IsCancun(blockNumber, blockTime):
+	case config.IsCancun(blockNumber, blockTime) && !config.IsOptimism():
 		signer = NewCancunSigner(config.ChainID)
 	case config.IsLondon(blockNumber):
 		signer = NewLondonSigner(config.ChainID)
@@ -71,9 +73,11 @@ func LatestSigner(config *params.ChainConfig) Signer {
 	var signer Signer
 	if config.ChainID != nil {
 		switch {
-		case config.PragueTime != nil:
+		case config.IsthmusTime != nil:
+			signer = NewIsthmusSigner(config.ChainID)
+		case config.PragueTime != nil && !config.IsOptimism():
 			signer = NewPragueSigner(config.ChainID)
-		case config.CancunTime != nil:
+		case config.CancunTime != nil && !config.IsOptimism():
 			signer = NewCancunSigner(config.ChainID)
 		case config.LondonBlock != nil:
 			signer = NewLondonSigner(config.ChainID)
@@ -242,6 +246,17 @@ func (s *modernSigner) supportsType(txtype byte) bool {
 
 func (s *modernSigner) Sender(tx *Transaction) (common.Address, error) {
 	tt := tx.Type()
+
+	// OP-Stack: deposit transactions store the sender directly as the From field
+	if tt == DepositTxType {
+		switch tx.inner.(type) {
+		case *DepositTx:
+			return tx.inner.(*DepositTx).From, nil
+		case *depositTxWithNonce:
+			return tx.inner.(*depositTxWithNonce).From, nil
+		}
+	}
+
 	if !s.supportsType(tt) {
 		return common.Address{}, ErrTxTypeNotSupported
 	}
@@ -274,6 +289,21 @@ func (s *modernSigner) SignatureValues(tx *Transaction, sig []byte) (R, S, V *bi
 	R, S, _ = decodeSignature(sig)
 	V = big.NewInt(int64(sig[64]))
 	return R, S, V, nil
+}
+
+// NewIsthmusSigner returns a signer that accepts
+// - EIP-7702 set code transactions
+// - NOT EIP-4844 blob transactions
+// - EIP-1559 dynamic fee transactions
+// - EIP-2930 access list transactions,
+// - EIP-155 replay protected transactions, and
+// - legacy Homestead transactions.
+// OP-Stack addition
+func NewIsthmusSigner(chainId *big.Int) Signer {
+	s := newModernSigner(chainId, forks.Prague).(*modernSigner)
+	// OP-Stack: remove blob tx support
+	delete(s.txtypes, BlobTxType)
+	return s
 }
 
 // NewPragueSigner returns a signer that accepts

@@ -29,6 +29,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/internal/era"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/internal/flags"
@@ -122,7 +123,11 @@ func block(ctx *cli.Context) error {
 		return fmt.Errorf("error reading block %d: %w", num, err)
 	}
 	// Convert block to JSON and print.
-	val := ethapi.RPCMarshalBlock(block, ctx.Bool(txsFlag.Name), ctx.Bool(txsFlag.Name), params.MainnetChainConfig)
+	// TODO: without a proper Eth API Backend, this tool isn't expected to function correctly
+	val, err := ethapi.RPCMarshalBlock(ctx.Context, block, ctx.Bool(txsFlag.Name), ctx.Bool(txsFlag.Name), params.MainnetChainConfig, &eth.EthAPIBackend{})
+	if err != nil {
+		return fmt.Errorf("error marshaling block: %w", err)
+	}
 	b, err := json.MarshalIndent(val, "", "  ")
 	if err != nil {
 		return fmt.Errorf("error marshaling json: %w", err)

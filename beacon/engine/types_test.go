@@ -32,7 +32,7 @@ func TestBlobs(t *testing.T) {
 		emptyCellProof, _  = kzg4844.ComputeCellProofs(emptyBlob)
 	)
 	header := types.Header{}
-	block := types.NewBlock(&header, &types.Body{}, nil, nil)
+	block := types.NewBlock(&header, &types.Body{Withdrawals: []*types.Withdrawal{}}, nil, nil, types.DefaultBlockConfig)
 
 	sidecarWithoutCellProofs := types.NewBlobTxSidecar(types.BlobSidecarVersion0, []kzg4844.Blob{*emptyBlob}, []kzg4844.Commitment{emptyBlobCommit}, []kzg4844.Proof{emptyBlobProof})
 	env := BlockToExecutableData(block, common.Big0, []*types.BlobTxSidecar{sidecarWithoutCellProofs}, nil)

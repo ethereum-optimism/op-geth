@@ -38,6 +38,7 @@ const (
 type T interface {
 	Logf(format string, args ...any)
 	Helper()
+	FailNow()
 }
 
 // logger implements log.Logger such that all output goes to the unit test log via
@@ -104,65 +105,132 @@ func (l *logger) Handler() slog.Handler {
 	return l.l.Handler()
 }
 
-func (l *logger) Write(level slog.Level, msg string, ctx ...interface{}) {}
+func (l *logger) Write(level slog.Level, msg string, args ...interface{}) {
+	l.t.Helper()
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.l.Write(level, msg, args...)
+	l.flush()
+}
+
+func (l *logger) WriteCtx(ctx context.Context, level slog.Level, msg string, args ...interface{}) {
+	l.t.Helper()
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.l.WriteCtx(ctx, level, msg, args...)
+	l.flush()
+}
 
 func (l *logger) Enabled(ctx context.Context, level slog.Level) bool {
 	return l.l.Enabled(ctx, level)
 }
 
-func (l *logger) Trace(msg string, ctx ...interface{}) {
+func (l *logger) Trace(msg string, args ...interface{}) {
 	l.t.Helper()
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	l.l.Trace(msg, ctx...)
+	l.l.Trace(msg, args...)
 	l.flush()
 }
 
-func (l *logger) Log(level slog.Level, msg string, ctx ...interface{}) {
+func (l *logger) Log(level slog.Level, msg string, args ...interface{}) {
 	l.t.Helper()
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	l.l.Log(level, msg, ctx...)
+	l.l.Log(level, msg, args...)
 	l.flush()
 }
 
-func (l *logger) Debug(msg string, ctx ...interface{}) {
+func (l *logger) Debug(msg string, args ...interface{}) {
 	l.t.Helper()
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	l.l.Debug(msg, ctx...)
+	l.l.Debug(msg, args...)
 	l.flush()
 }
 
-func (l *logger) Info(msg string, ctx ...interface{}) {
+func (l *logger) Info(msg string, args ...interface{}) {
 	l.t.Helper()
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	l.l.Info(msg, ctx...)
+	l.l.Info(msg, args...)
 	l.flush()
 }
 
-func (l *logger) Warn(msg string, ctx ...interface{}) {
+func (l *logger) Warn(msg string, args ...interface{}) {
 	l.t.Helper()
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	l.l.Warn(msg, ctx...)
+	l.l.Warn(msg, args...)
 	l.flush()
 }
 
-func (l *logger) Error(msg string, ctx ...interface{}) {
+func (l *logger) Error(msg string, args ...interface{}) {
 	l.t.Helper()
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	l.l.Error(msg, ctx...)
+	l.l.Error(msg, args...)
 	l.flush()
 }
 
-func (l *logger) Crit(msg string, ctx ...interface{}) {
+func (l *logger) Crit(msg string, args ...interface{}) {
 	l.t.Helper()
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	l.l.Crit(msg, ctx...)
+	l.l.Log(log.LevelCrit, msg, args...) // Bypass the os.Exit by not using the Crit function.
+	l.flush()                            // flush critical info to test-logs before exiting
+	l.t.FailNow()
+}
+
+func (l *logger) SetContext(ctx context.Context) {
+	// no-op: test-logger does not use default contexts.
+}
+
+func (l *logger) LogAttrs(ctx context.Context, level slog.Level, msg string, attrs ...slog.Attr) {
+	l.t.Helper()
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.l.LogAttrs(ctx, level, msg, attrs...)
+	l.flush()
+}
+
+func (l *logger) TraceContext(ctx context.Context, msg string, args ...any) {
+	l.t.Helper()
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.l.TraceContext(ctx, msg, args...)
+	l.flush()
+}
+
+func (l *logger) DebugContext(ctx context.Context, msg string, args ...any) {
+	l.t.Helper()
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.l.DebugContext(ctx, msg, args...)
+	l.flush()
+}
+
+func (l *logger) InfoContext(ctx context.Context, msg string, args ...any) {
+	l.t.Helper()
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.l.InfoContext(ctx, msg, args...)
+	l.flush()
+}
+
+func (l *logger) WarnContext(ctx context.Context, msg string, args ...any) {
+	l.t.Helper()
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.l.WarnContext(ctx, msg, args...)
+	l.flush()
+}
+
+func (l *logger) ErrorContext(ctx context.Context, msg string, args ...any) {
+	l.t.Helper()
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.l.ErrorContext(ctx, msg, args...)
 	l.flush()
 }
 

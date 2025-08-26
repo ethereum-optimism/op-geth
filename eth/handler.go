@@ -105,6 +105,7 @@ type handlerConfig struct {
 	BloomCache     uint64                 // Megabytes to alloc for snap sync bloom
 	EventMux       *event.TypeMux         // Legacy event mux, deprecate for `feed`
 	RequiredBlocks map[uint64]common.Hash // Hard coded map of required block hashes for sync challenges
+	NoTxGossip     bool                   // Disable P2P transaction gossip
 }
 
 type handler struct {
@@ -118,6 +119,8 @@ type handler struct {
 	txpool   txPool
 	chain    *core.BlockChain
 	maxPeers int
+
+	noTxGossip bool
 
 	downloader *downloader.Downloader
 	txFetcher  *fetcher.TxFetcher
@@ -151,6 +154,7 @@ func newHandler(config *handlerConfig) (*handler, error) {
 		eventMux:       config.EventMux,
 		database:       config.Database,
 		txpool:         config.TxPool,
+		noTxGossip:     config.NoTxGossip,
 		chain:          config.Chain,
 		peers:          newPeerSet(),
 		requiredBlocks: config.RequiredBlocks,
@@ -177,9 +181,10 @@ func newHandler(config *handlerConfig) (*handler, error) {
 		}
 	} else {
 		head := h.chain.CurrentBlock()
-		if head.Number.Uint64() > 0 && h.chain.HasState(head.Root) {
+		if head.Number.Uint64() > 0 && h.chain.HasState(head.Root) && (!config.Chain.Config().IsOptimism() || head.Number.Cmp(config.Chain.Config().BedrockBlock) != 0) {
 			// Print warning log if database is not empty to run snap sync.
-			log.Warn("Switch sync mode from snap sync to full sync", "reason", "snap sync complete")
+			// For OP chains, snap sync from bedrock block is allowed.
+			log.Warn("Switch sync mode from snap sync to full sync")
 		} else {
 			// If snap sync was requested and our database is empty, grant it
 			h.snapSync.Store(true)
@@ -190,8 +195,14 @@ func newHandler(config *handlerConfig) (*handler, error) {
 	if h.snapSync.Load() && (config.Chain.Snapshots() == nil && config.Chain.TrieDB().Scheme() == rawdb.HashScheme) {
 		return nil, errors.New("snap sync not supported with snapshots disabled")
 	}
+	// if the chainID is set, pass it to the downloader for use in sync
+	// this might not be set in tests
+	var chainID uint64
+	if cid := h.chain.Config().ChainID; cid != nil {
+		chainID = cid.Uint64()
+	}
 	// Construct the downloader (long sync)
-	h.downloader = downloader.New(config.Database, h.eventMux, h.chain, h.removePeer, h.enableSyncedFeatures)
+	h.downloader = downloader.New(config.Database, h.eventMux, h.chain, h.removePeer, h.enableSyncedFeatures, chainID)
 
 	fetchTx := func(peer string, hashes []common.Hash) error {
 		p := h.peers.peer(peer)

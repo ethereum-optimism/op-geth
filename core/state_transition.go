@@ -166,6 +166,11 @@ type Message struct {
 
 	// When SkipFromEOACheck is true, the message sender is not checked to be an EOA.
 	SkipFromEOACheck bool
+
+	IsSystemTx     bool                 // IsSystemTx indicates the message, if also a deposit, does not emit gas usage.
+	IsDepositTx    bool                 // IsDepositTx indicates the message is force-included and can persist a mint.
+	Mint           *big.Int             // Mint is the amount to mint before EVM processing, or nil if there is no minting.
+	RollupCostData types.RollupCostData // RollupCostData caches data to compute the fee we charge for data availability
 }
 
 // TransactionToMessage converts a transaction into a Message.
@@ -185,6 +190,11 @@ func TransactionToMessage(tx *types.Transaction, s types.Signer, baseFee *big.In
 		SkipFromEOACheck:      false,
 		BlobHashes:            tx.BlobHashes(),
 		BlobGasFeeCap:         tx.BlobGasFeeCap(),
+
+		IsSystemTx:     tx.IsSystemTx(),
+		IsDepositTx:    tx.IsDepositTx(),
+		Mint:           tx.Mint(),
+		RollupCostData: tx.RollupCostData(),
 	}
 	// If baseFee provided, set gasPrice to effectiveGasPrice.
 	if baseFee != nil {
@@ -262,10 +272,30 @@ func (st *stateTransition) to() common.Address {
 func (st *stateTransition) buyGas() error {
 	mgval := new(big.Int).SetUint64(st.msg.GasLimit)
 	mgval.Mul(mgval, st.msg.GasPrice)
+	var l1Cost *big.Int
+	var operatorCost *uint256.Int
+	if !st.msg.SkipNonceChecks && !st.msg.SkipFromEOACheck {
+		if st.evm.Context.L1CostFunc != nil {
+			l1Cost = st.evm.Context.L1CostFunc(st.msg.RollupCostData, st.evm.Context.Time)
+			if l1Cost != nil {
+				mgval = mgval.Add(mgval, l1Cost)
+			}
+		}
+		if st.evm.Context.OperatorCostFunc != nil {
+			operatorCost = st.evm.Context.OperatorCostFunc(st.msg.GasLimit, st.evm.Context.Time)
+			mgval = mgval.Add(mgval, operatorCost.ToBig())
+		}
+	}
 	balanceCheck := new(big.Int).Set(mgval)
 	if st.msg.GasFeeCap != nil {
 		balanceCheck.SetUint64(st.msg.GasLimit)
 		balanceCheck = balanceCheck.Mul(balanceCheck, st.msg.GasFeeCap)
+		if l1Cost != nil {
+			balanceCheck.Add(balanceCheck, l1Cost)
+		}
+		if operatorCost != nil {
+			balanceCheck.Add(balanceCheck, operatorCost.ToBig())
+		}
 	}
 	balanceCheck.Add(balanceCheck, st.msg.Value)
 
@@ -304,6 +334,21 @@ func (st *stateTransition) buyGas() error {
 }
 
 func (st *stateTransition) preCheck() error {
+	if st.msg.IsDepositTx {
+		// No fee fields to check, no nonce to check, and no need to check if EOA (L1 already verified it for us)
+		// Gas is free, but no refunds!
+		st.initialGas = st.msg.GasLimit
+		st.gasRemaining = st.msg.GasLimit // Add gas here in order to be able to execute calls.
+		// Don't touch the gas pool for system transactions
+		if st.msg.IsSystemTx {
+			if st.evm.ChainConfig().IsOptimismRegolith(st.evm.Context.Time) {
+				return fmt.Errorf("%w: address %v", ErrSystemTxNotSupported,
+					st.msg.From.Hex())
+			}
+			return nil
+		}
+		return st.gp.SubGas(st.msg.GasLimit) // gas used by deposits may not be used by other txs
+	}
 	// Only check transactions that are not fake
 	msg := st.msg
 	if !msg.SkipNonceChecks {
@@ -416,6 +461,45 @@ func (st *stateTransition) preCheck() error {
 // However if any consensus issue encountered, return the error directly with
 // nil evm execution result.
 func (st *stateTransition) execute() (*ExecutionResult, error) {
+	if mint := st.msg.Mint; mint != nil {
+		mintU256, overflow := uint256.FromBig(mint)
+		if overflow {
+			return nil, fmt.Errorf("mint value exceeds uint256: %d", mintU256)
+		}
+		st.state.AddBalance(st.msg.From, mintU256, tracing.BalanceMint)
+	}
+	snap := st.state.Snapshot()
+
+	result, err := st.innerExecute()
+	// Failed deposits must still be included. Unless we cannot produce the block at all due to the gas limit.
+	// On deposit failure, we rewind any state changes from after the minting, and increment the nonce.
+	if err != nil && err != ErrGasLimitReached && st.msg.IsDepositTx {
+		if st.evm.Config.Tracer != nil && st.evm.Config.Tracer.OnEnter != nil {
+			st.evm.Config.Tracer.OnEnter(0, byte(vm.STOP), common.Address{}, common.Address{}, nil, 0, nil)
+		}
+
+		st.state.RevertToSnapshot(snap)
+		// Even though we revert the state changes, always increment the nonce for the next deposit transaction
+		st.state.SetNonce(st.msg.From, st.state.GetNonce(st.msg.From)+1, tracing.NonceChangeEoACall)
+		// Record deposits as using all their gas (matches the gas pool)
+		// System Transactions are special & are not recorded as using any gas (anywhere)
+		// Regolith changes this behaviour so the actual gas used is reported.
+		// In this case the tx is invalid so is recorded as using all gas.
+		gasUsed := st.msg.GasLimit
+		if st.msg.IsSystemTx && !st.evm.ChainConfig().IsRegolith(st.evm.Context.Time) {
+			gasUsed = 0
+		}
+		result = &ExecutionResult{
+			UsedGas:    gasUsed,
+			Err:        fmt.Errorf("failed deposit: %w", err),
+			ReturnData: nil,
+		}
+		err = nil
+	}
+	return result, err
+}
+
+func (st *stateTransition) innerExecute() (*ExecutionResult, error) {
 	// First check this message satisfies all consensus rules before
 	// applying the message. The rules include these clauses
 	//
@@ -457,7 +541,11 @@ func (st *stateTransition) execute() (*ExecutionResult, error) {
 		}
 	}
 	if t := st.evm.Config.Tracer; t != nil && t.OnGasChange != nil {
-		t.OnGasChange(st.gasRemaining, st.gasRemaining-gas, tracing.GasChangeTxIntrinsicGas)
+		if st.msg.IsDepositTx {
+			t.OnGasChange(st.gasRemaining, 0, tracing.GasChangeTxIntrinsicGas)
+		} else {
+			t.OnGasChange(st.gasRemaining, st.gasRemaining-gas, tracing.GasChangeTxIntrinsicGas)
+		}
 	}
 	st.gasRemaining -= gas
 
@@ -519,6 +607,22 @@ func (st *stateTransition) execute() (*ExecutionResult, error) {
 		ret, st.gasRemaining, vmerr = st.evm.Call(msg.From, st.to(), msg.Data, st.gasRemaining, value)
 	}
 
+	// OP-Stack: pre-Regolith: if deposit, skip refunds, skip tipping coinbase
+	// Regolith changes this behaviour to report the actual gasUsed instead of always reporting all gas used.
+	if st.msg.IsDepositTx && !rules.IsOptimismRegolith {
+		// Record deposits as using all their gas (matches the gas pool)
+		// System Transactions are special & are not recorded as using any gas (anywhere)
+		gasUsed := st.msg.GasLimit
+		if st.msg.IsSystemTx {
+			gasUsed = 0
+		}
+		return &ExecutionResult{
+			UsedGas:    gasUsed,
+			Err:        vmerr,
+			ReturnData: ret,
+		}, nil
+	}
+
 	// Record the gas used excluding gas refunds. This value represents the actual
 	// gas allowance required to complete execution.
 	peakGasUsed := st.gasUsed()
@@ -540,6 +644,19 @@ func (st *stateTransition) execute() (*ExecutionResult, error) {
 	}
 	st.returnGas()
 
+	// OP-Stack: Note for deposit tx there is no ETH refunded for unused gas, but that's taken care of by the fact that gasPrice
+	// is always 0 for deposit tx. So calling refundGas will ensure the gasUsed accounting is correct without actually
+	// changing the sender's balance.
+	if st.msg.IsDepositTx && rules.IsOptimismRegolith {
+		// Skip coinbase payments for deposit tx in Regolith
+		return &ExecutionResult{
+			UsedGas:    st.gasUsed(),
+			MaxUsedGas: peakGasUsed,
+			Err:        vmerr,
+			ReturnData: ret,
+		}, nil
+	}
+
 	effectiveTip := msg.GasPrice
 	if rules.IsLondon {
 		effectiveTip = new(big.Int).Sub(msg.GasPrice, st.evm.Context.BaseFee)
@@ -558,6 +675,31 @@ func (st *stateTransition) execute() (*ExecutionResult, error) {
 		// add the coinbase to the witness iff the fee is greater than 0
 		if rules.IsEIP4762 && fee.Sign() != 0 {
 			st.evm.AccessEvents.AddAccount(st.evm.Context.Coinbase, true, math.MaxUint64)
+		}
+
+		// Check that we are post bedrock to enable op-geth to be able to create pseudo pre-bedrock blocks (these are pre-bedrock, but don't follow l2 geth rules)
+		// Note optimismConfig will not be nil if rules.IsOptimismBedrock is true
+		if optimismConfig := st.evm.ChainConfig().Optimism; optimismConfig != nil && rules.IsOptimismBedrock && !st.msg.IsDepositTx {
+			gasCost := new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), st.evm.Context.BaseFee)
+			amtU256, overflow := uint256.FromBig(gasCost)
+			if overflow {
+				return nil, fmt.Errorf("optimism gas cost overflows U256: %d", gasCost)
+			}
+			st.state.AddBalance(params.OptimismBaseFeeRecipient, amtU256, tracing.BalanceIncreaseRewardTransactionFee)
+			if l1Cost := st.evm.Context.L1CostFunc(st.msg.RollupCostData, st.evm.Context.Time); l1Cost != nil {
+				amtU256, overflow = uint256.FromBig(l1Cost)
+				if overflow {
+					return nil, fmt.Errorf("optimism l1 cost overflows U256: %d", l1Cost)
+				}
+				st.state.AddBalance(params.OptimismL1FeeRecipient, amtU256, tracing.BalanceIncreaseRewardTransactionFee)
+			}
+			if rules.IsOptimismIsthmus {
+				// Operator Fee refunds are only applied if Isthmus is active and the transaction is *not* a deposit.
+				st.refundIsthmusOperatorCost()
+
+				operatorFeeCost := st.evm.Context.OperatorCostFunc(st.gasUsed(), st.evm.Context.Time)
+				st.state.AddBalance(params.OptimismOperatorFeeRecipient, operatorFeeCost, tracing.BalanceIncreaseRewardTransactionFee)
+			}
 		}
 	}
 
@@ -660,6 +802,18 @@ func (st *stateTransition) returnGas() {
 	// Also return remaining gas to the block gas counter so it is
 	// available for the next transaction.
 	st.gp.AddGas(st.gasRemaining)
+}
+
+func (st *stateTransition) refundIsthmusOperatorCost() {
+	// Return ETH to transaction sender for operator cost overcharge.
+	operatorCostGasLimit := st.evm.Context.OperatorCostFunc(st.msg.GasLimit, st.evm.Context.Time)
+	operatorCostGasUsed := st.evm.Context.OperatorCostFunc(st.gasUsed(), st.evm.Context.Time)
+
+	if operatorCostGasUsed.Cmp(operatorCostGasLimit) > 0 { // Sanity check.
+		panic(fmt.Sprintf("operator cost gas used (%d) > operator cost gas limit (%d)", operatorCostGasUsed, operatorCostGasLimit))
+	}
+
+	st.state.AddBalance(st.msg.From, new(uint256.Int).Sub(operatorCostGasLimit, operatorCostGasUsed), tracing.BalanceIncreaseGasReturn)
 }
 
 // gasUsed returns the amount of gas used up by the state transition.

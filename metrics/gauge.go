@@ -1,6 +1,9 @@
 package metrics
 
-import "sync/atomic"
+import (
+	"math/big"
+	"sync/atomic"
+)
 
 // GaugeSnapshot is a read-only copy of a Gauge.
 type GaugeSnapshot int64
@@ -40,6 +43,14 @@ func (g *Gauge) Snapshot() GaugeSnapshot {
 // Update updates the gauge's value.
 func (g *Gauge) Update(v int64) {
 	(*atomic.Int64)(g).Store(v)
+}
+
+// TryUpdate updates the gauge if the value is non-nil, converting it to int64.
+func (g *Gauge) TryUpdate(v *big.Int) {
+	if v == nil {
+		return
+	}
+	(*atomic.Int64)(g).Store(v.Int64())
 }
 
 // UpdateIfGt updates the gauge's value if v is larger then the current value.

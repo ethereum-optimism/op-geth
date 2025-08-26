@@ -24,6 +24,7 @@ func _() {
 	_ = x[BalanceDecreaseSelfdestruct-13]
 	_ = x[BalanceDecreaseSelfdestructBurn-14]
 	_ = x[BalanceChangeRevert-15]
+	_ = x[BalanceMint-200]
 }
 
 const _BalanceChangeReason_name = "UnspecifiedBalanceIncreaseRewardMineUncleBalanceIncreaseRewardMineBlockBalanceIncreaseWithdrawalBalanceIncreaseGenesisBalanceBalanceIncreaseRewardTransactionFeeBalanceDecreaseGasBuyBalanceIncreaseGasReturnBalanceIncreaseDaoContractBalanceDecreaseDaoAccountTransferTouchAccountBalanceIncreaseSelfdestructBalanceDecreaseSelfdestructBalanceDecreaseSelfdestructBurnRevert"
@@ -31,6 +32,11 @@ const _BalanceChangeReason_name = "UnspecifiedBalanceIncreaseRewardMineUncleBala
 var _BalanceChangeReason_index = [...]uint16{0, 11, 41, 71, 96, 125, 160, 181, 205, 231, 256, 264, 276, 303, 330, 361, 367}
 
 func (i BalanceChangeReason) String() string {
+	// OP-Stack addition
+	if i == BalanceMint {
+		return "BalanceMint"
+	}
+
 	if i >= BalanceChangeReason(len(_BalanceChangeReason_index)-1) {
 		return "BalanceChangeReason(" + strconv.FormatInt(int64(i), 10) + ")"
 	}

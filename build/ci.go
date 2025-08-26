@@ -238,6 +238,9 @@ func buildFlags(env build.Environment, staticLinking bool, buildTags []string) (
 		ld = append(ld, "-X", "github.com/ethereum/go-ethereum/internal/version.gitCommit="+env.Commit)
 		ld = append(ld, "-X", "github.com/ethereum/go-ethereum/internal/version.gitDate="+env.Date)
 	}
+	if env.Tag != "" {
+		ld = append(ld, "-X", "github.com/ethereum/go-ethereum/version.gitTag="+env.Tag)
+	}
 	// Strip DWARF on darwin. This used to be required for certain things,
 	// and there is no downside to this, so we just keep doing it.
 	if runtime.GOOS == "darwin" {
@@ -901,10 +904,10 @@ func makeWorkdir(wdflag string) string {
 }
 
 func isUnstableBuild(env build.Environment) bool {
-	if env.Tag != "" {
-		return false
+	if env.Tag == "untagged" || env.Tag == "" {
+		return true
 	}
-	return true
+	return false
 }
 
 type debPackage struct {

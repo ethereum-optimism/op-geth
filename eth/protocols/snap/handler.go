@@ -478,7 +478,8 @@ func ServiceGetByteCodesQuery(chain *core.BlockChain, req *GetByteCodesPacket) [
 			// Peers should not request the empty code, but if they do, at
 			// least sent them back a correct response without db lookups
 			codes = append(codes, []byte{})
-		} else if blob := chain.ContractCodeWithPrefix(hash); len(blob) > 0 {
+		} else if blob := chain.ContractCode(hash); len(blob) > 0 {
+			// OP-Stack diff: above contract-code is fetched with support for legacy DB.
 			codes = append(codes, blob)
 			bytes += uint64(len(blob))
 		}

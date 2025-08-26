@@ -90,7 +90,7 @@ func (oracle *Oracle) processBlock(bf *blockFees, percentiles []float64) {
 		bf.results.baseFee = new(big.Int)
 	}
 	if config.IsLondon(big.NewInt(int64(bf.blockNumber + 1))) {
-		bf.results.nextBaseFee = eip1559.CalcBaseFee(config, bf.header)
+		bf.results.nextBaseFee = eip1559.CalcBaseFee(config, bf.header, bf.header.Time+1)
 	} else {
 		bf.results.nextBaseFee = new(big.Int)
 	}
@@ -110,6 +110,8 @@ func (oracle *Oracle) processBlock(bf *blockFees, percentiles []float64) {
 		maxBlobGas := eip4844.MaxBlobGasPerBlock(config, bf.header.Time)
 		if maxBlobGas != 0 {
 			bf.results.blobGasUsedRatio = float64(*blobGasUsed) / float64(maxBlobGas)
+		} else { // avoid NaN values, these cannot be JSON-encoded in the fee-history RPC
+			bf.results.blobGasUsedRatio = 0
 		}
 	}
 

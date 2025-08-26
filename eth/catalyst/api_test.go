@@ -29,6 +29,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/ethereum/go-ethereum/beacon/engine"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -199,6 +201,7 @@ func TestEth2PrepareAndGetPayload(t *testing.T) {
 		BeaconRoot:   blockParams.BeaconRoot,
 		Version:      engine.PayloadV1,
 	}).Id()
+	require.NoError(t, waitForApiPayloadToBuild(api, payloadID))
 	execData, err := api.getPayload(payloadID, true)
 	if err != nil {
 		t.Fatalf("error getting payload, err=%v", err)
@@ -305,7 +308,7 @@ func TestEth2NewBlock(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to create the executable data, block %d: %v", i, err)
 		}
-		block, err := engine.ExecutableDataToBlock(*execData, nil, nil, nil)
+		block, err := engine.ExecutableDataToBlock(*execData, nil, nil, nil, ethservice.BlockChain().Config())
 		if err != nil {
 			t.Fatalf("Failed to convert executable data to block %v", err)
 		}
@@ -347,7 +350,7 @@ func TestEth2NewBlock(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to create the executable data %v", err)
 		}
-		block, err := engine.ExecutableDataToBlock(*execData, nil, nil, nil)
+		block, err := engine.ExecutableDataToBlock(*execData, nil, nil, nil, ethservice.BlockChain().Config())
 		if err != nil {
 			t.Fatalf("Failed to convert executable data to block %v", err)
 		}
@@ -422,6 +425,12 @@ func TestEth2DeepReorg(t *testing.T) {
 
 // startEthService creates a full node instance for testing.
 func startEthService(t *testing.T, genesis *core.Genesis, blocks []*types.Block) (*node.Node, *eth.Ethereum) {
+	mcfg := miner.DefaultConfig
+	ethcfg := &ethconfig.Config{Genesis: genesis, SyncMode: ethconfig.FullSync, TrieTimeout: time.Minute, TrieDirtyCache: 256, TrieCleanCache: 256, Miner: mcfg}
+	return startEthServiceWithConfigFn(t, blocks, ethcfg)
+}
+
+func startEthServiceWithConfigFn(t *testing.T, blocks []*types.Block, ethcfg *ethconfig.Config) (*node.Node, *eth.Ethereum) {
 	t.Helper()
 
 	n, err := node.New(&node.Config{
@@ -434,8 +443,7 @@ func startEthService(t *testing.T, genesis *core.Genesis, blocks []*types.Block)
 		t.Fatal("can't create node:", err)
 	}
 
-	mcfg := miner.DefaultConfig
-	ethcfg := &ethconfig.Config{Genesis: genesis, SyncMode: ethconfig.FullSync, TrieTimeout: time.Minute, TrieDirtyCache: 256, TrieCleanCache: 256, Miner: mcfg}
+	// OP-Stack test modification: default eth config is moved to startEthService, for reuse.
 	ethservice, err := eth.New(n, ethcfg)
 	if err != nil {
 		t.Fatal("can't create eth service:", err)
@@ -623,6 +631,7 @@ func TestNewPayloadOnInvalidChain(t *testing.T) {
 			if resp.PayloadStatus.Status != engine.VALID {
 				t.Fatalf("error preparing payload, invalid status: %v", resp.PayloadStatus.Status)
 			}
+			require.NoError(t, waitForApiPayloadToBuild(api, *resp.PayloadID))
 			// give the payload some time to be built
 			if payload, err = api.getPayload(*resp.PayloadID, true); err != nil {
 				t.Fatalf("can't get payload: %v", err)
@@ -671,6 +680,7 @@ func assembleEnvelope(api *ConsensusAPI, parentHash common.Hash, params *engine.
 	if err != nil {
 		return nil, err
 	}
+	waitForPayloadToBuild(payload)
 	return payload.ResolveFull(), nil
 }
 
@@ -935,7 +945,7 @@ func TestSimultaneousNewBlock(t *testing.T) {
 				t.Fatal(testErr)
 			}
 		}
-		block, err := engine.ExecutableDataToBlock(*execData, nil, nil, nil)
+		block, err := engine.ExecutableDataToBlock(*execData, nil, nil, nil, ethservice.BlockChain().Config())
 		if err != nil {
 			t.Fatalf("Failed to convert executable data to block %v", err)
 		}
@@ -1017,6 +1027,8 @@ func TestWithdrawals(t *testing.T) {
 		BeaconRoot:   blockParams.BeaconRoot,
 		Version:      engine.PayloadV2,
 	}).Id()
+	require.Equal(t, payloadID, *resp.PayloadID)
+	require.NoError(t, waitForApiPayloadToBuild(api, payloadID))
 	execData, err := api.GetPayloadV2(payloadID)
 	if err != nil {
 		t.Fatalf("error getting payload, err=%v", err)
@@ -1051,7 +1063,8 @@ func TestWithdrawals(t *testing.T) {
 		},
 	}
 	fcState.HeadBlockHash = execData.ExecutionPayload.BlockHash
-	_, err = api.ForkchoiceUpdatedV2(fcState, &blockParams)
+	// note: diff, need latest response to get payload ID comparison right.
+	resp, err = api.ForkchoiceUpdatedV2(fcState, &blockParams)
 	if err != nil {
 		t.Fatalf("error preparing payload, err=%v", err)
 	}
@@ -1066,6 +1079,8 @@ func TestWithdrawals(t *testing.T) {
 		BeaconRoot:   blockParams.BeaconRoot,
 		Version:      engine.PayloadV2,
 	}).Id()
+	require.Equal(t, payloadID, *resp.PayloadID)
+	require.NoError(t, waitForApiPayloadToBuild(api, payloadID))
 	execData, err = api.GetPayloadV2(payloadID)
 	if err != nil {
 		t.Fatalf("error getting payload, err=%v", err)
@@ -1205,6 +1220,8 @@ func TestNilWithdrawals(t *testing.T) {
 			Timestamp:    test.blockParams.Timestamp,
 			FeeRecipient: test.blockParams.SuggestedFeeRecipient,
 			Random:       test.blockParams.Random,
+			BeaconRoot:   test.blockParams.BeaconRoot,
+			Withdrawals:  test.blockParams.Withdrawals,
 			Version:      payloadVersion,
 		}).Id()
 		execData, err := api.GetPayloadV2(payloadID)
@@ -1514,7 +1531,7 @@ func TestBlockToPayloadWithBlobs(t *testing.T) {
 	sidecar := types.NewBlobTxSidecar(types.BlobSidecarVersion0, make([]kzg4844.Blob, 1), make([]kzg4844.Commitment, 1), make([]kzg4844.Proof, 1))
 	sidecars := []*types.BlobTxSidecar{sidecar}
 
-	block := types.NewBlock(&header, &types.Body{Transactions: txs}, nil, trie.NewStackTrie(nil))
+	block := types.NewBlock(&header, &types.Body{Transactions: txs}, nil, trie.NewStackTrie(nil), types.DefaultBlockConfig)
 	envelope := engine.BlockToExecutableData(block, nil, sidecars, nil)
 	var want int
 	for _, tx := range txs {
@@ -1529,7 +1546,7 @@ func TestBlockToPayloadWithBlobs(t *testing.T) {
 	if got := len(envelope.BlobsBundle.Blobs); got != want {
 		t.Fatalf("invalid number of blobs: got %v, want %v", got, want)
 	}
-	_, err := engine.ExecutableDataToBlock(*envelope.ExecutionPayload, make([]common.Hash, 1), nil, nil)
+	_, err := engine.ExecutableDataToBlock(*envelope.ExecutionPayload, make([]common.Hash, 1), nil, nil, types.DefaultBlockConfig)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1580,6 +1597,8 @@ func TestParentBeaconBlockRoot(t *testing.T) {
 		BeaconRoot:   blockParams.BeaconRoot,
 		Version:      engine.PayloadV3,
 	}).Id()
+	require.Equal(t, payloadID, *resp.PayloadID)
+	require.NoError(t, waitForApiPayloadToBuild(api, *resp.PayloadID))
 	execData, err := api.GetPayloadV3(payloadID)
 	if err != nil {
 		t.Fatalf("error getting payload, err=%v", err)
@@ -1617,6 +1636,16 @@ func TestParentBeaconBlockRoot(t *testing.T) {
 	if root := db.GetState(params.BeaconRootsAddress, rootIdx); root != *blockParams.BeaconRoot {
 		t.Fatalf("incorrect root stored: want %s, got %s", *blockParams.BeaconRoot, root)
 	}
+}
+
+// OP Stack test diff: since we cut block-building short, we need to explicitly wait for a full payload to be built
+func waitForPayloadToBuild(payload *miner.Payload) {
+	payload.WaitFull()
+}
+
+// OP Stack test diff: see waitForPayloadToBuild
+func waitForApiPayloadToBuild(api *ConsensusAPI, id engine.PayloadID) error {
+	return api.localBlocks.waitFull(id)
 }
 
 func TestWitnessCreationAndConsumption(t *testing.T) {
@@ -1662,6 +1691,7 @@ func TestWitnessCreationAndConsumption(t *testing.T) {
 		BeaconRoot:   blockParams.BeaconRoot,
 		Version:      engine.PayloadV3,
 	}).Id()
+	require.NoError(t, waitForApiPayloadToBuild(api, payloadID))
 	envelope, err := api.getPayload(payloadID, true)
 	if err != nil {
 		t.Fatalf("error getting payload, err=%v", err)

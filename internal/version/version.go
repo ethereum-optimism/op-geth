@@ -29,16 +29,26 @@ import (
 const ourPath = "github.com/ethereum/go-ethereum" // Path to our module
 
 // Family holds the textual version string for major.minor
-var Family = fmt.Sprintf("%d.%d", version.Major, version.Minor)
+var Family = fmt.Sprintf("%d.%d", version.OPGethMajor, version.OPGethMinor)
 
 // Semantic holds the textual version string for major.minor.patch.
-var Semantic = fmt.Sprintf("%d.%d.%d", version.Major, version.Minor, version.Patch)
+var Semantic = fmt.Sprintf("%d.%d.%d", version.OPGethMajor, version.OPGethMinor, version.OPGethPatch)
+
+// UpstreamGethSemantic holds the textual upstream geth version string for major.minor.patch.
+var UpstreamGethSemantic = func() string {
+	return fmt.Sprintf("%d.%d.%d", version.Major, version.Minor, version.Patch)
+}()
+
+// UpstreamGethWithMeta holds the textual upstream geth version string including the metadata.
+var UpstreamGethWithMeta = func() string {
+	return UpstreamGethSemantic + "-" + version.Meta
+}()
 
 // WithMeta holds the textual version string including the metadata.
 var WithMeta = func() string {
 	v := Semantic
-	if version.Meta != "" {
-		v += "-" + version.Meta
+	if version.OPGethMeta != "" {
+		v += "-" + version.OPGethMeta
 	}
 	return v
 }()
@@ -48,7 +58,7 @@ func WithCommit(gitCommit, gitDate string) string {
 	if len(gitCommit) >= 8 {
 		vsn += "-" + gitCommit[:8]
 	}
-	if (version.Meta != "stable") && (gitDate != "") {
+	if (version.OPGethMeta != "stable") && (gitDate != "") {
 		vsn += "-" + gitDate
 	}
 	return vsn
@@ -59,8 +69,8 @@ func WithCommit(gitCommit, gitDate string) string {
 // releases.
 func Archive(gitCommit string) string {
 	vsn := Semantic
-	if version.Meta != "stable" {
-		vsn += "-" + version.Meta
+	if version.OPGethMeta != "stable" {
+		vsn += "-" + version.OPGethMeta
 	}
 	if len(gitCommit) >= 8 {
 		vsn += "-" + gitCommit[:8]

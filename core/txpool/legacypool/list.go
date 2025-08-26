@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/txpool"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/holiman/uint256"
 )
@@ -265,6 +266,15 @@ func (m *SortedMap) LastElement() *types.Transaction {
 	return cache[len(cache)-1]
 }
 
+// FirstElement returns the first element from the heap (guaranteed to be lowest), thus, the
+// transaction with the lowest nonce. Returns nil if there are no elements.
+func (m *SortedMap) FirstElement() *types.Transaction {
+	if m.Len() == 0 {
+		return nil
+	}
+	return m.Get((*m.index)[0])
+}
+
 // list is a "list" of transactions belonging to an account, sorted by account
 // nonce. The same type can be used both for storing contiguous transactions for
 // the executable/pending queue; and for storing gapped transactions for the non-
@@ -276,6 +286,16 @@ type list struct {
 	costcap   *uint256.Int // Price of the highest costing transaction (reset only if exceeds balance)
 	gascap    uint64       // Gas limit of the highest spending transaction (reset only if exceeds block limit)
 	totalcost *uint256.Int // Total cost of all transactions in the list
+
+	// OP-Stack adds a backpointer to the pool's rollup cost function.
+	// A list always belongs to a fixed pool, so it's ok to use a reference instead of
+	// always passing the rollup cost function as an argument to every function.
+	// It should not be accessed directly, but through the rollupCostFn method.
+	rollupCostFnPrv rollupCostFuncProvider
+
+	// OP-Stack needs to cache the total cost of transactions because the rollup costs
+	// can vary from block to block.
+	txCosts map[common.Hash]*uint256.Int
 }
 
 // newList creates a new transaction list for maintaining nonce-indexable fast,
@@ -286,7 +306,31 @@ func newList(strict bool) *list {
 		txs:       NewSortedMap(),
 		costcap:   new(uint256.Int),
 		totalcost: new(uint256.Int),
+
+		// OP-Stack addition
+		txCosts: make(map[common.Hash]*uint256.Int),
 	}
+}
+
+type rollupCostFuncProvider interface {
+	RollupCostFunc() txpool.RollupCostFunc
+}
+
+// newRollupList creates a new transaction list with a rollup cost function pointer
+// that must point back to the pool's rollup cost function this list belongs to.
+func newRollupList(strict bool, rollupCostFnPrv rollupCostFuncProvider) *list {
+	l := newList(strict)
+	l.rollupCostFnPrv = rollupCostFnPrv
+	return l
+}
+
+func (l *list) rollupCostFn() txpool.RollupCostFunc {
+	if l.rollupCostFnPrv == nil {
+		return nil
+	}
+	// This can still return nil, but we won't dereference a nil pointer of lists
+	// that got regularly created using newList instead of newRollupList.
+	return l.rollupCostFnPrv.RollupCostFunc()
 }
 
 // Contains returns whether the  list contains a transaction
@@ -327,12 +371,12 @@ func (l *list) Add(tx *types.Transaction, priceBump uint64) (bool, *types.Transa
 		l.subTotalCost([]*types.Transaction{old})
 	}
 	// Add new tx cost to totalcost
-	cost, overflow := uint256.FromBig(tx.Cost())
+	cost, overflow := txpool.TotalTxCost(tx, l.rollupCostFn())
 	if overflow {
 		return false, nil
 	}
+	l.txCosts[tx.Hash()] = cost // OP-Stack addition
 	l.totalcost.Add(l.totalcost, cost)
-
 	// Otherwise overwrite the old transaction with the current one
 	l.txs.Put(tx)
 	if l.costcap.Cmp(cost) < 0 {
@@ -372,7 +416,11 @@ func (l *list) Filter(costLimit *uint256.Int, gasLimit uint64) (types.Transactio
 
 	// Filter out all the transactions above the account's funds
 	removed := l.txs.Filter(func(tx *types.Transaction) bool {
-		return tx.Gas() > gasLimit || tx.Cost().Cmp(costLimit.ToBig()) > 0
+		cost, of := txpool.TotalTxCost(tx, l.rollupCostFn())
+		if of {
+			panic("Filter: tx total cost overflow")
+		}
+		return tx.Gas() > gasLimit || cost.Cmp(costLimit) > 0
 	})
 
 	if len(removed) == 0 {
@@ -463,10 +511,15 @@ func (l *list) LastElement() *types.Transaction {
 // total cost of all transactions.
 func (l *list) subTotalCost(txs []*types.Transaction) {
 	for _, tx := range txs {
-		_, underflow := l.totalcost.SubOverflow(l.totalcost, uint256.MustFromBig(tx.Cost()))
+		h := tx.Hash()
+		// OP-Stack diff: read cached cost
+		// Note that subTotalCost is always called after Add, so the cached cost must be present.
+		cost := l.txCosts[h]
+		_, underflow := l.totalcost.SubOverflow(l.totalcost, cost)
 		if underflow {
 			panic("totalcost underflow")
 		}
+		delete(l.txCosts, h) // OP-Stack addition: sanitize cache
 	}
 }
 

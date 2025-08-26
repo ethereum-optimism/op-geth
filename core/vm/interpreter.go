@@ -24,8 +24,13 @@ import (
 	"github.com/ethereum/go-ethereum/core/tracing"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/params"
 	"github.com/holiman/uint256"
 )
+
+// PrecompileOverrides is a function that can be used to override the default precompiled contracts
+// Nil is returned when there is no precompile. The original is returned if the existing precompile should run.
+type PrecompileOverrides func(rules params.Rules, original PrecompiledContract, addr common.Address) PrecompiledContract
 
 // Config are the configuration options for the Interpreter
 type Config struct {
@@ -35,6 +40,10 @@ type Config struct {
 	ExtraEips               []int // Additional EIPS that are to be enabled
 
 	StatelessSelfValidation bool // Generate execution witnesses and self-check against them (testing purpose)
+
+	PrecompileOverrides PrecompileOverrides                   // Precompiles can be swapped / changed / wrapped as needed
+	NoMaxCodeSize       bool                                  // Ignore Max code size and max init code size limits
+	CallerOverride      func(v common.Address) common.Address // Swap the caller as needed, for VM prank functionality.
 }
 
 // ScopeContext contains the things that are per-call, such as stack and memory,

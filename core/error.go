@@ -143,3 +143,13 @@ var (
 	ErrAuthorizationDestinationHasCode = errors.New("EIP-7702 authorization destination is a contract")
 	ErrAuthorizationNonceMismatch      = errors.New("EIP-7702 authorization nonce does not match current account nonce")
 )
+
+// OP-Stack errors.
+var (
+	// ErrTxFilteredOut indicates an ingress filter has rejected the transaction from
+	// being included in the pool.
+	ErrTxFilteredOut = errors.New("transaction filtered out")
+
+	// ErrSystemTxNotSupported is returned for any deposit tx with IsSystemTx=true after the Regolith fork
+	ErrSystemTxNotSupported = errors.New("system tx not supported")
+)

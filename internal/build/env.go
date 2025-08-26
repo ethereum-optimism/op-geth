@@ -129,6 +129,10 @@ func LocalEnv() Environment {
 	env := applyEnvFlags(Environment{Name: "local", Repo: "ethereum/go-ethereum"})
 
 	head := readGitFile("HEAD")
+	if info, err := os.Stat(".git/objects"); err == nil && info.IsDir() && env.Tag == "" {
+		env.Tag = firstLine(RunGit("tag", "-l", "--points-at", "HEAD"))
+	}
+
 	if fields := strings.Fields(head); len(fields) == 2 {
 		head = fields[1]
 	} else {
@@ -150,9 +154,6 @@ func LocalEnv() Environment {
 		if head != "HEAD" {
 			env.Branch = strings.TrimPrefix(head, "refs/heads/")
 		}
-	}
-	if info, err := os.Stat(".git/objects"); err == nil && info.IsDir() && env.Tag == "" {
-		env.Tag = firstLine(RunGit("tag", "-l", "--points-at", "HEAD"))
 	}
 	return env
 }

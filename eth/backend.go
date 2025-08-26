@@ -25,7 +25,11 @@ import (
 	"math/big"
 	"runtime"
 	"sync"
+	"sync/atomic"
 	"time"
+
+	"github.com/holiman/uint256"
+	"golang.org/x/time/rate"
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
@@ -44,12 +48,14 @@ import (
 	"github.com/ethereum/go-ethereum/eth/downloader"
 	"github.com/ethereum/go-ethereum/eth/ethconfig"
 	"github.com/ethereum/go-ethereum/eth/gasprice"
+	"github.com/ethereum/go-ethereum/eth/interop"
 	"github.com/ethereum/go-ethereum/eth/protocols/eth"
 	"github.com/ethereum/go-ethereum/eth/protocols/snap"
 	"github.com/ethereum/go-ethereum/eth/tracers"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
+	"github.com/ethereum/go-ethereum/internal/sequencerapi"
 	"github.com/ethereum/go-ethereum/internal/shutdowncheck"
 	"github.com/ethereum/go-ethereum/internal/version"
 	"github.com/ethereum/go-ethereum/log"
@@ -124,6 +130,14 @@ type Ethereum struct {
 	lock sync.RWMutex // Protects the variadic fields (e.g. gas price and etherbase)
 
 	shutdownTracker *shutdowncheck.ShutdownTracker // Tracks if and when the node has shutdown ungracefully
+
+	// OP-Stack additions
+	seqRPCService        *rpc.Client
+	historicalRPCService *rpc.Client
+	interopRPC           *interop.InteropClient
+	supervisorFailsafe   atomic.Bool
+
+	nodeCloser func() error
 }
 
 // New creates a new Ethereum object (including the initialisation of the common Ethereum object),
@@ -201,13 +215,15 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 		p2pServer:       stack.Server(),
 		discmix:         enode.NewFairMix(discmixTimeout),
 		shutdownTracker: shutdowncheck.NewShutdownTracker(chainDb),
+
+		// OP-Stack addition
+		nodeCloser: stack.Close,
 	}
 	bcVersion := rawdb.ReadDatabaseVersion(chainDb)
-	var dbVer = "<nil>"
+	dbVer := "<nil>"
 	if bcVersion != nil {
 		dbVer = fmt.Sprintf("%d", *bcVersion)
 	}
-	log.Info("Initialising Ethereum protocol", "network", networkID, "dbversion", dbVer)
 
 	// Create BlockChain object.
 	if !config.SkipBcVersionCheck {
@@ -262,12 +278,43 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 	if config.OverrideVerkle != nil {
 		overrides.OverrideVerkle = config.OverrideVerkle
 	}
+	if config.OverrideOptimismCanyon != nil {
+		overrides.OverrideOptimismCanyon = config.OverrideOptimismCanyon
+	}
+	if config.OverrideOptimismEcotone != nil {
+		overrides.OverrideOptimismEcotone = config.OverrideOptimismEcotone
+	}
+	if config.OverrideOptimismFjord != nil {
+		overrides.OverrideOptimismFjord = config.OverrideOptimismFjord
+	}
+	if config.OverrideOptimismGranite != nil {
+		overrides.OverrideOptimismGranite = config.OverrideOptimismGranite
+	}
+	if config.OverrideOptimismHolocene != nil {
+		overrides.OverrideOptimismHolocene = config.OverrideOptimismHolocene
+	}
+	if config.OverrideOptimismIsthmus != nil {
+		overrides.OverrideOptimismIsthmus = config.OverrideOptimismIsthmus
+	}
+	if config.OverrideOptimismJovian != nil {
+		overrides.OverrideOptimismJovian = config.OverrideOptimismJovian
+	}
+	if config.OverrideOptimismInterop != nil {
+		overrides.OverrideOptimismInterop = config.OverrideOptimismInterop
+	}
+	overrides.ApplySuperchainUpgrades = config.ApplySuperchainUpgrades
 	options.Overrides = &overrides
 
 	eth.blockchain, err = core.NewBlockChain(chainDb, config.Genesis, eth.engine, options)
 	if err != nil {
 		return nil, err
 	}
+
+	if chainConfig := eth.blockchain.Config(); chainConfig.Optimism != nil { // config.Genesis.Config.ChainID cannot be used because it's based on CLI flags only, thus default to mainnet L1
+		config.NetworkId = chainConfig.ChainID.Uint64() // optimism defaults eth network ID to chain ID
+		eth.networkID = config.NetworkId
+	}
+	log.Info("Initialising Ethereum protocol", "network", config.NetworkId, "dbversion", dbVer)
 
 	// Initialize filtermaps log index.
 	fmConfig := filtermaps.Config{
@@ -298,21 +345,38 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 	if config.BlobPool.Datadir != "" {
 		config.BlobPool.Datadir = stack.ResolvePath(config.BlobPool.Datadir)
 	}
-	eth.blobTxPool = blobpool.New(config.BlobPool, eth.blockchain, legacyPool.HasPendingAuth)
+	txPools := []txpool.SubPool{legacyPool}
+	if !eth.BlockChain().Config().IsOptimism() {
+		eth.blobTxPool = blobpool.New(config.BlobPool, eth.blockchain, legacyPool.HasPendingAuth)
+		txPools = append(txPools, eth.blobTxPool)
+	}
 
-	eth.txPool, err = txpool.New(config.TxPool.PriceLimit, eth.blockchain, []txpool.SubPool{legacyPool, eth.blobTxPool})
+	// if interop is enabled, establish an Interop Filter connected to this Ethereum instance's
+	// simulated logs and message safety check functions
+	poolFilters := []txpool.IngressFilter{}
+	if config.InteropMessageRPC != "" && config.InteropMempoolFiltering {
+		chainID := uint256.MustFromBig(chainConfig.ChainID)
+		poolFilters = append(poolFilters, txpool.NewInteropFilter(eth, *chainID))
+	}
+	eth.txPool, err = txpool.New(config.TxPool.PriceLimit, eth.blockchain, txPools, poolFilters)
 	if err != nil {
 		return nil, err
 	}
 
+	// OP-Stack addition: to periodically journal the txpool, if noLocals and
+	// journalRemotes are enabled, we spin up the alternative PoolJournaler,
+	// instead of the TxTracker.
+	rejournal := config.TxPool.Rejournal
+	if rejournal < time.Second {
+		log.Warn("Sanitizing invalid txpool journal time", "provided", rejournal, "updated", time.Second)
+		rejournal = time.Second
+	}
 	if !config.TxPool.NoLocals {
-		rejournal := config.TxPool.Rejournal
-		if rejournal < time.Second {
-			log.Warn("Sanitizing invalid txpool journal time", "provided", rejournal, "updated", time.Second)
-			rejournal = time.Second
-		}
 		eth.localTxTracker = locals.New(config.TxPool.Journal, rejournal, eth.blockchain.Config(), eth.txPool)
 		stack.RegisterLifecycle(eth.localTxTracker)
+	} else if config.TxPool.JournalRemote {
+		pj := locals.NewPoolJournaler(config.TxPool.Journal, rejournal, eth.txPool)
+		stack.RegisterLifecycle(pj)
 	}
 
 	// Permit the downloader to use the trie cache allowance during fast sync
@@ -327,6 +391,7 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 		BloomCache:     uint64(cacheLimit),
 		EventMux:       eth.eventMux,
 		RequiredBlocks: config.RequiredBlocks,
+		NoTxGossip:     config.RollupDisableTxPoolGossip,
 	}); err != nil {
 		return nil, err
 	}
@@ -337,11 +402,35 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 	eth.miner.SetExtra(makeExtraData(config.Miner.ExtraData))
 	eth.miner.SetPrioAddresses(config.TxPool.Locals)
 
-	eth.APIBackend = &EthAPIBackend{stack.Config().ExtRPCEnabled(), stack.Config().AllowUnprotectedTxs, eth, nil}
+	eth.APIBackend = &EthAPIBackend{stack.Config().ExtRPCEnabled(), stack.Config().AllowUnprotectedTxs, config.RollupDisableTxPoolAdmission, eth, nil}
 	if eth.APIBackend.allowUnprotectedTxs {
 		log.Info("Unprotected transactions allowed")
 	}
 	eth.APIBackend.gpo = gasprice.NewOracle(eth.APIBackend, config.GPO, config.Miner.GasPrice)
+
+	if config.RollupSequencerHTTP != "" {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		client, err := rpc.DialContext(ctx, config.RollupSequencerHTTP)
+		cancel()
+		if err != nil {
+			return nil, err
+		}
+		eth.seqRPCService = client
+	}
+
+	if config.RollupHistoricalRPC != "" {
+		ctx, cancel := context.WithTimeout(context.Background(), config.RollupHistoricalRPCTimeout)
+		client, err := rpc.DialContext(ctx, config.RollupHistoricalRPC)
+		cancel()
+		if err != nil {
+			return nil, err
+		}
+		eth.historicalRPCService = client
+	}
+
+	if config.InteropMessageRPC != "" {
+		eth.interopRPC = interop.NewInteropClient(config.InteropMessageRPC)
+	}
 
 	// Start the RPC service
 	eth.netRPCService = ethapi.NewNetAPI(eth.p2pServer, networkID)
@@ -378,6 +467,13 @@ func makeExtraData(extra []byte) []byte {
 // NOTE, some of these services probably need to be moved to somewhere else.
 func (s *Ethereum) APIs() []rpc.API {
 	apis := ethapi.GetAPIs(s.APIBackend)
+
+	// Append any Sequencer APIs as enabled
+	if s.config.RollupSequencerTxConditionalEnabled {
+		log.Info("Enabling eth_sendRawTransactionConditional endpoint support")
+		costRateLimit := rate.Limit(s.config.RollupSequencerTxConditionalCostRateLimit)
+		apis = append(apis, sequencerapi.GetSendRawTxConditionalAPI(s.APIBackend, s.seqRPCService, costRateLimit))
+	}
 
 	// Append all the local APIs and return
 	return append(apis, []rpc.API{
@@ -483,6 +579,10 @@ func (s *Ethereum) updateFilterMapsHeads() {
 		if head == nil || newHead.Hash() != head.Hash() {
 			head = newHead
 			chainView := s.newChainView(head)
+			if chainView == nil {
+				log.Warn("FilterMaps chain view is nil, not updating")
+				return
+			}
 			historyCutoff, _ := s.blockchain.HistoryPruningCutoff()
 			var finalBlock uint64
 			if fb := s.blockchain.CurrentFinalBlock(); fb != nil {
@@ -573,6 +673,18 @@ func (s *Ethereum) Stop() error {
 	s.txPool.Close()
 	s.blockchain.Stop()
 	s.engine.Close()
+	if s.seqRPCService != nil {
+		s.seqRPCService.Close()
+	}
+	if s.historicalRPCService != nil {
+		s.historicalRPCService.Close()
+	}
+	if s.interopRPC != nil {
+		s.interopRPC.Close()
+	}
+	if s.miner != nil {
+		s.miner.Close()
+	}
 
 	// Clean shutdown marker as the last thing before closing db
 	s.shutdownTracker.Stop()
@@ -607,4 +719,34 @@ func (s *Ethereum) SyncMode() ethconfig.SyncMode {
 	}
 	// Nope, we're really full syncing
 	return ethconfig.FullSync
+}
+
+// HandleRequiredProtocolVersion handles the protocol version signal. This implements opt-in halting,
+// the protocol version data is already logged and metered when signaled through the Engine API.
+func (s *Ethereum) HandleRequiredProtocolVersion(required params.ProtocolVersion) error {
+	var needLevel int
+	switch s.config.RollupHaltOnIncompatibleProtocolVersion {
+	case "major":
+		needLevel = 3
+	case "minor":
+		needLevel = 2
+	case "patch":
+		needLevel = 1
+	default:
+		return nil // do not consider halting if not configured to
+	}
+	haveLevel := 0
+	switch params.OPStackSupport.Compare(required) {
+	case params.OutdatedMajor:
+		haveLevel = 3
+	case params.OutdatedMinor:
+		haveLevel = 2
+	case params.OutdatedPatch:
+		haveLevel = 1
+	}
+	if haveLevel >= needLevel { // halt if we opted in to do so at this granularity
+		log.Error("Opted to halt, unprepared for protocol change", "required", required, "local", params.OPStackSupport)
+		return s.nodeCloser()
+	}
+	return nil
 }
