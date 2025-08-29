@@ -231,8 +231,8 @@ func TestCalcBaseFeeMinBaseFee(t *testing.T) {
 	tests := []struct {
 		parentBaseFee   int64
 		parentGasUsed   uint64
-		expectedBaseFee uint64
 		minBaseFee      uint64
+		expectedBaseFee uint64
 	}{
 		// Test 1: gas used is exactly the target gas, but the base fee is set too low so
 		// the base fee is expected to be the minBaseFee
@@ -245,7 +245,7 @@ func TestCalcBaseFeeMinBaseFee(t *testing.T) {
 		// gasUsedDelta = gasUsed - parentGasTarget = 20_000_000 - 30_000_000 / 3 = 10_000_000
 		// 2e9 * 10_000_000 / 10_000_000 / 50 = 40_000_000
 		// 2e9 + 40_000_000 = 2_040_000_000, which is greater than minBaseFee
-		{2e9, parentGasLimit/elasticity + 10_000_000, 2_040_000_000, 1e9},
+		{2e9, parentGasLimit/elasticity + 10_000_000, 1e9, 2_040_000_000},
 		// Test 4: gas used is below target, but the new calculated base fee is still
 		// too low so the base fee is expected to be the minBaseFee
 		{1, parentGasLimit/elasticity - 1_000_000, 1e9, 1e9},
@@ -254,7 +254,7 @@ func TestCalcBaseFeeMinBaseFee(t *testing.T) {
 		// gasUsedDelta = gasUsed - parentGasTarget = 9_000_000 - 30_000_000 / 3 = -1_000_000
 		// 2_097_152 * -1_000_000 / 10_000_000 / 50 = -4194.304
 		// 2_097_152 - 4194.304 = 2_092_957.696, which is greater than minBaseFee
-		{2_097_152, parentGasLimit/elasticity - 1_000_000, 2_092_958, 2e6},
+		{2_097_152, parentGasLimit/elasticity - 1_000_000, 2e6, 2_092_958},
 	}
 	for i, test := range tests {
 		parent := &types.Header{
