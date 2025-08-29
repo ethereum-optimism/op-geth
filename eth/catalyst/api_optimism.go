@@ -19,7 +19,7 @@ func checkOptimismPayload(params engine.ExecutableData, cfg *params.ChainConfig)
 	}
 
 	// ExtraData validation for Holocene and Jovian
-	if cfg.IsConfigurableMinBaseFee(params.Timestamp) {
+	if cfg.IsMinBaseFee(params.Timestamp) {
 		if err := eip1559.ValidateMinBaseFeeExtraData(params.ExtraData); err != nil {
 			return err
 		}

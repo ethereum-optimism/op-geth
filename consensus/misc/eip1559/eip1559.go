@@ -188,7 +188,7 @@ func CalcBaseFee(config *params.ChainConfig, parent *types.Header, time uint64) 
 	elasticity := config.ElasticityMultiplier()
 	denominator := config.BaseFeeChangeDenominator(time)
 	var minBaseFee uint64
-	if config.IsConfigurableMinBaseFee(parent.Time) {
+	if config.IsMinBaseFee(parent.Time) {
 		if err := ValidateMinBaseFeeExtraData(parent.Extra); err != nil {
 			panic(err)
 		}
@@ -238,7 +238,7 @@ func CalcBaseFee(config *params.ChainConfig, parent *types.Header, time uint64) 
 	}
 
 	// Enforce minimum base fee. If the minimum base fee is 0, it has no effect.
-	if config.IsConfigurableMinBaseFee(parent.Time) {
+	if config.IsMinBaseFee(parent.Time) {
 		minBaseFeeBig := new(big.Int).SetUint64(minBaseFee)
 		if baseFee.Cmp(minBaseFeeBig) < 0 {
 			baseFee = minBaseFeeBig

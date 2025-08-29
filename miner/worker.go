@@ -297,7 +297,7 @@ func (miner *Miner) prepareWork(genParams *generateParams, witness bool) (*envir
 			d = miner.chainConfig.BaseFeeChangeDenominator(header.Time)
 			e = miner.chainConfig.ElasticityMultiplier()
 		}
-		if cfg.IsConfigurableMinBaseFee(header.Time) {
+		if cfg.IsMinBaseFee(header.Time) {
 			header.Extra = eip1559.EncodeMinBaseFeeExtraData(d, e, genParams.minBaseFee)
 		} else {
 			header.Extra = eip1559.EncodeHoloceneExtraData(d, e)

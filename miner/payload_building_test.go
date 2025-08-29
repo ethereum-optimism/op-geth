@@ -251,7 +251,7 @@ func testBuildPayload(t *testing.T, noTxPool, interrupt bool, params1559 []byte,
 	db := rawdb.NewMemoryDatabase()
 
 	minBaseFee := uint64(0)
-	if config.IsConfigurableMinBaseFee(testTimestamp) {
+	if config.IsMinBaseFee(testTimestamp) {
 		minBaseFee = 1e9
 	}
 	w, b := newTestWorker(t, config, ethash.NewFaker(), db, 0)
@@ -308,7 +308,7 @@ func testBuildPayload(t *testing.T, noTxPool, interrupt bool, params1559 []byte,
 	var expected []byte
 	if len(params1559) != 0 {
 		versionByte := byte(0)
-		if config.IsConfigurableMinBaseFee(testTimestamp) {
+		if config.IsMinBaseFee(testTimestamp) {
 			versionByte = 1
 		}
 		expected = []byte{versionByte}
@@ -333,7 +333,7 @@ func testBuildPayload(t *testing.T, noTxPool, interrupt bool, params1559 []byte,
 	}
 
 	// Test minBaseFee value in extraData
-	if config.IsConfigurableMinBaseFee(testTimestamp) && payload.full != nil {
+	if config.IsMinBaseFee(testTimestamp) && payload.full != nil {
 		_, _, extractedMinBaseFee := eip1559.DecodeMinBaseFeeExtraData(payload.full.Header().Extra)
 		if extractedMinBaseFee != minBaseFee {
 			t.Fatalf("minBaseFee doesn't match. want: %d, got %d", minBaseFee, extractedMinBaseFee)
