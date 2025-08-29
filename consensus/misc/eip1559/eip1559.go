@@ -155,7 +155,7 @@ func DecodeMinBaseFeeExtraData(extra []byte) (uint64, uint64, uint64) {
 
 // EncodeMinBaseFeeExtraData encodes the EIP-1559 and minBaseFee parameters into the header 'ExtraData' format.
 // Will panic if EIP-1559 parameters are outside uint32 range.
-func EncodeMinBaseFeeExtraData(denom, elasticity uint64, minBaseFee uint64) []byte {
+func EncodeMinBaseFeeExtraData(denom, elasticity, minBaseFee uint64) []byte {
 	r := make([]byte, 17)
 	if denom > gomath.MaxUint32 || elasticity > gomath.MaxUint32 {
 		panic("eip-1559 parameters out of uint32 range")
