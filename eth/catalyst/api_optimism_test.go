@@ -47,7 +47,7 @@ func postJovian() *params.ChainConfig {
 var valid1559Params = []byte{0, 1, 2, 3, 4, 5, 6, 7}
 var validExtraData = []byte{0, 1, 2, 3, 4, 5, 6, 7, 8}
 var emptyWithdrawals = make([]*types.Withdrawal, 0)
-var validJovianExtraData = append(append([]byte{1}, valid1559Params...), byte(0)) // version=1, 8 bytes params, 1 byte factors
+var validJovianExtraData = append(append([]byte{1}, valid1559Params...), make([]byte, 8)...) // version=1, 8 bytes params, 8 byte minBaseFee
 
 func TestCheckOptimismPayload(t *testing.T) {
 	tests := []struct {
