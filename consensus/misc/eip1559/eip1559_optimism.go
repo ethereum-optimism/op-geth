@@ -12,15 +12,13 @@ import (
 
 // ValidateOptimismExtraData validates the Optimism extra data.
 // It uses the config and parent time to determine how to do the validation.
-func ValidateOptimismExtraData(config *params.ChainConfig, parent *types.Header) error {
-	if config.IsOptimismJovian(parent.Time) {
-		if err := ValidateJovianExtraData(parent.Extra); err != nil {
-			return err
-		}
-	} else if config.IsHolocene(parent.Time) {
-		if err := ValidateHoloceneExtraData(parent.Extra); err != nil {
-			return err
-		}
+func ValidateOptimismExtraData(config *params.ChainConfig, time uint64, extraData []byte) error {
+	if config.IsOptimismJovian(time) {
+		return ValidateJovianExtraData(extraData)
+	} else if config.IsOptimismHolocene(time) {
+		return ValidateHoloceneExtraData(extraData)
+	} else if len(extraData) > 0 { // pre-Holocene
+		return errors.New("extraData must be empty before Holocene")
 	}
 	return nil
 }
