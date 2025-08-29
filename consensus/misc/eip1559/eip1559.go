@@ -64,11 +64,14 @@ func CalcBaseFee(config *params.ChainConfig, parent *types.Header, time uint64) 
 	elasticity := config.ElasticityMultiplier()
 	denominator := config.BaseFeeChangeDenominator(time)
 
+	// OPStack addition: set a zero minimum base fee by default.
+	// This may be overridden when decoding the extra data.
 	minBaseFee := uint64(0) // default to 0, i.e. no minimum
+
+	// OPStack addition: from Holocene onwards, decode
+	// denominator, elasticity and minBaseFee from
+	// the extra data using optimism-specific rules.
 	if config.IsHolocene(parent.Time) {
-		if err := ValidateOptimismExtraData(config, parent); err != nil {
-			panic(err)
-		}
 		denominator, elasticity, minBaseFee = DecodeOptimismExtraData(config, parent)
 	}
 
