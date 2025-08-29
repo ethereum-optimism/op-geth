@@ -85,7 +85,7 @@ func (oracle *Oracle) SuggestOptimismPriorityFee(ctx context.Context, h *types.H
 		}
 		tips := bigIntArray(make([]*big.Int, len(txs)))
 		for i := range txs {
-			tips[i] = txs[i].EffectiveGasTipValue(baseFee)
+			tips[i], _ = txs[i].EffectiveGasTip(baseFee)
 		}
 		sort.Sort(tips)
 		median := tips[len(tips)/2]
