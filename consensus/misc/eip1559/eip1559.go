@@ -187,19 +187,15 @@ func CalcBaseFee(config *params.ChainConfig, parent *types.Header, time uint64) 
 	}
 	elasticity := config.ElasticityMultiplier()
 	denominator := config.BaseFeeChangeDenominator(time)
-	var minBaseFee uint64
-	if config.IsMinBaseFee(parent.Time) {
-		if err := ValidateMinBaseFeeExtraData(parent.Extra); err != nil {
+
+	minBaseFee := uint64(0) // default to 0, i.e. no minimum
+	if config.IsHolocene(parent.Time) {
+		if err := ValidateOptimismExtraData(config, parent); err != nil {
 			panic(err)
 		}
-		denominator, elasticity, minBaseFee = DecodeMinBaseFeeExtraData(parent.Extra)
-	} else if config.IsHolocene(parent.Time) {
-		denominator, elasticity = DecodeHoloceneExtraData(parent.Extra)
-		if denominator == 0 {
-			// this shouldn't happen as the ExtraData should have been validated prior
-			panic("invalid eip-1559 params in extradata")
-		}
+		denominator, elasticity, minBaseFee = DecodeOptimismExtraData(config, parent)
 	}
+
 	parentGasTarget := parent.GasLimit / elasticity
 
 	var (
@@ -238,11 +234,11 @@ func CalcBaseFee(config *params.ChainConfig, parent *types.Header, time uint64) 
 	}
 
 	// Enforce minimum base fee. If the minimum base fee is 0, it has no effect.
-	if config.IsMinBaseFee(parent.Time) {
-		minBaseFeeBig := new(big.Int).SetUint64(minBaseFee)
-		if baseFee.Cmp(minBaseFeeBig) < 0 {
-			baseFee = minBaseFeeBig
-		}
+
+	minBaseFeeBig := new(big.Int).SetUint64(minBaseFee)
+	if baseFee.Cmp(minBaseFeeBig) < 0 {
+		baseFee = minBaseFeeBig
 	}
+
 	return baseFee
 }
