@@ -112,8 +112,8 @@ func CalcBaseFee(config *params.ChainConfig, parent *types.Header, time uint64) 
 		baseFee = parent.BaseFee
 	}
 
-	// Enforce minimum base fee. If the minimum base fee is 0, it has no effect.
-
+	// OPStack addition: enforce minimum base fee.
+	// If the minimum base fee is 0, this has no effect.
 	minBaseFeeBig := new(big.Int).SetUint64(minBaseFee)
 	if baseFee.Cmp(minBaseFeeBig) < 0 {
 		baseFee = minBaseFeeBig
