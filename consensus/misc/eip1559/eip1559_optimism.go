@@ -27,13 +27,10 @@ func ValidateOptimismExtraData(config *params.ChainConfig, parent *types.Header)
 
 // DecodeOptimismExtraData decodes the Optimism extra data.
 // It uses the config and parent time to determine how to do the decoding.
+// The parent.extraData is expected to be valid (i.e. ValidateOptimismExtraData has been called previously)
 func DecodeOptimismExtraData(config *params.ChainConfig, parent *types.Header) (uint64, uint64, uint64) {
 	if config.IsOptimismJovian(parent.Time) {
 		denominator, elasticity, minBaseFee := DecodeJovianExtraData(parent.Extra)
-		if denominator == 0 {
-			// this shouldn't happen as the ExtraData should have been validated prior
-			panic("invalid eip-1559 params in extradata")
-		}
 		return denominator, elasticity, minBaseFee
 	} else if config.IsHolocene(parent.Time) {
 		denominator, elasticity := DecodeHoloceneExtraData(parent.Extra)
