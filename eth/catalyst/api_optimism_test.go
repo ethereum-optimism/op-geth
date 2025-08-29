@@ -13,6 +13,8 @@ import (
 
 func preCanyon() *params.ChainConfig {
 	cfg := new(params.ChainConfig)
+	// Mark as an Optimism chain so IsOptimismFoo is true when FooTime is active
+	cfg.Optimism = &params.OptimismConfig{}
 	return cfg
 }
 
@@ -35,12 +37,8 @@ func postIsthmus() *params.ChainConfig {
 }
 
 func postJovian() *params.ChainConfig {
-	cfg := new(params.ChainConfig)
-	// Jovian is post-Holocene on Optimism chains
-	cfg.HoloceneTime = new(uint64)
+	cfg := postIsthmus()
 	cfg.JovianTime = new(uint64)
-	// Mark as an Optimism chain so IsOptimismJovian is true when JovianTime is active
-	cfg.Optimism = &params.OptimismConfig{}
 	return cfg
 }
 
@@ -150,8 +148,9 @@ func TestCheckOptimismPayload(t *testing.T) {
 		{
 			name: "valid payload post-Jovian with 17-byte extraData",
 			params: engine.ExecutableData{
-				Timestamp: 0,
-				ExtraData: validJovianExtraData,
+				Timestamp:       0,
+				ExtraData:       validJovianExtraData,
+				WithdrawalsRoot: &types.EmptyWithdrawalsHash,
 			},
 			cfg:      postJovian(),
 			expected: nil,
