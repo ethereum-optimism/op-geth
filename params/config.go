@@ -853,11 +853,6 @@ func (c *ChainConfig) IsOptimismPreBedrock(num *big.Int) bool {
 	return c.IsOptimism() && !c.IsBedrock(num)
 }
 
-// IsMinBaseFee returns true if the configurable minBaseFee feature is enabled.
-func (c *ChainConfig) IsMinBaseFee(time uint64) bool {
-	return c.IsOptimismJovian(time)
-}
-
 // CheckCompatible checks whether scheduled fork transitions have been imported
 // with a mismatching chain configuration.
 func (c *ChainConfig) CheckCompatible(newcfg *ChainConfig, height, time uint64, genesisTimestamp *uint64) *ConfigCompatError {

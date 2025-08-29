@@ -19,8 +19,8 @@ func checkOptimismPayload(params engine.ExecutableData, cfg *params.ChainConfig)
 	}
 
 	// ExtraData validation for Holocene and Jovian
-	if cfg.IsMinBaseFee(params.Timestamp) {
-		if err := eip1559.ValidateMinBaseFeeExtraData(params.ExtraData); err != nil {
+	if cfg.IsOptimismJovian(params.Timestamp) {
+		if err := eip1559.ValidateJovianExtraData(params.ExtraData); err != nil {
 			return err
 		}
 	} else if cfg.IsHolocene(params.Timestamp) {

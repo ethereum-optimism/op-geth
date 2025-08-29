@@ -276,7 +276,7 @@ func TestCalcBaseFeeMinBaseFee(t *testing.T) {
 		if test.parentTime < TestJovianTime {
 			parent.Extra = EncodeHoloceneExtraData(denom, elasticity)
 		} else {
-			parent.Extra = EncodeMinBaseFeeExtraData(denom, elasticity, test.minBaseFee)
+			parent.Extra = EncodeJovianExtraData(denom, elasticity, test.minBaseFee)
 		}
 		if have, want := CalcBaseFee(opConfig(), parent, parent.Time+2), big.NewInt(int64(test.expectedBaseFee)); have.Cmp(want) != 0 {
 			t.Errorf("test %d: have %d  want %d, ", i, have, want)

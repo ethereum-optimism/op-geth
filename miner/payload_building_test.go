@@ -129,7 +129,7 @@ func newTestWorkerBackend(t *testing.T, chainConfig *params.ChainConfig, engine 
 		t.Fatalf("unexpected consensus engine type: %T", engine)
 	}
 	if chainConfig.JovianTime != nil {
-		gspec.ExtraData = eip1559.EncodeMinBaseFeeExtraData(250, 6, 1e9)
+		gspec.ExtraData = eip1559.EncodeJovianExtraData(250, 6, 1e9)
 	} else if chainConfig.HoloceneTime != nil {
 		// genesis block extraData needs to be correct format
 		gspec.ExtraData = []byte{0, 0, 1, 2, 3, 4, 5, 6, 7}
@@ -333,8 +333,8 @@ func testBuildPayload(t *testing.T, noTxPool, interrupt bool, params1559 []byte,
 	}
 
 	// Test minBaseFee value in extraData
-	if config.IsMinBaseFee(testTimestamp) && payload.full != nil {
-		_, _, extractedMinBaseFee := eip1559.DecodeMinBaseFeeExtraData(payload.full.Header().Extra)
+	if config.IsOptimismJovian(testTimestamp) && payload.full != nil {
+		_, _, extractedMinBaseFee := eip1559.DecodeJovianExtraData(payload.full.Header().Extra)
 		if extractedMinBaseFee != minBaseFee {
 			t.Fatalf("minBaseFee doesn't match. want: %d, got %d", minBaseFee, extractedMinBaseFee)
 		}
@@ -429,7 +429,7 @@ func TestBuildPayloadInvalidMinBaseFeeExtraData(t *testing.T) {
 	w, b := newTestWorker(t, config, ethash.NewFaker(), db, 0)
 
 	// 0 denominators shouldn't be allowed
-	badParams := eip1559.EncodeMinBaseFeeExtraData(0, 6, 0)
+	badParams := eip1559.EncodeJovianExtraData(0, 6, 0)
 
 	args := newPayloadArgs(b.chain.CurrentBlock().Hash(), badParams, 0)
 	payload, err := w.buildPayload(args, false)

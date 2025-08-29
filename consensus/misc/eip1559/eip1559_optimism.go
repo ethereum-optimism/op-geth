@@ -13,8 +13,8 @@ import (
 // ValidateOptimismExtraData validates the Optimism extra data.
 // It uses the config and parent time to determine how to do the validation.
 func ValidateOptimismExtraData(config *params.ChainConfig, parent *types.Header) error {
-	if config.IsMinBaseFee(parent.Time) {
-		if err := ValidateMinBaseFeeExtraData(parent.Extra); err != nil {
+	if config.IsOptimismJovian(parent.Time) {
+		if err := ValidateJovianExtraData(parent.Extra); err != nil {
 			return err
 		}
 	} else if config.IsHolocene(parent.Time) {
@@ -28,8 +28,8 @@ func ValidateOptimismExtraData(config *params.ChainConfig, parent *types.Header)
 // DecodeOptimismExtraData decodes the Optimism extra data.
 // It uses the config and parent time to determine how to do the decoding.
 func DecodeOptimismExtraData(config *params.ChainConfig, parent *types.Header) (uint64, uint64, uint64) {
-	if config.IsMinBaseFee(parent.Time) {
-		denominator, elasticity, minBaseFee := DecodeMinBaseFeeExtraData(parent.Extra)
+	if config.IsOptimismJovian(parent.Time) {
+		denominator, elasticity, minBaseFee := DecodeJovianExtraData(parent.Extra)
 		if denominator == 0 {
 			// this shouldn't happen as the ExtraData should have been validated prior
 			panic("invalid eip-1559 params in extradata")
@@ -118,12 +118,12 @@ func ValidateHoloceneExtraData(extra []byte) error {
 	return ValidateHolocene1559Params(extra[1:])
 }
 
-// DecodeMinBaseFeeExtraData decodes the extraData parameters from the encoded form defined here:
+// DecodeJovianExtraData decodes the extraData parameters from the encoded form defined here:
 // https://specs.optimism.io/protocol/jovian/exec-engine.html
 //
 // Returns 0,0,0 if the format is invalid, though ValidateMinBaseFeeExtraData should be used instead of this function for
 // validity checking.
-func DecodeMinBaseFeeExtraData(extra []byte) (uint64, uint64, uint64) {
+func DecodeJovianExtraData(extra []byte) (uint64, uint64, uint64) {
 	// Best effort to decode the extraData for every block in the chain's history,
 	// including blocks before the minimum base fee feature was enabled.
 	if len(extra) == 9 {
@@ -139,9 +139,9 @@ func DecodeMinBaseFeeExtraData(extra []byte) (uint64, uint64, uint64) {
 	return 0, 0, 0
 }
 
-// EncodeMinBaseFeeExtraData encodes the EIP-1559 and minBaseFee parameters into the header 'ExtraData' format.
+// EncodeJovianExtraData encodes the EIP-1559 and minBaseFee parameters into the header 'ExtraData' format.
 // Will panic if EIP-1559 parameters are outside uint32 range.
-func EncodeMinBaseFeeExtraData(denom, elasticity, minBaseFee uint64) []byte {
+func EncodeJovianExtraData(denom, elasticity, minBaseFee uint64) []byte {
 	r := make([]byte, 17)
 	if denom > gomath.MaxUint32 || elasticity > gomath.MaxUint32 {
 		panic("eip-1559 parameters out of uint32 range")
@@ -153,8 +153,8 @@ func EncodeMinBaseFeeExtraData(denom, elasticity, minBaseFee uint64) []byte {
 	return r
 }
 
-// ValidateMinBaseFeeExtraData checks if the header extraData is valid according to the minimum base fee feature.
-func ValidateMinBaseFeeExtraData(extra []byte) error {
+// ValidateJovianExtraData checks if the header extraData is valid according to the minimum base fee feature.
+func ValidateJovianExtraData(extra []byte) error {
 	if len(extra) != 17 {
 		return fmt.Errorf("minBaseFee extraData should be 17 bytes, got %d", len(extra))
 	}
