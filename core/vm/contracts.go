@@ -162,6 +162,14 @@ var PrecompiledContractsOsaka = PrecompiledContracts{
 	common.BytesToAddress([]byte{0x0f}): &bls12381Pairing{},
 	common.BytesToAddress([]byte{0x10}): &bls12381MapG1{},
 	common.BytesToAddress([]byte{0x11}): &bls12381MapG2{},
+
+	common.BytesToAddress([]byte{0x1, 0x00}): &p256Verify{},
+}
+
+// PrecompiledContractsP256Verify contains the precompiled Ethereum
+// contract specified in EIP-7212. This is exported for testing purposes.
+var PrecompiledContractsP256Verify = PrecompiledContracts{
+	common.BytesToAddress([]byte{0x1, 0x00}): &p256Verify{},
 }
 
 // PrecompiledContractsFjord contains the default set of pre-compiled Ethereum
@@ -177,7 +185,7 @@ var PrecompiledContractsFjord = map[common.Address]PrecompiledContract{
 	common.BytesToAddress([]byte{8}):          &bn256PairingIstanbul{},
 	common.BytesToAddress([]byte{9}):          &blake2F{},
 	common.BytesToAddress([]byte{0x0a}):       &kzgPointEvaluation{},
-	common.BytesToAddress([]byte{0x01, 0x00}): &p256Verify{},
+	common.BytesToAddress([]byte{0x01, 0x00}): &p256VerifyFjord{},
 }
 
 // PrecompiledContractsGranite contains the default set of pre-compiled Ethereum
@@ -193,7 +201,7 @@ var PrecompiledContractsGranite = map[common.Address]PrecompiledContract{
 	common.BytesToAddress([]byte{8}):          &bn256PairingGranite{},
 	common.BytesToAddress([]byte{9}):          &blake2F{},
 	common.BytesToAddress([]byte{0x0a}):       &kzgPointEvaluation{},
-	common.BytesToAddress([]byte{0x01, 0x00}): &p256Verify{},
+	common.BytesToAddress([]byte{0x01, 0x00}): &p256VerifyFjord{},
 }
 
 var PrecompiledContractsIsthmus = map[common.Address]PrecompiledContract{
@@ -214,7 +222,7 @@ var PrecompiledContractsIsthmus = map[common.Address]PrecompiledContract{
 	common.BytesToAddress([]byte{0x0f}):       &bls12381PairingIsthmus{},
 	common.BytesToAddress([]byte{0x10}):       &bls12381MapG1{},
 	common.BytesToAddress([]byte{0x11}):       &bls12381MapG2{},
-	common.BytesToAddress([]byte{0x01, 0x00}): &p256Verify{},
+	common.BytesToAddress([]byte{0x01, 0x00}): &p256VerifyFjord{},
 }
 
 var (
@@ -547,7 +555,9 @@ func (c *bigModExp) RequiredGas(input []byte) uint64 {
 			gas.Mul(gas, adjExpLen)
 		}
 		// 2. Different divisor (`GQUADDIVISOR`) (3)
-		gas.Div(gas, big3)
+		if !c.eip7883 {
+			gas.Div(gas, big3)
+		}
 		if gas.BitLen() > 64 {
 			return math.MaxUint64
 		}
@@ -583,7 +593,7 @@ func (c *bigModExp) Run(input []byte) ([]byte, error) {
 	}
 	// enforce size cap for inputs
 	if c.eip7823 && max(baseLen, expLen, modLen) > 1024 {
-		return nil, fmt.Errorf("one or more of base/exponent/modulus length exceeded 1024 bytes")
+		return nil, errors.New("one or more of base/exponent/modulus length exceeded 1024 bytes")
 	}
 	// Retrieve the operands and execute the exponentiation
 	var (
@@ -1380,6 +1390,20 @@ func kZGToVersionedHash(kzg kzg4844.Commitment) common.Hash {
 }
 
 // P256VERIFY (secp256r1 signature verification)
+// implemented as a native contract.
+//
+// This is used in the OP Stack from Fjord until the implementation of Ethereum's Osaka fork, after
+// which the p256Verify precompile is used instead to maintain Ethereum equivalence.
+type p256VerifyFjord struct {
+	p256Verify
+}
+
+// RequiredGas returns the gas required to execute the precompiled contract
+func (c *p256VerifyFjord) RequiredGas(input []byte) uint64 {
+	return params.P256VerifyGasFjord
+}
+
+// P256VERIFY (secp256r1 signature verification)
 // implemented as a native contract
 type p256Verify struct{}
 
@@ -1390,25 +1414,19 @@ func (c *p256Verify) RequiredGas(input []byte) uint64 {
 
 // Run executes the precompiled contract with given 160 bytes of param, returning the output and the used gas
 func (c *p256Verify) Run(input []byte) ([]byte, error) {
-	// Required input length is 160 bytes
 	const p256VerifyInputLength = 160
-	// Check the input length
 	if len(input) != p256VerifyInputLength {
-		// Input length is invalid
 		return nil, nil
 	}
 
-	// Extract the hash, r, s, x, y from the input
+	// Extract hash, r, s, x, y from the input.
 	hash := input[0:32]
 	r, s := new(big.Int).SetBytes(input[32:64]), new(big.Int).SetBytes(input[64:96])
 	x, y := new(big.Int).SetBytes(input[96:128]), new(big.Int).SetBytes(input[128:160])
 
-	// Verify the secp256r1 signature
+	// Verify the signature.
 	if secp256r1.Verify(hash, r, s, x, y) {
-		// Signature is valid
-		return common.LeftPadBytes([]byte{1}, 32), nil
-	} else {
-		// Signature is invalid
-		return nil, nil
+		return true32Byte, nil
 	}
+	return nil, nil
 }

@@ -5,7 +5,7 @@ footer: |
 base:
   name: go-ethereum
   url: https://github.com/ethereum/go-ethereum
-  hash: 12b4131ff7c4b87fc21533d34a77d79f8045d11b # v1.16.1
+  hash: dd1ebac11757484575ee779381af32f29ce3fbe4 # v1.16.2
 fork:
   name: op-geth
   url: https://github.com/ethereum-optimism/op-geth
@@ -18,7 +18,7 @@ def:
 
     The OP-stack architecture is modular, following the Consensus/Execution split of post-Merge Ethereum L1:
 
-      - [`op-node`](https://github.com/ethereum-optimism/optimism/tree/develop/op-node) implements most rollup-specific functionality as Consensus-Layer, similar to a L1 beacon-node. 
+      - [`op-node`](https://github.com/ethereum-optimism/optimism/tree/develop/op-node) implements most rollup-specific functionality as Consensus-Layer, similar to a L1 beacon-node.
       - [`op-geth`](https://github.com/ethereum-optimism/op-geth) implements the Execution-Layer, with **minimal changes** for a secure Ethereum-equivalent application environment.
 
     Related [op-stack specifications](https://github.com/ethereum-optimism/optimism/tree/develop/specs):
@@ -136,11 +136,11 @@ def:
                 - "core/txpool/**/*"
                 - "core/txpool/legacypool/*"
         - title: "RIP-7212"
-          description: ""
+          description: |
+            The OP Stack implemented an secp256r1 precompile in the Fjord fork. Ethereum added the same functionality
+            with a different gas cost in its Osaka fork. Both are included in op-geth for backward compatibility.
           globs:
             - "core/vm/contracts.go"
-            - "crypto/secp256r1/publickey.go"
-            - "crypto/secp256r1/verifier.go"
     - title: "Chain Configuration"
       sub:
         - title: "Chain config"
@@ -234,7 +234,7 @@ def:
             - "eth/ethconfig/gen_config.go"
     - title: "Single threaded execution"
       description: |
-        The cannon fault proofs virtual machine does not support the creation of threads. To ensure compatibility, 
+        The cannon fault proofs virtual machine does not support the creation of threads. To ensure compatibility,
         thread creation is avoided when only a single CPU is available.
       globs:
         - "core/state/workers.go"
@@ -252,7 +252,7 @@ def:
       sub:
         - title: "Receipts metadata"
           description: |
-            Pre-Bedrock L1-cost receipt data is loaded from the database if available, and post-Bedrock the L1-cost 
+            Pre-Bedrock L1-cost receipt data is loaded from the database if available, and post-Bedrock the L1-cost
             metadata is hydrated on-the-fly based on the L1 fee information in the corresponding block.
           globs:
             - "core/types/receipt.go"
