@@ -222,10 +222,10 @@ func TestCalcBaseFeeOptimismHolocene(t *testing.T) {
 	}
 }
 
-// TestCalcBaseFeeMinBaseFee tests that the minimum base fee is enforced
+// TestCalcBaseFeeJovian tests that the minimum base fee is enforced
 // when the computed base fee is less than the minimum base fee,
 // if the feature is active and not enforced otherwise.
-func TestCalcBaseFeeMinBaseFee(t *testing.T) {
+func TestCalcBaseFeeJovian(t *testing.T) {
 	parentGasLimit := uint64(30_000_000)
 	denom := uint64(50)
 	elasticity := uint64(3)
