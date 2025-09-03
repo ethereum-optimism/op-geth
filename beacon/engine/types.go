@@ -62,7 +62,7 @@ type PayloadAttributes struct {
 	EIP1559Params []byte `json:"eip1559Params,omitempty" gencodec:"optional"`
 	// MinBaseFee is a field for rollups implementing the Jovian upgrade's minimum base fee feature.
 	// See https://github.com/ethereum-optimism/specs/blob/main/specs/protocol/jovian/exec-engine.md#minimum-base-fee-in-payloadattributesv3
-	MinBaseFee uint64 `json:"minBaseFee,omitempty" gencodec:"optional"`
+	MinBaseFee *uint64 `json:"minBaseFee,omitempty" gencodec:"optional"`
 }
 
 // JSON type overrides for PayloadAttributes.

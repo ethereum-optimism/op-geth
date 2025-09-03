@@ -25,7 +25,7 @@ func (p PayloadAttributes) MarshalJSON() ([]byte, error) {
 		NoTxPool              bool                `json:"noTxPool,omitempty" gencodec:"optional"`
 		GasLimit              *hexutil.Uint64     `json:"gasLimit,omitempty" gencodec:"optional"`
 		EIP1559Params         hexutil.Bytes       `json:"eip1559Params,omitempty" gencodec:"optional"`
-		MinBaseFee            uint64              `json:"minBaseFee,omitempty" gencodec:"optional"`
+		MinBaseFee            *uint64             `json:"minBaseFee,omitempty" gencodec:"optional"`
 	}
 	var enc PayloadAttributes
 	enc.Timestamp = hexutil.Uint64(p.Timestamp)
@@ -98,7 +98,7 @@ func (p *PayloadAttributes) UnmarshalJSON(input []byte) error {
 		p.EIP1559Params = *dec.EIP1559Params
 	}
 	if dec.MinBaseFee != nil {
-		p.MinBaseFee = *dec.MinBaseFee
+		p.MinBaseFee = dec.MinBaseFee
 	}
 	return nil
 }

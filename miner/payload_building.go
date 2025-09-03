@@ -52,7 +52,7 @@ type BuildPayloadArgs struct {
 	Transactions  []*types.Transaction // Optimism addition: txs forced into the block via engine API
 	GasLimit      *uint64              // Optimism addition: override gas limit of the block to build
 	EIP1559Params []byte               // Optimism addition: encodes Holocene EIP-1559 params
-	MinBaseFee    uint64               // Optimism addition: encodes minimum base fee
+	MinBaseFee    *uint64              // Optimism addition: encodes minimum base fee
 }
 
 // Id computes an 8-byte identifier by hashing the components of the payload arguments.
@@ -81,7 +81,7 @@ func (args *BuildPayloadArgs) Id() engine.PayloadID {
 	if len(args.EIP1559Params) != 0 {
 		hasher.Write(args.EIP1559Params[:])
 	}
-	if args.MinBaseFee != 0 {
+	if args.MinBaseFee != nil {
 		binary.Write(hasher, binary.BigEndian, args.MinBaseFee)
 	}
 

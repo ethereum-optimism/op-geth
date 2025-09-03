@@ -73,6 +73,8 @@ const (
 	numDAFilterTxs = 256
 )
 
+var zero = uint64(0)
+
 func init() {
 	testTxPoolConfig = legacypool.DefaultConfig
 	testTxPoolConfig.Journal = ""
@@ -225,7 +227,7 @@ func jovianConfig() *params.ChainConfig {
 
 // newPayloadArgs returns a BuildPaylooadArgs with the given parentHash, eip-1559 params,
 // minBaseFee, testTimestamp for Timestamp, and testRecipient for recipient. NoTxPool is set to true.
-func newPayloadArgs(parentHash common.Hash, params1559 []byte, minBaseFee uint64) *BuildPayloadArgs {
+func newPayloadArgs(parentHash common.Hash, params1559 []byte, minBaseFee *uint64) *BuildPayloadArgs {
 	return &BuildPayloadArgs{
 		Parent:        parentHash,
 		Timestamp:     testTimestamp,
@@ -256,7 +258,7 @@ func testBuildPayload(t *testing.T, noTxPool, interrupt bool, params1559 []byte,
 		b.txPool.Add(txs, false)
 	}
 
-	args := newPayloadArgs(b.chain.CurrentBlock().Hash(), params1559, minBaseFee)
+	args := newPayloadArgs(b.chain.CurrentBlock().Hash(), params1559, &minBaseFee)
 	args.NoTxPool = noTxPool
 
 	// payload resolution now interrupts block building, so we have to
@@ -383,7 +385,7 @@ func testDAFilters(t *testing.T, maxDATxSize, maxDABlockSize *big.Int, expectedT
 	b.txPool.Add(txs, false)
 
 	params1559 := []byte{0, 1, 2, 3, 4, 5, 6, 7}
-	args := newPayloadArgs(b.chain.CurrentBlock().Hash(), params1559, 0)
+	args := newPayloadArgs(b.chain.CurrentBlock().Hash(), params1559, &zero)
 	args.NoTxPool = false
 
 	payload, err := w.buildPayload(args, false)
@@ -408,7 +410,7 @@ func testBuildPayloadWrongConfig(t *testing.T, params1559 []byte, config *params
 	}
 	w, b := newTestWorker(t, &wrongConfig, ethash.NewFaker(), db, 0)
 
-	args := newPayloadArgs(b.chain.CurrentBlock().Hash(), params1559, 0)
+	args := newPayloadArgs(b.chain.CurrentBlock().Hash(), params1559, &zero)
 	payload, err := w.buildPayload(args, false)
 	if err == nil && (payload == nil || payload.err == nil) {
 		t.Fatalf("expected error, got none")
@@ -424,7 +426,7 @@ func TestBuildPayloadInvalidHoloceneParams(t *testing.T) {
 	// 0 denominators shouldn't be allowed
 	badParams := eip1559.EncodeHolocene1559Params(0, 6)
 
-	args := newPayloadArgs(b.chain.CurrentBlock().Hash(), badParams, 0)
+	args := newPayloadArgs(b.chain.CurrentBlock().Hash(), badParams, &zero)
 	payload, err := w.buildPayload(args, false)
 	if err == nil && (payload == nil || payload.err == nil) {
 		t.Fatalf("expected error, got none")
@@ -440,7 +442,7 @@ func TestBuildPayloadInvalidJovianExtraData(t *testing.T) {
 	// 0 denominators shouldn't be allowed
 	badParams := eip1559.EncodeJovianExtraData(0, 6, 0)
 
-	args := newPayloadArgs(b.chain.CurrentBlock().Hash(), badParams, 0)
+	args := newPayloadArgs(b.chain.CurrentBlock().Hash(), badParams, &zero)
 	payload, err := w.buildPayload(args, false)
 	if err == nil && (payload == nil || payload.err == nil) {
 		t.Fatalf("expected error, got none")

@@ -132,7 +132,7 @@ type generateParams struct {
 	eip1559Params []byte             // Optional EIP-1559 parameters
 	interrupt     *atomic.Int32      // Optional interruption signal to pass down to worker.generateWork
 	isUpdate      bool               // Optional flag indicating that this is building a discardable update
-	minBaseFee    uint64             // Optional minimum base fee
+	minBaseFee    *uint64            // Optional minimum base fee
 
 	rpcCtx context.Context // context to control block-building RPC work. No RPC allowed if nil.
 }
@@ -321,7 +321,10 @@ func (miner *Miner) prepareWork(genParams *generateParams, witness bool) (*envir
 			e = miner.chainConfig.ElasticityMultiplier()
 		}
 		if cfg.IsOptimismJovian(header.Time) {
-			header.Extra = eip1559.EncodeJovianExtraData(d, e, genParams.minBaseFee)
+			if genParams.minBaseFee == nil {
+				return nil, errors.New("minBaseFee is required for Jovian")
+			}
+			header.Extra = eip1559.EncodeJovianExtraData(d, e, *genParams.minBaseFee)
 		} else {
 			header.Extra = eip1559.EncodeHoloceneExtraData(d, e)
 		}
