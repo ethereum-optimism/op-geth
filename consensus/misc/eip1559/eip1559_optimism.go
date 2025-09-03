@@ -33,7 +33,7 @@ func DecodeOptimismExtraData(config *params.ChainConfig, parent *types.Header) (
 	if config.IsOptimismJovian(parent.Time) {
 		denominator, elasticity, minBaseFee := DecodeJovianExtraData(parent.Extra)
 		return denominator, elasticity, minBaseFee
-	} else if config.IsHolocene(parent.Time) {
+	} else if config.IsOptimismHolocene(parent.Time) {
 		denominator, elasticity := DecodeHoloceneExtraData(parent.Extra)
 		return denominator, elasticity, 0
 	}
