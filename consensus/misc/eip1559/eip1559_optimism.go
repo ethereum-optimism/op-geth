@@ -10,6 +10,9 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 )
 
+const HoloceneExtraDataVersionByte = uint8(0x00)
+const JovianExtraDataVersionByte = uint8(0x01)
+
 // ValidateOptimismExtraData validates the Optimism extra data.
 // It uses the config and parent time to determine how to do the validation.
 func ValidateOptimismExtraData(config *params.ChainConfig, time uint64, extraData []byte) error {
@@ -107,7 +110,7 @@ func ValidateHoloceneExtraData(extra []byte) error {
 	if len(extra) != 9 {
 		return fmt.Errorf("holocene extraData should be 9 bytes, got %d", len(extra))
 	}
-	if extra[0] != 0 {
+	if extra[0] != HoloceneExtraDataVersionByte {
 		return fmt.Errorf("holocene extraData should have 0 version byte, got %d", extra[0])
 	}
 	return ValidateHolocene1559Params(extra[1:])
@@ -141,7 +144,7 @@ func EncodeJovianExtraData(denom, elasticity, minBaseFee uint64) []byte {
 	if denom > gomath.MaxUint32 || elasticity > gomath.MaxUint32 {
 		panic("eip-1559 parameters out of uint32 range")
 	}
-	r[0] = 1
+	r[0] = JovianExtraDataVersionByte
 	binary.BigEndian.PutUint32(r[1:5], uint32(denom))
 	binary.BigEndian.PutUint32(r[5:9], uint32(elasticity))
 	binary.BigEndian.PutUint64(r[9:], minBaseFee)
@@ -153,7 +156,7 @@ func ValidateJovianExtraData(extra []byte) error {
 	if len(extra) != 17 {
 		return fmt.Errorf("minBaseFee extraData should be 17 bytes, got %d", len(extra))
 	}
-	if extra[0] != 1 {
+	if extra[0] != JovianExtraDataVersionByte {
 		return fmt.Errorf("minBaseFee version should be 1, got %d", extra[0])
 	}
 	return ValidateHolocene1559Params(extra[1:9])

@@ -298,9 +298,9 @@ func testBuildPayload(t *testing.T, noTxPool, interrupt bool, params1559 []byte,
 	// make sure the 1559 params we've specied (if any) ends up in both the full and empty block headers
 	var expected []byte
 	if len(params1559) != 0 {
-		versionByte := byte(0)
+		versionByte := eip1559.HoloceneExtraDataVersionByte
 		if config.IsOptimismJovian(testTimestamp) {
-			versionByte = 1
+			versionByte = eip1559.JovianExtraDataVersionByte
 		}
 		expected = []byte{versionByte}
 
@@ -310,7 +310,7 @@ func testBuildPayload(t *testing.T, noTxPool, interrupt bool, params1559 []byte,
 		} else {
 			expected = append(expected, params1559...)
 		}
-		if versionByte == 1 {
+		if versionByte == eip1559.JovianExtraDataVersionByte {
 			buf := make([]byte, 8)
 			binary.BigEndian.PutUint64(buf, minBaseFee)
 			expected = append(expected, buf...)
