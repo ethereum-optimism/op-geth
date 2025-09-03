@@ -111,7 +111,7 @@ func ValidateHoloceneExtraData(extra []byte) error {
 		return fmt.Errorf("holocene extraData should be 9 bytes, got %d", len(extra))
 	}
 	if extra[0] != HoloceneExtraDataVersionByte {
-		return fmt.Errorf("holocene extraData should have %d version byte, got %d", HoloceneExtraDataVersionByte, extra[0])
+		return fmt.Errorf("holocene extraData version byte should be %d, got %d", HoloceneExtraDataVersionByte, extra[0])
 	}
 	return ValidateHolocene1559Params(extra[1:])
 }
@@ -154,10 +154,10 @@ func EncodeJovianExtraData(denom, elasticity, minBaseFee uint64) []byte {
 // ValidateJovianExtraData checks if the header extraData is valid according to the minimum base fee feature.
 func ValidateJovianExtraData(extra []byte) error {
 	if len(extra) != 17 {
-		return fmt.Errorf("minBaseFee extraData should be 17 bytes, got %d", len(extra))
+		return fmt.Errorf("jovian extraData should be 17 bytes, got %d", len(extra))
 	}
 	if extra[0] != JovianExtraDataVersionByte {
-		return fmt.Errorf("minBaseFee extraData version byte should be %d, got %d", JovianExtraDataVersionByte, extra[0])
+		return fmt.Errorf("jovian extraData version byte should be %d, got %d", JovianExtraDataVersionByte, extra[0])
 	}
 	return ValidateHolocene1559Params(extra[1:9])
 }
