@@ -323,11 +323,29 @@ func testBuildPayload(t *testing.T, noTxPool, interrupt bool, params1559 []byte,
 		t.Fatalf("ExtraData doesn't match on empty block. want: %x, got %x", expected, payload.empty.Header().Extra)
 	}
 
-	// Test minBaseFee value in extraData
-	if config.IsOptimismJovian(testTimestamp) && payload.full != nil {
-		_, _, extractedMinBaseFee := eip1559.DecodeJovianExtraData(payload.full.Header().Extra)
-		if extractedMinBaseFee != minBaseFee {
-			t.Fatalf("minBaseFee doesn't match. want: %d, got %d", minBaseFee, extractedMinBaseFee)
+	// Test extraData
+	if payload.full != nil && len(params1559) != 0 {
+		var d, e uint64
+		if config.IsOptimismJovian(testTimestamp) {
+			var extractedMinBaseFee uint64
+			d, e, extractedMinBaseFee = eip1559.DecodeJovianExtraData(payload.full.Header().Extra)
+			if extractedMinBaseFee != minBaseFee {
+				t.Fatalf("minBaseFee doesn't match. want: %d, got %d", minBaseFee, extractedMinBaseFee)
+			}
+		} else if config.IsOptimismHolocene(testTimestamp) {
+			d, e = eip1559.DecodeHoloceneExtraData(payload.full.Header().Extra)
+		}
+		expectedDenominator := binary.BigEndian.Uint32(params1559[:4])
+		expectedElasticity := binary.BigEndian.Uint32(params1559[4:])
+		if expectedDenominator == 0 {
+			expectedDenominator = 250
+			expectedElasticity = 6
+		}
+		if d != uint64(expectedDenominator) {
+			t.Fatalf("denominator doesn't match. want: %d, got %d", expectedDenominator, d)
+		}
+		if e != uint64(expectedElasticity) {
+			t.Fatalf("elasticity doesn't match. want: %d, got %d", expectedElasticity, e)
 		}
 	}
 
