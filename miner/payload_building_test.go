@@ -217,19 +217,10 @@ func holoceneConfig() *params.ChainConfig {
 }
 
 func jovianConfig() *params.ChainConfig {
-	config := *params.TestChainConfig
-	config.LondonBlock = big.NewInt(0)
-	t := uint64(0)
-	config.CanyonTime = &t
-	config.HoloceneTime = &t
-	config.JovianTime = &t
-	canyonDenom := uint64(250)
-	config.Optimism = &params.OptimismConfig{
-		EIP1559Elasticity:        6,
-		EIP1559Denominator:       50,
-		EIP1559DenominatorCanyon: &canyonDenom,
-	}
-	return &config
+	config := holoceneConfig()
+	zero := uint64(0)
+	config.JovianTime = &zero
+	return config
 }
 
 // newPayloadArgs returns a BuildPaylooadArgs with the given parentHash, eip-1559 params,
@@ -422,7 +413,7 @@ func TestBuildPayloadInvalidHoloceneParams(t *testing.T) {
 	}
 }
 
-func TestBuildPayloadInvalidMinBaseFeeExtraData(t *testing.T) {
+func TestBuildPayloadInvalidJovianExtraData(t *testing.T) {
 	t.Parallel()
 	db := rawdb.NewMemoryDatabase()
 	config := jovianConfig()
