@@ -17,12 +17,14 @@
 package eip1559
 
 import (
+	"fmt"
 	"math/big"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/stretchr/testify/require"
 )
 
 // copyConfig does a _shallow_ copy of a given config. Safe to set new values, but
@@ -264,22 +266,28 @@ func TestCalcBaseFeeJovian(t *testing.T) {
 		// 2_097_152 * -1_000_000 / 10_000_000 / 50 = -4194.304
 		// 2_097_152 - 4194.304 = 2_092_957.696, which is greater than minBaseFee
 		{2_097_152, parentGasLimit/elasticity - 1_000_000, postJovian, 2e6, 2_092_958},
+		// Test 6: parent base fee already at minimum, below target => no change
+		{1e4, parentGasLimit/elasticity - 1, postJovian, 1e4, 1e4},
+		// Test 7: parent base fee already at minimum, above target => small increase as usual
+		{1e4, parentGasLimit/elasticity + 1, postJovian, 1e4, 1e4 + 1},
 	}
 	for i, test := range tests {
-		parent := &types.Header{
-			Number:   common.Big32,
-			GasLimit: parentGasLimit,
-			GasUsed:  test.parentGasUsed,
-			BaseFee:  big.NewInt(test.parentBaseFee),
-			Time:     test.parentTime,
-		}
-		if test.parentTime < TestJovianTime {
-			parent.Extra = EncodeHoloceneExtraData(denom, elasticity)
-		} else {
-			parent.Extra = EncodeJovianExtraData(denom, elasticity, test.minBaseFee)
-		}
-		if have, want := CalcBaseFee(opConfig(), parent, parent.Time+2), big.NewInt(int64(test.expectedBaseFee)); have.Cmp(want) != 0 {
-			t.Errorf("test %d: have %d  want %d, ", i, have, want)
-		}
+		testName := fmt.Sprintf("test %d", i)
+		t.Run(testName, func(t *testing.T) {
+			parent := &types.Header{
+				Number:   common.Big32,
+				GasLimit: parentGasLimit,
+				GasUsed:  test.parentGasUsed,
+				BaseFee:  big.NewInt(test.parentBaseFee),
+				Time:     test.parentTime,
+			}
+			if test.parentTime < TestJovianTime {
+				parent.Extra = EncodeHoloceneExtraData(denom, elasticity)
+			} else {
+				parent.Extra = EncodeJovianExtraData(denom, elasticity, test.minBaseFee)
+			}
+			have, want := CalcBaseFee(opConfig(), parent, parent.Time+2), big.NewInt(int64(test.expectedBaseFee))
+			require.Equal(t, have, want, testName)
+		})
 	}
 }
