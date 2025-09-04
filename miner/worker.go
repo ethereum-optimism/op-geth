@@ -321,7 +321,6 @@ func (miner *Miner) prepareWork(genParams *generateParams, witness bool) (*envir
 			e = miner.chainConfig.ElasticityMultiplier()
 		}
 		header.Extra = eip1559.EncodeOptimismExtraData(cfg, header.Time, d, e, genParams.minBaseFee)
-
 	} else if genParams.eip1559Params != nil {
 		return nil, errors.New("got eip1559 params, expected none")
 	}
