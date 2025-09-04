@@ -39,6 +39,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/stretchr/testify/require"
 )
 
 var (
@@ -329,9 +330,7 @@ func testBuildPayload(t *testing.T, noTxPool, interrupt bool, params1559 []byte,
 		if config.IsOptimismJovian(testTimestamp) {
 			var extractedMinBaseFee *uint64
 			d, e, extractedMinBaseFee = eip1559.DecodeJovianExtraData(payload.full.Header().Extra)
-			if extractedMinBaseFee != minBaseFee {
-				t.Fatalf("minBaseFee doesn't match. want: %d, got %d", minBaseFee, extractedMinBaseFee)
-			}
+			require.Equal(t, minBaseFee, extractedMinBaseFee, "minBaseFee doesn't match")
 		} else if config.IsOptimismHolocene(testTimestamp) {
 			d, e = eip1559.DecodeHoloceneExtraData(payload.full.Header().Extra)
 		}
