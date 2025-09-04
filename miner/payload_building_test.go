@@ -243,9 +243,9 @@ func testBuildPayload(t *testing.T, noTxPool, interrupt bool, params1559 []byte,
 	t.Parallel()
 	db := rawdb.NewMemoryDatabase()
 
-	minBaseFee := uint64(0)
+	minBaseFee := &zero
 	if config.IsOptimismJovian(testTimestamp) {
-		minBaseFee = 1e9
+		*minBaseFee = 1e9
 	}
 	w, b := newTestWorker(t, config, ethash.NewFaker(), db, 0)
 
@@ -258,7 +258,7 @@ func testBuildPayload(t *testing.T, noTxPool, interrupt bool, params1559 []byte,
 		b.txPool.Add(txs, false)
 	}
 
-	args := newPayloadArgs(b.chain.CurrentBlock().Hash(), params1559, &minBaseFee)
+	args := newPayloadArgs(b.chain.CurrentBlock().Hash(), params1559, minBaseFee)
 	args.NoTxPool = noTxPool
 
 	// payload resolution now interrupts block building, so we have to
@@ -314,7 +314,7 @@ func testBuildPayload(t *testing.T, noTxPool, interrupt bool, params1559 []byte,
 		}
 		if versionByte == eip1559.JovianExtraDataVersionByte {
 			buf := make([]byte, 8)
-			binary.BigEndian.PutUint64(buf, minBaseFee)
+			binary.BigEndian.PutUint64(buf, *minBaseFee)
 			expected = append(expected, buf...)
 		}
 	}
@@ -329,7 +329,7 @@ func testBuildPayload(t *testing.T, noTxPool, interrupt bool, params1559 []byte,
 	if payload.full != nil && len(params1559) != 0 {
 		var d, e uint64
 		if config.IsOptimismJovian(testTimestamp) {
-			var extractedMinBaseFee uint64
+			var extractedMinBaseFee *uint64
 			d, e, extractedMinBaseFee = eip1559.DecodeJovianExtraData(payload.full.Header().Extra)
 			if extractedMinBaseFee != minBaseFee {
 				t.Fatalf("minBaseFee doesn't match. want: %d, got %d", minBaseFee, extractedMinBaseFee)

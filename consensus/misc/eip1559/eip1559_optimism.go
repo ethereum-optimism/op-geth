@@ -5,20 +5,22 @@ import (
 	"errors"
 	"fmt"
 	gomath "math"
-
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/params"
 )
 
 const HoloceneExtraDataVersionByte = uint8(0x00)
 const JovianExtraDataVersionByte = uint8(0x01)
 
+type ForkChecker interface {
+	IsHolocene(time uint64) bool
+	IsJovian(time uint64) bool
+}
+
 // ValidateOptimismExtraData validates the Optimism extra data.
 // It uses the config and parent time to determine how to do the validation.
-func ValidateOptimismExtraData(config *params.ChainConfig, time uint64, extraData []byte) error {
-	if config.IsOptimismJovian(time) {
+func ValidateOptimismExtraData(fc ForkChecker, time uint64, extraData []byte) error {
+	if fc.IsJovian(time) {
 		return ValidateJovianExtraData(extraData)
-	} else if config.IsOptimismHolocene(time) {
+	} else if fc.IsHolocene(time) {
 		return ValidateHoloceneExtraData(extraData)
 	} else if len(extraData) > 0 { // pre-Holocene
 		return errors.New("extraData must be empty before Holocene")
@@ -29,15 +31,15 @@ func ValidateOptimismExtraData(config *params.ChainConfig, time uint64, extraDat
 // DecodeOptimismExtraData decodes the Optimism extra data.
 // It uses the config and parent time to determine how to do the decoding.
 // The parent.extraData is expected to be valid (i.e. ValidateOptimismExtraData has been called previously)
-func DecodeOptimismExtraData(config *params.ChainConfig, parent *types.Header) (uint64, uint64, uint64) {
-	if config.IsOptimismJovian(parent.Time) {
-		denominator, elasticity, minBaseFee := DecodeJovianExtraData(parent.Extra)
+func DecodeOptimismExtraData(fc ForkChecker, time uint64, extraData []byte) (uint64, uint64, *uint64) {
+	if fc.IsJovian(time) {
+		denominator, elasticity, minBaseFee := DecodeJovianExtraData(extraData)
 		return denominator, elasticity, minBaseFee
-	} else if config.IsOptimismHolocene(parent.Time) {
-		denominator, elasticity := DecodeHoloceneExtraData(parent.Extra)
-		return denominator, elasticity, 0
+	} else if fc.IsHolocene(time) {
+		denominator, elasticity := DecodeHoloceneExtraData(extraData)
+		return denominator, elasticity, nil
 	}
-	return 0, 0, 0
+	return 0, 0, nil
 }
 
 // DecodeHolocene1559Params extracts the Holcene 1559 parameters from the encoded form defined here:
@@ -121,20 +123,20 @@ func ValidateHoloceneExtraData(extra []byte) error {
 //
 // Returns 0,0,0 if the format is invalid, though ValidateMinBaseFeeExtraData should be used instead of this function for
 // validity checking.
-func DecodeJovianExtraData(extra []byte) (uint64, uint64, uint64) {
+func DecodeJovianExtraData(extra []byte) (uint64, uint64, *uint64) {
 	// Best effort to decode the extraData for every block in the chain's history,
 	// including blocks before the minimum base fee feature was enabled.
 	if len(extra) == 9 {
 		// This is Holocene extraData
 		denominator, elasticity := DecodeHolocene1559Params(extra[1:9])
-		return denominator, elasticity, 0
+		return denominator, elasticity, nil
 	} else if len(extra) == 17 {
 		// Decode extraData when the minimum base fee fork is enabled
 		denominator, elasticity := DecodeHolocene1559Params(extra[1:9])
 		minBaseFee := binary.BigEndian.Uint64(extra[9:])
-		return denominator, elasticity, minBaseFee
+		return denominator, elasticity, &minBaseFee
 	}
-	return 0, 0, 0
+	return 0, 0, nil
 }
 
 // EncodeJovianExtraData encodes the EIP-1559 and minBaseFee parameters into the header 'ExtraData' format.
