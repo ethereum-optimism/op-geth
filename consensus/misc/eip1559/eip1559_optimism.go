@@ -42,6 +42,21 @@ func DecodeOptimismExtraData(fc ForkChecker, time uint64, extraData []byte) (uin
 	return 0, 0, nil
 }
 
+// EncodeOptimismExtraData encodes the Optimism extra data.
+// It uses the config and parent time to determine how to do the encoding.
+func EncodeOptimismExtraData(fc ForkChecker, time uint64, denominator, elasticity uint64, minBaseFee *uint64) []byte {
+	if fc.IsJovian(time) {
+		if minBaseFee == nil {
+			panic("minBaseFee cannot be nil for Jovian")
+		}
+		return EncodeJovianExtraData(denominator, elasticity, *minBaseFee)
+	} else if fc.IsHolocene(time) {
+		return EncodeHoloceneExtraData(denominator, elasticity)
+	} else {
+		return nil
+	}
+}
+
 // DecodeHolocene1559Params extracts the Holcene 1559 parameters from the encoded form defined here:
 // https://github.com/ethereum-optimism/specs/blob/main/specs/protocol/holocene/exec-engine.md#eip-1559-parameters-in-payloadattributesv3
 //

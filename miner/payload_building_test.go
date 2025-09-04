@@ -130,11 +130,9 @@ func newTestWorkerBackend(t *testing.T, chainConfig *params.ChainConfig, engine 
 	default:
 		t.Fatalf("unexpected consensus engine type: %T", engine)
 	}
-	if chainConfig.JovianTime != nil {
-		gspec.ExtraData = eip1559.EncodeJovianExtraData(250, 6, 1e9)
-	} else if chainConfig.HoloceneTime != nil {
-		// genesis block extraData needs to be correct format
-		gspec.ExtraData = []byte{0, 0, 1, 2, 3, 4, 5, 6, 7}
+	if chainConfig.HoloceneTime != nil {
+		minBaseFee := uint64(0)
+		gspec.ExtraData = eip1559.EncodeOptimismExtraData(chainConfig, *chainConfig.HoloceneTime, 250, 6, &minBaseFee)
 	}
 	chain, err := core.NewBlockChain(db, gspec, engine, &core.BlockChainConfig{ArchiveMode: true})
 	if err != nil {

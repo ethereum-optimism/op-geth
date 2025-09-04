@@ -281,11 +281,7 @@ func TestCalcBaseFeeJovian(t *testing.T) {
 				BaseFee:  big.NewInt(test.parentBaseFee),
 				Time:     test.parentTime,
 			}
-			if test.parentTime < TestJovianTime {
-				parent.Extra = EncodeHoloceneExtraData(denom, elasticity)
-			} else {
-				parent.Extra = EncodeJovianExtraData(denom, elasticity, test.minBaseFee)
-			}
+			parent.Extra = EncodeOptimismExtraData(opConfig(), test.parentTime, denom, elasticity, &test.minBaseFee)
 			have, want := CalcBaseFee(opConfig(), parent, parent.Time+2), big.NewInt(int64(test.expectedBaseFee))
 			require.Equal(t, have, want, testName)
 		})

@@ -320,14 +320,8 @@ func (miner *Miner) prepareWork(genParams *generateParams, witness bool) (*envir
 			d = miner.chainConfig.BaseFeeChangeDenominator(header.Time)
 			e = miner.chainConfig.ElasticityMultiplier()
 		}
-		if cfg.IsOptimismJovian(header.Time) {
-			if genParams.minBaseFee == nil {
-				return nil, errors.New("minBaseFee is required for Jovian")
-			}
-			header.Extra = eip1559.EncodeJovianExtraData(d, e, *genParams.minBaseFee)
-		} else {
-			header.Extra = eip1559.EncodeHoloceneExtraData(d, e)
-		}
+		header.Extra = eip1559.EncodeOptimismExtraData(cfg, header.Time, d, e, genParams.minBaseFee)
+
 	} else if genParams.eip1559Params != nil {
 		return nil, errors.New("got eip1559 params, expected none")
 	}
