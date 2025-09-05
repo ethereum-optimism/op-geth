@@ -69,7 +69,7 @@ jobs:
           name: Build forkdiff
           command: |
             docker run --volume $(pwd):/workspace \
-              protolambda/forkdiff:0.1.0 \
+              protolambda/forkdiff:0.1.1 \
               -repo=/workspace \
               -fork=/workspace/fork.yaml \
               -out=/workspace/index.html
