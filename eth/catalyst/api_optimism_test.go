@@ -13,6 +13,8 @@ import (
 
 func preCanyon() *params.ChainConfig {
 	cfg := new(params.ChainConfig)
+	// Mark as an Optimism chain so IsOptimismFoo is true when FooTime is active
+	cfg.Optimism = &params.OptimismConfig{}
 	return cfg
 }
 
@@ -34,9 +36,16 @@ func postIsthmus() *params.ChainConfig {
 	return cfg
 }
 
+func postJovian() *params.ChainConfig {
+	cfg := postIsthmus()
+	cfg.JovianTime = new(uint64)
+	return cfg
+}
+
 var valid1559Params = []byte{0, 1, 2, 3, 4, 5, 6, 7}
 var validExtraData = []byte{0, 1, 2, 3, 4, 5, 6, 7, 8}
 var emptyWithdrawals = make([]*types.Withdrawal, 0)
+var validJovianExtraData = append(append([]byte{1}, valid1559Params...), make([]byte, 8)...) // version=1, 8 bytes params, 8 byte minBaseFee
 
 func TestCheckOptimismPayload(t *testing.T) {
 	tests := []struct {
@@ -135,6 +144,25 @@ func TestCheckOptimismPayload(t *testing.T) {
 			},
 			cfg:      postIsthmus(),
 			expected: errors.New("nil withdrawalsRoot post-Isthmus"),
+		},
+		{
+			name: "valid payload post-Jovian with 17-byte extraData",
+			params: engine.ExecutableData{
+				Timestamp:       0,
+				ExtraData:       validJovianExtraData,
+				WithdrawalsRoot: &types.EmptyWithdrawalsHash,
+			},
+			cfg:      postJovian(),
+			expected: nil,
+		},
+		{
+			name: "invalid payload post-Jovian with 9-byte (Holocene) extraData",
+			params: engine.ExecutableData{
+				Timestamp: 0,
+				ExtraData: validExtraData,
+			},
+			cfg:      postJovian(),
+			expected: errors.New("jovian extraData should be 17 bytes, got 9"),
 		},
 	}
 

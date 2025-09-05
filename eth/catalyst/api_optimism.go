@@ -18,13 +18,9 @@ func checkOptimismPayload(params engine.ExecutableData, cfg *params.ChainConfig)
 		}
 	}
 
-	// Holocene - extraData
-	if cfg.IsHolocene(params.Timestamp) {
-		if err := eip1559.ValidateHoloceneExtraData(params.ExtraData); err != nil {
-			return err
-		}
-	} else if len(params.ExtraData) > 0 { // pre-Holocene
-		return errors.New("extraData must be empty before Holocene")
+	// ExtraData validation
+	if err := eip1559.ValidateOptimismExtraData(cfg, params.Timestamp, params.ExtraData); err != nil {
+		return err
 	}
 
 	// Isthmus - withdrawalsRoot
