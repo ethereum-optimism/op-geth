@@ -82,7 +82,7 @@ func (args *BuildPayloadArgs) Id() engine.PayloadID {
 		hasher.Write(args.EIP1559Params[:])
 	}
 	if args.MinBaseFee != nil {
-		binary.Write(hasher, binary.BigEndian, args.MinBaseFee)
+		binary.Write(hasher, binary.BigEndian, *args.MinBaseFee)
 	}
 
 	var out engine.PayloadID
