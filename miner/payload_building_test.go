@@ -326,14 +326,8 @@ func testBuildPayload(t *testing.T, noTxPool, interrupt bool, params1559 []byte,
 
 	// Test extraData
 	if payload.full != nil && len(params1559) != 0 {
-		var d, e uint64
-		if config.IsOptimismJovian(testTimestamp) {
-			var extractedMinBaseFee *uint64
-			d, e, extractedMinBaseFee = eip1559.DecodeJovianExtraData(payload.full.Header().Extra)
-			require.Equal(t, minBaseFee, extractedMinBaseFee, "minBaseFee doesn't match")
-		} else if config.IsOptimismHolocene(testTimestamp) {
-			d, e = eip1559.DecodeHoloceneExtraData(payload.full.Header().Extra)
-		}
+		d, e, extractedMinBaseFee := eip1559.DecodeOptimismExtraData(config, testTimestamp, payload.full.Header().Extra)
+
 		expectedDenominator := binary.BigEndian.Uint32(params1559[:4])
 		expectedElasticity := binary.BigEndian.Uint32(params1559[4:])
 		if expectedDenominator == 0 {
@@ -346,6 +340,7 @@ func testBuildPayload(t *testing.T, noTxPool, interrupt bool, params1559 []byte,
 		if e != uint64(expectedElasticity) {
 			t.Fatalf("elasticity doesn't match. want: %d, got %d", expectedElasticity, e)
 		}
+		require.Equal(t, minBaseFee, extractedMinBaseFee, "minBaseFee doesn't match")
 	}
 
 	if noTxPool {
@@ -441,6 +436,14 @@ func TestBuildPayloadInvalidJovianExtraData(t *testing.T) {
 
 	args := newPayloadArgs(b.chain.CurrentBlock().Hash(), badParams, &zero)
 	payload, err := w.buildPayload(args, false)
+	if err == nil && (payload == nil || payload.err == nil) {
+		t.Fatalf("expected error, got none")
+	}
+
+	// missing minBaseFee shouldn't be allowed (use Holocene encoder)
+	badParams = eip1559.EncodeHoloceneExtraData(250, 6)
+	args = newPayloadArgs(b.chain.CurrentBlock().Hash(), badParams, &zero)
+	payload, err = w.buildPayload(args, false)
 	if err == nil && (payload == nil || payload.err == nil) {
 		t.Fatalf("expected error, got none")
 	}
