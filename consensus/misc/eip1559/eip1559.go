@@ -62,6 +62,7 @@ func CalcBaseFee(config *params.ChainConfig, parent *types.Header, time uint64) 
 	if !config.IsLondon(parent.Number) {
 		return new(big.Int).SetUint64(params.InitialBaseFee)
 	}
+
 	elasticity := config.ElasticityMultiplier()
 	denominator := config.BaseFeeChangeDenominator(time)
 	var minBaseFee *uint64
@@ -73,47 +74,8 @@ func CalcBaseFee(config *params.ChainConfig, parent *types.Header, time uint64) 
 		denominator, elasticity, minBaseFee = DecodeOptimismExtraData(config, parent.Time, parent.Extra)
 	}
 
-	parentGasTarget := parent.GasLimit / elasticity
-
-	// OPStack addition: use a closure to calculate the base fee using
-	// the upstream code.
-	baseFee := func() *big.Int {
-		// If the parent gasUsed is the same as the target, the baseFee remains unchanged.
-		if parent.GasUsed == parentGasTarget {
-			return new(big.Int).Set(parent.BaseFee)
-		}
-
-		var (
-			num   = new(big.Int)
-			denom = new(big.Int)
-		)
-
-		if parent.GasUsed > parentGasTarget {
-			// If the parent block used more gas than its target, the baseFee should increase.
-			// max(1, parentBaseFee * gasUsedDelta / parentGasTarget / baseFeeChangeDenominator)
-			num.SetUint64(parent.GasUsed - parentGasTarget)
-			num.Mul(num, parent.BaseFee)
-			num.Div(num, denom.SetUint64(parentGasTarget))
-			num.Div(num, denom.SetUint64(denominator))
-			if num.Cmp(common.Big1) < 0 {
-				return num.Add(parent.BaseFee, common.Big1)
-			}
-			return num.Add(parent.BaseFee, num)
-		} else {
-			// Otherwise if the parent block used less gas than its target, the baseFee should decrease.
-			// max(0, parentBaseFee * gasUsedDelta / parentGasTarget / baseFeeChangeDenominator)
-			num.SetUint64(parentGasTarget - parent.GasUsed)
-			num.Mul(num, parent.BaseFee)
-			num.Div(num, denom.SetUint64(parentGasTarget))
-			num.Div(num, denom.SetUint64(denominator))
-
-			baseFee := num.Sub(parent.BaseFee, num)
-			if baseFee.Cmp(common.Big0) < 0 {
-				baseFee = common.Big0
-			}
-			return baseFee
-		}
-	}()
+	// OPStack addition: calculate the base fee using the upstream code.
+	baseFee := calcBaseFeeInner(parent, elasticity, denominator)
 
 	// OPStack addition: enforce minimum base fee.
 	// If the minimum base fee is 0, this has no effect.
@@ -125,4 +87,44 @@ func CalcBaseFee(config *params.ChainConfig, parent *types.Header, time uint64) 
 	}
 
 	return baseFee
+}
+
+func calcBaseFeeInner(parent *types.Header, elasticity uint64, denominator uint64) *big.Int {
+	parentGasTarget := parent.GasLimit / elasticity
+
+	// If the parent gasUsed is the same as the target, the baseFee remains unchanged.
+	if parent.GasUsed == parentGasTarget {
+		return new(big.Int).Set(parent.BaseFee)
+	}
+
+	var (
+		num   = new(big.Int)
+		denom = new(big.Int)
+	)
+
+	if parent.GasUsed > parentGasTarget {
+		// If the parent block used more gas than its target, the baseFee should increase.
+		// max(1, parentBaseFee * gasUsedDelta / parentGasTarget / baseFeeChangeDenominator)
+		num.SetUint64(parent.GasUsed - parentGasTarget)
+		num.Mul(num, parent.BaseFee)
+		num.Div(num, denom.SetUint64(parentGasTarget))
+		num.Div(num, denom.SetUint64(denominator))
+		if num.Cmp(common.Big1) < 0 {
+			return num.Add(parent.BaseFee, common.Big1)
+		}
+		return num.Add(parent.BaseFee, num)
+	} else {
+		// Otherwise if the parent block used less gas than its target, the baseFee should decrease.
+		// max(0, parentBaseFee * gasUsedDelta / parentGasTarget / baseFeeChangeDenominator)
+		num.SetUint64(parentGasTarget - parent.GasUsed)
+		num.Mul(num, parent.BaseFee)
+		num.Div(num, denom.SetUint64(parentGasTarget))
+		num.Div(num, denom.SetUint64(denominator))
+
+		baseFee := num.Sub(parent.BaseFee, num)
+		if baseFee.Cmp(common.Big0) < 0 {
+			baseFee = common.Big0
+		}
+		return baseFee
+	}
 }
