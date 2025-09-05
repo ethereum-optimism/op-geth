@@ -136,7 +136,7 @@ func ValidateHoloceneExtraData(extra []byte) error {
 // DecodeJovianExtraData decodes the extraData parameters from the encoded form defined here:
 // https://specs.optimism.io/protocol/jovian/exec-engine.html
 //
-// Returns 0,0,0 if the format is invalid, though ValidateMinBaseFeeExtraData should be used instead of this function for
+// Returns 0,0,nil if the format is invalid, and d, e, nil for the Holocene length, to provide best effort behavior for non-Jovian extradata, though ValidateMinBaseFeeExtraData should be used instead of this function for
 // validity checking.
 func DecodeJovianExtraData(extra []byte) (uint64, uint64, *uint64) {
 	// Best effort to decode the extraData for every block in the chain's history,
