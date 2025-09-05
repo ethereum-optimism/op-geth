@@ -242,9 +242,10 @@ func testBuildPayload(t *testing.T, noTxPool, interrupt bool, params1559 []byte,
 	t.Parallel()
 	db := rawdb.NewMemoryDatabase()
 
-	minBaseFee := &zero
+	var minBaseFee *uint64
 	if config.IsOptimismJovian(testTimestamp) {
-		*minBaseFee = 1e9
+		val := uint64(1e9)
+		minBaseFee = &val
 	}
 	w, b := newTestWorker(t, config, ethash.NewFaker(), db, 0)
 
