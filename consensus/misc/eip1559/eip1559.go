@@ -91,7 +91,6 @@ func CalcBaseFee(config *params.ChainConfig, parent *types.Header, time uint64) 
 
 func calcBaseFeeInner(parent *types.Header, elasticity uint64, denominator uint64) *big.Int {
 	parentGasTarget := parent.GasLimit / elasticity
-
 	// If the parent gasUsed is the same as the target, the baseFee remains unchanged.
 	if parent.GasUsed == parentGasTarget {
 		return new(big.Int).Set(parent.BaseFee)
