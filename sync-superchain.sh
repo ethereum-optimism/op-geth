@@ -60,7 +60,7 @@ process_network_dir() {
         then
             echo "Skipping $network_name/$chain_name ($chain_id)"
             rm "$toml_file"
-            rm "genesis/$network_name/$chain_name.json.zst"
+            rm -f "genesis/$network_name/$chain_name.json.zst"
             continue
         fi
 
