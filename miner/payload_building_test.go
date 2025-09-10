@@ -25,6 +25,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/ethereum/go-ethereum/beacon/engine"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
@@ -40,7 +42,6 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/stretchr/testify/require"
 )
 
 var (
@@ -122,7 +123,7 @@ type testWorkerBackend struct {
 }
 
 func newTestWorkerBackend(t *testing.T, chainConfig *params.ChainConfig, engine consensus.Engine, db ethdb.Database, n int) *testWorkerBackend {
-	var gspec = &core.Genesis{
+	gspec := &core.Genesis{
 		Config: chainConfig,
 		Alloc:  types.GenesisAlloc{testBankAddress: {Balance: testBankFunds}},
 	}
@@ -170,21 +171,40 @@ func TestBuildPayload(t *testing.T) {
 	// the builder routine
 	t.Run("with-tx-pool", func(t *testing.T) { testBuildPayload(t, false, false, nil, params.TestChainConfig) })
 	t.Run("with-tx-pool-interrupt", func(t *testing.T) { testBuildPayload(t, false, true, nil, params.TestChainConfig) })
-	params1559 := []byte{0, 1, 2, 3, 4, 5, 6, 7}
-	t.Run("with-params-holocene", func(t *testing.T) { testBuildPayload(t, false, false, params1559, holoceneConfig()) })
-	t.Run("with-params-no-tx-pool-holocene", func(t *testing.T) { testBuildPayload(t, true, false, params1559, holoceneConfig()) })
-	t.Run("with-params-interrupt-holocene", func(t *testing.T) { testBuildPayload(t, false, true, params1559, holoceneConfig()) })
-	t.Run("with-params-jovian", func(t *testing.T) { testBuildPayload(t, false, false, params1559, jovianConfig()) })
-	t.Run("with-params-no-tx-pool-jovian", func(t *testing.T) { testBuildPayload(t, true, false, params1559, jovianConfig()) })
-	t.Run("with-params-interrupt-jovian", func(t *testing.T) { testBuildPayload(t, false, true, params1559, jovianConfig()) })
 
-	t.Run("wrong-config-no-params", func(t *testing.T) { testBuildPayloadWrongConfig(t, nil, holoceneConfig()) })
-	t.Run("wrong-config-params-holocene", func(t *testing.T) { testBuildPayloadWrongConfig(t, params1559, holoceneConfig()) })
-	t.Run("wrong-config-params-jovian", func(t *testing.T) { testBuildPayloadWrongConfig(t, params1559, jovianConfig()) })
-
+	t.Run("with-params-holocene", func(t *testing.T) { testBuildPayload(t, false, false, validEIP1559Params, holoceneConfig()) })
+	t.Run("with-params-no-tx-pool-holocene", func(t *testing.T) { testBuildPayload(t, true, false, validEIP1559Params, holoceneConfig()) })
+	t.Run("with-params-interrupt-holocene", func(t *testing.T) { testBuildPayload(t, false, true, validEIP1559Params, holoceneConfig()) })
+	t.Run("with-params-jovian", func(t *testing.T) { testBuildPayload(t, false, false, validEIP1559Params, jovianConfig()) })
+	t.Run("with-params-no-tx-pool-jovian", func(t *testing.T) { testBuildPayload(t, true, false, validEIP1559Params, jovianConfig()) })
+	t.Run("with-params-interrupt-jovian", func(t *testing.T) { testBuildPayload(t, false, true, validEIP1559Params, jovianConfig()) })
 	zeroParams := make([]byte, 8)
 	t.Run("with-zero-params-holocene", func(t *testing.T) { testBuildPayload(t, true, false, zeroParams, holoceneConfig()) })
 	t.Run("with-zero-params-jovian", func(t *testing.T) { testBuildPayload(t, true, false, zeroParams, jovianConfig()) })
+}
+
+func TestBuildPayloadError(t *testing.T) {
+	t.Run("pre-holocene-with-params", func(t *testing.T) {
+		cfg := holoceneConfig()
+		cfg.HoloceneTime = nil
+		testBuildPayloadError(t, cfg,
+			"got eip1559 params, expected none",
+			func(args *BuildPayloadArgs) { args.EIP1559Params = validEIP1559Params })
+	})
+	t.Run("holocene-no-params", func(t *testing.T) {
+		testBuildPayloadError(t, holoceneConfig(),
+			"holocene eip-1559 params should be 8 bytes, got 0",
+			func(args *BuildPayloadArgs) { args.EIP1559Params = nil })
+	})
+	t.Run("holocene-bad-params", func(t *testing.T) {
+		testBuildPayloadError(t, holoceneConfig(),
+			"holocene params cannot have a 0 denominator unless elasticity is also 0",
+			func(args *BuildPayloadArgs) { args.EIP1559Params = eip1559.EncodeHolocene1559Params(0, 6) })
+	})
+	t.Run("jovian-no-minbasefee", func(t *testing.T) {
+		testBuildPayloadError(t, jovianConfig(), "missing minBaseFee",
+			func(args *BuildPayloadArgs) { args.MinBaseFee = nil })
+	})
 }
 
 func TestDAFilters(t *testing.T) {
@@ -228,29 +248,44 @@ func jovianConfig() *params.ChainConfig {
 	return config
 }
 
-// newPayloadArgs returns a BuildPaylooadArgs with the given parentHash, eip-1559 params,
-// minBaseFee, testTimestamp for Timestamp, and testRecipient for recipient. NoTxPool is set to true.
-func newPayloadArgs(parentHash common.Hash, params1559 []byte, minBaseFee *uint64) *BuildPayloadArgs {
-	return &BuildPayloadArgs{
-		Parent:        parentHash,
-		Timestamp:     testTimestamp,
-		FeeRecipient:  testRecipient,
-		Withdrawals:   types.Withdrawals{},
-		NoTxPool:      true,
-		EIP1559Params: params1559,
-		MinBaseFee:    minBaseFee,
+// newPayloadArgs returns valid BuildPaylooadArgs for the given chain config with the given parentHash,
+// testTimestamp for Timestamp, and testRecipient for recipient.
+// OP-Stack chains will have one dummy deposit transaction in Transactions.
+// NoTxPool is set to true.
+// A test can modify individual fields afterwards to enable the transaction
+// pool, create invalid eip-1559 params, minBaseFee, etc.
+func newPayloadArgs(parentHash common.Hash, cfg *params.ChainConfig) *BuildPayloadArgs {
+	args := &BuildPayloadArgs{
+		Parent:       parentHash,
+		Timestamp:    testTimestamp,
+		FeeRecipient: testRecipient,
+		Withdrawals:  types.Withdrawals{},
+		NoTxPool:     true,
 	}
+
+	if !cfg.IsOptimism() {
+		return args
+	}
+
+	if cfg.IsHolocene(args.Timestamp) {
+		args.EIP1559Params = validEIP1559Params
+	}
+	dtx := new(types.DepositTx)
+	if cfg.IsDAFootprintBlockLimit(args.Timestamp) {
+		dtx = jovianDepositTx(testDAFootprintGasScalar)
+	}
+	args.Transactions = []*types.Transaction{types.NewTx(dtx)}
+	if cfg.IsMinBaseFee(args.Timestamp) {
+		args.MinBaseFee = ptr(uint64(1e9))
+	}
+
+	return args
 }
 
 func testBuildPayload(t *testing.T, noTxPool, interrupt bool, params1559 []byte, config *params.ChainConfig) {
 	t.Parallel()
 	db := rawdb.NewMemoryDatabase()
 
-	var minBaseFee *uint64
-	if config.IsMinBaseFee(testTimestamp) {
-		val := uint64(1e9)
-		minBaseFee = &val
-	}
 	w, b := newTestWorker(t, config, ethash.NewFaker(), db, 0)
 
 	const numInterruptTxs = 256
@@ -262,8 +297,9 @@ func testBuildPayload(t *testing.T, noTxPool, interrupt bool, params1559 []byte,
 		b.txPool.Add(txs, false)
 	}
 
-	args := newPayloadArgs(b.chain.CurrentBlock().Hash(), params1559, minBaseFee)
+	args := newPayloadArgs(b.chain.CurrentBlock().Hash(), config)
 	args.NoTxPool = noTxPool
+	args.EIP1559Params = params1559
 
 	// payload resolution now interrupts block building, so we have to
 	// wait for the payloading building process to build its first block
@@ -273,6 +309,9 @@ func testBuildPayload(t *testing.T, noTxPool, interrupt bool, params1559 []byte,
 	}
 	verify := func(outer *engine.ExecutionPayloadEnvelope, txs int) {
 		t.Helper()
+		if config.IsOptimism() {
+			txs++ // account for dummy deposit tx
+		}
 		if outer == nil {
 			t.Fatal("ExecutionPayloadEnvelope is nil")
 		}
@@ -318,7 +357,7 @@ func testBuildPayload(t *testing.T, noTxPool, interrupt bool, params1559 []byte,
 		}
 		if versionByte == eip1559.MinBaseFeeExtraDataVersionByte {
 			buf := make([]byte, 8)
-			binary.BigEndian.PutUint64(buf, *minBaseFee)
+			binary.BigEndian.PutUint64(buf, *args.MinBaseFee)
 			expected = append(expected, buf...)
 		}
 	}
@@ -345,7 +384,7 @@ func testBuildPayload(t *testing.T, noTxPool, interrupt bool, params1559 []byte,
 		if e != uint64(expectedElasticity) {
 			t.Fatalf("elasticity doesn't match. want: %d, got %d", expectedElasticity, e)
 		}
-		require.Equal(t, minBaseFee, extractedMinBaseFee, "minBaseFee doesn't match")
+		require.Equal(t, args.MinBaseFee, extractedMinBaseFee, "minBaseFee doesn't match")
 	}
 
 	if noTxPool {
@@ -381,7 +420,7 @@ func testDAFilters(t *testing.T, maxDATxSize, maxDABlockSize *big.Int, expectedT
 	txs := genTxs(1, numDAFilterTxs)
 	b.txPool.Add(txs, false)
 
-	args := newPayloadArgs(b.chain.CurrentBlock().Hash(), validEIP1559Params, &zero)
+	args := newPayloadArgs(b.chain.CurrentBlock().Hash(), config)
 	args.NoTxPool = false
 
 	payload, err := w.buildPayload(args, false)
@@ -390,65 +429,27 @@ func testDAFilters(t *testing.T, maxDATxSize, maxDABlockSize *big.Int, expectedT
 	}
 	payload.WaitFull()
 	result := payload.ResolveFull().ExecutionPayload
-	if len(result.Transactions) != expectedTxCount {
+	if len(result.Transactions) != expectedTxCount+1 { // account for dummy deposit tx
 		t.Fatalf("Unexpected transaction set: got %d, expected %d", len(result.Transactions), expectedTxCount)
 	}
 }
 
-func testBuildPayloadWrongConfig(t *testing.T, params1559 []byte, config *params.ChainConfig) {
+func testBuildPayloadError(t *testing.T, config *params.ChainConfig, expErrStr string, mod func(*BuildPayloadArgs)) {
 	t.Parallel()
 	db := rawdb.NewMemoryDatabase()
-	wrongConfig := *config
-	if len(params1559) != 0 {
-		// deactivate holocene and jovian and make sure non-empty params get rejected
-		wrongConfig.HoloceneTime = nil
-		wrongConfig.JovianTime = nil
-	}
-	w, b := newTestWorker(t, &wrongConfig, ethash.NewFaker(), db, 0)
-
-	args := newPayloadArgs(b.chain.CurrentBlock().Hash(), params1559, &zero)
-	payload, err := w.buildPayload(args, false)
-	if err == nil && (payload == nil || payload.err == nil) {
-		t.Fatalf("expected error, got none")
-	}
-}
-
-func TestBuildPayloadInvalidHoloceneParams(t *testing.T) {
-	t.Parallel()
-	db := rawdb.NewMemoryDatabase()
-	config := holoceneConfig()
 	w, b := newTestWorker(t, config, ethash.NewFaker(), db, 0)
 
-	// 0 denominators shouldn't be allowed
-	badParams := eip1559.EncodeHolocene1559Params(0, 6)
-
-	args := newPayloadArgs(b.chain.CurrentBlock().Hash(), badParams, &zero)
+	args := newPayloadArgs(b.chain.CurrentBlock().Hash(), config)
+	mod(args)
 	payload, err := w.buildPayload(args, false)
-	if err == nil && (payload == nil || payload.err == nil) {
+	require.Nil(t, payload)
+	if err != nil {
+		require.ErrorContains(t, err, expErrStr)
+	} else if payload.err != nil {
+		require.ErrorContains(t, payload.err, expErrStr)
+	} else {
 		t.Fatalf("expected error, got none")
 	}
-}
-
-func TestBuildPayloadInvalidJovianBuildPayloadArgs(t *testing.T) {
-	t.Parallel()
-	db := rawdb.NewMemoryDatabase()
-	config := jovianConfig()
-	w, b := newTestWorker(t, config, ethash.NewFaker(), db, 0)
-
-	// 0 denominators shouldn't be allowed
-	badParams := eip1559.EncodeHolocene1559Params(0, 6)
-
-	args := newPayloadArgs(b.chain.CurrentBlock().Hash(), badParams, &zero)
-	payload, err := w.buildPayload(args, false)
-	if err == nil && (payload == nil || payload.err == nil) {
-		t.Fatalf("expected error, got none")
-	}
-
-	// missing minBaseFee is wrong input, panics
-	args = newPayloadArgs(b.chain.CurrentBlock().Hash(), validEIP1559Params, nil)
-	require.Panics(t, func() {
-		w.buildPayload(args, false)
-	})
 }
 
 func genTxs(startNonce, count uint64) types.Transactions {
