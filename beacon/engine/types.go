@@ -60,7 +60,7 @@ type PayloadAttributes struct {
 	// and contains encoded EIP-1559 parameters. See:
 	// https://github.com/ethereum-optimism/specs/blob/main/specs/protocol/holocene/exec-engine.md#eip1559params-encoding
 	EIP1559Params []byte `json:"eip1559Params,omitempty" gencodec:"optional"`
-	// MinBaseFee is a field for rollups implementing the Jovian upgrade's minimum base fee feature.
+	// MinBaseFee is a field for rollups implementing the minimum base fee feature.
 	// See https://github.com/ethereum-optimism/specs/blob/main/specs/protocol/jovian/exec-engine.md#minimum-base-fee-in-payloadattributesv3
 	MinBaseFee *uint64 `json:"minBaseFee,omitempty" gencodec:"optional"`
 }
