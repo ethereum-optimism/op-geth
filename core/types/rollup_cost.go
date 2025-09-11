@@ -83,7 +83,7 @@ var (
 	// attributes
 	OperatorFeeParamsSlot = common.BigToHash(big.NewInt(8))
 
-	oneMillion     = big.NewInt(1_000_000)
+	oneHundred     = big.NewInt(100)
 	ecotoneDivisor = big.NewInt(1_000_000 * 16)
 	fjordDivisor   = big.NewInt(1_000_000_000_000)
 	sixteen        = big.NewInt(16)
@@ -249,12 +249,12 @@ func newOperatorCostFunc(operatorFeeScalar *big.Int, operatorFeeConstant *big.In
 	return func(gas uint64) *uint256.Int {
 		fee := new(big.Int).SetUint64(gas)
 		fee = fee.Mul(fee, operatorFeeScalar)
-		fee = fee.Div(fee, oneMillion)
+		fee = fee.Mul(fee, oneHundred)
 		fee = fee.Add(fee, operatorFeeConstant)
 
 		feeU256, overflow := uint256.FromBig(fee)
 		if overflow {
-			// This should never happen, as (u64.max * u32.max / 1e6) + u64.max is an int of bit length 77
+			// This should never happen, as (u64.max * u32.max * 100) + u64.max is an int of bit length 103
 			panic("overflow in operator cost calculation")
 		}
 
@@ -579,7 +579,7 @@ func L1Cost(rollupDataGas uint64, l1BaseFee, overhead, scalar *big.Int) *big.Int
 
 func l1CostHelper(gasWithOverhead, l1BaseFee, scalar *big.Int) *big.Int {
 	fee := new(big.Int).Set(gasWithOverhead)
-	fee.Mul(fee, l1BaseFee).Mul(fee, scalar).Div(fee, oneMillion)
+	fee.Mul(fee, l1BaseFee).Mul(fee, scalar).Mul(fee, oneHundred)
 	return fee
 }
 
