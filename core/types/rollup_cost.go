@@ -78,6 +78,7 @@ var (
 	OperatorFeeParamsSlot = common.BigToHash(big.NewInt(8))
 
 	oneHundred     = big.NewInt(100)
+	oneMillion     = big.NewInt(1_000_000)
 	ecotoneDivisor = big.NewInt(1_000_000 * 16)
 	fjordDivisor   = big.NewInt(1_000_000_000_000)
 	sixteen        = big.NewInt(16)
@@ -219,13 +220,12 @@ func NewOperatorCostFunc(config *params.ChainConfig, statedb StateGetter) Operat
 			}
 		}
 		operatorFeeParams := statedb.GetState(L1BlockAddr, OperatorFeeParamsSlot)
-		if operatorFeeParams == (common.Hash{}) {
-			return func(gas uint64) *uint256.Int {
-				return uint256.NewInt(0)
-			}
-		}
 		operatorFeeScalar, operatorFeeConstant := ExtractOperatorFeeParams(operatorFeeParams)
 
+		// Return the Jovian version if Jovian is active
+		if config.IsOptimismJovian(blockTime) {
+			return newOperatorCostFuncJovian(operatorFeeScalar, operatorFeeConstant)
+		}
 		return newOperatorCostFunc(operatorFeeScalar, operatorFeeConstant)
 	}
 
@@ -239,7 +239,26 @@ func NewOperatorCostFunc(config *params.ChainConfig, statedb StateGetter) Operat
 	}
 }
 
+// newOperatorCostFunc returns the operator cost function for Isthmus.
 func newOperatorCostFunc(operatorFeeScalar *big.Int, operatorFeeConstant *big.Int) operatorCostFunc {
+	return func(gas uint64) *uint256.Int {
+		fee := new(big.Int).SetUint64(gas)
+		fee = fee.Mul(fee, operatorFeeScalar)
+		fee = fee.Div(fee, oneMillion)
+		fee = fee.Add(fee, operatorFeeConstant)
+
+		feeU256, overflow := uint256.FromBig(fee)
+		if overflow {
+			// This should never happen, as ((u64.max * u32.max) / 1e6) + u64.max fits in 77 bits
+			panic("overflow in operator cost calculation")
+		}
+
+		return feeU256
+	}
+}
+
+// newOperatorCostFuncJovian returns the operator cost function for Jovian and later.
+func newOperatorCostFuncJovian(operatorFeeScalar *big.Int, operatorFeeConstant *big.Int) operatorCostFunc {
 	return func(gas uint64) *uint256.Int {
 		fee := new(big.Int).SetUint64(gas)
 		fee = fee.Mul(fee, operatorFeeScalar)
@@ -248,7 +267,7 @@ func newOperatorCostFunc(operatorFeeScalar *big.Int, operatorFeeConstant *big.In
 
 		feeU256, overflow := uint256.FromBig(fee)
 		if overflow {
-			// This should never happen, as (u64.max * u32.max * 100) + u64.max is an int of bit length 103
+			// This should never happen, as (u64.max * u32.max * 100) + u64.max fits in 103 bits
 			panic("overflow in operator cost calculation")
 		}
 
@@ -522,7 +541,7 @@ func L1Cost(rollupDataGas uint64, l1BaseFee, overhead, scalar *big.Int) *big.Int
 
 func l1CostHelper(gasWithOverhead, l1BaseFee, scalar *big.Int) *big.Int {
 	fee := new(big.Int).Set(gasWithOverhead)
-	fee.Mul(fee, l1BaseFee).Mul(fee, scalar).Mul(fee, oneHundred)
+	fee.Mul(fee, l1BaseFee).Mul(fee, scalar).Div(fee, oneMillion)
 	return fee
 }
 
