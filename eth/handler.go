@@ -195,14 +195,8 @@ func newHandler(config *handlerConfig) (*handler, error) {
 	if h.snapSync.Load() && (config.Chain.Snapshots() == nil && config.Chain.TrieDB().Scheme() == rawdb.HashScheme) {
 		return nil, errors.New("snap sync not supported with snapshots disabled")
 	}
-	// if the chainID is set, pass it to the downloader for use in sync
-	// this might not be set in tests
-	var chainID uint64
-	if cid := h.chain.Config().ChainID; cid != nil {
-		chainID = cid.Uint64()
-	}
 	// Construct the downloader (long sync)
-	h.downloader = downloader.New(config.Database, h.eventMux, h.chain, h.removePeer, h.enableSyncedFeatures, chainID)
+	h.downloader = downloader.New(config.Database, h.eventMux, h.chain, h.removePeer, h.enableSyncedFeatures)
 
 	fetchTx := func(peer string, hashes []common.Hash) error {
 		p := h.peers.peer(peer)
