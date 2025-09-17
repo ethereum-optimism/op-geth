@@ -236,13 +236,6 @@ workflows:
           name: Check superchain registry bundle diff
   release:
     jobs:
-      - hold:
-          type: approval
-          filters:
-            tags:
-              only: /^v.*/
-            branches:
-              ignore: /.*/
       - docker-release:
           name: Push to Docker (release)
           filters:
@@ -254,8 +247,6 @@ workflows:
           push_tags: true
           context:
             - oplabs-gcr-release
-          requires:
-            - hold
 
   merge:
     jobs:
