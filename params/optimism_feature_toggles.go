@@ -11,3 +11,7 @@ func (c *ChainConfig) IsMinBaseFee(time uint64) bool {
 func (c *ChainConfig) IsDAFootprintBlockLimit(time uint64) bool {
 	return c.IsJovian(time) // Replace with return false to disable
 }
+
+func (c *ChainConfig) IsOperatorFeeFix(time uint64) bool {
+	return c.IsJovian(time) // Replace with return false to disable
+}
