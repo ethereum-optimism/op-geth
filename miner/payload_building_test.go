@@ -243,7 +243,7 @@ func testBuildPayload(t *testing.T, noTxPool, interrupt bool, params1559 []byte,
 	db := rawdb.NewMemoryDatabase()
 
 	var minBaseFee *uint64
-	if config.IsOptimismJovian(testTimestamp) {
+	if config.IsMinBaseFee(testTimestamp) {
 		val := uint64(1e9)
 		minBaseFee = &val
 	}
@@ -301,8 +301,8 @@ func testBuildPayload(t *testing.T, noTxPool, interrupt bool, params1559 []byte,
 	var expected []byte
 	if len(params1559) != 0 {
 		versionByte := eip1559.HoloceneExtraDataVersionByte
-		if config.IsOptimismJovian(testTimestamp) {
-			versionByte = eip1559.JovianExtraDataVersionByte
+		if config.IsMinBaseFee(testTimestamp) {
+			versionByte = eip1559.MinBaseFeeExtraDataVersionByte
 		}
 		expected = []byte{versionByte}
 
@@ -312,7 +312,7 @@ func testBuildPayload(t *testing.T, noTxPool, interrupt bool, params1559 []byte,
 		} else {
 			expected = append(expected, params1559...)
 		}
-		if versionByte == eip1559.JovianExtraDataVersionByte {
+		if versionByte == eip1559.MinBaseFeeExtraDataVersionByte {
 			buf := make([]byte, 8)
 			binary.BigEndian.PutUint64(buf, *minBaseFee)
 			expected = append(expected, buf...)
@@ -426,14 +426,14 @@ func TestBuildPayloadInvalidHoloceneParams(t *testing.T) {
 	}
 }
 
-func TestBuildPayloadInvalidJovianExtraData(t *testing.T) {
+func TestBuildPayloadInvalidMinBaseFeeExtraData(t *testing.T) {
 	t.Parallel()
 	db := rawdb.NewMemoryDatabase()
 	config := jovianConfig()
 	w, b := newTestWorker(t, config, ethash.NewFaker(), db, 0)
 
 	// 0 denominators shouldn't be allowed
-	badParams := eip1559.EncodeJovianExtraData(0, 6, 0)
+	badParams := eip1559.EncodeMinBaseFeeExtraData(0, 6, 0)
 
 	args := newPayloadArgs(b.chain.CurrentBlock().Hash(), badParams, &zero)
 	payload, err := w.buildPayload(args, false)
