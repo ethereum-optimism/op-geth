@@ -941,6 +941,12 @@ func (c *ChainConfig) IsOptimismJovian(time uint64) bool {
 	return c.IsOptimism() && c.IsJovian(time)
 }
 
+// IsOperatorFeeFix returns true if the operator fee fix feature is active.
+// TODO(fakedev9999): decouple from Jovian activation by wiring this into an explicit feature toggle.
+func (c *ChainConfig) IsOperatorFeeFix(time uint64) bool {
+	return c.IsOptimismJovian(time)
+}
+
 // IsOptimismPreBedrock returns true iff this is an optimism node & bedrock is not yet active
 func (c *ChainConfig) IsOptimismPreBedrock(num *big.Int) bool {
 	return c.IsOptimism() && !c.IsBedrock(num)

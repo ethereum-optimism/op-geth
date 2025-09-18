@@ -226,13 +226,18 @@ func NewOperatorCostFunc(config *params.ChainConfig, statedb StateGetter) Operat
 			}
 		}
 		operatorFeeParams := statedb.GetState(L1BlockAddr, OperatorFeeParamsSlot)
+		if operatorFeeParams == (common.Hash{}) {
+			return func(gas uint64) *uint256.Int {
+				return uint256.NewInt(0)
+			}
+		}
 		operatorFeeScalar, operatorFeeConstant := ExtractOperatorFeeParams(operatorFeeParams)
 
-		// Return the Jovian version if Jovian is active
-		if config.IsOptimismJovian(blockTime) {
-			return newOperatorCostFuncJovian(operatorFeeScalar, operatorFeeConstant)
+		// Return the Operator Fee fix version if the feature is active
+		if config.IsOperatorFeeFix(blockTime) {
+			return newOperatorCostFuncOperatorFeeFix(operatorFeeScalar, operatorFeeConstant)
 		}
-		return newOperatorCostFunc(operatorFeeScalar, operatorFeeConstant)
+		return newOperatorCostFuncIsthmus(operatorFeeScalar, operatorFeeConstant)
 	}
 
 	return func(gas uint64, blockTime uint64) *uint256.Int {
@@ -245,8 +250,8 @@ func NewOperatorCostFunc(config *params.ChainConfig, statedb StateGetter) Operat
 	}
 }
 
-// newOperatorCostFunc returns the operator cost function for Isthmus.
-func newOperatorCostFunc(operatorFeeScalar *big.Int, operatorFeeConstant *big.Int) operatorCostFunc {
+// newOperatorCostFuncIsthmus returns the operator cost function introduced with Isthmus.
+func newOperatorCostFuncIsthmus(operatorFeeScalar *big.Int, operatorFeeConstant *big.Int) operatorCostFunc {
 	return func(gas uint64) *uint256.Int {
 		fee := new(big.Int).SetUint64(gas)
 		fee = fee.Mul(fee, operatorFeeScalar)
@@ -263,8 +268,8 @@ func newOperatorCostFunc(operatorFeeScalar *big.Int, operatorFeeConstant *big.In
 	}
 }
 
-// newOperatorCostFuncJovian returns the operator cost function for Jovian and later.
-func newOperatorCostFuncJovian(operatorFeeScalar *big.Int, operatorFeeConstant *big.Int) operatorCostFunc {
+// newOperatorCostFuncOperatorFeeFix returns the operator cost function for the operator fee fix feature.
+func newOperatorCostFuncOperatorFeeFix(operatorFeeScalar *big.Int, operatorFeeConstant *big.Int) operatorCostFunc {
 	return func(gas uint64) *uint256.Int {
 		fee := new(big.Int).SetUint64(gas)
 		fee = fee.Mul(fee, operatorFeeScalar)
