@@ -1,4 +1,4 @@
-// Copyright 2021 The go-ethereum Authors
+// Copyright 2025 The go-ethereum Authors
 // This file is part of the go-ethereum library.
 //
 // The go-ethereum library is free software: you can redistribute it and/or modify
@@ -14,14 +14,17 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
-//go:build nacl || js || !cgo
-// +build nacl js !cgo
+package common
 
-package rlp
+import "time"
 
-import "reflect"
+// CalculateETA calculates the estimated remaining time based on the
+// number of finished task, remaining task, and the time cost for finished task.
+func CalculateETA(done, left uint64, elapsed time.Duration) time.Duration {
+	if done == 0 || elapsed.Milliseconds() == 0 {
+		return 0
+	}
 
-// byteArrayBytes returns a slice of the byte array v.
-func byteArrayBytes(v reflect.Value, length int) []byte {
-	return v.Slice(0, length).Bytes()
+	speed := float64(done) / float64(elapsed.Milliseconds())
+	return time.Duration(float64(left)/speed) * time.Millisecond
 }

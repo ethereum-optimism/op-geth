@@ -72,7 +72,7 @@ func (c *traceContext) toBlockContext(genesis *core.Genesis, statedb types.State
 		context.Random = &genesis.Mixhash
 	}
 
-	if genesis.ExcessBlobGas != nil && genesis.BlobGasUsed != nil {
+	if !genesis.Config.IsOptimism() && genesis.ExcessBlobGas != nil && genesis.BlobGasUsed != nil {
 		header := &types.Header{Number: genesis.Config.LondonBlock, Time: *genesis.Config.CancunTime}
 		excess := eip4844.CalcExcessBlobGas(genesis.Config, header, genesis.Timestamp)
 		header.ExcessBlobGas = &excess

@@ -383,7 +383,7 @@ func (miner *Miner) makeEnv(parent *types.Header, header *types.Header, coinbase
 		if err != nil {
 			return nil, err
 		}
-		state.StartPrefetcher("miner", bundle)
+		state.StartPrefetcher("miner", bundle, nil)
 	}
 	// Note the passed coinbase may be different with header.Coinbase.
 	return &environment{
@@ -482,7 +482,6 @@ func (miner *Miner) applyTransaction(env *environment, tx *types.Transaction) (*
 
 func (miner *Miner) commitTransactions(env *environment, plainTxs, blobTxs *transactionsByPriceAndNonce, interrupt *atomic.Int32) error {
 	var (
-		isOsaka  = miner.chainConfig.IsOsaka(env.header.Number, env.header.Time)
 		isCancun = miner.chainConfig.IsCancun(env.header.Number, env.header.Time)
 		gasLimit = env.header.GasLimit
 	)
@@ -582,21 +581,6 @@ func (miner *Miner) commitTransactions(env *environment, plainTxs, blobTxs *tran
 		if !env.txFitsSize(tx) {
 			break
 		}
-
-		// Make sure all transactions after osaka have cell proofs
-		if isOsaka {
-			if sidecar := tx.BlobTxSidecar(); sidecar != nil {
-				if sidecar.Version == types.BlobSidecarVersion0 {
-					log.Info("Including blob tx with v0 sidecar, recomputing proofs", "hash", ltx.Hash)
-					if err := sidecar.ToV1(); err != nil {
-						txs.Pop()
-						log.Warn("Failed to recompute cell proofs", "hash", ltx.Hash, "err", err)
-						continue
-					}
-				}
-			}
-		}
-
 		// Error may be ignored here. The error has already been checked
 		// during transaction acceptance in the transaction pool.
 		from, _ := types.Sender(env.signer, tx)
@@ -719,7 +703,6 @@ func totalFees(block *types.Block, receipts []*types.Receipt) *big.Int {
 	for i, tx := range block.Transactions() {
 		minerFee, _ := tx.EffectiveGasTip(block.BaseFee())
 		feesWei.Add(feesWei, new(big.Int).Mul(new(big.Int).SetUint64(receipts[i].GasUsed), minerFee))
-		// TODO (MariusVanDerWijden) add blob fees
 	}
 	return feesWei
 }

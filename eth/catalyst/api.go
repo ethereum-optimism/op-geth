@@ -19,20 +19,20 @@ package catalyst
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"errors"
 	"fmt"
+	"reflect"
 	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
+	"unicode"
 
 	"github.com/ethereum/go-ethereum/beacon/engine"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto/kzg4844"
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/eth/ethconfig"
 	"github.com/ethereum/go-ethereum/internal/version"
@@ -83,48 +83,16 @@ const (
 	beaconUpdateWarnFrequency = 5 * time.Minute
 )
 
-// All methods provided over the engine endpoint.
-var caps = []string{
-	"engine_forkchoiceUpdatedV1",
-	"engine_forkchoiceUpdatedV2",
-	"engine_forkchoiceUpdatedV3",
-	"engine_forkchoiceUpdatedWithWitnessV1",
-	"engine_forkchoiceUpdatedWithWitnessV2",
-	"engine_forkchoiceUpdatedWithWitnessV3",
-	"engine_exchangeTransitionConfigurationV1",
-	"engine_getPayloadV1",
-	"engine_getPayloadV2",
-	"engine_getPayloadV3",
-	"engine_getPayloadV4",
-	"engine_getPayloadV5",
-	"engine_getBlobsV1",
-	"engine_getBlobsV2",
-	"engine_newPayloadV1",
-	"engine_newPayloadV2",
-	"engine_newPayloadV3",
-	"engine_newPayloadV4",
-	"engine_newPayloadWithWitnessV1",
-	"engine_newPayloadWithWitnessV2",
-	"engine_newPayloadWithWitnessV3",
-	"engine_newPayloadWithWitnessV4",
-	"engine_executeStatelessPayloadV1",
-	"engine_executeStatelessPayloadV2",
-	"engine_executeStatelessPayloadV3",
-	"engine_executeStatelessPayloadV4",
-	"engine_getPayloadBodiesByHashV1",
-	"engine_getPayloadBodiesByHashV2",
-	"engine_getPayloadBodiesByRangeV1",
-	"engine_getPayloadBodiesByRangeV2",
-	"engine_getClientVersionV1",
-}
-
 var (
 	// Number of blobs requested via getBlobsV2
 	getBlobsRequestedCounter = metrics.NewRegisteredCounter("engine/getblobs/requested", nil)
+
 	// Number of blobs requested via getBlobsV2 that are present in the blobpool
 	getBlobsAvailableCounter = metrics.NewRegisteredCounter("engine/getblobs/available", nil)
+
 	// Number of times getBlobsV2 responded with “hit”
 	getBlobsV2RequestHit = metrics.NewRegisteredCounter("engine/getblobs/hit", nil)
+
 	// Number of times getBlobsV2 responded with “miss”
 	getBlobsV2RequestMiss = metrics.NewRegisteredCounter("engine/getblobs/miss", nil)
 )
@@ -522,29 +490,15 @@ func (api *ConsensusAPI) GetBlobsV1(hashes []common.Hash) ([]*engine.BlobAndProo
 	if len(hashes) > 128 {
 		return nil, engine.TooLargeRequest.With(fmt.Errorf("requested blob count too large: %v", len(hashes)))
 	}
-	var (
-		res      = make([]*engine.BlobAndProofV1, len(hashes))
-		hasher   = sha256.New()
-		index    = make(map[common.Hash]int)
-		sidecars = api.eth.BlobTxPool().GetBlobs(hashes)
-	)
-
-	for i, hash := range hashes {
-		index[hash] = i
+	blobs, _, proofs, err := api.eth.BlobTxPool().GetBlobs(hashes, types.BlobSidecarVersion0)
+	if err != nil {
+		return nil, engine.InvalidParams.With(err)
 	}
-	for i, sidecar := range sidecars {
-		if res[i] != nil || sidecar == nil {
-			// already filled
-			continue
-		}
-		for cIdx, commitment := range sidecar.Commitments {
-			computed := kzg4844.CalcBlobHashV1(hasher, &commitment)
-			if idx, ok := index[computed]; ok {
-				res[idx] = &engine.BlobAndProofV1{
-					Blob:  sidecar.Blobs[cIdx][:],
-					Proof: sidecar.Proofs[cIdx][:],
-				}
-			}
+	res := make([]*engine.BlobAndProofV1, len(hashes))
+	for i := 0; i < len(blobs); i++ {
+		res[i] = &engine.BlobAndProofV1{
+			Blob:  blobs[i][:],
+			Proof: proofs[i][0][:],
 		}
 	}
 	return res, nil
@@ -566,47 +520,19 @@ func (api *ConsensusAPI) GetBlobsV2(hashes []common.Hash) ([]*engine.BlobAndProo
 	}
 	getBlobsV2RequestHit.Inc(1)
 
-	// pull up the blob hashes
-	var (
-		res      = make([]*engine.BlobAndProofV2, len(hashes))
-		index    = make(map[common.Hash][]int)
-		sidecars = api.eth.BlobTxPool().GetBlobs(hashes)
-	)
-
-	for i, hash := range hashes {
-		index[hash] = append(index[hash], i)
+	blobs, _, proofs, err := api.eth.BlobTxPool().GetBlobs(hashes, types.BlobSidecarVersion1)
+	if err != nil {
+		return nil, engine.InvalidParams.With(err)
 	}
-	for i, sidecar := range sidecars {
-		if res[i] != nil {
-			// already filled
-			continue
+	res := make([]*engine.BlobAndProofV2, len(hashes))
+	for i := 0; i < len(blobs); i++ {
+		var cellProofs []hexutil.Bytes
+		for _, proof := range proofs[i] {
+			cellProofs = append(cellProofs, proof[:])
 		}
-		if sidecar == nil {
-			// not found, return empty response
-			return nil, nil
-		}
-		if sidecar.Version != types.BlobSidecarVersion1 {
-			log.Info("GetBlobs queried V0 transaction: index %v, blobhashes %v", index, sidecar.BlobHashes())
-			return nil, nil
-		}
-		blobHashes := sidecar.BlobHashes()
-		for bIdx, hash := range blobHashes {
-			if idxes, ok := index[hash]; ok {
-				proofs, err := sidecar.CellProofsAt(bIdx)
-				if err != nil {
-					return nil, engine.InvalidParams.With(err)
-				}
-				var cellProofs []hexutil.Bytes
-				for _, proof := range proofs {
-					cellProofs = append(cellProofs, proof[:])
-				}
-				for _, idx := range idxes {
-					res[idx] = &engine.BlobAndProofV2{
-						Blob:       sidecar.Blobs[bIdx][:],
-						CellProofs: cellProofs,
-					}
-				}
-			}
+		res[i] = &engine.BlobAndProofV2{
+			Blob:       blobs[i][:],
+			CellProofs: cellProofs,
 		}
 	}
 	return res, nil
@@ -1014,6 +940,15 @@ func (api *ConsensusAPI) checkFork(timestamp uint64, forks ...forks.Fork) bool {
 
 // ExchangeCapabilities returns the current methods provided by this node.
 func (api *ConsensusAPI) ExchangeCapabilities([]string) []string {
+	valueT := reflect.TypeOf(api)
+	caps := make([]string, 0, valueT.NumMethod())
+	for i := 0; i < valueT.NumMethod(); i++ {
+		name := []rune(valueT.Method(i).Name)
+		if string(name) == "ExchangeCapabilities" {
+			continue
+		}
+		caps = append(caps, "engine_"+string(unicode.ToLower(name[0]))+string(name[1:]))
+	}
 	return caps
 }
 
