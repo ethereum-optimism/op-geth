@@ -1220,6 +1220,8 @@ func (c *ChainConfig) LatestFork(time uint64) forks.Fork {
 
 // BlobConfig returns the blob config associated with the provided fork.
 func (c *ChainConfig) BlobConfig(fork forks.Fork) *BlobConfig {
+	// TODO: https://github.com/ethereum-optimism/op-geth/issues/685
+	// This function has a bug.
 	switch fork {
 	case forks.Osaka:
 		return DefaultOsakaBlobConfig
