@@ -2016,7 +2016,10 @@ func (bc *BlockChain) processBlock(parentRoot common.Hash, block *types.Block, s
 	// If we are past Byzantium, enable prefetching to pull in trie node paths
 	// while processing transactions. Before Byzantium the prefetcher is mostly
 	// useless due to the intermediate root hashing after each transaction.
-	var witness *stateless.Witness
+	var (
+		witness      *stateless.Witness
+		witnessStats *stateless.WitnessStats
+	)
 	if bc.chainConfig.IsByzantium(block.Number()) {
 		// Generate witnesses either if we're self-testing, or if it's the
 		// only block being inserted. A bit crude, but witnesses are huge,
@@ -2026,8 +2029,11 @@ func (bc *BlockChain) processBlock(parentRoot common.Hash, block *types.Block, s
 			if err != nil {
 				return nil, err
 			}
+			if bc.cfg.VmConfig.EnableWitnessStats {
+				witnessStats = stateless.NewWitnessStats()
+			}
 		}
-		statedb.StartPrefetcher("chain", witness)
+		statedb.StartPrefetcher("chain", witness, witnessStats)
 		defer statedb.StopPrefetcher()
 	}
 
@@ -2088,6 +2094,7 @@ func (bc *BlockChain) processBlock(parentRoot common.Hash, block *types.Block, s
 			return nil, fmt.Errorf("stateless self-validation receipt root mismatch (cross: %x local: %x)", crossReceiptRoot, block.ReceiptHash())
 		}
 	}
+
 	xvtime := time.Since(xvstart)
 	proctime := time.Since(startTime) // processing + validation + cross validation
 
@@ -2123,6 +2130,11 @@ func (bc *BlockChain) processBlock(parentRoot common.Hash, block *types.Block, s
 	if err != nil {
 		return nil, err
 	}
+	// Report the collected witness statistics
+	if witnessStats != nil {
+		witnessStats.ReportMetrics()
+	}
+
 	// Update the metrics touched during block commit
 	accountCommitTimer.Update(statedb.AccountCommits)   // Account commits are complete, we can mark them
 	storageCommitTimer.Update(statedb.StorageCommits)   // Storage commits are complete, we can mark them

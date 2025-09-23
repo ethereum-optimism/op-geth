@@ -158,6 +158,9 @@ var (
 	preimageCounter     = metrics.NewRegisteredCounter("db/preimage/total", nil)
 	preimageHitsCounter = metrics.NewRegisteredCounter("db/preimage/hits", nil)
 	preimageMissCounter = metrics.NewRegisteredCounter("db/preimage/miss", nil)
+
+	// Verkle transition information
+	VerkleTransitionStatePrefix = []byte("verkle-transition-state-")
 )
 
 // LegacyTxLookupEntry is the legacy TxLookupEntry definition with some unnecessary
@@ -381,19 +384,51 @@ func accountHistoryIndexKey(addressHash common.Hash) []byte {
 
 // storageHistoryIndexKey = StateHistoryStorageMetadataPrefix + addressHash + storageHash
 func storageHistoryIndexKey(addressHash common.Hash, storageHash common.Hash) []byte {
-	return append(append(StateHistoryStorageMetadataPrefix, addressHash.Bytes()...), storageHash.Bytes()...)
+	totalLen := len(StateHistoryStorageMetadataPrefix) + 2*common.HashLength
+	out := make([]byte, totalLen)
+
+	off := 0
+	off += copy(out[off:], StateHistoryStorageMetadataPrefix)
+	off += copy(out[off:], addressHash.Bytes())
+	copy(out[off:], storageHash.Bytes())
+
+	return out
 }
 
 // accountHistoryIndexBlockKey = StateHistoryAccountBlockPrefix + addressHash + blockID
 func accountHistoryIndexBlockKey(addressHash common.Hash, blockID uint32) []byte {
-	var buf [4]byte
-	binary.BigEndian.PutUint32(buf[:], blockID)
-	return append(append(StateHistoryAccountBlockPrefix, addressHash.Bytes()...), buf[:]...)
+	var buf4 [4]byte
+	binary.BigEndian.PutUint32(buf4[:], blockID)
+
+	totalLen := len(StateHistoryAccountBlockPrefix) + common.HashLength + 4
+	out := make([]byte, totalLen)
+
+	off := 0
+	off += copy(out[off:], StateHistoryAccountBlockPrefix)
+	off += copy(out[off:], addressHash.Bytes())
+	copy(out[off:], buf4[:])
+
+	return out
 }
 
 // storageHistoryIndexBlockKey = StateHistoryStorageBlockPrefix + addressHash + storageHash + blockID
 func storageHistoryIndexBlockKey(addressHash common.Hash, storageHash common.Hash, blockID uint32) []byte {
-	var buf [4]byte
-	binary.BigEndian.PutUint32(buf[:], blockID)
-	return append(append(append(StateHistoryStorageBlockPrefix, addressHash.Bytes()...), storageHash.Bytes()...), buf[:]...)
+	var buf4 [4]byte
+	binary.BigEndian.PutUint32(buf4[:], blockID)
+
+	totalLen := len(StateHistoryStorageBlockPrefix) + 2*common.HashLength + 4
+	out := make([]byte, totalLen)
+
+	off := 0
+	off += copy(out[off:], StateHistoryStorageBlockPrefix)
+	off += copy(out[off:], addressHash.Bytes())
+	off += copy(out[off:], storageHash.Bytes())
+	copy(out[off:], buf4[:])
+
+	return out
+}
+
+// transitionStateKey = transitionStatusKey + hash
+func transitionStateKey(hash common.Hash) []byte {
+	return append(VerkleTransitionStatePrefix, hash.Bytes()...)
 }

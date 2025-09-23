@@ -135,7 +135,8 @@ type StateDB struct {
 	journal *journal
 
 	// State witness if cross validation is needed
-	witness *stateless.Witness
+	witness      *stateless.Witness
+	witnessStats *stateless.WitnessStats
 
 	// Measurements gathered during execution for debugging purposes
 	AccountReads    time.Duration
@@ -197,12 +198,13 @@ func (s *StateDB) MakeSinglethreaded() {
 // StartPrefetcher initializes a new trie prefetcher to pull in nodes from the
 // state trie concurrently while the state is mutated so that when we reach the
 // commit phase, most of the needed data is already hot.
-func (s *StateDB) StartPrefetcher(namespace string, witness *stateless.Witness) {
+func (s *StateDB) StartPrefetcher(namespace string, witness *stateless.Witness, witnessStats *stateless.WitnessStats) {
 	// Terminate any previously running prefetcher
 	s.StopPrefetcher()
 
 	// Enable witness collection if requested
 	s.witness = witness
+	s.witnessStats = witnessStats
 
 	// With the switch to the Proof-of-Stake consensus algorithm, block production
 	// rewards are now handled at the consensus layer. Consequently, a block may
@@ -898,9 +900,17 @@ func (s *StateDB) IntermediateRoot(deleteEmptyObjects bool) common.Hash {
 				continue
 			}
 			if trie := obj.getPrefetchedTrie(); trie != nil {
-				s.witness.AddState(trie.Witness())
+				witness := trie.Witness()
+				s.witness.AddState(witness)
+				if s.witnessStats != nil {
+					s.witnessStats.Add(witness, obj.addrHash)
+				}
 			} else if obj.trie != nil {
-				s.witness.AddState(obj.trie.Witness())
+				witness := obj.trie.Witness()
+				s.witness.AddState(witness)
+				if s.witnessStats != nil {
+					s.witnessStats.Add(witness, obj.addrHash)
+				}
 			}
 		}
 		// Pull in only-read and non-destructed trie witnesses
@@ -914,9 +924,17 @@ func (s *StateDB) IntermediateRoot(deleteEmptyObjects bool) common.Hash {
 				continue
 			}
 			if trie := obj.getPrefetchedTrie(); trie != nil {
-				s.witness.AddState(trie.Witness())
+				witness := trie.Witness()
+				s.witness.AddState(witness)
+				if s.witnessStats != nil {
+					s.witnessStats.Add(witness, obj.addrHash)
+				}
 			} else if obj.trie != nil {
-				s.witness.AddState(obj.trie.Witness())
+				witness := obj.trie.Witness()
+				s.witness.AddState(witness)
+				if s.witnessStats != nil {
+					s.witnessStats.Add(witness, obj.addrHash)
+				}
 			}
 		}
 	}
@@ -982,7 +1000,11 @@ func (s *StateDB) IntermediateRoot(deleteEmptyObjects bool) common.Hash {
 
 	// If witness building is enabled, gather the account trie witness
 	if s.witness != nil {
-		s.witness.AddState(s.trie.Witness())
+		witness := s.trie.Witness()
+		s.witness.AddState(witness)
+		if s.witnessStats != nil {
+			s.witnessStats.Add(witness, common.Hash{})
+		}
 	}
 	return hash
 }
@@ -1017,7 +1039,7 @@ func (s *StateDB) fastDeleteStorage(snaps *snapshot.Tree, addrHash common.Hash, 
 		storageOrigins = make(map[common.Hash][]byte)  // the set for tracking the original value of slot
 	)
 	stack := trie.NewStackTrie(func(path []byte, hash common.Hash, blob []byte) {
-		nodes.AddNode(path, trienode.NewDeleted())
+		nodes.AddNode(path, trienode.NewDeletedWithPrev(blob))
 	})
 	for iter.Next() {
 		slot := common.CopyBytes(iter.Slot())
@@ -1068,7 +1090,7 @@ func (s *StateDB) slowDeleteStorage(addr common.Address, addrHash common.Hash, r
 		if it.Hash() == (common.Hash{}) {
 			continue
 		}
-		nodes.AddNode(it.Path(), trienode.NewDeleted())
+		nodes.AddNode(it.Path(), trienode.NewDeletedWithPrev(it.NodeBlob()))
 	}
 	if err := it.Error(); err != nil {
 		return nil, nil, nil, err
@@ -1200,7 +1222,7 @@ func (s *StateDB) commit(deleteEmptyObjects bool, noStorageWiping bool) (*stateU
 		//
 		// Given that some accounts may be destroyed and then recreated within
 		// the same block, it's possible that a node set with the same owner
-		// may already exists. In such cases, these two sets are combined, with
+		// may already exist. In such cases, these two sets are combined, with
 		// the later one overwriting the previous one if any nodes are modified
 		// or deleted in both sets.
 		//

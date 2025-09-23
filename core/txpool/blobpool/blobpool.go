@@ -36,6 +36,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/txpool"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto/kzg4844"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
@@ -1303,32 +1304,86 @@ func (p *BlobPool) GetMetadata(hash common.Hash) *txpool.TxMetadata {
 // GetBlobs returns a number of blobs and proofs for the given versioned hashes.
 // This is a utility method for the engine API, enabling consensus clients to
 // retrieve blobs from the pools directly instead of the network.
-func (p *BlobPool) GetBlobs(vhashes []common.Hash) []*types.BlobTxSidecar {
-	sidecars := make([]*types.BlobTxSidecar, len(vhashes))
-	for idx, vhash := range vhashes {
-		// Retrieve the datastore item (in a short lock)
-		p.lock.RLock()
-		id, exists := p.lookup.storeidOfBlob(vhash)
-		if !exists {
-			p.lock.RUnlock()
-			continue
-		}
-		data, err := p.store.Get(id)
-		p.lock.RUnlock()
+func (p *BlobPool) GetBlobs(vhashes []common.Hash, version byte) ([]*kzg4844.Blob, []kzg4844.Commitment, [][]kzg4844.Proof, error) {
+	var (
+		blobs       = make([]*kzg4844.Blob, len(vhashes))
+		commitments = make([]kzg4844.Commitment, len(vhashes))
+		proofs      = make([][]kzg4844.Proof, len(vhashes))
 
-		// After releasing the lock, try to fill any blobs requested
-		if err != nil {
-			log.Error("Tracked blob transaction missing from store", "id", id, "err", err)
-			continue
-		}
-		item := new(types.Transaction)
-		if err = rlp.DecodeBytes(data, item); err != nil {
-			log.Error("Blobs corrupted for traced transaction", "id", id, "err", err)
-			continue
-		}
-		sidecars[idx] = item.BlobTxSidecar()
+		indices = make(map[common.Hash][]int)
+		filled  = make(map[common.Hash]struct{})
+	)
+	for i, h := range vhashes {
+		indices[h] = append(indices[h], i)
 	}
-	return sidecars
+	for _, vhash := range vhashes {
+		// Skip duplicate vhash that was already resolved in a previous iteration
+		if _, ok := filled[vhash]; ok {
+			continue
+		}
+		// Retrieve the corresponding blob tx with the vhash
+		p.lock.RLock()
+		txID, exists := p.lookup.storeidOfBlob(vhash)
+		p.lock.RUnlock()
+		if !exists {
+			return nil, nil, nil, fmt.Errorf("blob with vhash %x is not found", vhash)
+		}
+		data, err := p.store.Get(txID)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+
+		// Decode the blob transaction
+		tx := new(types.Transaction)
+		if err := rlp.DecodeBytes(data, tx); err != nil {
+			return nil, nil, nil, err
+		}
+		sidecar := tx.BlobTxSidecar()
+		if sidecar == nil {
+			return nil, nil, nil, fmt.Errorf("blob tx without sidecar %x", tx.Hash())
+		}
+		// Traverse the blobs in the transaction
+		for i, hash := range tx.BlobHashes() {
+			list, ok := indices[hash]
+			if !ok {
+				continue // non-interesting blob
+			}
+			var pf []kzg4844.Proof
+			switch version {
+			case types.BlobSidecarVersion0:
+				if sidecar.Version == types.BlobSidecarVersion0 {
+					pf = []kzg4844.Proof{sidecar.Proofs[i]}
+				} else {
+					proof, err := kzg4844.ComputeBlobProof(&sidecar.Blobs[i], sidecar.Commitments[i])
+					if err != nil {
+						return nil, nil, nil, err
+					}
+					pf = []kzg4844.Proof{proof}
+				}
+			case types.BlobSidecarVersion1:
+				if sidecar.Version == types.BlobSidecarVersion0 {
+					cellProofs, err := kzg4844.ComputeCellProofs(&sidecar.Blobs[i])
+					if err != nil {
+						return nil, nil, nil, err
+					}
+					pf = cellProofs
+				} else {
+					cellProofs, err := sidecar.CellProofsAt(i)
+					if err != nil {
+						return nil, nil, nil, err
+					}
+					pf = cellProofs
+				}
+			}
+			for _, index := range list {
+				blobs[index] = &sidecar.Blobs[i]
+				commitments[index] = sidecar.Commitments[i]
+				proofs[index] = pf
+			}
+			filled[hash] = struct{}{}
+		}
+	}
+	return blobs, commitments, proofs, nil
 }
 
 // AvailableBlobs returns the number of blobs that are available in the subpool.
@@ -1346,6 +1401,31 @@ func (p *BlobPool) AvailableBlobs(vhashes []common.Hash) int {
 	return available
 }
 
+// convertSidecar converts the legacy sidecar in the submitted transactions
+// if Osaka fork has been activated.
+func (p *BlobPool) convertSidecar(txs []*types.Transaction) ([]*types.Transaction, []error) {
+	head := p.chain.CurrentBlock()
+	if !p.chain.Config().IsOsaka(head.Number, head.Time) {
+		return txs, make([]error, len(txs))
+	}
+	var errs []error
+	for _, tx := range txs {
+		sidecar := tx.BlobTxSidecar()
+		if sidecar == nil {
+			errs = append(errs, errors.New("missing sidecar in blob transaction"))
+			continue
+		}
+		if sidecar.Version == types.BlobSidecarVersion0 {
+			if err := sidecar.ToV1(); err != nil {
+				errs = append(errs, err)
+				continue
+			}
+		}
+		errs = append(errs, nil)
+	}
+	return txs, errs
+}
+
 // Add inserts a set of blob transactions into the pool if they pass validation (both
 // consensus validity and pool restrictions).
 //
@@ -1353,10 +1433,14 @@ func (p *BlobPool) AvailableBlobs(vhashes []common.Hash) int {
 // related to the add is finished. Only use this during tests for determinism.
 func (p *BlobPool) Add(txs []*types.Transaction, sync bool) []error {
 	var (
+		errs []error
 		adds = make([]*types.Transaction, 0, len(txs))
-		errs = make([]error, len(txs))
 	)
+	txs, errs = p.convertSidecar(txs)
 	for i, tx := range txs {
+		if errs[i] != nil {
+			continue
+		}
 		errs[i] = p.add(tx)
 		if errs[i] == nil {
 			adds = append(adds, tx.WithoutBlobTxSidecar())
