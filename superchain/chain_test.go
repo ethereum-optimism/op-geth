@@ -6,6 +6,21 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestGetChain(t *testing.T) {
+	t.Run("OP Mainnet found", func(t *testing.T) {
+		chain, err := GetChain(10)
+		require.NoError(t, err)
+		require.NotNil(t, chain)
+	})
+
+	// Celo mainnet skipped due to custom genesis
+	t.Run("Celo Mainnet skipped", func(t *testing.T) {
+		chain, err := GetChain(42220)
+		require.Error(t, err)
+		require.Nil(t, chain)
+	})
+}
+
 func TestGetDepset(t *testing.T) {
 	// Save BuiltInConfigs to restore later
 	originalConfigs := BuiltInConfigs

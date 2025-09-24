@@ -475,10 +475,13 @@ func extractL1GasParamsPostEcotone(data []byte) (gasParams, error) {
 // extractL1GasParamsPostIsthmus extracts the gas parameters necessary to compute gas from L1 attribute
 // info calldata after the Isthmus upgrade, but not for the very first Isthmus block.
 func extractL1GasParamsPostIsthmus(data []byte) (gasParams, error) {
-	if len(data) != 176 {
-		return gasParams{}, fmt.Errorf("expected 176 L1 info bytes, got %d", len(data))
+	// Isthmus expects exactly 176, while subsequent forks like Jovian expect more. All of these
+	// forks use the same gas params, so we use the relaxed `< 176` constraint instead of the more
+	// stringent `!= 176`.
+	if len(data) < 176 {
+		return gasParams{}, fmt.Errorf("expected at least 176 L1 info bytes, got %d", len(data))
 	}
-	// data layout assumed for Isthmus:
+	// data layout assumed for post-Isthmus:
 	// offset type varname
 	// 0     <selector>
 	// 4     uint32 _basefeeScalar

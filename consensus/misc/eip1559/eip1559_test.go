@@ -17,12 +17,14 @@
 package eip1559
 
 import (
+	"fmt"
 	"math/big"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/stretchr/testify/require"
 )
 
 // copyConfig does a _shallow_ copy of a given config. Safe to set new values, but
@@ -55,14 +57,17 @@ func config() *params.ChainConfig {
 	return config
 }
 
+var TestCanyonTime = uint64(10)
+var TestHoloceneTime = uint64(12)
+var TestJovianTime = uint64(14)
+
 func opConfig() *params.ChainConfig {
 	config := copyConfig(params.TestChainConfig)
 	config.LondonBlock = big.NewInt(5)
-	ct := uint64(10)
 	eip1559DenominatorCanyon := uint64(250)
-	config.CanyonTime = &ct
-	ht := uint64(12)
-	config.HoloceneTime = &ht
+	config.CanyonTime = &TestCanyonTime
+	config.HoloceneTime = &TestHoloceneTime
+	config.JovianTime = &TestJovianTime
 	config.Optimism = &params.OptimismConfig{
 		EIP1559Elasticity:        6,
 		EIP1559Denominator:       50,
@@ -216,5 +221,69 @@ func TestCalcBaseFeeOptimismHolocene(t *testing.T) {
 		if have, want := CalcBaseFee(opConfig(), parent, parent.Time+2), big.NewInt(test.expectedBaseFee); have.Cmp(want) != 0 {
 			t.Errorf("test %d: have %d  want %d, ", i, have, want)
 		}
+	}
+}
+
+// TestCalcBaseFeeJovian tests that the minimum base fee is enforced
+// when the computed base fee is less than the minimum base fee,
+// if the feature is active and not enforced otherwise.
+func TestCalcBaseFeeJovian(t *testing.T) {
+	parentGasLimit := uint64(30_000_000)
+	denom := uint64(50)
+	elasticity := uint64(3)
+
+	preJovian := TestJovianTime - 1
+	postJovian := TestJovianTime
+
+	tests := []struct {
+		parentBaseFee   int64
+		parentGasUsed   uint64
+		parentTime      uint64
+		minBaseFee      uint64
+		expectedBaseFee uint64
+	}{
+		// Test 0: gas used is below target, and the new calculated base fee is very low.
+		// But since we are pre Jovian, we don't enforce the minBaseFee.
+		{1, parentGasLimit/elasticity - 1_000_000, preJovian, 1e9, 1},
+		// Test 1: gas used is exactly the target gas, but the base fee is set too low so
+		// the base fee is expected to be the minBaseFee
+		{1, parentGasLimit / elasticity, postJovian, 1e9, 1e9},
+		// Test 2: gas used exceeds gas target, but the new calculated base fee is still
+		// too low so the base fee is expected to be the minBaseFee
+		{1, parentGasLimit/elasticity + 1_000_000, postJovian, 1e9, 1e9},
+		// Test 3: gas used exceeds gas target, but the new calculated base fee is higher
+		// than the minBaseFee, so don't enforce minBaseFee. See the calculation below:
+		// gasUsedDelta = gasUsed - parentGasTarget = 20_000_000 - 30_000_000 / 3 = 10_000_000
+		// 2e9 * 10_000_000 / 10_000_000 / 50 = 40_000_000
+		// 2e9 + 40_000_000 = 2_040_000_000, which is greater than minBaseFee
+		{2e9, parentGasLimit/elasticity + 10_000_000, postJovian, 1e9, 2_040_000_000},
+		// Test 4: gas used is below target, but the new calculated base fee is still
+		// too low so the base fee is expected to be the minBaseFee
+		{1, parentGasLimit/elasticity - 1_000_000, postJovian, 1e9, 1e9},
+		// Test 5: gas used is below target, and the new calculated base fee is higher
+		// than the minBaseFee, so don't enforce minBaseFee. See the calculation below:
+		// gasUsedDelta = gasUsed - parentGasTarget = 9_000_000 - 30_000_000 / 3 = -1_000_000
+		// 2_097_152 * -1_000_000 / 10_000_000 / 50 = -4194.304
+		// 2_097_152 - 4194.304 = 2_092_957.696, which is greater than minBaseFee
+		{2_097_152, parentGasLimit/elasticity - 1_000_000, postJovian, 2e6, 2_092_958},
+		// Test 6: parent base fee already at minimum, below target => no change
+		{1e4, parentGasLimit/elasticity - 1, postJovian, 1e4, 1e4},
+		// Test 7: parent base fee already at minimum, above target => small increase as usual
+		{1e4, parentGasLimit/elasticity + 1, postJovian, 1e4, 1e4 + 1},
+	}
+	for i, test := range tests {
+		testName := fmt.Sprintf("test %d", i)
+		t.Run(testName, func(t *testing.T) {
+			parent := &types.Header{
+				Number:   common.Big32,
+				GasLimit: parentGasLimit,
+				GasUsed:  test.parentGasUsed,
+				BaseFee:  big.NewInt(test.parentBaseFee),
+				Time:     test.parentTime,
+			}
+			parent.Extra = EncodeOptimismExtraData(opConfig(), test.parentTime, denom, elasticity, &test.minBaseFee)
+			have, want := CalcBaseFee(opConfig(), parent, parent.Time+2), big.NewInt(int64(test.expectedBaseFee))
+			require.Equal(t, have, want, testName)
+		})
 	}
 }

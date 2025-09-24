@@ -19,6 +19,7 @@ package beacon
 import (
 	"errors"
 	"fmt"
+	"math"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -30,7 +31,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/ethereum/go-ethereum/trie"
 	"github.com/holiman/uint256"
 )
@@ -406,7 +406,7 @@ func (beacon *Beacon) FinalizeAndAssemble(chain consensus.ChainHeaderReader, hea
 		header.WithdrawalsHash = &h
 		sa := state.AccessEvents()
 		if sa != nil {
-			sa.AddAccount(params.OptimismL2ToL1MessagePasser, false) // include in execution witness
+			sa.AddAccount(params.OptimismL2ToL1MessagePasser, false, math.MaxUint64) // include in execution witness
 		}
 	}
 
@@ -427,8 +427,12 @@ func (beacon *Beacon) FinalizeAndAssemble(chain consensus.ChainHeaderReader, hea
 		if err != nil {
 			return nil, fmt.Errorf("error opening pre-state tree root: %w", err)
 		}
+		postTrie := state.GetTrie()
+		if postTrie == nil {
+			return nil, errors.New("post-state tree is not available")
+		}
 		vktPreTrie, okpre := preTrie.(*trie.VerkleTrie)
-		vktPostTrie, okpost := state.GetTrie().(*trie.VerkleTrie)
+		vktPostTrie, okpost := postTrie.(*trie.VerkleTrie)
 
 		// The witness is only attached iff both parent and current block are
 		// using verkle tree.
@@ -486,11 +490,6 @@ func (beacon *Beacon) CalcDifficulty(chain consensus.ChainHeaderReader, time uin
 		return beacon.ethone.CalcDifficulty(chain, time, parent)
 	}
 	return beaconDifficulty
-}
-
-// APIs implements consensus.Engine, returning the user facing RPC APIs.
-func (beacon *Beacon) APIs(chain consensus.ChainHeaderReader) []rpc.API {
-	return beacon.ethone.APIs(chain)
 }
 
 // Close shutdowns the consensus engine

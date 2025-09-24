@@ -5,7 +5,7 @@ footer: |
 base:
   name: go-ethereum
   url: https://github.com/ethereum/go-ethereum
-  hash: 36b2371c59cd91a9b1da062b3e382f05a6d8687e # v1.15.11
+  hash: d818a9af7bd5919808df78f31580f59382c53150 # v1.16.3
 fork:
   name: op-geth
   url: https://github.com/ethereum-optimism/op-geth
@@ -18,7 +18,7 @@ def:
 
     The OP-stack architecture is modular, following the Consensus/Execution split of post-Merge Ethereum L1:
 
-      - [`op-node`](https://github.com/ethereum-optimism/optimism/tree/develop/op-node) implements most rollup-specific functionality as Consensus-Layer, similar to a L1 beacon-node. 
+      - [`op-node`](https://github.com/ethereum-optimism/optimism/tree/develop/op-node) implements most rollup-specific functionality as Consensus-Layer, similar to a L1 beacon-node.
       - [`op-geth`](https://github.com/ethereum-optimism/op-geth) implements the Execution-Layer, with **minimal changes** for a secure Ethereum-equivalent application environment.
 
     Related [op-stack specifications](https://github.com/ethereum-optimism/optimism/tree/develop/specs):
@@ -136,11 +136,11 @@ def:
                 - "core/txpool/**/*"
                 - "core/txpool/legacypool/*"
         - title: "RIP-7212"
-          description: ""
+          description: |
+            The OP Stack implemented an secp256r1 precompile in the Fjord fork. Ethereum added the same functionality
+            with a different gas cost in its Osaka fork. Both are included in op-geth for backward compatibility.
           globs:
             - "core/vm/contracts.go"
-            - "crypto/secp256r1/publickey.go"
-            - "crypto/secp256r1/verifier.go"
     - title: "Chain Configuration"
       sub:
         - title: "Chain config"
@@ -196,9 +196,12 @@ def:
           globs:
             - "eth/handler.go"
             - "eth/handler_eth.go"
-        - title: Warn on missing hardfork data
+        - title: Warn on missing hardfork data and emit additional metrics
           globs:
             - "core/blockchain.go"
+        - title: Additional metrics
+          globs:
+            - "core/headerchain.go"
         - title: Optional Engine API extensions
           globs:
             - "eth/catalyst/superchain.go"
@@ -231,7 +234,7 @@ def:
             - "eth/ethconfig/gen_config.go"
     - title: "Single threaded execution"
       description: |
-        The cannon fault proofs virtual machine does not support the creation of threads. To ensure compatibility, 
+        The cannon fault proofs virtual machine does not support the creation of threads. To ensure compatibility,
         thread creation is avoided when only a single CPU is available.
       globs:
         - "core/state/workers.go"
@@ -249,7 +252,7 @@ def:
       sub:
         - title: "Receipts metadata"
           description: |
-            Pre-Bedrock L1-cost receipt data is loaded from the database if available, and post-Bedrock the L1-cost 
+            Pre-Bedrock L1-cost receipt data is loaded from the database if available, and post-Bedrock the L1-cost
             metadata is hydrated on-the-fly based on the L1 fee information in the corresponding block.
           globs:
             - "core/types/receipt.go"
@@ -368,6 +371,11 @@ def:
             not updated to handle the newly added `withdrawalsRoot` field in the block header.
           globs:
             - "cmd/evm/internal/t8ntool/block.go"
+        - title: Metrics
+          description: |
+            Adds support for safely updating gauges from optional big.Int values.
+          globs:
+            - "metrics/gauge.go"
     - title: "Testing"
       description: Additional or modified tests, not already captured by the above diff
       ignore:

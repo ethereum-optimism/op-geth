@@ -155,14 +155,14 @@ func newTestBackend(t *testing.T, n int, gspec *core.Genesis, generator func(i i
 	_, blocks, _ := core.GenerateChainWithGenesis(gspec, backend.engine, n, generator)
 
 	// Import the canonical chain
-	cacheConfig := &core.CacheConfig{
-		TrieCleanLimit:    256,
-		TrieDirtyLimit:    256,
-		TrieTimeLimit:     5 * time.Minute,
-		SnapshotLimit:     0,
-		TrieDirtyDisabled: true, // Archive mode
+	options := &core.BlockChainConfig{
+		TrieCleanLimit: 256,
+		TrieDirtyLimit: 256,
+		TrieTimeLimit:  5 * time.Minute,
+		SnapshotLimit:  0,
+		ArchiveMode:    true, // Archive mode
 	}
-	chain, err := core.NewBlockChain(backend.chaindb, cacheConfig, gspec, nil, backend.engine, vm.Config{}, nil)
+	chain, err := core.NewBlockChain(backend.chaindb, gspec, backend.engine, options)
 	if err != nil {
 		t.Fatalf("failed to create tester chain: %v", err)
 	}
@@ -195,8 +195,8 @@ func (b *testBackend) BlockByNumber(ctx context.Context, number rpc.BlockNumber)
 	return b.chain.GetBlockByNumber(uint64(number)), nil
 }
 
-func (b *testBackend) GetTransaction(txHash common.Hash) (bool, *types.Transaction, common.Hash, uint64, uint64) {
-	tx, hash, blockNumber, index := rawdb.ReadTransaction(b.chaindb, txHash)
+func (b *testBackend) GetCanonicalTransaction(txHash common.Hash) (bool, *types.Transaction, common.Hash, uint64, uint64) {
+	tx, hash, blockNumber, index := rawdb.ReadCanonicalTransaction(b.chaindb, txHash)
 	return tx != nil, tx, hash, blockNumber, index
 }
 
@@ -614,7 +614,7 @@ func TestTraceTransaction(t *testing.T) {
 		b.AddTx(tx)
 		target = tx.Hash()
 	})
-	defer backend.chain.Stop()
+	defer backend.teardown()
 	api := NewAPI(backend)
 	result, err := api.TraceTransaction(context.Background(), target, nil)
 	if err != nil {
@@ -720,7 +720,7 @@ func TestTraceBlock(t *testing.T) {
 		b.AddTx(tx)
 		txHash = tx.Hash()
 	})
-	defer backend.chain.Stop()
+	defer backend.teardown()
 	api := NewAPI(backend)
 
 	testSuite := []struct {
@@ -871,7 +871,7 @@ func TestTracingWithOverrides(t *testing.T) {
 			signer, accounts[0].key)
 		b.AddTx(tx)
 	})
-	defer backend.chain.Stop()
+	defer backend.teardown()
 	api := NewAPI(backend)
 	randomAccounts := newAccounts(3)
 	type res struct {
@@ -879,7 +879,8 @@ func TestTracingWithOverrides(t *testing.T) {
 		Failed      bool
 		ReturnValue string
 	}
-	testSuite := []struct {
+
+	var testSuite = []struct {
 		blockNumber rpc.BlockNumber
 		call        ethapi.TransactionArgs
 		config      *TraceCallConfig
@@ -977,6 +978,25 @@ func TestTracingWithOverrides(t *testing.T) {
 				BlockOverrides: &override.BlockOverrides{Number: (*hexutil.Big)(big.NewInt(0x1337))},
 			},
 			want: `{"gas":72666,"failed":false,"returnValue":"0x000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"}`,
+		},
+		{ // Override blocknumber with block n+1 and query a blockhash (resolves issue #32175)
+			blockNumber: rpc.LatestBlockNumber,
+			call: ethapi.TransactionArgs{
+				From: &accounts[0].addr,
+				Input: newRPCBytes([]byte{
+					byte(vm.PUSH1), byte(genBlocks),
+					byte(vm.BLOCKHASH),
+					byte(vm.PUSH1), 0x00,
+					byte(vm.MSTORE),
+					byte(vm.PUSH1), 0x20,
+					byte(vm.PUSH1), 0x00,
+					byte(vm.RETURN),
+				}),
+			},
+			config: &TraceCallConfig{
+				BlockOverrides: &override.BlockOverrides{Number: (*hexutil.Big)(big.NewInt(int64(genBlocks + 1)))},
+			},
+			want: fmt.Sprintf(`{"gas":59590,"failed":false,"returnValue":"%s"}`, backend.chain.GetHeaderByNumber(uint64(genBlocks)).Hash().Hex()),
 		},
 		/*
 			pragma solidity =0.8.12;
@@ -1275,6 +1295,7 @@ func TestTraceChain(t *testing.T) {
 			nonce += 1
 		}
 	})
+	defer backend.teardown()
 	backend.refHook = func() { ref.Add(1) }
 	backend.relHook = func() { rel.Add(1) }
 	api := NewAPI(backend)
@@ -1334,14 +1355,14 @@ func newTestMergedBackend(t *testing.T, n int, gspec *core.Genesis, generator fu
 	_, blocks, _ := core.GenerateChainWithGenesis(gspec, backend.engine, n, generator)
 
 	// Import the canonical chain
-	cacheConfig := &core.CacheConfig{
-		TrieCleanLimit:    256,
-		TrieDirtyLimit:    256,
-		TrieTimeLimit:     5 * time.Minute,
-		SnapshotLimit:     0,
-		TrieDirtyDisabled: true, // Archive mode
+	options := &core.BlockChainConfig{
+		TrieCleanLimit: 256,
+		TrieDirtyLimit: 256,
+		TrieTimeLimit:  5 * time.Minute,
+		SnapshotLimit:  0,
+		ArchiveMode:    true, // Archive mode
 	}
-	chain, err := core.NewBlockChain(backend.chaindb, cacheConfig, gspec, nil, backend.engine, vm.Config{}, nil)
+	chain, err := core.NewBlockChain(backend.chaindb, gspec, backend.engine, options)
 	if err != nil {
 		t.Fatalf("failed to create tester chain: %v", err)
 	}
@@ -1383,7 +1404,7 @@ func TestTraceBlockWithBasefee(t *testing.T) {
 		txHash = tx.Hash()
 		baseFee.Set(b.BaseFee())
 	})
-	defer backend.chain.Stop()
+	defer backend.teardown()
 	api := NewAPI(backend)
 
 	testSuite := []struct {
@@ -1469,7 +1490,7 @@ func TestStandardTraceBlockToFile(t *testing.T) {
 		b.AddTx(tx)
 		txHashs = append(txHashs, tx.Hash())
 	})
-	defer backend.chain.Stop()
+	defer backend.teardown()
 
 	testSuite := []struct {
 		blockNumber rpc.BlockNumber

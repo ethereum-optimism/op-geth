@@ -240,9 +240,9 @@ func (it *nodeIterator) LeafProof() [][]byte {
 
 			for i, item := range it.stack[:len(it.stack)-1] {
 				// Gather nodes that end up as hash nodes (or the root)
-				node, hashed := hasher.proofHash(item.node)
-				if _, ok := hashed.(hashNode); ok || i == 0 {
-					proofs = append(proofs, nodeToBytes(node))
+				enc := hasher.proofHash(item.node)
+				if len(enc) >= 32 || i == 0 {
+					proofs = append(proofs, enc)
 				}
 			}
 			return proofs
@@ -405,7 +405,7 @@ func (it *nodeIterator) resolveHash(hash hashNode, path []byte) (node, error) {
 	// loaded blob will be tracked, while it's not required here since
 	// all loaded nodes won't be linked to trie at all and track nodes
 	// may lead to out-of-memory issue.
-	blob, err := it.trie.reader.node(path, common.BytesToHash(hash))
+	blob, err := it.trie.reader.Node(path, common.BytesToHash(hash))
 	if err != nil {
 		return nil, err
 	}
@@ -426,7 +426,7 @@ func (it *nodeIterator) resolveBlob(hash hashNode, path []byte) ([]byte, error) 
 	// loaded blob will be tracked, while it's not required here since
 	// all loaded nodes won't be linked to trie at all and track nodes
 	// may lead to out-of-memory issue.
-	return it.trie.reader.node(path, common.BytesToHash(hash))
+	return it.trie.reader.Node(path, common.BytesToHash(hash))
 }
 
 func (st *nodeIteratorState) resolve(it *nodeIterator, path []byte) error {

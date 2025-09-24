@@ -50,11 +50,17 @@ process_network_dir() {
         chain_id=$(dasel -f "$toml_file" -r toml "chain_id" | tr -d '"')
         chain_name="$(basename "${toml_file%.*}")"
 
-        # Skip if chain_id is empty or Boba Sepolia (28882) or Boba Mainnet (288)
-        if [[ -z "$chain_id" || "$chain_id" -eq 28882 || "$chain_id" -eq 288 ]]; then
+        if [[ -z "$chain_id"
+              # Boba Sepolia
+              || "$chain_id" -eq 28882
+              # Boba Mainnet
+              || "$chain_id" -eq 288
+              # Celo Mainnet: non-standard genesis format (forked from Ethereum, then converted to L2)
+              || "$chain_id" -eq 42220 ]];
+        then
             echo "Skipping $network_name/$chain_name ($chain_id)"
             rm "$toml_file"
-            rm "genesis/$network_name/$chain_name.json.zst"
+            rm -f "genesis/$network_name/$chain_name.json.zst"
             continue
         fi
 

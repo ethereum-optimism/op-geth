@@ -69,7 +69,7 @@ jobs:
           name: Build forkdiff
           command: |
             docker run --volume $(pwd):/workspace \
-              protolambda/forkdiff:0.1.0 \
+              protolambda/forkdiff:0.1.1 \
               -repo=/workspace \
               -fork=/workspace/fork.yaml \
               -out=/workspace/index.html
@@ -236,13 +236,6 @@ workflows:
           name: Check superchain registry bundle diff
   release:
     jobs:
-      - hold:
-          type: approval
-          filters:
-            tags:
-              only: /^v.*/
-            branches:
-              ignore: /.*/
       - docker-release:
           name: Push to Docker (release)
           filters:
@@ -254,8 +247,6 @@ workflows:
           push_tags: true
           context:
             - oplabs-gcr-release
-          requires:
-            - hold
 
   merge:
     jobs:
