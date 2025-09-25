@@ -17,6 +17,7 @@
 package vm
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/binary"
 	"errors"
@@ -38,6 +39,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto/kzg4844"
 	"github.com/ethereum/go-ethereum/crypto/secp256r1"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/holiman/uint256"
 	"golang.org/x/crypto/ripemd160"
 )
 
@@ -48,6 +50,20 @@ type PrecompiledContract interface {
 	RequiredGas(input []byte) uint64  // RequiredPrice calculates the contract gas use
 	Run(input []byte) ([]byte, error) // Run runs the precompiled contract
 	Name() string
+}
+
+// StatefulPrecompiledContract is an optional extension that allows a precompile
+// to access and mutate the StateDB during execution. Implementors must ensure
+// gas usage remains deterministic via RequiredGas.
+//
+// Callers should prefer RunPrecompiledContractWithState, which detects this
+// interface dynamically and dispatches accordingly.
+type StatefulPrecompiledContract interface {
+	PrecompiledContract
+	// RunWithState executes the precompile with access to the StateDB.
+	// Implementations must keep gas usage deterministic based solely on input,
+	// as gas is charged up-front.
+	RunWithState(input []byte, db StateDB) ([]byte, error)
 }
 
 // PrecompiledContracts contains the precompiled contracts supported at the given fork.
@@ -348,6 +364,96 @@ func RunPrecompiledContract(p PrecompiledContract, input []byte, suppliedGas uin
 	suppliedGas -= gasCost
 	output, err := p.Run(input)
 	return output, suppliedGas, err
+}
+
+// RunPrecompiledContractWithState wraps RunPrecompiledContract to maximize
+// shared logic. It adapts the provided precompile to a PrecompiledContract
+// whose Run method will dispatch to RunWithState if available.
+func RunPrecompiledContractWithState(p PrecompiledContract, input []byte, suppliedGas uint64, logger *tracing.Hooks, db StateDB, readOnly bool) (ret []byte, remainingGas uint64, err error) {
+	adapter := &statefulPrecompileAdapter{inner: p, db: db, readOnly: readOnly}
+	return RunPrecompiledContract(adapter, input, suppliedGas, logger)
+}
+
+// statefulPrecompileAdapter forwards RequiredGas/Name to the inner precompile,
+// and routes Run to RunWithState if the inner implements StatefulPrecompiledContract.
+type statefulPrecompileAdapter struct {
+	inner    PrecompiledContract
+	db       StateDB
+	readOnly bool
+}
+
+func (a *statefulPrecompileAdapter) RequiredGas(input []byte) uint64 {
+	return a.inner.RequiredGas(input)
+}
+func (a *statefulPrecompileAdapter) Name() string { return a.inner.Name() }
+func (a *statefulPrecompileAdapter) Run(input []byte) ([]byte, error) {
+	if spc, ok := a.inner.(StatefulPrecompiledContract); ok {
+		if a.readOnly {
+			return nil, ErrWriteProtection
+		}
+		return spc.RunWithState(input, a.db)
+	}
+	return a.inner.Run(input)
+}
+
+// MintBurn is a simple stateful precompile that can mint/burn ETH balances via
+// Solidity-ABI calls to `mint(address,uint256)` and `burn(address,uint256)`.
+// Only msg.sender == address(42) is authorized.
+type MintBurn struct{}
+
+func (m *MintBurn) Name() string { return "MintBurn" }
+
+// TODO: need sane value
+func (m *MintBurn) RequiredGas(input []byte) uint64 { return 3000 }
+
+// Run is not supported for this stateful precompile without state context.
+func (m *MintBurn) Run(input []byte) ([]byte, error) {
+	return nil, errors.New("MintBurn requires state context")
+}
+
+var (
+	selMint    = crypto.Keccak256([]byte("mint(address,uint256)"))[:4]
+	selBurn    = crypto.Keccak256([]byte("burn(address,uint256)"))[:4]
+	authorized = common.BytesToAddress([]byte{0x2a})
+)
+
+// TODO: is there a better way to get the msg.sender into this context?
+func (m *MintBurn) RunWithState(input []byte, db StateDB) ([]byte, error) {
+	// Authorization via transient storage: address(42), slot 0 == 1
+	if db.GetTransientState(authorized, common.Hash{}) != common.BigToHash(big.NewInt(1)) {
+		return nil, ErrExecutionReverted
+	}
+
+	if len(input) < 4+32+32 {
+		return nil, ErrExecutionReverted
+	}
+	method := input[:4]
+	args := input[4:]
+
+	// Decode ABI: address is right-padded 32 bytes, take last 20 bytes
+	who := common.Address{}
+	copy(who[:], args[12:32])
+	amountU256, overflow := uint256.FromBig(new(big.Int).SetBytes(args[32:64]))
+	if overflow {
+		return nil, ErrExecutionReverted
+	}
+
+	switch {
+	case bytes.Equal(method, selMint):
+		db.AddBalance(who, amountU256, tracing.BalanceMint)
+		return nil, nil
+	case bytes.Equal(method, selBurn):
+		// Underflow protection is in StateDB SubBalance return value, but we avoid
+		// negative by checking current balance first.
+		bal := db.GetBalance(who)
+		if bal.Cmp(amountU256) < 0 {
+			return nil, ErrExecutionReverted
+		}
+		db.SubBalance(who, amountU256, tracing.BalanceChangeUnspecified)
+		return nil, nil
+	default:
+		return nil, ErrExecutionReverted
+	}
 }
 
 // ecrecover implemented as a native contract.
