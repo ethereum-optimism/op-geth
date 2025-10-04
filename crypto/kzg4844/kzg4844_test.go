@@ -230,3 +230,20 @@ func testKZGCells(t *testing.T, ckzg bool) {
 		t.Fatalf("failed to verify KZG proof at point: %v", err)
 	}
 }
+
+func BenchmarkCKZGComputeCellProofs(b *testing.B)  { benchmarkComputeCellProofs(b, true) }
+func BenchmarkGoKZGComputeCellProofs(b *testing.B) { benchmarkComputeCellProofs(b, false) }
+func benchmarkComputeCellProofs(b *testing.B, ckzg bool) {
+	if ckzg && !ckzgAvailable {
+		b.Skip("CKZG unavailable in this test build")
+	}
+	defer func(old bool) { useCKZG.Store(old) }(useCKZG.Load())
+	useCKZG.Store(ckzg)
+
+	blob := randBlob()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		ComputeCellProofs(blob)
+	}
+}
