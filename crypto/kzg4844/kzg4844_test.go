@@ -247,3 +247,29 @@ func benchmarkComputeCellProofs(b *testing.B, ckzg bool) {
 		ComputeCellProofs(blob)
 	}
 }
+
+func BenchmarkCKZGVerifyCellProofs(b *testing.B)  { benchmarkVerifyCellProofs(b, true) }
+func BenchmarkGoKZGVerifyCellProofs(b *testing.B) { benchmarkVerifyCellProofs(b, false) }
+func benchmarkVerifyCellProofs(b *testing.B, ckzg bool) {
+	if ckzg && !ckzgAvailable {
+		b.Skip("CKZG unavailable in this test build")
+	}
+	defer func(old bool) { useCKZG.Store(old) }(useCKZG.Load())
+	useCKZG.Store(ckzg)
+
+	// Prepare two blobs to exercise the batch path (proofs len = 256)
+	blob1 := randBlob()
+	blob2 := randBlob()
+	commitment1, _ := BlobToCommitment(blob1)
+	commitment2, _ := BlobToCommitment(blob2)
+	proofs1, _ := ComputeCellProofs(blob1)
+	proofs2, _ := ComputeCellProofs(blob2)
+	blobs := []Blob{*blob1, *blob2}
+	commitments := []Commitment{commitment1, commitment2}
+	proofs := append(proofs1, proofs2...)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		VerifyCellProofs(blobs, commitments, proofs)
+	}
+}
