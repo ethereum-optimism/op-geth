@@ -110,12 +110,16 @@ func VerifyEIP4844Header(config *params.ChainConfig, parent, header *types.Heade
 		return errors.New("header is missing blobGasUsed")
 	}
 
-	// Verify that the blob gas used remains within reasonable limits.
-	if !config.IsOptimism() && *header.BlobGasUsed > bcfg.maxBlobGas() {
-		return fmt.Errorf("blob gas used %d exceeds maximum allowance %d", *header.BlobGasUsed, bcfg.maxBlobGas())
-	}
-	if *header.BlobGasUsed%params.BlobTxBlobGasPerBlob != 0 {
-		return fmt.Errorf("blob gas used %d not a multiple of blob gas per blob %d", header.BlobGasUsed, params.BlobTxBlobGasPerBlob)
+	// OP Stack sets a zero blobGasUsed pre-Jovian. Post-Jovian, it stores the DA footprint, which is
+	// probably not a multiple of [params.BlobTxBlobGasPerBlob].
+	if !config.IsOptimism() {
+		// Verify that the blob gas used remains within reasonable limits.
+		if *header.BlobGasUsed > bcfg.maxBlobGas() {
+			return fmt.Errorf("blob gas used %d exceeds maximum allowance %d", *header.BlobGasUsed, bcfg.maxBlobGas())
+		}
+		if *header.BlobGasUsed%params.BlobTxBlobGasPerBlob != 0 {
+			return fmt.Errorf("blob gas used %d not a multiple of blob gas per blob %d", header.BlobGasUsed, params.BlobTxBlobGasPerBlob)
+		}
 	}
 
 	// Verify the excessBlobGas is correct based on the parent header

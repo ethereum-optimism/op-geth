@@ -129,14 +129,6 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 		requests = [][]byte{}
 	}
 
-	if p.config.IsDAFootprintBlockLimit(block.Time()) {
-		gasUsed, err := types.CalcGasUsedJovian(block.Transactions(), *usedGas)
-		if err != nil {
-			return nil, fmt.Errorf("failed to calculate Jovian gas used: %w", err)
-		}
-		*usedGas = gasUsed
-	}
-
 	// Finalize the block, applying any consensus engine specific extras (e.g. block rewards)
 	p.chain.engine.Finalize(p.chain, header, tracingStateDB, block.Body())
 
