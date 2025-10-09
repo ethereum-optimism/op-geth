@@ -98,11 +98,17 @@ var (
 		ShanghaiTime:            newUint64(1696000704),
 		CancunTime:              newUint64(1707305664),
 		PragueTime:              newUint64(1740434112),
+		OsakaTime:               newUint64(1759308480),
+		BPO1Time:                newUint64(1759800000),
+		BPO2Time:                newUint64(1760389824),
 		DepositContractAddress:  common.HexToAddress("0x4242424242424242424242424242424242424242"),
 		Ethash:                  new(EthashConfig),
 		BlobScheduleConfig: &BlobScheduleConfig{
 			Cancun: DefaultCancunBlobConfig,
 			Prague: DefaultPragueBlobConfig,
+			Osaka:  DefaultOsakaBlobConfig,
+			BPO1:   DefaultBPO1BlobConfig,
+			BPO2:   DefaultBPO2BlobConfig,
 		},
 	}
 	// SepoliaChainConfig contains the chain parameters to run a node on the Sepolia test network.
@@ -128,11 +134,17 @@ var (
 		ShanghaiTime:            newUint64(1677557088),
 		CancunTime:              newUint64(1706655072),
 		PragueTime:              newUint64(1741159776),
+		OsakaTime:               newUint64(1760427360),
+		BPO1Time:                newUint64(1761017184),
+		BPO2Time:                newUint64(1761607008),
 		DepositContractAddress:  common.HexToAddress("0x7f02c3e3c98b133055b8b348b2ac625669ed295d"),
 		Ethash:                  new(EthashConfig),
 		BlobScheduleConfig: &BlobScheduleConfig{
 			Cancun: DefaultCancunBlobConfig,
 			Prague: DefaultPragueBlobConfig,
+			Osaka:  DefaultOsakaBlobConfig,
+			BPO1:   DefaultBPO1BlobConfig,
+			BPO2:   DefaultBPO2BlobConfig,
 		},
 	}
 	// HoodiChainConfig contains the chain parameters to run a node on the Hoodi test network.
@@ -158,11 +170,17 @@ var (
 		ShanghaiTime:            newUint64(0),
 		CancunTime:              newUint64(0),
 		PragueTime:              newUint64(1742999832),
+		OsakaTime:               newUint64(1761677592),
+		BPO1Time:                newUint64(1762365720),
+		BPO2Time:                newUint64(1762955544),
 		DepositContractAddress:  common.HexToAddress("0x00000000219ab540356cBB839Cbe05303d7705Fa"),
 		Ethash:                  new(EthashConfig),
 		BlobScheduleConfig: &BlobScheduleConfig{
 			Cancun: DefaultCancunBlobConfig,
 			Prague: DefaultPragueBlobConfig,
+			Osaka:  DefaultOsakaBlobConfig,
+			BPO1:   DefaultBPO1BlobConfig,
+			BPO2:   DefaultBPO2BlobConfig,
 		},
 	}
 	// AllEthashProtocolChanges contains every protocol change (EIPs) introduced
@@ -393,6 +411,30 @@ var (
 		Target:         6,
 		Max:            9,
 		UpdateFraction: 5007716,
+	}
+	// DefaultBPO1BlobConfig is the default blob configuration for the Osaka fork.
+	DefaultBPO1BlobConfig = &BlobConfig{
+		Target:         10,
+		Max:            15,
+		UpdateFraction: 8346193,
+	}
+	// DefaultBPO1BlobConfig is the default blob configuration for the Osaka fork.
+	DefaultBPO2BlobConfig = &BlobConfig{
+		Target:         14,
+		Max:            21,
+		UpdateFraction: 11684671,
+	}
+	// DefaultBPO1BlobConfig is the default blob configuration for the Osaka fork.
+	DefaultBPO3BlobConfig = &BlobConfig{
+		Target:         21,
+		Max:            32,
+		UpdateFraction: 20609697,
+	}
+	// DefaultBPO1BlobConfig is the default blob configuration for the Osaka fork.
+	DefaultBPO4BlobConfig = &BlobConfig{
+		Target:         14,
+		Max:            21,
+		UpdateFraction: 13739630,
 	}
 	// DefaultBlobSchedule is the latest configured blob schedule for Ethereum mainnet.
 	DefaultBlobSchedule = &BlobScheduleConfig{
@@ -1205,6 +1247,16 @@ func (c *ChainConfig) LatestFork(time uint64) forks.Fork {
 	london := c.LondonBlock
 
 	switch {
+	case c.IsBPO5(london, time):
+		return forks.BPO5
+	case c.IsBPO4(london, time):
+		return forks.BPO4
+	case c.IsBPO3(london, time):
+		return forks.BPO3
+	case c.IsBPO2(london, time):
+		return forks.BPO2
+	case c.IsBPO1(london, time):
+		return forks.BPO1
 	case c.IsOsaka(london, time):
 		return forks.Osaka
 	case c.IsPrague(london, time):
@@ -1223,12 +1275,22 @@ func (c *ChainConfig) BlobConfig(fork forks.Fork) *BlobConfig {
 	// TODO: https://github.com/ethereum-optimism/op-geth/issues/685
 	// This function has a bug.
 	switch fork {
+	case forks.BPO5:
+		return c.BlobScheduleConfig.BPO5
+	case forks.BPO4:
+		return c.BlobScheduleConfig.BPO4
+	case forks.BPO3:
+		return c.BlobScheduleConfig.BPO3
+	case forks.BPO2:
+		return c.BlobScheduleConfig.BPO2
+	case forks.BPO1:
+		return c.BlobScheduleConfig.BPO1
 	case forks.Osaka:
-		return DefaultOsakaBlobConfig
+		return c.BlobScheduleConfig.Osaka
 	case forks.Prague:
-		return DefaultPragueBlobConfig
+		return c.BlobScheduleConfig.Prague
 	case forks.Cancun:
-		return DefaultCancunBlobConfig
+		return c.BlobScheduleConfig.Cancun
 	default:
 		return nil
 	}
@@ -1258,6 +1320,16 @@ func (c *ChainConfig) ActiveSystemContracts(time uint64) map[string]common.Addre
 // the fork isn't defined or isn't a time-based fork.
 func (c *ChainConfig) Timestamp(fork forks.Fork) *uint64 {
 	switch {
+	case fork == forks.BPO5:
+		return c.BPO5Time
+	case fork == forks.BPO4:
+		return c.BPO4Time
+	case fork == forks.BPO3:
+		return c.BPO3Time
+	case fork == forks.BPO2:
+		return c.BPO2Time
+	case fork == forks.BPO1:
+		return c.BPO1Time
 	case fork == forks.Osaka:
 		return c.OsakaTime
 	case fork == forks.Prague:
