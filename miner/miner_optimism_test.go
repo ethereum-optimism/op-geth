@@ -1,6 +1,7 @@
 package miner
 
 import (
+	"encoding/binary"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -12,6 +13,8 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/stretchr/testify/require"
 )
+
+const testDAFootprintGasScalar = 400
 
 // TestDAFootprintMining tests that the miner correctly limits the DA footprint of the block.
 // It builds a block via the miner from txpool
@@ -40,7 +43,7 @@ func TestDAFootprintMining(t *testing.T) {
 			if txs[i].IsDepositTx() {
 				continue
 			}
-			daFootprint += txs[i].RollupCostData().EstimatedDASize().Uint64() * params.DAFootprintGasScalar
+			daFootprint += txs[i].RollupCostData().EstimatedDASize().Uint64() * testDAFootprintGasScalar
 		}
 		require.Less(t, txGas, block.GasUsed(), "total tx gas used must be smaller than block gas used")
 		require.Equal(t, daFootprint, block.GasUsed(), "total DA footprint used should be equal to block gas used")
@@ -79,16 +82,23 @@ func testMineAndExecute(t *testing.T, numTxs uint64, cfg *params.ChainConfig, as
 		}
 	}
 
+	parent := b.chain.CurrentBlock()
+	ts := parent.Time + 12
+	dtx := new(types.DepositTx)
+	if cfg.IsDAFootprintBlockLimit(parent.Time) {
+		dtx = jovianDepositTx(testDAFootprintGasScalar)
+	}
+
 	genParams := &generateParams{
 		parentHash:    b.chain.CurrentBlock().Hash(),
-		timestamp:     b.chain.CurrentBlock().Time + 12,
+		timestamp:     ts,
 		withdrawals:   types.Withdrawals{},
 		beaconRoot:    new(common.Hash),
 		gasLimit:      ptr(uint64(1e6)), // Small gas limit to easily fill block
-		txs:           types.Transactions{types.NewTx(&types.DepositTx{})},
+		txs:           types.Transactions{types.NewTx(dtx)},
 		eip1559Params: eip1559.EncodeHolocene1559Params(250, 6),
 	}
-	if cfg.IsJovian(b.chain.CurrentBlock().Time) {
+	if cfg.IsMinBaseFee(ts) {
 		genParams.minBaseFee = new(uint64)
 	}
 	r := w.generateWork(genParams, false)
@@ -100,6 +110,13 @@ func testMineAndExecute(t *testing.T, numTxs uint64, cfg *params.ChainConfig, as
 	// Import the block into the chain, which executes it via StateProcessor.
 	_, err := b.chain.InsertChain(types.Blocks{r.block})
 	require.NoError(t, err, "block import/execution failed")
+}
+
+func jovianDepositTx(daFootprintGasScalar uint16) *types.DepositTx {
+	data := make([]byte, types.JovianL1AttributesLen)
+	copy(data[0:4], types.JovianL1AttributesSelector)
+	binary.BigEndian.PutUint16(data[types.JovianL1AttributesLen-2:types.JovianL1AttributesLen], daFootprintGasScalar)
+	return &types.DepositTx{Data: data}
 }
 
 func ptr[T any](v T) *T {

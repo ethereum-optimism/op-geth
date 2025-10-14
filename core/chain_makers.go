@@ -421,6 +421,14 @@ func GenerateChain(config *params.ChainConfig, parent *types.Block, engine conse
 			b.header.RequestsHash = &reqHash
 		}
 
+		if config.IsDAFootprintBlockLimit(b.header.Time) {
+			gasUsed, err := types.CalcGasUsedJovian(b.txs, b.header.GasUsed)
+			if err != nil {
+				panic(err)
+			}
+			b.header.GasUsed = gasUsed
+		}
+
 		body := types.Body{Transactions: b.txs, Uncles: b.uncles, Withdrawals: b.withdrawals}
 		block, err := b.engine.FinalizeAndAssemble(cm, b.header, statedb, &body, b.receipts)
 		if err != nil {
