@@ -83,6 +83,7 @@ var (
 	// attributes
 	OperatorFeeParamsSlot = common.BigToHash(big.NewInt(8))
 
+	oneHundred     = big.NewInt(100)
 	oneMillion     = big.NewInt(1_000_000)
 	ecotoneDivisor = big.NewInt(1_000_000 * 16)
 	fjordDivisor   = big.NewInt(1_000_000_000_000)
@@ -232,7 +233,11 @@ func NewOperatorCostFunc(config *params.ChainConfig, statedb StateGetter) Operat
 		}
 		operatorFeeScalar, operatorFeeConstant := ExtractOperatorFeeParams(operatorFeeParams)
 
-		return newOperatorCostFunc(operatorFeeScalar, operatorFeeConstant)
+		// Return the Operator Fee fix version if the feature is active
+		if config.IsOperatorFeeFix(blockTime) {
+			return newOperatorCostFuncOperatorFeeFix(operatorFeeScalar, operatorFeeConstant)
+		}
+		return newOperatorCostFuncIsthmus(operatorFeeScalar, operatorFeeConstant)
 	}
 
 	return func(gas uint64, blockTime uint64) *uint256.Int {
@@ -245,7 +250,8 @@ func NewOperatorCostFunc(config *params.ChainConfig, statedb StateGetter) Operat
 	}
 }
 
-func newOperatorCostFunc(operatorFeeScalar *big.Int, operatorFeeConstant *big.Int) operatorCostFunc {
+// newOperatorCostFuncIsthmus returns the operator cost function introduced with Isthmus.
+func newOperatorCostFuncIsthmus(operatorFeeScalar *big.Int, operatorFeeConstant *big.Int) operatorCostFunc {
 	return func(gas uint64) *uint256.Int {
 		fee := new(big.Int).SetUint64(gas)
 		fee = fee.Mul(fee, operatorFeeScalar)
@@ -254,7 +260,25 @@ func newOperatorCostFunc(operatorFeeScalar *big.Int, operatorFeeConstant *big.In
 
 		feeU256, overflow := uint256.FromBig(fee)
 		if overflow {
-			// This should never happen, as (u64.max * u32.max / 1e6) + u64.max is an int of bit length 77
+			// This should never happen, as ((u64.max * u32.max) / 1e6) + u64.max fits in 77 bits
+			panic("overflow in operator cost calculation")
+		}
+
+		return feeU256
+	}
+}
+
+// newOperatorCostFuncOperatorFeeFix returns the operator cost function for the operator fee fix feature.
+func newOperatorCostFuncOperatorFeeFix(operatorFeeScalar *big.Int, operatorFeeConstant *big.Int) operatorCostFunc {
+	return func(gas uint64) *uint256.Int {
+		fee := new(big.Int).SetUint64(gas)
+		fee = fee.Mul(fee, operatorFeeScalar)
+		fee = fee.Mul(fee, oneHundred)
+		fee = fee.Add(fee, operatorFeeConstant)
+
+		feeU256, overflow := uint256.FromBig(fee)
+		if overflow {
+			// This should never happen, as (u64.max * u32.max * 100) + u64.max fits in 103 bits
 			panic("overflow in operator cost calculation")
 		}
 
