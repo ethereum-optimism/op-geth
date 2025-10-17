@@ -106,13 +106,30 @@ func (v *BlockValidator) ValidateBody(block *types.Block) error {
 	}
 
 	// Check blob gas usage.
-	if header.BlobGasUsed != nil {
+	if !v.config.IsOptimism() && header.BlobGasUsed != nil {
 		if want := *header.BlobGasUsed / params.BlobTxBlobGasPerBlob; uint64(blobs) != want { // div because the header is surely good vs the body might be bloated
 			return fmt.Errorf("blob gas used mismatch (header %v, calculated %v)", *header.BlobGasUsed, blobs*params.BlobTxBlobGasPerBlob)
 		}
 	} else {
 		if blobs > 0 {
 			return errors.New("data blobs present in block body")
+		}
+	}
+
+	// OP Stack Jovian DA footprint block limit.
+	if v.config.IsDAFootprintBlockLimit(header.Time) {
+		if header.BlobGasUsed == nil {
+			return errors.New("nil blob gas used in post-Jovian block header, should store DA footprint")
+		}
+		blobGasUsed := *header.BlobGasUsed
+		daFootprint, err := types.CalcDAFootprint(block.Transactions())
+		if err != nil {
+			return fmt.Errorf("failed to calculate DA footprint: %w", err)
+		} else if blobGasUsed != daFootprint {
+			return fmt.Errorf("invalid DA footprint in blobGasUsed field (remote: %d local: %d)", blobGasUsed, daFootprint)
+		}
+		if daFootprint > block.GasLimit() {
+			return fmt.Errorf("DA footprint %d exceeds block gas limit %d", daFootprint, block.GasLimit())
 		}
 	}
 
