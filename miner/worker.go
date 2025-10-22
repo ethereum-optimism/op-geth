@@ -312,7 +312,7 @@ func (miner *Miner) prepareWork(genParams *generateParams, witness bool) (*envir
 		// configure the gas limit of pending blocks with the miner gas limit config when using optimism
 		header.GasLimit = miner.config.GasCeil
 	}
-	if miner.chainConfig.IsMinBaseFee(header.Time) && genParams.minBaseFee == nil {
+	if miner.chainConfig.IsJovian(header.Time) && genParams.minBaseFee == nil {
 		return nil, errors.New("missing minBaseFee")
 	}
 	if cfg := miner.chainConfig; cfg.IsHolocene(header.Time) {
@@ -355,7 +355,7 @@ func (miner *Miner) prepareWork(genParams *generateParams, witness bool) (*envir
 		return nil, err
 	}
 	env.noTxs = genParams.noTxs
-	if miner.chainConfig.IsDAFootprintBlockLimit(parent.Time) {
+	if miner.chainConfig.IsJovian(parent.Time) {
 		if len(genParams.txs) == 0 || !genParams.txs[0].IsDepositTx() {
 			return nil, errors.New("missing L1 attributes deposit transaction")
 		}
@@ -506,7 +506,7 @@ func (miner *Miner) commitTransactions(env *environment, plainTxs, blobTxs *tran
 
 	// OP-Stack additions: throttling and DA footprint limit
 	blockDABytes := new(big.Int)
-	isJovian := miner.chainConfig.IsDAFootprintBlockLimit(env.header.Time)
+	isJovian := miner.chainConfig.IsJovian(env.header.Time)
 	minTransactionDAFootprint := types.MinTransactionSize.Uint64() * uint64(env.daFootprintGasScalar)
 
 	for {

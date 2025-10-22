@@ -1,17 +1,11 @@
 package params
 
 // OPStack diff
-// This file contains ephemeral feature toggles which should be removed
+// This file contains ephemeral feature toggles for the next
+// fork while it is in development. They should be removed
 // after the fork scope is locked.
 
-func (c *ChainConfig) IsMinBaseFee(time uint64) bool {
-	return c.IsJovian(time) // Replace with return false to disable
-}
-
-func (c *ChainConfig) IsDAFootprintBlockLimit(time uint64) bool {
-	return c.IsJovian(time) // Replace with return false to disable
-}
-
-func (c *ChainConfig) IsOperatorFeeFix(time uint64) bool {
-	return c.IsJovian(time) // Replace with return false to disable
-}
+// Example:
+// func (c *ChainConfig) IsMinBaseFee(time uint64) bool {
+// 	return c.IsJovian(time) // Replace with return false to disable
+// }

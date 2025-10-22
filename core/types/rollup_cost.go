@@ -234,7 +234,7 @@ func NewOperatorCostFunc(config *params.ChainConfig, statedb StateGetter) Operat
 		operatorFeeScalar, operatorFeeConstant := ExtractOperatorFeeParams(operatorFeeParams)
 
 		// Return the Operator Fee fix version if the feature is active
-		if config.IsOperatorFeeFix(blockTime) {
+		if config.IsJovian(blockTime) {
 			return newOperatorCostFuncOperatorFeeFix(operatorFeeScalar, operatorFeeConstant)
 		}
 		return newOperatorCostFuncIsthmus(operatorFeeScalar, operatorFeeConstant)

@@ -271,11 +271,11 @@ func newPayloadArgs(parentHash common.Hash, cfg *params.ChainConfig) *BuildPaylo
 		args.EIP1559Params = validEIP1559Params
 	}
 	dtx := new(types.DepositTx)
-	if cfg.IsDAFootprintBlockLimit(args.Timestamp) {
+	if cfg.IsJovian(args.Timestamp) {
 		dtx = jovianDepositTx(testDAFootprintGasScalar)
 	}
 	args.Transactions = []*types.Transaction{types.NewTx(dtx)}
-	if cfg.IsMinBaseFee(args.Timestamp) {
+	if cfg.IsJovian(args.Timestamp) {
 		args.MinBaseFee = ptr(uint64(1e9))
 	}
 
@@ -344,7 +344,7 @@ func testBuildPayload(t *testing.T, noTxPool, interrupt bool, params1559 []byte,
 	var expected []byte
 	if len(params1559) != 0 {
 		versionByte := eip1559.HoloceneExtraDataVersionByte
-		if config.IsMinBaseFee(testTimestamp) {
+		if config.IsJovian(testTimestamp) {
 			versionByte = eip1559.MinBaseFeeExtraDataVersionByte
 		}
 		expected = []byte{versionByte}

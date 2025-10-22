@@ -113,7 +113,7 @@ func testMineAndExecute(t *testing.T, numTxs uint64, cfg *params.ChainConfig, as
 	parent := b.chain.CurrentBlock()
 	ts := parent.Time + 12
 	dtx := new(types.DepositTx)
-	if cfg.IsDAFootprintBlockLimit(parent.Time) {
+	if cfg.IsJovian(parent.Time) {
 		dtx = jovianDepositTx(testDAFootprintGasScalar)
 	}
 
@@ -126,7 +126,7 @@ func testMineAndExecute(t *testing.T, numTxs uint64, cfg *params.ChainConfig, as
 		txs:           types.Transactions{types.NewTx(dtx)},
 		eip1559Params: eip1559.EncodeHolocene1559Params(250, 6),
 	}
-	if cfg.IsMinBaseFee(ts) {
+	if cfg.IsJovian(ts) {
 		genParams.minBaseFee = new(uint64)
 	}
 	r := w.generateWork(genParams, false)

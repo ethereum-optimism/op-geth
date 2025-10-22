@@ -92,7 +92,7 @@ func CalcBaseFee(config *params.ChainConfig, parent *types.Header, time uint64) 
 func calcBaseFeeInner(config *params.ChainConfig, parent *types.Header, elasticity uint64, denominator uint64) *big.Int {
 	parentGasTarget := parent.GasLimit / elasticity
 	parentGasMetered := parent.GasUsed
-	if config.IsDAFootprintBlockLimit(parent.Time) {
+	if config.IsJovian(parent.Time) {
 		if parent.BlobGasUsed == nil {
 			panic("Jovian parent block has nil BlobGasUsed")
 		} else if *parent.BlobGasUsed > parent.GasUsed {

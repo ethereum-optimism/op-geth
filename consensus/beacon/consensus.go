@@ -400,7 +400,7 @@ func (beacon *Beacon) FinalizeAndAssemble(chain consensus.ChainHeaderReader, hea
 
 	// Store DA footprint in BlobGasUsed header field if it hasn't already been set yet.
 	// Builder code may already calculate it during block building to avoid recalculating it here.
-	if chain.Config().IsDAFootprintBlockLimit(header.Time) && (header.BlobGasUsed == nil || *header.BlobGasUsed == 0) {
+	if chain.Config().IsJovian(header.Time) && (header.BlobGasUsed == nil || *header.BlobGasUsed == 0) {
 		daFootprint, err := types.CalcDAFootprint(body.Transactions)
 		if err != nil {
 			return nil, fmt.Errorf("error calculating DA footprint: %w", err)

@@ -117,7 +117,7 @@ func (v *BlockValidator) ValidateBody(block *types.Block) error {
 	}
 
 	// OP Stack Jovian DA footprint block limit.
-	if v.config.IsDAFootprintBlockLimit(header.Time) {
+	if v.config.IsJovian(header.Time) {
 		if header.BlobGasUsed == nil {
 			return errors.New("nil blob gas used in post-Jovian block header, should store DA footprint")
 		}
