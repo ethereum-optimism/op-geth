@@ -94,9 +94,7 @@ func NewHeaderChain(chainDb ethdb.Database, config *params.ChainConfig, engine c
 	headHeaderGauge.Update(hc.CurrentHeader().Number.Int64())
 
 	// OPStack additions
-	headBaseFeeGauge.TryUpdate(hc.CurrentHeader().BaseFee)
-	headGasUsedGauge.Update(int64(hc.CurrentHeader().GasUsed))
-	headBlobGasUsedGauge.TryUpdateUint64(hc.CurrentHeader().BlobGasUsed)
+	updateOptimismBlockMetrics(hc.CurrentHeader())
 	return hc, nil
 }
 
@@ -188,10 +186,8 @@ func (hc *HeaderChain) Reorg(headers []*types.Header) error {
 	hc.currentHeader.Store(types.CopyHeader(last))
 	headHeaderGauge.Update(last.Number.Int64())
 
-	// OPStack additions
-	headBaseFeeGauge.TryUpdate(last.BaseFee)
-	headGasUsedGauge.Update(int64(last.GasUsed))
-	headBlobGasUsedGauge.TryUpdateUint64(last.BlobGasUsed)
+	// OPStack addition
+	updateOptimismBlockMetrics(last)
 	return nil
 }
 
@@ -495,10 +491,8 @@ func (hc *HeaderChain) SetCurrentHeader(head *types.Header) {
 	hc.currentHeaderHash = head.Hash()
 	headHeaderGauge.Update(head.Number.Int64())
 
-	// OPStack additions
-	headBaseFeeGauge.TryUpdate(head.BaseFee)
-	headGasUsedGauge.Update(int64(head.GasUsed))
-	headBlobGasUsedGauge.TryUpdateUint64(head.BlobGasUsed)
+	// OPStack addition
+	updateOptimismBlockMetrics(head)
 }
 
 type (
@@ -586,10 +580,8 @@ func (hc *HeaderChain) setHead(headBlock uint64, headTime uint64, updateFn Updat
 		hc.currentHeaderHash = parentHash
 		headHeaderGauge.Update(parent.Number.Int64())
 
-		// OPStack additions
-		headBaseFeeGauge.TryUpdate(parent.BaseFee)
-		headGasUsedGauge.Update(int64(parent.GasUsed))
-		headBlobGasUsedGauge.TryUpdateUint64(parent.BlobGasUsed)
+		// OPStack addition
+		updateOptimismBlockMetrics(parent)
 
 		// If this is the first iteration, wipe any leftover data upwards too so
 		// we don't end up with dangling daps in the database

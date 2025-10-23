@@ -65,12 +65,6 @@ var (
 	headFinalizedBlockGauge = metrics.NewRegisteredGauge("chain/head/finalized", nil)
 	headSafeBlockGauge      = metrics.NewRegisteredGauge("chain/head/safe", nil)
 
-	// (BEGIN) OPStack additions
-	headBaseFeeGauge     = metrics.NewRegisteredGauge("chain/head/basefee", nil)
-	headGasUsedGauge     = metrics.NewRegisteredGauge("chain/head/gas_used", nil)
-	headBlobGasUsedGauge = metrics.NewRegisteredGauge("chain/head/blob_gas_used", nil)
-	// (END) OPStack additions
-
 	chainInfoGauge   = metrics.NewRegisteredGaugeInfo("chain/info", nil)
 	chainMgaspsMeter = metrics.NewRegisteredResettingTimer("chain/mgasps", nil)
 
@@ -1236,10 +1230,8 @@ func (bc *BlockChain) writeHeadBlock(block *types.Block) {
 	bc.currentBlock.Store(block.Header())
 	headBlockGauge.Update(int64(block.NumberU64()))
 
-	// OPStack additions
-	headBaseFeeGauge.TryUpdate(block.Header().BaseFee)
-	headGasUsedGauge.Update(int64(block.Header().GasUsed))
-	headBlobGasUsedGauge.TryUpdateUint64(block.Header().BlobGasUsed)
+	// OPStack addition
+	updateOptimismBlockMetrics(block.Header())
 }
 
 // stopWithoutSaving stops the blockchain service. If any imports are currently in progress
@@ -1408,10 +1400,8 @@ func (bc *BlockChain) InsertReceiptChain(blockChain types.Blocks, receiptChain [
 		headHeaderGauge.Update(header.Number.Int64())
 		headFastBlockGauge.Update(header.Number.Int64())
 
-		// OPStack additions
-		headBaseFeeGauge.TryUpdate(header.BaseFee)
-		headGasUsedGauge.Update(int64(header.GasUsed))
-		headBlobGasUsedGauge.TryUpdateUint64(header.BlobGasUsed)
+		// OPStack addition
+		updateOptimismBlockMetrics(header)
 		return nil
 	}
 	// writeAncient writes blockchain and corresponding receipt chain into ancient store.
@@ -2785,10 +2775,8 @@ func (bc *BlockChain) InsertHeadersBeforeCutoff(headers []*types.Header) (int, e
 	headHeaderGauge.Update(last.Number.Int64())
 	headFastBlockGauge.Update(last.Number.Int64())
 
-	// OPStack additions
-	headBaseFeeGauge.TryUpdate(last.BaseFee)
-	headGasUsedGauge.Update(int64(last.GasUsed))
-	headBlobGasUsedGauge.TryUpdateUint64(last.BlobGasUsed)
+	// OPStack addition
+	updateOptimismBlockMetrics(last)
 	return 0, nil
 }
 
