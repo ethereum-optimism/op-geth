@@ -45,7 +45,7 @@ func (g *Gauge) Update(v int64) {
 	(*atomic.Int64)(g).Store(v)
 }
 
-// OPStack additon
+// OPStack addition
 // TryUpdate updates the gauge if the value is non-nil, converting it to int64.
 func (g *Gauge) TryUpdate(v *big.Int) {
 	if v == nil {

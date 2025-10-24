@@ -93,7 +93,7 @@ func NewHeaderChain(chainDb ethdb.Database, config *params.ChainConfig, engine c
 	hc.currentHeaderHash = hc.CurrentHeader().Hash()
 	headHeaderGauge.Update(hc.CurrentHeader().Number.Int64())
 
-	// OPStack additions
+	// OPStack addition
 	updateOptimismBlockMetrics(hc.CurrentHeader())
 	return hc, nil
 }
