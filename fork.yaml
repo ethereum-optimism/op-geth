@@ -199,7 +199,10 @@ def:
         - title: Warn on missing hardfork data and emit additional metrics
           globs:
             - "core/blockchain.go"
-        - title: Additional metrics
+        - title: Define additional header-based metrics
+          globs:
+            - "core/blockchain_optimism.go"
+        - title: Add hooks for additional header-chain metrics
           globs:
             - "core/headerchain.go"
         - title: Optional Engine API extensions
