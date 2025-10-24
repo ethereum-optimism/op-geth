@@ -160,6 +160,7 @@ var (
 		utils.RollupInteropRPCFlag,
 		utils.RollupInteropMempoolFilteringFlag,
 		utils.RollupDisableTxPoolGossipFlag,
+		utils.RollupNetrestrictTxPoolGossipFlag,
 		utils.RollupEnableTxPoolAdmissionFlag,
 		utils.RollupComputePendingBlock,
 		utils.RollupHaltOnIncompatibleProtocolVersionFlag,
