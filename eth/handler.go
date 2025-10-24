@@ -44,6 +44,7 @@ import (
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
+	"github.com/ethereum/go-ethereum/p2p/netutil"
 )
 
 const (
@@ -97,16 +98,17 @@ type txPool interface {
 // handlerConfig is the collection of initialization parameters to create a full
 // node network handler.
 type handlerConfig struct {
-	NodeID         enode.ID               // P2P node ID used for tx propagation topology
-	Database       ethdb.Database         // Database for direct sync insertions
-	Chain          *core.BlockChain       // Blockchain to serve data from
-	TxPool         txPool                 // Transaction pool to propagate from
-	Network        uint64                 // Network identifier to advertise
-	Sync           ethconfig.SyncMode     // Whether to snap or full sync
-	BloomCache     uint64                 // Megabytes to alloc for snap sync bloom
-	EventMux       *event.TypeMux         // Legacy event mux, deprecate for `feed`
-	RequiredBlocks map[uint64]common.Hash // Hard coded map of required block hashes for sync challenges
-	NoTxGossip     bool                   // Disable P2P transaction gossip
+	NodeID              enode.ID               // P2P node ID used for tx propagation topology
+	Database            ethdb.Database         // Database for direct sync insertions
+	Chain               *core.BlockChain       // Blockchain to serve data from
+	TxPool              txPool                 // Transaction pool to propagate from
+	Network             uint64                 // Network identifier to advertise
+	Sync                ethconfig.SyncMode     // Whether to snap or full sync
+	BloomCache          uint64                 // Megabytes to alloc for snap sync bloom
+	EventMux            *event.TypeMux         // Legacy event mux, deprecate for `feed`
+	RequiredBlocks      map[uint64]common.Hash // Hard coded map of required block hashes for sync challenges
+	NoTxGossip          bool                   // Disable P2P transaction gossip
+	TxGossipNetRestrict *netutil.Netlist       // Restrict tx gossip to specific IP networks
 }
 
 type handler struct {
@@ -121,7 +123,8 @@ type handler struct {
 	chain    *core.BlockChain
 	maxPeers int
 
-	noTxGossip bool
+	noTxGossip          bool
+	txGossipNetRestrict *netutil.Netlist
 
 	downloader     *downloader.Downloader
 	txFetcher      *fetcher.TxFetcher
@@ -151,19 +154,20 @@ func newHandler(config *handlerConfig) (*handler, error) {
 		config.EventMux = new(event.TypeMux) // Nicety initialization for tests
 	}
 	h := &handler{
-		nodeID:         config.NodeID,
-		networkID:      config.Network,
-		eventMux:       config.EventMux,
-		database:       config.Database,
-		txpool:         config.TxPool,
-		noTxGossip:     config.NoTxGossip,
-		chain:          config.Chain,
-		peers:          newPeerSet(),
-		txBroadcastKey: newBroadcastChoiceKey(),
-		requiredBlocks: config.RequiredBlocks,
-		quitSync:       make(chan struct{}),
-		handlerDoneCh:  make(chan struct{}),
-		handlerStartCh: make(chan struct{}),
+		nodeID:              config.NodeID,
+		networkID:           config.Network,
+		eventMux:            config.EventMux,
+		database:            config.Database,
+		txpool:              config.TxPool,
+		noTxGossip:          config.NoTxGossip,
+		txGossipNetRestrict: config.TxGossipNetRestrict,
+		chain:               config.Chain,
+		peers:               newPeerSet(),
+		txBroadcastKey:      newBroadcastChoiceKey(),
+		requiredBlocks:      config.RequiredBlocks,
+		quitSync:            make(chan struct{}),
+		handlerDoneCh:       make(chan struct{}),
+		handlerStartCh:      make(chan struct{}),
 	}
 	if config.Sync == ethconfig.FullSync {
 		// The database seems empty as the current block is the genesis. Yet the snap
@@ -510,6 +514,10 @@ func (h *handler) BroadcastTransactions(txs types.Transactions) {
 
 		for _, peer := range peers {
 			if peer.KnownTransaction(tx.Hash()) {
+				continue
+			}
+			// Check if peer is allowed by txpool gossip netrestrict
+			if h.txGossipNetRestrict != nil && !h.txGossipNetRestrict.ContainsAddr(peer.Node().IPAddr()) {
 				continue
 			}
 			if _, ok := directSet[peer]; ok {

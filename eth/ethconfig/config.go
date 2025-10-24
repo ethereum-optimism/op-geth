@@ -190,6 +190,7 @@ type Config struct {
 	RollupHistoricalRPC                       string
 	RollupHistoricalRPCTimeout                time.Duration
 	RollupDisableTxPoolGossip                 bool
+	RollupNetrestrictTxPoolGossip             string
 	RollupDisableTxPoolAdmission              bool
 	RollupHaltOnIncompatibleProtocolVersion   string
 

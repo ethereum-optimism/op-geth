@@ -71,6 +71,7 @@ func (c Config) MarshalTOML() (interface{}, error) {
 		RollupHistoricalRPC                       string
 		RollupHistoricalRPCTimeout                time.Duration
 		RollupDisableTxPoolGossip                 bool
+		RollupNetrestrictTxPoolGossip             string
 		RollupDisableTxPoolAdmission              bool
 		RollupHaltOnIncompatibleProtocolVersion   string
 		InteropMessageRPC                         string `toml:",omitempty"`
@@ -131,6 +132,7 @@ func (c Config) MarshalTOML() (interface{}, error) {
 	enc.RollupHistoricalRPC = c.RollupHistoricalRPC
 	enc.RollupHistoricalRPCTimeout = c.RollupHistoricalRPCTimeout
 	enc.RollupDisableTxPoolGossip = c.RollupDisableTxPoolGossip
+	enc.RollupNetrestrictTxPoolGossip = c.RollupNetrestrictTxPoolGossip
 	enc.RollupDisableTxPoolAdmission = c.RollupDisableTxPoolAdmission
 	enc.RollupHaltOnIncompatibleProtocolVersion = c.RollupHaltOnIncompatibleProtocolVersion
 	enc.InteropMessageRPC = c.InteropMessageRPC
@@ -195,6 +197,7 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 		RollupHistoricalRPC                       *string
 		RollupHistoricalRPCTimeout                *time.Duration
 		RollupDisableTxPoolGossip                 *bool
+		RollupNetrestrictTxPoolGossip             *string
 		RollupDisableTxPoolAdmission              *bool
 		RollupHaltOnIncompatibleProtocolVersion   *string
 		InteropMessageRPC                         *string `toml:",omitempty"`
@@ -365,6 +368,9 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 	}
 	if dec.RollupDisableTxPoolGossip != nil {
 		c.RollupDisableTxPoolGossip = *dec.RollupDisableTxPoolGossip
+	}
+	if dec.RollupNetrestrictTxPoolGossip != nil {
+		c.RollupNetrestrictTxPoolGossip = *dec.RollupNetrestrictTxPoolGossip
 	}
 	if dec.RollupDisableTxPoolAdmission != nil {
 		c.RollupDisableTxPoolAdmission = *dec.RollupDisableTxPoolAdmission

@@ -989,6 +989,11 @@ var (
 		Usage:    "Disable transaction pool gossip.",
 		Category: flags.RollupCategory,
 	}
+	RollupNetrestrictTxPoolGossipFlag = &cli.StringFlag{
+		Name:     "rollup.netrestricttxpoolgossip",
+		Usage:    "Restricts transaction pool gossip to the given IP networks (CIDR masks)",
+		Category: flags.RollupCategory,
+	}
 	RollupEnableTxPoolAdmissionFlag = &cli.BoolFlag{
 		Name:     "rollup.enabletxpooladmission",
 		Usage:    "Add RPC-submitted transactions to the txpool (on by default if --rollup.sequencerhttp is not set).",
@@ -1924,6 +1929,7 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 		cfg.InteropMempoolFiltering = ctx.Bool(RollupInteropMempoolFilteringFlag.Name)
 	}
 	cfg.RollupDisableTxPoolGossip = ctx.Bool(RollupDisableTxPoolGossipFlag.Name)
+	cfg.RollupNetrestrictTxPoolGossip = ctx.String(RollupNetrestrictTxPoolGossipFlag.Name)
 	cfg.RollupDisableTxPoolAdmission = cfg.RollupSequencerHTTP != "" && !ctx.Bool(RollupEnableTxPoolAdmissionFlag.Name)
 	cfg.RollupHaltOnIncompatibleProtocolVersion = ctx.String(RollupHaltOnIncompatibleProtocolVersionFlag.Name)
 	cfg.ApplySuperchainUpgrades = ctx.Bool(RollupSuperchainUpgradesFlag.Name)
