@@ -74,6 +74,11 @@ var allPrecompiles = map[common.Address]PrecompiledContract{
 	common.BytesToAddress([]byte{0x0b}): &p256Verify{},
 
 	common.BytesToAddress([]byte{0x01, 0x00}): &p256VerifyFjord{},
+
+	common.BytesToAddress([]byte{0x2f, 0x08}): &bn256PairingJovian{},
+	common.BytesToAddress([]byte{0x2f, 0x0e}): &bls12381PairingJovian{},
+	common.BytesToAddress([]byte{0x2f, 0x0b}): &bls12381G1MultiExpJovian{},
+	common.BytesToAddress([]byte{0x2f, 0x0d}): &bls12381G2MultiExpJovian{},
 }
 
 // EIP-152 test vectors
