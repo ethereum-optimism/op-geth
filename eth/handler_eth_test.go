@@ -32,6 +32,7 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
+	"github.com/ethereum/go-ethereum/p2p/netutil"
 	"github.com/ethereum/go-ethereum/params"
 )
 
@@ -43,11 +44,12 @@ type testEthHandler struct {
 	txBroadcasts    event.Feed
 }
 
-func (h *testEthHandler) Chain() *core.BlockChain              { panic("no backing chain") }
-func (h *testEthHandler) TxPool() eth.TxPool                   { panic("no backing tx pool") }
-func (h *testEthHandler) AcceptTxs() bool                      { return true }
-func (h *testEthHandler) RunPeer(*eth.Peer, eth.Handler) error { panic("not used in tests") }
-func (h *testEthHandler) PeerInfo(enode.ID) interface{}        { panic("not used in tests") }
+func (h *testEthHandler) Chain() *core.BlockChain               { panic("no backing chain") }
+func (h *testEthHandler) TxPool() eth.TxPool                    { panic("no backing tx pool") }
+func (h *testEthHandler) AcceptTxs() bool                       { return true }
+func (h *testEthHandler) RunPeer(*eth.Peer, eth.Handler) error  { panic("not used in tests") }
+func (h *testEthHandler) PeerInfo(enode.ID) interface{}         { panic("not used in tests") }
+func (h *testEthHandler) TxGossipNetRestrict() *netutil.Netlist { return nil }
 
 func (h *testEthHandler) Handle(peer *eth.Peer, packet eth.Packet) error {
 	switch packet := packet.(type) {
