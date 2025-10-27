@@ -317,8 +317,8 @@ func (h *handler) runEthPeer(peer *eth.Peer, handler eth.Handler) error {
 			return err
 		}
 	}
-	// Check if peer is allowed by txpool gossip netrestrict
-	if h.txGossipNetRestrict != nil && h.txGossipNetRestrict.ContainsAddr(peer.Node().IPAddr()) {
+
+	if peer.IsAllowedForTxGossip() {
 		// Propagate existing transactions. new transactions appearing
 		// after this will be sent via broadcasts.
 		h.syncTransactions(peer)
@@ -519,8 +519,7 @@ func (h *handler) BroadcastTransactions(txs types.Transactions) {
 			if peer.KnownTransaction(tx.Hash()) {
 				continue
 			}
-			// Check if peer is allowed by txpool gossip netrestrict
-			if h.txGossipNetRestrict != nil && !h.txGossipNetRestrict.ContainsAddr(peer.Node().IPAddr()) {
+			if !peer.IsAllowedForTxGossip() {
 				continue
 			}
 			if _, ok := directSet[peer]; ok {

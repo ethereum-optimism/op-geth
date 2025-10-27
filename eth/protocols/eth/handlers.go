@@ -437,6 +437,10 @@ func handleNewPooledTransactionHashes(backend Backend, msg Decoder, peer *Peer) 
 	if !backend.AcceptTxs() {
 		return nil
 	}
+	// Check if peer is allowed for transaction gossip
+	if !peer.IsAllowedForTxGossip() {
+		return nil
+	}
 	ann := new(NewPooledTransactionHashesPacket)
 	if err := msg.Decode(ann); err != nil {
 		return err
@@ -452,6 +456,10 @@ func handleNewPooledTransactionHashes(backend Backend, msg Decoder, peer *Peer) 
 }
 
 func handleGetPooledTransactions(backend Backend, msg Decoder, peer *Peer) error {
+	// Check if peer is allowed for transaction gossip
+	if !peer.IsAllowedForTxGossip() {
+		return nil
+	}
 	// Decode the pooled transactions retrieval message
 	var query GetPooledTransactionsPacket
 	if err := msg.Decode(&query); err != nil {
@@ -489,6 +497,10 @@ func handleTransactions(backend Backend, msg Decoder, peer *Peer) error {
 	if !backend.AcceptTxs() {
 		return nil
 	}
+	// Check if peer is allowed for transaction gossip
+	if !peer.IsAllowedForTxGossip() {
+		return nil
+	}
 	// Transactions can be processed, parse all of them and deliver to the pool
 	var txs TransactionsPacket
 	if err := msg.Decode(&txs); err != nil {
@@ -507,6 +519,10 @@ func handleTransactions(backend Backend, msg Decoder, peer *Peer) error {
 func handlePooledTransactions(backend Backend, msg Decoder, peer *Peer) error {
 	// Transactions arrived, make sure we have a valid and fresh chain to handle them
 	if !backend.AcceptTxs() {
+		return nil
+	}
+	// Check if peer is allowed for transaction gossip
+	if !peer.IsAllowedForTxGossip() {
 		return nil
 	}
 	// Transactions can be processed, parse all of them and deliver to the pool
