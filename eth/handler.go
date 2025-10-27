@@ -317,9 +317,12 @@ func (h *handler) runEthPeer(peer *eth.Peer, handler eth.Handler) error {
 			return err
 		}
 	}
-	// Propagate existing transactions. new transactions appearing
-	// after this will be sent via broadcasts.
-	h.syncTransactions(peer)
+	// Check if peer is allowed by txpool gossip netrestrict
+	if h.txGossipNetRestrict != nil && h.txGossipNetRestrict.ContainsAddr(peer.Node().IPAddr()) {
+		// Propagate existing transactions. new transactions appearing
+		// after this will be sent via broadcasts.
+		h.syncTransactions(peer)
+	}
 
 	// Create a notification channel for pending requests if the peer goes down
 	dead := make(chan struct{})
