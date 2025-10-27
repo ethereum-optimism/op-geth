@@ -253,12 +253,15 @@ def:
     - title: "User API enhancements"
       description: "Encode the Deposit Tx properties, the L1 costs, and daisy-chain RPC-calls for pre-Bedrock historical data"
       sub:
-        - title: "Receipts metadata"
+        - title: "Receipts metadata & deposit receipts"
           description: |
             Pre-Bedrock L1-cost receipt data is loaded from the database if available, and post-Bedrock the L1-cost
             metadata is hydrated on-the-fly based on the L1 fee information in the corresponding block.
+            We also populate receipts with L1 block attributes like Operator Fee and DA Footprint parameters.
+            Furthermore, OP Stack introduces Deposit receipts, a special kind of receipts for Deposit transactions.
           globs:
             - "core/types/receipt.go"
+            - "core/types/receipt_opstack.go"
             - "core/types/gen_receipt_json.go"
             - "core/rawdb/accessors_chain.go"
         - title: "API Backend"

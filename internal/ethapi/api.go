@@ -1710,7 +1710,7 @@ func marshalReceipt(receipt *types.Receipt, blockHash common.Hash, blockNumber u
 		"effectiveGasPrice": (*hexutil.Big)(receipt.EffectiveGasPrice),
 	}
 
-	if chainConfig.Optimism != nil && !tx.IsDepositTx() {
+	if chainConfig.IsOptimism() && !tx.IsDepositTx() {
 		fields["l1GasPrice"] = (*hexutil.Big)(receipt.L1GasPrice)
 		fields["l1GasUsed"] = (*hexutil.Big)(receipt.L1GasUsed)
 		fields["l1Fee"] = (*hexutil.Big)(receipt.L1Fee)
@@ -1735,8 +1735,14 @@ func marshalReceipt(receipt *types.Receipt, blockHash common.Hash, blockNumber u
 		if receipt.OperatorFeeConstant != nil {
 			fields["operatorFeeConstant"] = hexutil.Uint64(*receipt.OperatorFeeConstant)
 		}
+		// Fields added in Jovian
+		if receipt.DAFootprintGasScalar != nil {
+			fields["daFootprintGasScalar"] = hexutil.Uint64(*receipt.DAFootprintGasScalar)
+			// Jovian repurposes blobGasUsed for DA footprint gas used
+			fields["blobGasUsed"] = hexutil.Uint64(receipt.BlobGasUsed)
+		}
 	}
-	if chainConfig.Optimism != nil && tx.IsDepositTx() && receipt.DepositNonce != nil {
+	if chainConfig.IsOptimism() && tx.IsDepositTx() && receipt.DepositNonce != nil {
 		fields["depositNonce"] = hexutil.Uint64(*receipt.DepositNonce)
 		if receipt.DepositReceiptVersion != nil {
 			fields["depositReceiptVersion"] = hexutil.Uint64(*receipt.DepositReceiptVersion)
