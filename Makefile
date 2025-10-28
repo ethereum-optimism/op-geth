@@ -56,7 +56,8 @@ devtools:
 forkdiff:
 	docker run --rm \
 		--mount src=$(shell pwd),target=/host-pwd,type=bind \
-		protolambda/forkdiff:latest \
+		--platform linux/amd64 \
+		ethereum-optimism/forkdiff:2f86c6bc60d8d963ec23d4f959fda8cdfff82c1e \
 		-repo /host-pwd/ -fork /host-pwd/fork.yaml -out /host-pwd/forkdiff.html
 
 #? help: Get more info on make commands.
