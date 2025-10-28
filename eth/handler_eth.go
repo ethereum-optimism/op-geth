@@ -19,6 +19,7 @@ package eth
 import (
 	"errors"
 	"fmt"
+	"net/netip"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
@@ -43,11 +44,17 @@ func (n NilPool) Get(common.Hash) *types.Transaction              { return nil }
 func (n NilPool) GetRLP(common.Hash) []byte                       { return nil }
 func (n NilPool) GetMetadata(hash common.Hash) *txpool.TxMetadata { return nil }
 
-func (h *ethHandler) TxPool() eth.TxPool {
+func (h *ethHandler) TxPool(ip netip.Addr) eth.TxPool {
 	if h.noTxGossip {
 		return &NilPool{}
 	}
-	return h.txpool
+	if h.txGossipNetRestrict == nil {
+		return h.txpool
+	}
+	if h.txGossipNetRestrict.ContainsAddr(ip) {
+		return h.txpool
+	}
+	return &NilPool{}
 }
 
 func (h *ethHandler) TxGossipNetRestrict() *netutil.Netlist {
