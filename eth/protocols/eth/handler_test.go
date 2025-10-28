@@ -22,6 +22,7 @@ import (
 	"math"
 	"math/big"
 	"math/rand"
+	"net/netip"
 	"os"
 	"testing"
 	"time"
@@ -40,7 +41,6 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
-	"github.com/ethereum/go-ethereum/p2p/netutil"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/holiman/uint256"
@@ -152,10 +152,8 @@ func (b *testBackend) close() {
 	b.chain.Stop()
 }
 
-func (b *testBackend) Chain() *core.BlockChain               { return b.chain }
-func (b *testBackend) TxPool() TxPool                        { return b.txpool }
-func (b *testBackend) TxGossipNetRestrict() *netutil.Netlist { return nil }
-
+func (b *testBackend) Chain() *core.BlockChain     { return b.chain }
+func (b *testBackend) TxPool(ip netip.Addr) TxPool { return b.txpool }
 func (b *testBackend) RunPeer(peer *Peer, handler Handler) error {
 	// Normally the backend would do peer maintenance and handshakes. All that
 	// is omitted and we will just give control back to the handler.
