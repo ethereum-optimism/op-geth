@@ -206,7 +206,7 @@ func BenchmarkLRU(b *testing.B) {
 
 	b.Run("Add/BasicLRU", func(b *testing.B) {
 		cache := NewBasicLRU[int, int](capacity)
-		for i := 0; i < b.N; i++ {
+		for b.Loop() {
 			cache.Add(i, i)
 		}
 	})
@@ -218,7 +218,7 @@ func BenchmarkLRU(b *testing.B) {
 		}
 
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for b.Loop() {
 			k := keys[indexes[i%len(indexes)]]
 			v, ok := cache.Get(k)
 			if ok {
@@ -230,7 +230,7 @@ func BenchmarkLRU(b *testing.B) {
 	// // vs. github.com/hashicorp/golang-lru/simplelru
 	// b.Run("Add/simplelru.LRU", func(b *testing.B) {
 	//	cache, _ := simplelru.NewLRU(capacity, nil)
-	//	for i := 0; i < b.N; i++ {
+	//	for b.Loop() {
 	//		cache.Add(i, i)
 	//	}
 	// })
@@ -242,7 +242,7 @@ func BenchmarkLRU(b *testing.B) {
 	//	}
 	//
 	//	b.ResetTimer()
-	//	for i := 0; i < b.N; i++ {
+	//	for b.Loop() {
 	//		k := keys[indexes[i%len(indexes)]]
 	//		v, ok := cache.Get(k)
 	//		if ok {
