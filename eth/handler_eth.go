@@ -27,7 +27,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth/protocols/eth"
 	"github.com/ethereum/go-ethereum/p2p/enode"
-	"github.com/ethereum/go-ethereum/p2p/netutil"
 )
 
 // ethHandler implements the eth.Backend interface to handle the various network
@@ -55,10 +54,6 @@ func (h *ethHandler) TxPool(ip netip.Addr) eth.TxPool {
 		return h.txpool
 	}
 	return &NilPool{}
-}
-
-func (h *ethHandler) TxGossipNetRestrict() *netutil.Netlist {
-	return h.txGossipNetRestrict
 }
 
 // RunPeer is invoked when a peer joins on the `eth` protocol.
