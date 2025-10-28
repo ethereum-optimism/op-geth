@@ -24,7 +24,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/p2p"
-	"github.com/ethereum/go-ethereum/p2p/netutil"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
@@ -61,9 +60,6 @@ type Peer struct {
 	resDispatch chan *response // Dispatch channel to fulfil pending requests and untrack them
 
 	term chan struct{} // Termination channel to stop the broadcasters
-
-	// txGossipNetRestrict restricts transaction gossip to specific IP networks
-	txGossipNetRestrict *netutil.Netlist
 }
 
 // NewPeer creates a wrapper for a network connection and negotiated  protocol
@@ -89,22 +85,6 @@ func NewPeer(version uint, p *p2p.Peer, rw p2p.MsgReadWriter, txpool TxPool) *Pe
 	go peer.dispatcher()
 
 	return peer
-}
-
-// WithTxGossipNetRestrict sets the txGossipNetRestrict field on the peer and returns the peer.
-// This is a modifier function that allows setting the field after peer creation.
-func (p *Peer) WithTxGossipNetRestrict(txGossipNetRestrict *netutil.Netlist) *Peer {
-	p.txGossipNetRestrict = txGossipNetRestrict
-	return p
-}
-
-// IsAllowedForTxGossip checks if the peer is allowed to participate in transaction gossip
-// based on the txGossipNetRestrict configuration.
-func (p *Peer) IsAllowedForTxGossip() bool {
-	if p.txGossipNetRestrict == nil {
-		return true // No restrictions, allow all peers
-	}
-	return p.txGossipNetRestrict.ContainsAddr(p.Node().IPAddr())
 }
 
 // Close signals the broadcast goroutine to terminate. Only ever call this if
@@ -152,10 +132,6 @@ func (p *Peer) markTransaction(hash common.Hash) {
 // The reasons this is public is to allow packages using this protocol to write
 // tests that directly send messages without having to do the async queueing.
 func (p *Peer) SendTransactions(txs types.Transactions) error {
-	// Check if peer is allowed for transaction gossip
-	if !p.IsAllowedForTxGossip() {
-		return nil
-	}
 	// Mark all the transactions as known, but ensure we don't overflow our limits
 	for _, tx := range txs {
 		p.knownTxs.Add(tx.Hash())
@@ -167,10 +143,6 @@ func (p *Peer) SendTransactions(txs types.Transactions) error {
 // propagate to a remote peer. The number of pending sends are capped (new ones
 // will force old sends to be dropped)
 func (p *Peer) AsyncSendTransactions(hashes []common.Hash) {
-	// Check if peer is allowed for transaction gossip
-	if !p.IsAllowedForTxGossip() {
-		return
-	}
 	select {
 	case p.txBroadcast <- hashes:
 		// Mark all the transactions as known, but ensure we don't overflow our limits
@@ -188,10 +160,6 @@ func (p *Peer) AsyncSendTransactions(hashes []common.Hash) {
 // directly as the queueing (memory) and transmission (bandwidth) costs should
 // not be managed directly.
 func (p *Peer) sendPooledTransactionHashes(hashes []common.Hash, types []byte, sizes []uint32) error {
-	// Check if peer is allowed for transaction gossip
-	if !p.IsAllowedForTxGossip() {
-		return nil
-	}
 	// Mark all the transactions as known, but ensure we don't overflow our limits
 	p.knownTxs.Add(hashes...)
 	return p2p.Send(p.rw, NewPooledTransactionHashesMsg, NewPooledTransactionHashesPacket{Types: types, Sizes: sizes, Hashes: hashes})
@@ -201,10 +169,6 @@ func (p *Peer) sendPooledTransactionHashes(hashes []common.Hash, types []byte, s
 // announce to a remote peer.  The number of pending sends are capped (new ones
 // will force old sends to be dropped)
 func (p *Peer) AsyncSendPooledTransactionHashes(hashes []common.Hash) {
-	// Check if peer is allowed for transaction gossip
-	if !p.IsAllowedForTxGossip() {
-		return
-	}
 	select {
 	case p.txAnnounce <- hashes:
 		// Mark all the transactions as known, but ensure we don't overflow our limits
@@ -216,10 +180,6 @@ func (p *Peer) AsyncSendPooledTransactionHashes(hashes []common.Hash) {
 
 // ReplyPooledTransactionsRLP is the response to RequestTxs.
 func (p *Peer) ReplyPooledTransactionsRLP(id uint64, hashes []common.Hash, txs []rlp.RawValue) error {
-	// Check if peer is allowed for transaction gossip
-	if !p.IsAllowedForTxGossip() {
-		return nil
-	}
 	// Mark all the transactions as known, but ensure we don't overflow our limits
 	p.knownTxs.Add(hashes...)
 
@@ -381,10 +341,6 @@ func (p *Peer) RequestReceipts(hashes []common.Hash, sink chan *Response) (*Requ
 
 // RequestTxs fetches a batch of transactions from a remote node.
 func (p *Peer) RequestTxs(hashes []common.Hash) error {
-	// Check if peer is allowed for transaction gossip
-	if !p.IsAllowedForTxGossip() {
-		return nil
-	}
 	p.Log().Debug("Fetching batch of transactions", "count", len(hashes))
 	id := rand.Uint64()
 

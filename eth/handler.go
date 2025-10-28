@@ -318,11 +318,9 @@ func (h *handler) runEthPeer(peer *eth.Peer, handler eth.Handler) error {
 		}
 	}
 
-	if peer.IsAllowedForTxGossip() {
-		// Propagate existing transactions. new transactions appearing
-		// after this will be sent via broadcasts.
-		h.syncTransactions(peer)
-	}
+	// Propagate existing transactions. new transactions appearing
+	// after this will be sent via broadcasts.
+	h.syncTransactions(peer)
 
 	// Create a notification channel for pending requests if the peer goes down
 	dead := make(chan struct{})
@@ -517,9 +515,6 @@ func (h *handler) BroadcastTransactions(txs types.Transactions) {
 
 		for _, peer := range peers {
 			if peer.KnownTransaction(tx.Hash()) {
-				continue
-			}
-			if !peer.IsAllowedForTxGossip() {
 				continue
 			}
 			if _, ok := directSet[peer]; ok {
