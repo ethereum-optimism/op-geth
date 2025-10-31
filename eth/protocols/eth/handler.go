@@ -64,7 +64,7 @@ type Backend interface {
 
 	// TxPool retrieves the transaction pool object to serve data, depending
 	// on the IP address of the peer, if txpool gossip filtering is enabled.
-	TxPool(ip netip.Addr) TxPool
+	TxPool(ip netip.Addr) (TxPool, bool)
 
 	// AcceptTxs retrieves whether transaction processing is enabled on the node
 	// or if inbound transactions should simply be dropped.
@@ -108,7 +108,9 @@ func MakeProtocols(backend Backend, network uint64, disc enode.Iterator) []p2p.P
 			Version: version,
 			Length:  protocolLengths[version],
 			Run: func(p *p2p.Peer, rw p2p.MsgReadWriter) error {
-				peer := NewPeer(version, p, rw, backend.TxPool(p.Node().IPAddr()))
+				txpool, allowed := backend.TxPool(p.Node().IPAddr())
+				peer := NewPeer(version, p, rw, txpool)
+				peer.SetAllowedForTxGossip(allowed)
 				defer peer.Close()
 
 				return backend.RunPeer(peer, func(peer *Peer) error {
