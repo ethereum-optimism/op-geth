@@ -376,7 +376,7 @@ func TestHandlerTxPool(t *testing.T) {
 			t.Fatalf("Failed to parse IP %s: %v", node.ip, err)
 		}
 
-		txPool := ethHandler.TxPool(ip)
+		txPool, allowed := ethHandler.TxPool(ip)
 
 		// Check if we got a real TxPool or NilPool
 		if _, ok := txPool.(*testTxPool); ok {
@@ -384,10 +384,16 @@ func TestHandlerTxPool(t *testing.T) {
 			if i >= 4 {
 				t.Errorf("Node %d (%s) should have gotten NilPool but got real TxPool", i, node.ip)
 			}
+			if !allowed {
+				t.Errorf("Node %d (%s) should have gotten allowed for gossiping but got not allowed", i, node.ip)
+			}
 		} else if _, ok := txPool.(*NilPool); ok {
 			expectedNilPoolCount++
 			if i < 4 {
 				t.Errorf("Node %d (%s) should have gotten real TxPool but got NilPool", i, node.ip)
+			}
+			if allowed {
+				t.Errorf("Node %d (%s) should have gotten not allowed for gossiping but got allowed", i, node.ip)
 			}
 		} else {
 			t.Errorf("Node %d (%s) got unexpected TxPool type: %T", i, node.ip, txPool)

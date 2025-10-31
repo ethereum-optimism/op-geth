@@ -60,6 +60,17 @@ type Peer struct {
 	resDispatch chan *response // Dispatch channel to fulfil pending requests and untrack them
 
 	term chan struct{} // Termination channel to stop the broadcasters
+
+	// OP Stack addition
+	allowedForTxGossip bool // Whether the peer is allowed for transaction gossip
+}
+
+func (p *Peer) SetAllowedForTxGossip(allowed bool) {
+	p.allowedForTxGossip = allowed
+}
+
+func (p *Peer) IsAllowedForTxGossip() bool {
+	return p.allowedForTxGossip
 }
 
 // NewPeer creates a wrapper for a network connection and negotiated  protocol

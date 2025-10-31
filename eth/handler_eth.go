@@ -43,17 +43,11 @@ func (n NilPool) Get(common.Hash) *types.Transaction              { return nil }
 func (n NilPool) GetRLP(common.Hash) []byte                       { return nil }
 func (n NilPool) GetMetadata(hash common.Hash) *txpool.TxMetadata { return nil }
 
-func (h *ethHandler) TxPool(ip netip.Addr) eth.TxPool {
-	if h.noTxGossip {
-		return &NilPool{}
+func (h *ethHandler) TxPool(ip netip.Addr) (eth.TxPool, bool) {
+	if h.noTxGossip || (h.txGossipNetRestrict != nil && !h.txGossipNetRestrict.ContainsAddr(ip)) {
+		return &NilPool{}, false
 	}
-	if h.txGossipNetRestrict == nil {
-		return h.txpool
-	}
-	if h.txGossipNetRestrict.ContainsAddr(ip) {
-		return h.txpool
-	}
-	return &NilPool{}
+	return h.txpool, true
 }
 
 // RunPeer is invoked when a peer joins on the `eth` protocol.

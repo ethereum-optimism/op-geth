@@ -382,22 +382,23 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 
 	txGossipNetRestrict, err := parseTxGossipNetRestrict(config.RollupNetrestrictTxPoolGossip)
 	if err != nil {
-		log.Error("Failed to parse txpool gossip netrestrict", "err", err)
 		return nil, err
 	}
 
 	// Permit the downloader to use the trie cache allowance during fast sync
 	cacheLimit := options.TrieCleanLimit + options.TrieDirtyLimit + options.SnapshotLimit
 	if eth.handler, err = newHandler(&handlerConfig{
-		NodeID:              eth.p2pServer.Self().ID(),
-		Database:            chainDb,
-		Chain:               eth.blockchain,
-		TxPool:              eth.txPool,
-		Network:             networkID,
-		Sync:                config.SyncMode,
-		BloomCache:          uint64(cacheLimit),
-		EventMux:            eth.eventMux,
-		RequiredBlocks:      config.RequiredBlocks,
+		NodeID:         eth.p2pServer.Self().ID(),
+		Database:       chainDb,
+		Chain:          eth.blockchain,
+		TxPool:         eth.txPool,
+		Network:        networkID,
+		Sync:           config.SyncMode,
+		BloomCache:     uint64(cacheLimit),
+		EventMux:       eth.eventMux,
+		RequiredBlocks: config.RequiredBlocks,
+
+		// OP Stack additions
 		NoTxGossip:          config.RollupDisableTxPoolGossip,
 		TxGossipNetRestrict: txGossipNetRestrict,
 	}); err != nil {
