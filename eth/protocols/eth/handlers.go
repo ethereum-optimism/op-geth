@@ -434,11 +434,7 @@ func handleReceipts[L ReceiptsList](backend Backend, msg Decoder, peer *Peer) er
 func handleNewPooledTransactionHashes(backend Backend, msg Decoder, peer *Peer) error {
 	// New transaction announcement arrived, make sure we have
 	// a valid and fresh chain to handle them
-	if !backend.AcceptTxs() {
-		return nil
-	}
-	// Check if peer is allowed for transaction gossip
-	if !peer.IsAllowedForTxGossip() {
+	if !backend.AcceptTxs(peer) {
 		return nil
 	}
 	ann := new(NewPooledTransactionHashesPacket)
@@ -491,11 +487,7 @@ func answerGetPooledTransactions(backend Backend, query GetPooledTransactionsReq
 
 func handleTransactions(backend Backend, msg Decoder, peer *Peer) error {
 	// Transactions arrived, make sure we have a valid and fresh chain to handle them
-	if !backend.AcceptTxs() {
-		return nil
-	}
-	// Check if peer is allowed for transaction gossip
-	if !peer.IsAllowedForTxGossip() {
+	if !backend.AcceptTxs(peer) {
 		return nil
 	}
 	// Transactions can be processed, parse all of them and deliver to the pool
@@ -515,11 +507,7 @@ func handleTransactions(backend Backend, msg Decoder, peer *Peer) error {
 
 func handlePooledTransactions(backend Backend, msg Decoder, peer *Peer) error {
 	// Transactions arrived, make sure we have a valid and fresh chain to handle them
-	if !backend.AcceptTxs() {
-		return nil
-	}
-	// Check if peer is allowed for transaction gossip
-	if !peer.IsAllowedForTxGossip() {
+	if !backend.AcceptTxs(peer) {
 		return nil
 	}
 	// Transactions can be processed, parse all of them and deliver to the pool

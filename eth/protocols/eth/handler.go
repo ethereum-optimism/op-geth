@@ -68,7 +68,7 @@ type Backend interface {
 
 	// AcceptTxs retrieves whether transaction processing is enabled on the node
 	// or if inbound transactions should simply be dropped.
-	AcceptTxs() bool
+	AcceptTxs(peer *Peer) bool
 
 	// RunPeer is invoked when a peer joins on the `eth` protocol. The handler
 	// should do any peer maintenance work, handshakes and validations. If all

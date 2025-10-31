@@ -162,7 +162,7 @@ func (b *testBackend) RunPeer(peer *Peer, handler Handler) error {
 }
 func (b *testBackend) PeerInfo(enode.ID) interface{} { panic("not implemented") }
 
-func (b *testBackend) AcceptTxs() bool {
+func (b *testBackend) AcceptTxs(peer *Peer) bool {
 	return true
 	//panic("data processing tests should be done in the handler package")
 }

@@ -65,8 +65,12 @@ func (h *ethHandler) PeerInfo(id enode.ID) interface{} {
 
 // AcceptTxs retrieves whether transaction processing is enabled on the node
 // or if inbound transactions should simply be dropped.
-func (h *ethHandler) AcceptTxs() bool {
+func (h *ethHandler) AcceptTxs(peer *eth.Peer) bool {
 	if h.noTxGossip {
+		return false
+	}
+	// Check if peer is allowed for transaction gossip
+	if !peer.IsAllowedForTxGossip() {
 		return false
 	}
 	return h.synced.Load()
