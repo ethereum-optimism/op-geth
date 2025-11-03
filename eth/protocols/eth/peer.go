@@ -61,7 +61,7 @@ type Peer struct {
 
 	term chan struct{} // Termination channel to stop the broadcasters
 
-	// OP Stack addition
+	// OP Stack additions
 	allowedForTxGossip bool // Whether the peer is allowed for transaction gossip
 }
 
@@ -90,7 +90,7 @@ func NewPeer(version uint, p *p2p.Peer, rw p2p.MsgReadWriter, txpool TxPool) *Pe
 		txpool:      txpool,
 		term:        make(chan struct{}),
 
-		// OP Stack addition
+		// OP Stack additions
 		allowedForTxGossip: true,
 	}
 	// Start up all the broadcasters
