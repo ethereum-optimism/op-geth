@@ -89,6 +89,9 @@ func NewPeer(version uint, p *p2p.Peer, rw p2p.MsgReadWriter, txpool TxPool) *Pe
 		resDispatch: make(chan *response),
 		txpool:      txpool,
 		term:        make(chan struct{}),
+
+		// OP Stack addition
+		allowedForTxGossip: true,
 	}
 	// Start up all the broadcasters
 	go peer.broadcastTransactions()
