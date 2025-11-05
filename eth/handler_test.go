@@ -17,6 +17,7 @@
 package eth
 
 import (
+	"fmt"
 	"maps"
 	"math/big"
 	"math/rand"
@@ -38,6 +39,7 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
+	"github.com/ethereum/go-ethereum/p2p/enr"
 	"github.com/ethereum/go-ethereum/p2p/netutil"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
@@ -376,7 +378,12 @@ func TestHandlerTxPool(t *testing.T) {
 			t.Fatalf("Failed to parse IP %s: %v", node.ip, err)
 		}
 
-		txPool, allowed := ethHandler.TxPool(ip)
+		var r enr.Record
+		r.Set(enr.IPv4Addr(ip))
+		enode := enode.SignNull(&r, enode.ID{})
+		p := p2p.NewPeerFromNode(enode, fmt.Sprintf("test-peer-%d", i), nil)
+
+		txPool, allowed := ethHandler.TxPool(p)
 
 		// Check if we got a real TxPool or NilPool
 		if _, ok := txPool.(*testTxPool); ok {

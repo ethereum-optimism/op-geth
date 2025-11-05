@@ -109,8 +109,9 @@ type handlerConfig struct {
 	RequiredBlocks map[uint64]common.Hash // Hard coded map of required block hashes for sync challenges
 
 	// OP Stack additions
-	NoTxGossip          bool             // Disable P2P transaction gossip
-	TxGossipNetRestrict *netutil.Netlist // Restrict tx gossip to specific IP networks
+	NoTxGossip               bool             // Disable P2P transaction gossip
+	TxGossipNetRestrict      *netutil.Netlist // Restrict tx gossip to specific IP networks
+	TxGossipTrustedPeersOnly bool             // Restrict tx gossip to trusted peers only
 }
 
 type handler struct {
@@ -125,8 +126,9 @@ type handler struct {
 	chain    *core.BlockChain
 	maxPeers int
 
-	noTxGossip          bool
-	txGossipNetRestrict *netutil.Netlist
+	noTxGossip               bool
+	txGossipNetRestrict      *netutil.Netlist
+	txGossipTrustedPeersOnly bool
 
 	downloader     *downloader.Downloader
 	txFetcher      *fetcher.TxFetcher
@@ -170,8 +172,9 @@ func newHandler(config *handlerConfig) (*handler, error) {
 		handlerStartCh: make(chan struct{}),
 
 		// OP Stack additions
-		noTxGossip:          config.NoTxGossip,
-		txGossipNetRestrict: config.TxGossipNetRestrict,
+		noTxGossip:               config.NoTxGossip,
+		txGossipNetRestrict:      config.TxGossipNetRestrict,
+		txGossipTrustedPeersOnly: config.TxGossipTrustedPeersOnly,
 	}
 	if config.Sync == ethconfig.FullSync {
 		// The database seems empty as the current block is the genesis. Yet the snap

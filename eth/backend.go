@@ -399,8 +399,9 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 		RequiredBlocks: config.RequiredBlocks,
 
 		// OP Stack additions
-		NoTxGossip:          config.RollupDisableTxPoolGossip,
-		TxGossipNetRestrict: txGossipNetRestrict,
+		NoTxGossip:               config.RollupDisableTxPoolGossip,
+		TxGossipNetRestrict:      txGossipNetRestrict,
+		TxGossipTrustedPeersOnly: config.RollupTxPoolTrustedPeersOnly,
 	}); err != nil {
 		return nil, err
 	}
