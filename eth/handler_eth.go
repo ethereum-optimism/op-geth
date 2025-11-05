@@ -19,13 +19,13 @@ package eth
 import (
 	"errors"
 	"fmt"
-	"net/netip"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/txpool"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth/protocols/eth"
+	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 )
 
@@ -43,8 +43,10 @@ func (n NilPool) Get(common.Hash) *types.Transaction              { return nil }
 func (n NilPool) GetRLP(common.Hash) []byte                       { return nil }
 func (n NilPool) GetMetadata(hash common.Hash) *txpool.TxMetadata { return nil }
 
-func (h *ethHandler) TxPool(ip netip.Addr) (eth.TxPool, bool) {
-	if h.noTxGossip || (h.txGossipNetRestrict != nil && !h.txGossipNetRestrict.ContainsAddr(ip)) {
+func (h *ethHandler) TxPool(peer *p2p.Peer) (eth.TxPool, bool) {
+	if h.noTxGossip ||
+		(h.txGossipTrustedPeersOnly && !peer.Trusted()) ||
+		(h.txGossipNetRestrict != nil && !h.txGossipNetRestrict.ContainsAddr(peer.Node().IPAddr())) {
 		return &NilPool{}, false
 	}
 	return h.txpool, true
@@ -66,9 +68,6 @@ func (h *ethHandler) PeerInfo(id enode.ID) interface{} {
 // AcceptTxs retrieves whether transaction processing is enabled on the node
 // or if inbound transactions should simply be dropped.
 func (h *ethHandler) AcceptTxs(peer *eth.Peer) bool {
-	if h.noTxGossip {
-		return false
-	}
 	// Check if peer is allowed for transaction gossip
 	if !peer.IsAllowedForTxGossip() {
 		return false
