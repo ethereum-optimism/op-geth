@@ -61,8 +61,8 @@ type Backend interface {
 	// Chain retrieves the blockchain object to serve data.
 	Chain() *core.BlockChain
 
-	// TxPool retrieves the transaction pool object to serve data, depending
-	// on the IP address of the peer, if txpool gossip filtering is enabled.
+	// TxPool retrieves the transaction pool object to serve data
+	// if txpool gossip is enabled, and not restricted in some way.
 	TxPool(peer *p2p.Peer) (TxPool, bool)
 
 	// AcceptTxs retrieves whether transaction processing is enabled on the node

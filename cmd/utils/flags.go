@@ -998,6 +998,7 @@ var (
 		Name:     "rollup.txpooltrustedpeersonly",
 		Usage:    "Restricts transaction pool gossip and acceptance to trusted peers only",
 		Category: flags.RollupCategory,
+		Value:    false,
 	}
 	RollupEnableTxPoolAdmissionFlag = &cli.BoolFlag{
 		Name:     "rollup.enabletxpooladmission",
