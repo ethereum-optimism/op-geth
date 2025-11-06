@@ -329,16 +329,17 @@ func TestHandlerTxPool(t *testing.T) {
 
 	// 8 nodes with different IPs - 4 in allowed range, 4 in restricted range
 	nodes := []struct {
-		ip string
+		ip      string
+		trusted bool
 	}{
-		{ip: "127.0.0.1"},   // Allowed (127.0.0.0/8)
-		{ip: "127.0.0.2"},   // Allowed (127.0.0.0/8)
-		{ip: "127.0.0.3"},   // Allowed (127.0.0.0/8)
-		{ip: "127.0.0.4"},   // Allowed (127.0.0.0/8)
-		{ip: "192.168.1.1"}, // Restricted
-		{ip: "192.168.1.2"}, // Restricted
-		{ip: "10.0.0.1"},    // Restricted
-		{ip: "10.0.0.2"},    // Restricted
+		{ip: "127.0.0.1", trusted: true},    // Allowed (127.0.0.0/8)
+		{ip: "127.0.0.2", trusted: true},    // Allowed (127.0.0.0/8)
+		{ip: "127.0.0.3", trusted: true},    // Allowed (127.0.0.0/8)
+		{ip: "127.0.0.4", trusted: false},   // Restricted due to trusted flag (127.0.0.0/8)
+		{ip: "192.168.1.1", trusted: false}, // Restricted
+		{ip: "192.168.1.2", trusted: false}, // Restricted
+		{ip: "10.0.0.1", trusted: true},     // Restricted due to network subset
+		{ip: "10.0.0.2", trusted: true},     // Restricted due to network subset
 	}
 
 	db := rawdb.NewMemoryDatabase()
@@ -354,10 +355,11 @@ func TestHandlerTxPool(t *testing.T) {
 	netrestrict.Add("127.0.0.0/8")
 
 	handler, err := newHandler(&handlerConfig{
-		Database:            db,
-		Chain:               chain,
-		TxPool:              txpool,
-		TxGossipNetRestrict: netrestrict,
+		Database:                 db,
+		Chain:                    chain,
+		TxPool:                   txpool,
+		TxGossipNetRestrict:      netrestrict,
+		TxGossipTrustedPeersOnly: true,
 	})
 	if err != nil {
 		t.Fatalf("Failed to create handler: %v", err)
@@ -382,13 +384,14 @@ func TestHandlerTxPool(t *testing.T) {
 		r.Set(enr.IPv4Addr(ip))
 		enode := enode.SignNull(&r, enode.ID{})
 		p := p2p.NewPeerFromNode(enode, fmt.Sprintf("test-peer-%d", i), nil)
+		p.TestSetTrusted(node.trusted)
 
 		txPool, allowed := ethHandler.TxPool(p)
 
 		// Check if we got a real TxPool or NilPool
 		if _, ok := txPool.(*testTxPool); ok {
 			expectedTxPoolCount++
-			if i >= 4 {
+			if i >= 3 {
 				t.Errorf("Node %d (%s) should have gotten NilPool but got real TxPool", i, node.ip)
 			}
 			if !allowed {
@@ -396,7 +399,7 @@ func TestHandlerTxPool(t *testing.T) {
 			}
 		} else if _, ok := txPool.(*NilPool); ok {
 			expectedNilPoolCount++
-			if i < 4 {
+			if i < 3 {
 				t.Errorf("Node %d (%s) should have gotten real TxPool but got NilPool", i, node.ip)
 			}
 			if allowed {
@@ -408,10 +411,10 @@ func TestHandlerTxPool(t *testing.T) {
 	}
 
 	// Verify we got exactly 4 of each type
-	if expectedTxPoolCount != 4 {
-		t.Errorf("Expected 4 nodes with real TxPool, got %d", expectedTxPoolCount)
+	if expectedTxPoolCount != 3 {
+		t.Errorf("Expected 3 nodes with real TxPool, got %d", expectedTxPoolCount)
 	}
-	if expectedNilPoolCount != 4 {
-		t.Errorf("Expected 4 nodes with NilPool, got %d", expectedNilPoolCount)
+	if expectedNilPoolCount != 5 {
+		t.Errorf("Expected 5 nodes with NilPool, got %d", expectedNilPoolCount)
 	}
 }

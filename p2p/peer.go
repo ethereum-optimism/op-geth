@@ -142,6 +142,11 @@ func NewPeerFromNode(node *enode.Node, name string, caps []Cap) *Peer {
 	return peer
 }
 
+// TestSetTrusted is used for testing purposes to set the trusted flag on a peer.
+func (p *Peer) TestSetTrusted(trusted bool) {
+	p.rw.set(trustedConn, trusted)
+}
+
 // NewPeerPipe creates a peer for testing purposes.
 // The message pipe given as the last parameter is closed when
 // Disconnect is called on the peer.
