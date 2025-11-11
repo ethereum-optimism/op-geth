@@ -327,7 +327,7 @@ func closePeers(peers []*ethPeer) {
 func TestHandlerTxPool(t *testing.T) {
 	t.Parallel()
 
-	// 8 nodes with different IPs - 4 in allowed range, 4 in restricted range
+	// 8 nodes with different IPs and trusted flags
 	nodes := []struct {
 		ip      string
 		trusted bool
@@ -370,7 +370,7 @@ func TestHandlerTxPool(t *testing.T) {
 	// Test each node's IP
 	ethHandler := (*ethHandler)(handler)
 
-	// Expected: first 4 nodes should get real TxPool, last 4 should get NilPool
+	// Expected: first 3 nodes should get real TxPool, last 5 should get NilPool
 	expectedTxPoolCount := 0
 	expectedNilPoolCount := 0
 
@@ -411,7 +411,6 @@ func TestHandlerTxPool(t *testing.T) {
 		}
 	}
 
-	// Verify we got exactly 4 of each type
 	if expectedTxPoolCount != 3 {
 		t.Errorf("Expected 3 nodes with real TxPool, got %d", expectedTxPoolCount)
 	}
