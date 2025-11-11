@@ -473,8 +473,7 @@ func answerGetPooledTransactions(backend Backend, query GetPooledTransactionsReq
 			break
 		}
 		// Retrieve the requested transaction, skipping if unknown to us
-		txpool, _ := backend.TxPool(peer.Peer)
-		encoded := txpool.GetRLP(hash)
+		encoded := backend.TxPool(peer.Peer).GetRLP(hash)
 		if len(encoded) == 0 {
 			continue
 		}

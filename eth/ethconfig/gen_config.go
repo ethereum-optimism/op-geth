@@ -133,7 +133,7 @@ func (c Config) MarshalTOML() (interface{}, error) {
 	enc.RollupHistoricalRPC = c.RollupHistoricalRPC
 	enc.RollupHistoricalRPCTimeout = c.RollupHistoricalRPCTimeout
 	enc.RollupDisableTxPoolGossip = c.RollupDisableTxPoolGossip
-	enc.RollupNetrestrictTxPoolGossip = c.RollupNetrestrictTxPoolGossip
+	enc.RollupNetrestrictTxPoolGossip = c.RollupTxPoolNetrestrict
 	enc.RollupTxPoolTrustedPeersOnly = c.RollupTxPoolTrustedPeersOnly
 	enc.RollupDisableTxPoolAdmission = c.RollupDisableTxPoolAdmission
 	enc.RollupHaltOnIncompatibleProtocolVersion = c.RollupHaltOnIncompatibleProtocolVersion
@@ -373,7 +373,7 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 		c.RollupDisableTxPoolGossip = *dec.RollupDisableTxPoolGossip
 	}
 	if dec.RollupNetrestrictTxPoolGossip != nil {
-		c.RollupNetrestrictTxPoolGossip = *dec.RollupNetrestrictTxPoolGossip
+		c.RollupTxPoolNetrestrict = *dec.RollupNetrestrictTxPoolGossip
 	}
 	if dec.RollupTxPoolTrustedPeersOnly != nil {
 		c.RollupTxPoolTrustedPeersOnly = *dec.RollupTxPoolTrustedPeersOnly

@@ -386,7 +386,8 @@ func TestHandlerTxPool(t *testing.T) {
 		p := p2p.NewPeerFromNode(enode, fmt.Sprintf("test-peer-%d", i), nil)
 		p.TestSetTrusted(node.trusted)
 
-		txPool, allowed := ethHandler.TxPool(p)
+		txPool := ethHandler.TxPool(p)
+		allowed := ethHandler.txGossipAllowed(p)
 
 		// Check if we got a real TxPool or NilPool
 		if _, ok := txPool.(*testTxPool); ok {

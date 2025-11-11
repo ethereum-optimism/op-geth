@@ -43,13 +43,17 @@ func (n NilPool) Get(common.Hash) *types.Transaction              { return nil }
 func (n NilPool) GetRLP(common.Hash) []byte                       { return nil }
 func (n NilPool) GetMetadata(hash common.Hash) *txpool.TxMetadata { return nil }
 
-func (h *ethHandler) TxPool(peer *p2p.Peer) (eth.TxPool, bool) {
-	if h.noTxGossip ||
+func (h *ethHandler) txGossipAllowed(peer *p2p.Peer) bool {
+	return !(h.noTxGossip ||
 		(h.txGossipTrustedPeersOnly && !peer.Trusted()) ||
-		(h.txGossipNetRestrict != nil && !h.txGossipNetRestrict.ContainsAddr(peer.Node().IPAddr())) {
-		return &NilPool{}, false
+		(h.txGossipNetRestrict != nil && !h.txGossipNetRestrict.ContainsAddr(peer.Node().IPAddr())))
+}
+
+func (h *ethHandler) TxPool(peer *p2p.Peer) eth.TxPool {
+	if !h.txGossipAllowed(peer) {
+		return &NilPool{}
 	}
-	return h.txpool, true
+	return h.txpool
 }
 
 // RunPeer is invoked when a peer joins on the `eth` protocol.
@@ -69,7 +73,7 @@ func (h *ethHandler) PeerInfo(id enode.ID) interface{} {
 // or if inbound transactions should simply be dropped.
 func (h *ethHandler) AcceptTxs(peer *eth.Peer) bool {
 	// Check if peer is allowed for transaction gossip
-	if !peer.IsAllowedForTxGossip() {
+	if !h.txGossipAllowed(peer.Peer) {
 		return false
 	}
 	return h.synced.Load()

@@ -380,7 +380,7 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 		stack.RegisterLifecycle(pj)
 	}
 
-	txGossipNetRestrict, err := parseTxGossipNetRestrict(config.RollupNetrestrictTxPoolGossip)
+	txGossipNetRestrict, err := parseTxGossipNetRestrict(config.RollupTxPoolNetrestrict)
 	if err != nil {
 		return nil, err
 	}

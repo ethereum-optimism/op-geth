@@ -151,8 +151,8 @@ func (b *testBackend) close() {
 	b.chain.Stop()
 }
 
-func (b *testBackend) Chain() *core.BlockChain              { return b.chain }
-func (b *testBackend) TxPool(peer *p2p.Peer) (TxPool, bool) { return b.txpool, true }
+func (b *testBackend) Chain() *core.BlockChain      { return b.chain }
+func (b *testBackend) TxPool(peer *p2p.Peer) TxPool { return b.txpool }
 
 func (b *testBackend) RunPeer(peer *Peer, handler Handler) error {
 	// Normally the backend would do peer maintenance and handshakes. All that
