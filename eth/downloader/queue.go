@@ -130,6 +130,7 @@ func (f *fetchResult) Done(kind uint) bool {
 
 type OPStackChainConfig interface {
 	IsOptimismIsthmus(time uint64) bool
+	IsOptimismJovian(time uint64) bool
 }
 
 // queue represents hashes that are either need fetching or are being fetched
@@ -626,13 +627,30 @@ func (q *queue) DeliverBodies(id string, txLists [][]*types.Transaction, txListH
 				}
 			}
 		}
-		if header.BlobGasUsed != nil {
-			if want := *header.BlobGasUsed / params.BlobTxBlobGasPerBlob; uint64(blobs) != want { // div because the header is surely good vs the body might be bloated
-				return errInvalidBody
+
+		if q.opConfig != nil && q.opConfig.IsOptimismJovian(header.Time) {
+			if header.BlobGasUsed == nil {
+				return fmt.Errorf("%w: nil blobGasUsed after Jovian", errInvalidBody)
+			}
+			daFootprint, err := types.CalcDAFootprint(txLists[index])
+			if err != nil {
+				return fmt.Errorf("%w: calculate da footprint: %v", errInvalidBody, err)
+			}
+			if *header.BlobGasUsed != daFootprint {
+				return fmt.Errorf("%w: incorrect da footprint: got %d, want %d", errInvalidBody, *header.BlobGasUsed, daFootprint)
+			}
+			if daFootprint > header.GasLimit {
+				return fmt.Errorf("%w: da footprint %d exceeds block gas limit %d", errInvalidBody, daFootprint, header.GasLimit)
 			}
 		} else {
-			if blobs != 0 {
-				return errInvalidBody
+			if header.BlobGasUsed != nil {
+				if want := *header.BlobGasUsed / params.BlobTxBlobGasPerBlob; uint64(blobs) != want { // div because the header is surely good vs the body might be bloated
+					return errInvalidBody
+				}
+			} else {
+				if blobs != 0 {
+					return errInvalidBody
+				}
 			}
 		}
 		return nil
