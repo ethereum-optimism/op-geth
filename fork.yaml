@@ -196,8 +196,10 @@ def:
             - "eth/ethconfig/config.go"
         - title: Tx gossip disable, netrestrict, and trusted peers only options
           globs:
+            - "p2p/peer.go"
             - "eth/handler.go"
             - "eth/handler_eth.go"
+            - "eth/protocols/eth/handler.go"
         - title: Warn on missing hardfork data and emit additional metrics
           globs:
             - "core/blockchain.go"
