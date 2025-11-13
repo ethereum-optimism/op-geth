@@ -628,9 +628,8 @@ func (q *queue) DeliverBodies(id string, txLists [][]*types.Transaction, txListH
 			}
 		}
 		// OPStack diff: although there are no blobs on optimism chains,
-		// header.BlobGasUsed can be nonzero after Jovian
-		// (it stores the DA footprint).
-		// If the header is _not_ from an optimism chain, validate the blob gas used:
+		// header.BlobGasUsed can be nonzero after Jovian -- it stores the DA footprint.
+		// If the header is _not_ from a Jovian enabled optimismchain, validate the blob gas used:
 		isOptimismJovian := q.opConfig != nil && q.opConfig.IsOptimismJovian(header.Time)
 		if header.BlobGasUsed != nil && !isOptimismJovian {
 			if want := *header.BlobGasUsed / params.BlobTxBlobGasPerBlob; uint64(blobs) != want { // div because the header is surely good vs the body might be bloated
