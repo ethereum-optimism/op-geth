@@ -83,7 +83,8 @@ type PendingFilter struct {
 	OnlyPlainTxs bool // Return only plain EVM transactions (peer-join announces, block space filling)
 	OnlyBlobTxs  bool // Return only blob transactions (block blob-space filling)
 
-	// OP stack addition: Maximum l1 data size allowed for an included transaction (for throttling
+	// OP Stack additions
+	// Maximum l1 data size allowed for an included transaction (for throttling
 	// when batcher is backlogged). Ignored if nil.
 	MaxDATxSize *big.Int
 }

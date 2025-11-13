@@ -17,9 +17,11 @@
 package eth
 
 import (
+	"fmt"
 	"maps"
 	"math/big"
 	"math/rand"
+	"net/netip"
 	"sort"
 	"sync"
 	"testing"
@@ -37,6 +39,8 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
+	"github.com/ethereum/go-ethereum/p2p/enr"
+	"github.com/ethereum/go-ethereum/p2p/netutil"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/holiman/uint256"
@@ -315,5 +319,102 @@ func createTestPeers(rand *rand.Rand, n int) []*ethPeer {
 func closePeers(peers []*ethPeer) {
 	for _, p := range peers {
 		p.Close()
+	}
+}
+
+// TestHandlerTxPool tests that the handler correctly assigns TxPool vs NilPool
+// based on the txGossipNetRestrict configuration.
+func TestHandlerTxPool(t *testing.T) {
+	t.Parallel()
+
+	// 8 nodes with different IPs and trusted flags
+	nodes := []struct {
+		ip      string
+		trusted bool
+	}{
+		{ip: "127.0.0.1", trusted: true},    // Allowed (127.0.0.0/8)
+		{ip: "127.0.0.2", trusted: true},    // Allowed (127.0.0.0/8)
+		{ip: "127.0.0.3", trusted: true},    // Allowed (127.0.0.0/8)
+		{ip: "127.0.0.4", trusted: false},   // Restricted due to trusted flag (127.0.0.0/8)
+		{ip: "192.168.1.1", trusted: false}, // Restricted
+		{ip: "192.168.1.2", trusted: false}, // Restricted
+		{ip: "10.0.0.1", trusted: true},     // Restricted due to network subset
+		{ip: "10.0.0.2", trusted: true},     // Restricted due to network subset
+	}
+
+	db := rawdb.NewMemoryDatabase()
+	gspec := &core.Genesis{
+		Config: params.TestChainConfig,
+		Alloc:  types.GenesisAlloc{testAddr: {Balance: big.NewInt(1000000)}},
+	}
+	chain, _ := core.NewBlockChain(db, gspec, ethash.NewFaker(), nil)
+	txpool := newTestTxPool()
+
+	// Set up netrestrict to allow only 127.0.0.0/8 range
+	netrestrict := new(netutil.Netlist)
+	netrestrict.Add("127.0.0.0/8")
+
+	handler, err := newHandler(&handlerConfig{
+		Database:                 db,
+		Chain:                    chain,
+		TxPool:                   txpool,
+		TxGossipNetRestrict:      netrestrict,
+		TxGossipTrustedPeersOnly: true,
+	})
+	if err != nil {
+		t.Fatalf("Failed to create handler: %v", err)
+	}
+	handler.Start(1000)
+	defer handler.Stop()
+
+	// Test each node's IP
+	ethHandler := (*ethHandler)(handler)
+
+	// Expected: first 3 nodes should get real TxPool, last 5 should get NilPool
+	expectedTxPoolCount := 0
+	expectedNilPoolCount := 0
+
+	for i, node := range nodes {
+		ip, err := netip.ParseAddr(node.ip)
+		if err != nil {
+			t.Fatalf("Failed to parse IP %s: %v", node.ip, err)
+		}
+
+		var r enr.Record
+		r.Set(enr.IPv4Addr(ip))
+		enode := enode.SignNull(&r, enode.ID{})
+		p := p2p.NewPeerFromNode(enode, fmt.Sprintf("test-peer-%d", i), nil)
+		p.TestSetTrusted(node.trusted)
+
+		txPool := ethHandler.TxPool(p)
+		allowed := ethHandler.txGossipAllowed(p)
+
+		// Check if we got a real TxPool or NilPool
+		if _, ok := txPool.(*testTxPool); ok {
+			expectedTxPoolCount++
+			if i >= 3 {
+				t.Errorf("Node %d (%s) should have gotten NilPool but got real TxPool", i, node.ip)
+			}
+			if !allowed {
+				t.Errorf("Node %d (%s) should have gotten allowed for gossiping but got not allowed", i, node.ip)
+			}
+		} else if _, ok := txPool.(*NilPool); ok {
+			expectedNilPoolCount++
+			if i < 3 {
+				t.Errorf("Node %d (%s) should have gotten real TxPool but got NilPool", i, node.ip)
+			}
+			if allowed {
+				t.Errorf("Node %d (%s) should have gotten not allowed for gossiping but got allowed", i, node.ip)
+			}
+		} else {
+			t.Errorf("Node %d (%s) got unexpected TxPool type: %T", i, node.ip, txPool)
+		}
+	}
+
+	if expectedTxPoolCount != 3 {
+		t.Errorf("Expected 3 nodes with real TxPool, got %d", expectedTxPoolCount)
+	}
+	if expectedNilPoolCount != 5 {
+		t.Errorf("Expected 5 nodes with NilPool, got %d", expectedNilPoolCount)
 	}
 }

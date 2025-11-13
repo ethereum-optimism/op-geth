@@ -190,6 +190,8 @@ type Config struct {
 	RollupHistoricalRPC                       string
 	RollupHistoricalRPCTimeout                time.Duration
 	RollupDisableTxPoolGossip                 bool
+	RollupTxPoolNetrestrict                   string `toml:",omitempty"` // Netrestrict for transaction gossip
+	RollupTxPoolTrustedPeersOnly              bool   // Restrict tx pool gossip to trusted peers only
 	RollupDisableTxPoolAdmission              bool
 	RollupHaltOnIncompatibleProtocolVersion   string
 

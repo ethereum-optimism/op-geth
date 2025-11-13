@@ -44,6 +44,7 @@ import (
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
+	"github.com/ethereum/go-ethereum/p2p/netutil"
 )
 
 const (
@@ -106,7 +107,11 @@ type handlerConfig struct {
 	BloomCache     uint64                 // Megabytes to alloc for snap sync bloom
 	EventMux       *event.TypeMux         // Legacy event mux, deprecate for `feed`
 	RequiredBlocks map[uint64]common.Hash // Hard coded map of required block hashes for sync challenges
-	NoTxGossip     bool                   // Disable P2P transaction gossip
+
+	// OP Stack additions
+	NoTxGossip               bool             // Disable P2P transaction gossip
+	TxGossipNetRestrict      *netutil.Netlist // Restrict tx gossip to specific IP networks
+	TxGossipTrustedPeersOnly bool             // Restrict tx gossip to trusted peers only
 }
 
 type handler struct {
@@ -121,7 +126,9 @@ type handler struct {
 	chain    *core.BlockChain
 	maxPeers int
 
-	noTxGossip bool
+	noTxGossip               bool
+	txGossipNetRestrict      *netutil.Netlist
+	txGossipTrustedPeersOnly bool
 
 	downloader     *downloader.Downloader
 	txFetcher      *fetcher.TxFetcher
@@ -156,7 +163,6 @@ func newHandler(config *handlerConfig) (*handler, error) {
 		eventMux:       config.EventMux,
 		database:       config.Database,
 		txpool:         config.TxPool,
-		noTxGossip:     config.NoTxGossip,
 		chain:          config.Chain,
 		peers:          newPeerSet(),
 		txBroadcastKey: newBroadcastChoiceKey(),
@@ -164,6 +170,11 @@ func newHandler(config *handlerConfig) (*handler, error) {
 		quitSync:       make(chan struct{}),
 		handlerDoneCh:  make(chan struct{}),
 		handlerStartCh: make(chan struct{}),
+
+		// OP Stack additions
+		noTxGossip:               config.NoTxGossip,
+		txGossipNetRestrict:      config.TxGossipNetRestrict,
+		txGossipTrustedPeersOnly: config.TxGossipTrustedPeersOnly,
 	}
 	if config.Sync == ethconfig.FullSync {
 		// The database seems empty as the current block is the genesis. Yet the snap

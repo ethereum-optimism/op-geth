@@ -122,6 +122,11 @@ type Peer struct {
 
 // NewPeer returns a peer for testing purposes.
 func NewPeer(id enode.ID, name string, caps []Cap) *Peer {
+	node := enode.SignNull(new(enr.Record), id)
+	return NewPeerFromNode(node, name, caps)
+}
+
+func NewPeerFromNode(node *enode.Node, name string, caps []Cap) *Peer {
 	// Generate a fake set of local protocols to match as running caps. Almost
 	// no fields needs to be meaningful here as we're only using it to cross-
 	// check with the "remote" caps array.
@@ -131,11 +136,15 @@ func NewPeer(id enode.ID, name string, caps []Cap) *Peer {
 		protos[i].Version = cap.Version
 	}
 	pipe, _ := net.Pipe()
-	node := enode.SignNull(new(enr.Record), id)
 	conn := &conn{fd: pipe, transport: nil, node: node, caps: caps, name: name}
 	peer := newPeer(log.Root(), conn, protos)
 	close(peer.closed) // ensures Disconnect doesn't block
 	return peer
+}
+
+// TestSetTrusted is used for testing purposes to set the trusted flag on a peer.
+func (p *Peer) TestSetTrusted(trusted bool) {
+	p.rw.set(trustedConn, trusted)
 }
 
 // NewPeerPipe creates a peer for testing purposes.

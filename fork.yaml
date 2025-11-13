@@ -177,6 +177,8 @@ def:
                   - Transactions can be forwarded to an RPC for sequencing.
                   - Historical calls can be forwarded to a legacy node.
                   - The tx pool propagation can be enabled/disabled.
+                  - The tx pool gossip can be restricted to specific IP networks.
+                  - The tx pool gossip can be restricted to trusted peers only.
                   - The Optimism bedrock fork activation can be changed for testing.
               globs:
                 - "cmd/utils/flags.go"
@@ -192,10 +194,12 @@ def:
         - title: Node config
           globs:
             - "eth/ethconfig/config.go"
-        - title: Tx gossip disable option
+        - title: Tx gossip disable, netrestrict, and trusted peers only options
           globs:
+            - "p2p/peer.go"
             - "eth/handler.go"
             - "eth/handler_eth.go"
+            - "eth/protocols/eth/handler.go"
         - title: Warn on missing hardfork data and emit additional metrics
           globs:
             - "core/blockchain.go"

@@ -984,15 +984,28 @@ var (
 		Category: flags.RollupCategory,
 	}
 
-	RollupDisableTxPoolGossipFlag = &cli.BoolFlag{
-		Name:     "rollup.disabletxpoolgossip",
+	RollupTxPoolDisableGossipFlag = &cli.BoolFlag{
+		Name:     "rollup.txpool.disable-gossip",
 		Usage:    "Disable transaction pool gossip.",
 		Category: flags.RollupCategory,
+		Aliases:  []string{"rollup.disabletxpoolgossip"},
 	}
-	RollupEnableTxPoolAdmissionFlag = &cli.BoolFlag{
-		Name:     "rollup.enabletxpooladmission",
+	RollupTxPoolNetrestrictFlag = &cli.StringFlag{
+		Name:     "rollup.txpool.netrestrict",
+		Usage:    "Restricts transaction pool gossip to the given IP networks (CIDR masks)",
+		Category: flags.RollupCategory,
+	}
+	RollupTxPoolTrustedPeersOnlyFlag = &cli.BoolFlag{
+		Name:     "rollup.txpool.trusted-peers-only",
+		Usage:    "Restricts transaction pool gossip and acceptance to trusted peers only",
+		Category: flags.RollupCategory,
+		Value:    false,
+	}
+	RollupTxPoolEnableAdmissionFlag = &cli.BoolFlag{
+		Name:     "rollup.txpool.enable-admission",
 		Usage:    "Add RPC-submitted transactions to the txpool (on by default if --rollup.sequencerhttp is not set).",
 		Category: flags.RollupCategory,
+		Aliases:  []string{"rollup.enabletxpooladmission"},
 	}
 	RollupComputePendingBlock = &cli.BoolFlag{
 		Name:     "rollup.computependingblock",
@@ -1923,8 +1936,10 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 	if ctx.IsSet(RollupInteropMempoolFilteringFlag.Name) {
 		cfg.InteropMempoolFiltering = ctx.Bool(RollupInteropMempoolFilteringFlag.Name)
 	}
-	cfg.RollupDisableTxPoolGossip = ctx.Bool(RollupDisableTxPoolGossipFlag.Name)
-	cfg.RollupDisableTxPoolAdmission = cfg.RollupSequencerHTTP != "" && !ctx.Bool(RollupEnableTxPoolAdmissionFlag.Name)
+	cfg.RollupDisableTxPoolGossip = ctx.Bool(RollupTxPoolDisableGossipFlag.Name)
+	cfg.RollupTxPoolNetrestrict = ctx.String(RollupTxPoolNetrestrictFlag.Name)
+	cfg.RollupTxPoolTrustedPeersOnly = ctx.Bool(RollupTxPoolTrustedPeersOnlyFlag.Name)
+	cfg.RollupDisableTxPoolAdmission = cfg.RollupSequencerHTTP != "" && !ctx.Bool(RollupTxPoolEnableAdmissionFlag.Name)
 	cfg.RollupHaltOnIncompatibleProtocolVersion = ctx.String(RollupHaltOnIncompatibleProtocolVersionFlag.Name)
 	cfg.ApplySuperchainUpgrades = ctx.Bool(RollupSuperchainUpgradesFlag.Name)
 	cfg.RollupSequencerTxConditionalEnabled = ctx.Bool(RollupSequencerTxConditionalEnabledFlag.Name)
