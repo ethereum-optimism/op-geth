@@ -130,6 +130,7 @@ func (f *fetchResult) Done(kind uint) bool {
 
 type OPStackChainConfig interface {
 	IsOptimismIsthmus(time uint64) bool
+	IsOptimismJovian(time uint64) bool
 }
 
 // queue represents hashes that are either need fetching or are being fetched
@@ -626,7 +627,11 @@ func (q *queue) DeliverBodies(id string, txLists [][]*types.Transaction, txListH
 				}
 			}
 		}
-		if header.BlobGasUsed != nil {
+		// OPStack diff: although there are no blobs on optimism chains,
+		// header.BlobGasUsed can be nonzero after Jovian -- it stores the DA footprint.
+		// If the header is _not_ from a Jovian enabled optimism chain, validate the blob gas used:
+		isOptimismJovian := q.opConfig != nil && q.opConfig.IsOptimismJovian(header.Time)
+		if header.BlobGasUsed != nil && !isOptimismJovian {
 			if want := *header.BlobGasUsed / params.BlobTxBlobGasPerBlob; uint64(blobs) != want { // div because the header is surely good vs the body might be bloated
 				return errInvalidBody
 			}
