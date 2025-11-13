@@ -1,3 +1,5 @@
 # Auto detect text files and perform LF normalization
 * text=auto
 *.sol linguist-language=Solidity
+# Keep our local workflow files when merging from upstream
+.github/workflows/* merge=ours
