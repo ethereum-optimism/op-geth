@@ -627,8 +627,24 @@ func (q *queue) DeliverBodies(id string, txLists [][]*types.Transaction, txListH
 				}
 			}
 		}
+		txList := txLists[index]
+		if q.opConfig != nil {
+			if len(txList) == 0 {
+				return fmt.Errorf("%w: no txs in optimism block", errInvalidBody)
+			}
+			if !txList[0].IsDepositTx() {
+				return fmt.Errorf("%w: first tx in optimism block is not a deposit", errInvalidBody)
+			}
+		}
 		// Jovian changes the interpretation of the BlobGasUsed field.
-		if q.opConfig == nil || !q.opConfig.IsOptimismJovian(header.Time) {
+		if q.opConfig != nil && q.opConfig.IsOptimismJovian(header.Time) {
+			if header.BlobGasUsed == nil {
+				return fmt.Errorf("%w: nil blobGasUsed after Jovian", errInvalidBody)
+			}
+			if !txList[len(txList)-1].IsDepositTx() && *header.BlobGasUsed == 0 {
+				return fmt.Errorf("%w: blobGasUsed is zero with at least one non-deposit tx", errInvalidBody)
+			}
+		} else {
 			if header.BlobGasUsed != nil {
 				if want := *header.BlobGasUsed / params.BlobTxBlobGasPerBlob; uint64(blobs) != want { // div because the header is surely good vs the body might be bloated
 					return errInvalidBody
