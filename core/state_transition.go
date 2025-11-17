@@ -274,17 +274,15 @@ func (st *stateTransition) buyGas() error {
 	mgval.Mul(mgval, st.msg.GasPrice)
 	var l1Cost *big.Int
 	var operatorCost *uint256.Int
-	if !st.msg.SkipNonceChecks && !st.msg.SkipFromEOACheck {
-		if st.evm.Context.L1CostFunc != nil {
-			l1Cost = st.evm.Context.L1CostFunc(st.msg.RollupCostData, st.evm.Context.Time)
-			if l1Cost != nil {
-				mgval = mgval.Add(mgval, l1Cost)
-			}
+	if st.evm.Context.L1CostFunc != nil {
+		l1Cost = st.evm.Context.L1CostFunc(st.msg.RollupCostData, st.evm.Context.Time)
+		if l1Cost != nil {
+			mgval = mgval.Add(mgval, l1Cost)
 		}
-		if st.evm.Context.OperatorCostFunc != nil {
-			operatorCost = st.evm.Context.OperatorCostFunc(st.msg.GasLimit, st.evm.Context.Time)
-			mgval = mgval.Add(mgval, operatorCost.ToBig())
-		}
+	}
+	if st.evm.Context.OperatorCostFunc != nil {
+		operatorCost = st.evm.Context.OperatorCostFunc(st.msg.GasLimit, st.evm.Context.Time)
+		mgval = mgval.Add(mgval, operatorCost.ToBig())
 	}
 	balanceCheck := new(big.Int).Set(mgval)
 	if st.msg.GasFeeCap != nil {
