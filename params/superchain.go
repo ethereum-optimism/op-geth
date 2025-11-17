@@ -60,6 +60,7 @@ func LoadOPStackChainConfig(chConfig *superchain.ChainConfig) (*ChainConfig, err
 		TerminalTotalDifficulty: common.Big0,
 		Ethash:                  nil,
 		Clique:                  nil,
+		BlockTime:               chConfig.BlockTime,
 	}
 
 	if chConfig.Optimism != nil {
