@@ -83,7 +83,7 @@ type Config struct {
 
 // DefaultConfig contains default settings for miner.
 var DefaultConfig = Config{
-	GasCeil:  45_000_000,
+	GasCeil:  60_000_000,
 	GasPrice: big.NewInt(params.Wei),
 
 	// The default recommit time is chosen as two seconds since
