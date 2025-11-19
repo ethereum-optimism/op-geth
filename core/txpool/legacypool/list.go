@@ -317,7 +317,7 @@ type rollupCostFuncProvider interface {
 }
 
 // newRollupList creates a new transaction list with a rollup cost function pointer
-// that must point back to the pool's rollup cost function this list belongs to.
+// that must point back to the queue's rollup cost function this list belongs to.
 func newRollupList(strict bool, rollupCostFnPrv rollupCostFuncProvider) *list {
 	l := newList(strict)
 	l.rollupCostFnPrv = rollupCostFnPrv

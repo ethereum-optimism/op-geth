@@ -263,7 +263,7 @@ type BlockType interface {
 //
 // The receipt's bloom must already calculated for the block's bloom to be
 // correctly calculated.
-func NewBlock(header *Header, body *Body, receipts []*Receipt, hasher TrieHasher, bType BlockType) *Block {
+func NewBlock(header *Header, body *Body, receipts []*Receipt, hasher ListHasher, bType BlockType) *Block {
 	if body == nil {
 		body = &Body{}
 	}

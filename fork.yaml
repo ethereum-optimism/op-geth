@@ -5,7 +5,7 @@ footer: |
 base:
   name: go-ethereum
   url: https://github.com/ethereum/go-ethereum
-  hash: 41714b4975845b1d6e3277b7b92e80c66a584d2b # v1.16.4
+  hash: 737ffd1bf0cbee378d0111a5b17ae4724fb2216c # v1.16.5
 fork:
   name: op-geth
   url: https://github.com/ethereum-optimism/op-geth
@@ -150,6 +150,7 @@ def:
             The parameters can be overriden for testing.
           globs:
             - "params/config.go"
+            - "params/config_op.go"
             - "params/protocol_params.go"
             - "core/genesis.go"
         - title: "Chain config cleanup"

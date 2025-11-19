@@ -139,7 +139,7 @@ func testRollupTransactionCostAccounting(t *testing.T, stateMod func(t *testing.
 	// we add the initial tx to the pool
 	testAddBalance(pool, from, cost0.ToBig())
 	require.NoError(t, pool.addRemoteSync(tx0))
-	_, ok := pool.queue[from]
+	_, ok := pool.queue.get(from)
 	require.False(t, ok, "tx0 should not be in queue, but pending")
 	pending, ok := pool.pending[from]
 	require.True(t, ok, "tx0 should be pending")
@@ -158,7 +158,7 @@ func testRollupTransactionCostAccounting(t *testing.T, stateMod func(t *testing.
 	testAddBalance(pool, from, new(uint256.Int).Sub(cost1, cost0).ToBig())
 	// now we add the replacement and check the accounting
 	require.NoError(t, pool.addRemoteSync(tx1))
-	_, ok = pool.queue[from]
+	_, ok = pool.queue.get(from)
 	require.False(t, ok, "tx1 should not be in queue, but pending")
 	pending, ok = pool.pending[from]
 	require.True(t, ok, "tx1 should be pending")
