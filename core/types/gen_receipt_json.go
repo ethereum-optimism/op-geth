@@ -72,6 +72,8 @@ func (r Receipt) MarshalJSON() ([]byte, error) {
 	enc.OperatorFeeScalar = (*hexutil.Uint64)(r.OperatorFeeScalar)
 	enc.OperatorFeeConstant = (*hexutil.Uint64)(r.OperatorFeeConstant)
 	enc.DAFootprintGasScalar = (*hexutil.Uint64)(r.DAFootprintGasScalar)
+	enc.OperatorFeeScalar = (*hexutil.Uint64)(r.OperatorFeeScalar)
+	enc.OperatorFeeConstant = (*hexutil.Uint64)(r.OperatorFeeConstant)
 	return json.Marshal(&enc)
 }
 

@@ -229,7 +229,7 @@ func (db *Database) loadDiffLayer(parent layer, r *rlp.Stream) (layer, error) {
 		return nil, fmt.Errorf("load block number: %v", err)
 	}
 	// Read in-memory trie nodes from journal
-	var nodes nodeSet
+	var nodes nodeSetWithOrigin
 	if err := nodes.decode(r); err != nil {
 		return nil, err
 	}
@@ -267,7 +267,7 @@ func (dl *diskLayer) journal(w io.Writer) error {
 	if err := dl.buffer.states.encode(w); err != nil {
 		return err
 	}
-	log.Debug("Journaled pathdb disk layer", "root", dl.root)
+	log.Debug("Journaled pathdb disk layer", "root", dl.root, "id", dl.id)
 	return nil
 }
 

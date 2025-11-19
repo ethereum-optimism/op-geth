@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/tracing"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/params"
 )
@@ -83,6 +84,8 @@ type stateDb struct {
 	codeSet    bool
 }
 
+var _ vm.StateDB = (*stateDb)(nil)
+
 func (s *stateDb) GetCodeSize(_ common.Address) int {
 	if s.codeExists {
 		return 1
@@ -90,7 +93,7 @@ func (s *stateDb) GetCodeSize(_ common.Address) int {
 	return 0
 }
 
-func (s *stateDb) SetCode(_ common.Address, _ []byte) []byte {
+func (s *stateDb) SetCode(_ common.Address, _ []byte, _ tracing.CodeChangeReason) []byte {
 	s.codeSet = true
 	return nil
 }

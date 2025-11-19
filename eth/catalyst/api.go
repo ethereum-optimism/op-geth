@@ -214,8 +214,8 @@ func (api *ConsensusAPI) ForkchoiceUpdatedV3(update engine.ForkchoiceStateV1, pa
 			return engine.STATUS_INVALID, attributesErr("missing withdrawals")
 		case params.BeaconRoot == nil:
 			return engine.STATUS_INVALID, attributesErr("missing beacon root")
-		case !api.checkFork(params.Timestamp, forks.Cancun, forks.Prague, forks.Osaka):
-			return engine.STATUS_INVALID, unsupportedForkErr("fcuV3 must only be called for cancun or prague payloads")
+		case !api.checkFork(params.Timestamp, forks.Cancun, forks.Prague, forks.Osaka, forks.BPO1, forks.BPO2, forks.BPO3, forks.BPO4, forks.BPO5):
+			return engine.STATUS_INVALID, unsupportedForkErr("fcuV3 must only be called for cancun/prague/osaka payloads")
 		}
 	}
 	// TODO(matt): the spec requires that fcu is applied when called on a valid
@@ -446,13 +446,21 @@ func (api *ConsensusAPI) GetPayloadV1(payloadID engine.PayloadID) (*engine.Execu
 
 // GetPayloadV2 returns a cached payload by id.
 func (api *ConsensusAPI) GetPayloadV2(payloadID engine.PayloadID) (*engine.ExecutionPayloadEnvelope, error) {
+	// executionPayload: ExecutionPayloadV1 | ExecutionPayloadV2 where:
+	//
+	// - ExecutionPayloadV1 MUST be returned if the payload timestamp is lower
+	//   than the Shanghai timestamp
+	//
+	// - ExecutionPayloadV2 MUST be returned if the payload timestamp is greater
+	//   or equal to the Shanghai timestamp
 	if !payloadID.Is(engine.PayloadV1, engine.PayloadV2) {
 		return nil, engine.UnsupportedFork
 	}
 	return api.getPayload(payloadID, false)
 }
 
-// GetPayloadV3 returns a cached payload by id.
+// GetPayloadV3 returns a cached payload by id. This endpoint should only
+// be used for the Cancun fork.
 func (api *ConsensusAPI) GetPayloadV3(payloadID engine.PayloadID) (*engine.ExecutionPayloadEnvelope, error) {
 	if !payloadID.Is(engine.PayloadV3) {
 		return nil, engine.UnsupportedFork
@@ -460,7 +468,8 @@ func (api *ConsensusAPI) GetPayloadV3(payloadID engine.PayloadID) (*engine.Execu
 	return api.getPayload(payloadID, false)
 }
 
-// GetPayloadV4 returns a cached payload by id.
+// GetPayloadV4 returns a cached payload by id. This endpoint should only
+// be used for the Prague fork.
 func (api *ConsensusAPI) GetPayloadV4(payloadID engine.PayloadID) (*engine.ExecutionPayloadEnvelope, error) {
 	if !payloadID.Is(engine.PayloadV3) {
 		return nil, engine.UnsupportedFork
@@ -468,7 +477,11 @@ func (api *ConsensusAPI) GetPayloadV4(payloadID engine.PayloadID) (*engine.Execu
 	return api.getPayload(payloadID, false)
 }
 
-// GetPayloadV5 returns a cached payload by id.
+// GetPayloadV5 returns a cached payload by id. This endpoint should only
+// be used after the Osaka fork.
+//
+// This method follows the same specification as engine_getPayloadV4 with
+// changes of returning BlobsBundleV2 with BlobSidecar version 1.
 func (api *ConsensusAPI) GetPayloadV5(payloadID engine.PayloadID) (*engine.ExecutionPayloadEnvelope, error) {
 	if !payloadID.Is(engine.PayloadV3) {
 		return nil, engine.UnsupportedFork
@@ -486,16 +499,40 @@ func (api *ConsensusAPI) getPayload(payloadID engine.PayloadID, full bool) (*eng
 }
 
 // GetBlobsV1 returns a blob from the transaction pool.
+//
+// Specification:
+//
+// Given an array of blob versioned hashes client software MUST respond with an
+// array of BlobAndProofV1 objects with matching versioned hashes, respecting the
+// order of versioned hashes in the input array.
+//
+// Client software MUST place responses in the order given in the request, using
+// null for any missing blobs. For instance:
+//
+// if the request is [A_versioned_hash, B_versioned_hash, C_versioned_hash] and
+// client software has data for blobs A and C, but doesn't have data for B, the
+// response MUST be [A, null, C].
+//
+// Client software MUST support request sizes of at least 128 blob versioned hashes.
+// The client MUST return -38004: Too large request error if the number of requested
+// blobs is too large.
+//
+// Client software MAY return an array of all null entries if syncing or otherwise
+// unable to serve blob pool data.
 func (api *ConsensusAPI) GetBlobsV1(hashes []common.Hash) ([]*engine.BlobAndProofV1, error) {
 	if len(hashes) > 128 {
 		return nil, engine.TooLargeRequest.With(fmt.Errorf("requested blob count too large: %v", len(hashes)))
 	}
-	blobs, _, proofs, err := api.eth.BlobTxPool().GetBlobs(hashes, types.BlobSidecarVersion0)
+	blobs, _, proofs, err := api.eth.BlobTxPool().GetBlobs(hashes, types.BlobSidecarVersion0, false)
 	if err != nil {
 		return nil, engine.InvalidParams.With(err)
 	}
 	res := make([]*engine.BlobAndProofV1, len(hashes))
 	for i := 0; i < len(blobs); i++ {
+		// Skip the non-existing blob
+		if blobs[i] == nil {
+			continue
+		}
 		res[i] = &engine.BlobAndProofV1{
 			Blob:  blobs[i][:],
 			Proof: proofs[i][0][:],
@@ -505,6 +542,33 @@ func (api *ConsensusAPI) GetBlobsV1(hashes []common.Hash) ([]*engine.BlobAndProo
 }
 
 // GetBlobsV2 returns a blob from the transaction pool.
+//
+// Specification:
+// Refer to the specification for engine_getBlobsV1 with changes of the following:
+//
+// Given an array of blob versioned hashes client software MUST respond with an
+// array of BlobAndProofV2 objects with matching versioned hashes, respecting
+// the order of versioned hashes in the input array.
+//
+// Client software MUST return null in case of any missing or older version blobs.
+// For instance,
+//
+//   - if the request is [A_versioned_hash, B_versioned_hash, C_versioned_hash] and
+//     client software has data for blobs A and C, but doesn't have data for B, the
+//     response MUST be null.
+//
+//   - if the request is [A_versioned_hash_for_blob_with_blob_proof], the response
+//     MUST be null as well.
+//
+//     Note, geth internally make the conversion from old version to new one, so the
+//     data will be returned normally.
+//
+// Client software MUST support request sizes of at least 128 blob versioned
+// hashes. The client MUST return -38004: Too large request error if the number
+// of requested blobs is too large.
+//
+// Client software MUST return null if syncing or otherwise unable to serve
+// blob pool data.
 func (api *ConsensusAPI) GetBlobsV2(hashes []common.Hash) ([]*engine.BlobAndProofV2, error) {
 	if len(hashes) > 128 {
 		return nil, engine.TooLargeRequest.With(fmt.Errorf("requested blob count too large: %v", len(hashes)))
@@ -518,12 +582,21 @@ func (api *ConsensusAPI) GetBlobsV2(hashes []common.Hash) ([]*engine.BlobAndProo
 		getBlobsV2RequestMiss.Inc(1)
 		return nil, nil
 	}
-	getBlobsV2RequestHit.Inc(1)
 
-	blobs, _, proofs, err := api.eth.BlobTxPool().GetBlobs(hashes, types.BlobSidecarVersion1)
+	blobs, _, proofs, err := api.eth.BlobTxPool().GetBlobs(hashes, types.BlobSidecarVersion1, false)
 	if err != nil {
 		return nil, engine.InvalidParams.With(err)
 	}
+
+	// To comply with API spec, check again that we really got all data needed
+	for _, blob := range blobs {
+		if blob == nil {
+			getBlobsV2RequestMiss.Inc(1)
+			return nil, nil
+		}
+	}
+	getBlobsV2RequestHit.Inc(1)
+
 	res := make([]*engine.BlobAndProofV2, len(hashes))
 	for i := 0; i < len(blobs); i++ {
 		var cellProofs []hexutil.Bytes
@@ -600,30 +673,24 @@ func (api *ConsensusAPI) NewPayloadV3(params engine.ExecutableData, versionedHas
 
 // NewPayloadV4 creates an Eth1 block, inserts it in the chain, and returns the status of the chain.
 func (api *ConsensusAPI) NewPayloadV4(params engine.ExecutableData, versionedHashes []common.Hash, beaconRoot *common.Hash, executionRequests []hexutil.Bytes) (engine.PayloadStatusV1, error) {
-	if params.Withdrawals == nil {
-		return engine.PayloadStatusV1{Status: engine.INVALID}, engine.InvalidParams.With(errors.New("nil withdrawals post-shanghai"))
+	switch {
+	case params.Withdrawals == nil:
+		return invalidStatus, paramsErr("nil withdrawals post-shanghai")
+	case params.ExcessBlobGas == nil:
+		return invalidStatus, paramsErr("nil excessBlobGas post-cancun")
+	case params.BlobGasUsed == nil:
+		return invalidStatus, paramsErr("nil blobGasUsed post-cancun")
+	case versionedHashes == nil:
+		return invalidStatus, paramsErr("nil versionedHashes post-cancun")
+	case beaconRoot == nil:
+		return invalidStatus, paramsErr("nil beaconRoot post-cancun")
+	case executionRequests == nil:
+		return invalidStatus, paramsErr("nil executionRequests post-prague")
+	case !api.checkFork(params.Timestamp, forks.Prague, forks.Osaka):
+		return invalidStatus, unsupportedForkErr("newPayloadV4 must only be called for prague payloads")
+	case !api.checkFork(params.Timestamp, forks.Prague, forks.Osaka, forks.BPO1, forks.BPO2, forks.BPO3, forks.BPO4, forks.BPO5):
+		return invalidStatus, unsupportedForkErr("newPayloadV4 must only be called for prague/osaka payloads")
 	}
-	if params.ExcessBlobGas == nil {
-		return engine.PayloadStatusV1{Status: engine.INVALID}, engine.InvalidParams.With(errors.New("nil excessBlobGas post-cancun"))
-	}
-	if params.BlobGasUsed == nil {
-		return engine.PayloadStatusV1{Status: engine.INVALID}, engine.InvalidParams.With(errors.New("nil blobGasUsed post-cancun"))
-	}
-
-	if versionedHashes == nil {
-		return engine.PayloadStatusV1{Status: engine.INVALID}, engine.InvalidParams.With(errors.New("nil versionedHashes post-cancun"))
-	}
-	if beaconRoot == nil {
-		return engine.PayloadStatusV1{Status: engine.INVALID}, engine.InvalidParams.With(errors.New("nil beaconRoot post-cancun"))
-	}
-	if executionRequests == nil {
-		return engine.PayloadStatusV1{Status: engine.INVALID}, engine.InvalidParams.With(errors.New("nil executionRequests post-prague"))
-	}
-
-	if api.eth.BlockChain().Config().LatestFork(params.Timestamp) != forks.Prague {
-		return engine.PayloadStatusV1{Status: engine.INVALID}, engine.UnsupportedFork.With(errors.New("newPayloadV4 must only be called for prague payloads"))
-	}
-
 	requests := convertRequests(executionRequests)
 	if err := validateRequests(requests); err != nil {
 		return engine.PayloadStatusV1{Status: engine.INVALID}, engine.InvalidParams.With(err)

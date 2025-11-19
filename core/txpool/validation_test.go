@@ -17,96 +17,99 @@
 package txpool
 
 import (
+	"crypto/ecdsa"
 	"errors"
+	"math"
 	"math/big"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/params"
 )
 
-func TestValidateTransactionMaxTxGasLimit(t *testing.T) {
-	// Create a test private key and signer
-	key, _ := crypto.GenerateKey()
-	signer := types.NewEIP155Signer(big.NewInt(1))
+func TestValidateTransactionEIP2681(t *testing.T) {
+	key, err := crypto.GenerateKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	head := &types.Header{
+		Number:     big.NewInt(1),
+		GasLimit:   5000000,
+		Time:       1,
+		Difficulty: big.NewInt(1),
+	}
+
+	signer := types.LatestSigner(params.TestChainConfig)
+
+	// Create validation options
+	opts := &ValidationOptions{
+		Config:       params.TestChainConfig,
+		Accept:       0xFF, // Accept all transaction types
+		MaxSize:      32 * 1024,
+		MaxBlobCount: 6,
+		MinTip:       big.NewInt(0),
+	}
 
 	tests := []struct {
-		name          string
-		maxTxGasLimit uint64
-		txGasLimit    uint64
-		expectError   bool
-		expectedError error
+		name    string
+		nonce   uint64
+		wantErr error
 	}{
 		{
-			name:          "No limit set",
-			maxTxGasLimit: 0,
-			txGasLimit:    1000000,
-			expectError:   false,
+			name:    "normal nonce",
+			nonce:   42,
+			wantErr: nil,
 		},
 		{
-			name:          "Under limit",
-			maxTxGasLimit: 100000,
-			txGasLimit:    50000,
-			expectError:   false,
+			name:    "max allowed nonce (2^64-2)",
+			nonce:   math.MaxUint64 - 1,
+			wantErr: nil,
 		},
 		{
-			name:          "At limit",
-			maxTxGasLimit: 100000,
-			txGasLimit:    100000,
-			expectError:   false,
-		},
-		{
-			name:          "Over limit",
-			maxTxGasLimit: 100000,
-			txGasLimit:    150000,
-			expectError:   true,
-			expectedError: ErrTxGasLimitExceeded,
+			name:    "EIP-2681 nonce overflow (2^64-1)",
+			nonce:   math.MaxUint64,
+			wantErr: core.ErrNonceMax,
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			// Create test transaction with specified gas limit
-			tx := types.NewTransaction(0, common.Address{}, big.NewInt(0), test.txGasLimit, big.NewInt(1000000000), nil)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tx := createTestTransaction(key, tt.nonce)
+			err := ValidateTransaction(tx, head, signer, opts)
 
-			// Sign the transaction
-			signedTx, err := types.SignTx(tx, signer, key)
-			if err != nil {
-				t.Fatalf("Failed to sign transaction: %v", err)
-			}
-
-			// Create minimal validation options
-			opts := &ValidationOptions{
-				Config:        params.TestChainConfig,
-				Accept:        1 << types.LegacyTxType,
-				MaxSize:       32 * 1024,
-				MinTip:        big.NewInt(0),
-				MaxTxGasLimit: test.maxTxGasLimit,
-			}
-
-			// Create test header with high gas limit to not interfere
-			header := &types.Header{
-				Number:     big.NewInt(1),
-				GasLimit:   10000000,
-				Time:       0,
-				Difficulty: big.NewInt(0),
-			}
-
-			err = ValidateTransaction(signedTx, header, signer, opts)
-
-			if test.expectError {
-				if err == nil {
-					t.Errorf("Expected error but got none")
-				} else if !errors.Is(err, test.expectedError) {
-					t.Errorf("Expected error %v, got %v", test.expectedError, err)
+			if tt.wantErr == nil {
+				if err != nil {
+					t.Errorf("ValidateTransaction() error = %v, wantErr nil", err)
 				}
 			} else {
-				if err != nil {
-					t.Errorf("Unexpected error: %v", err)
+				if err == nil {
+					t.Errorf("ValidateTransaction() error = nil, wantErr %v", tt.wantErr)
+				} else if !errors.Is(err, tt.wantErr) {
+					t.Errorf("ValidateTransaction() error = %v, wantErr %v", err, tt.wantErr)
 				}
 			}
 		})
 	}
+}
+
+// createTestTransaction creates a basic transaction for testing
+func createTestTransaction(key *ecdsa.PrivateKey, nonce uint64) *types.Transaction {
+	to := common.HexToAddress("0x0000000000000000000000000000000000000001")
+
+	txdata := &types.LegacyTx{
+		Nonce:    nonce,
+		To:       &to,
+		Value:    big.NewInt(1000),
+		Gas:      21000,
+		GasPrice: big.NewInt(1),
+		Data:     nil,
+	}
+
+	tx := types.NewTx(txdata)
+	signedTx, _ := types.SignTx(tx, types.HomesteadSigner{}, key)
+	return signedTx
 }
