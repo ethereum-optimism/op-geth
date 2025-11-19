@@ -16,7 +16,7 @@ var (
 )
 
 func updateOptimismBlockMetrics(header *types.Header) error {
-	headBaseFeeGauge.TryUpdate(header.BaseFee)
+	headBaseFeeGauge.TryUpdate(header.BaseFee())
 	headGasUsedGauge.Update(int64(header.GasUsed))
 	headBlobGasUsedGauge.TryUpdateUint64(header.BlobGasUsed)
 	headGasUsedHist.Update(int64(header.GasUsed))

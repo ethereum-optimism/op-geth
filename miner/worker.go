@@ -300,7 +300,7 @@ func (miner *Miner) prepareWork(genParams *generateParams, witness bool) (*envir
 	}
 	// Set baseFee and GasLimit if we are on an EIP-1559 chain
 	if miner.chainConfig.IsLondon(header.Number) {
-		header.BaseFee = eip1559.CalcBaseFee(miner.chainConfig, parent, header.Time)
+		header.EthBaseFee = eip1559.CalcBaseFee(miner.chainConfig, parent, header.Time)
 		if !miner.chainConfig.IsLondon(parent.Number) {
 			parentGasLimit := parent.GasLimit * miner.chainConfig.ElasticityMultiplier()
 			header.GasLimit = core.CalcGasLimit(parentGasLimit, miner.config.GasCeil)
@@ -695,8 +695,8 @@ func (miner *Miner) fillTransactions(interrupt *atomic.Int32, env *environment) 
 		MinTip:      uint256.MustFromBig(tip),
 		MaxDATxSize: miner.config.MaxDATxSize,
 	}
-	if env.header.BaseFee != nil {
-		filter.BaseFee = uint256.MustFromBig(env.header.BaseFee)
+	if env.header.BaseFee() != nil {
+		filter.BaseFee = uint256.MustFromBig(env.header.BaseFee())
 	}
 	if env.header.ExcessBlobGas != nil {
 		filter.BlobFee = uint256.MustFromBig(eip4844.CalcBlobFee(miner.chainConfig, env.header))
@@ -726,16 +726,16 @@ func (miner *Miner) fillTransactions(interrupt *atomic.Int32, env *environment) 
 	}
 	// Fill the block with all available pending transactions.
 	if len(prioPlainTxs) > 0 || len(prioBlobTxs) > 0 {
-		plainTxs := newTransactionsByPriceAndNonce(env.signer, prioPlainTxs, env.header.BaseFee)
-		blobTxs := newTransactionsByPriceAndNonce(env.signer, prioBlobTxs, env.header.BaseFee)
+		plainTxs := newTransactionsByPriceAndNonce(env.signer, prioPlainTxs, env.header.BaseFee())
+		blobTxs := newTransactionsByPriceAndNonce(env.signer, prioBlobTxs, env.header.BaseFee())
 
 		if err := miner.commitTransactions(env, plainTxs, blobTxs, interrupt); err != nil {
 			return err
 		}
 	}
 	if len(normalPlainTxs) > 0 || len(normalBlobTxs) > 0 {
-		plainTxs := newTransactionsByPriceAndNonce(env.signer, normalPlainTxs, env.header.BaseFee)
-		blobTxs := newTransactionsByPriceAndNonce(env.signer, normalBlobTxs, env.header.BaseFee)
+		plainTxs := newTransactionsByPriceAndNonce(env.signer, normalPlainTxs, env.header.BaseFee())
+		blobTxs := newTransactionsByPriceAndNonce(env.signer, normalBlobTxs, env.header.BaseFee())
 
 		if err := miner.commitTransactions(env, plainTxs, blobTxs, interrupt); err != nil {
 			return err

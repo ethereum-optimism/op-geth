@@ -92,10 +92,13 @@ func (s *stateObject) empty() bool {
 
 // newObject creates a state object.
 func newObject(db *StateDB, address common.Address, acct *types.StateAccount) *stateObject {
+	fmt.Println("state_object.go ~ newObject ~ Creating state object", address, acct)
 	origin := acct
 	if acct == nil {
 		acct = types.NewEmptyStateAccount()
+		fmt.Println("state_object.go ~ newObject ~ New empty state account", acct)
 	}
+	fmt.Println("state_object.go ~ newObject ~ State account", acct)
 	return &stateObject{
 		db:                 db,
 		address:            address,

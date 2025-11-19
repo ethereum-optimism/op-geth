@@ -37,20 +37,20 @@ func (obj *Header) EncodeRLP(_w io.Writer) error {
 	w.WriteBytes(obj.Extra)
 	w.WriteBytes(obj.MixDigest[:])
 	w.WriteBytes(obj.Nonce[:])
-	_tmp1 := obj.BaseFee != nil
+	_tmp1 := obj.BaseFee() != nil
 	_tmp2 := obj.WithdrawalsHash != nil
 	_tmp3 := obj.BlobGasUsed != nil
 	_tmp4 := obj.ExcessBlobGas != nil
 	_tmp5 := obj.ParentBeaconRoot != nil
 	_tmp6 := obj.RequestsHash != nil
 	if _tmp1 || _tmp2 || _tmp3 || _tmp4 || _tmp5 || _tmp6 {
-		if obj.BaseFee == nil {
+		if obj.BaseFee() == nil {
 			w.Write(rlp.EmptyString)
 		} else {
-			if obj.BaseFee.Sign() == -1 {
+			if obj.BaseFee().Sign() == -1 {
 				return rlp.ErrNegativeBigInt
 			}
-			w.WriteBigInt(obj.BaseFee)
+			w.WriteBigInt(obj.BaseFee())
 		}
 	}
 	if _tmp2 || _tmp3 || _tmp4 || _tmp5 || _tmp6 {

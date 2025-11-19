@@ -639,6 +639,7 @@ func (s *StateDB) getStateObject(addr common.Address) *stateObject {
 
 	start := time.Now()
 	acct, err := s.reader.Account(addr)
+	fmt.Println("statedb.go ~ getStateObject ~ Account", acct, err)
 	if err != nil {
 		s.setError(fmt.Errorf("getStateObject (%x) error: %w", addr.Bytes(), err))
 		return nil
@@ -647,17 +648,21 @@ func (s *StateDB) getStateObject(addr common.Address) *stateObject {
 
 	// Short circuit if the account is not found
 	if acct == nil {
+		fmt.Println("statedb.go ~ getStateObject ~ Account is nil")
 		return nil
 	}
 	// Schedule the resolved account for prefetching if it's enabled.
 	if s.prefetcher != nil {
+		fmt.Println("statedb.go ~ getStateObject ~ Prefetcher is not nil")
 		if err = s.prefetcher.prefetch(common.Hash{}, s.originalRoot, common.Address{}, []common.Address{addr}, nil, true); err != nil {
 			log.Error("Failed to prefetch account", "addr", addr, "err", err)
 		}
 	}
 	// Insert into the live set
 	obj := newObject(s, addr, acct)
+	fmt.Println("statedb.go ~ getStateObject ~ Setting state object", obj)
 	s.setStateObject(obj)
+	fmt.Println("statedb.go ~ getStateObject ~ State object set", obj)
 	return obj
 }
 

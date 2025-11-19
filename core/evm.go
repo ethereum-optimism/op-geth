@@ -58,8 +58,8 @@ func NewEVMBlockContext(header *types.Header, chain ChainContext, author *common
 	} else {
 		beneficiary = *author
 	}
-	if header.BaseFee != nil {
-		baseFee = new(big.Int).Set(header.BaseFee)
+	if header.BaseFee() != nil {
+		baseFee = new(big.Int).Set(header.BaseFee())
 	}
 	if header.ExcessBlobGas != nil {
 		blobBaseFee = eip4844.CalcBlobFee(chain.Config(), header)

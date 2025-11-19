@@ -89,7 +89,7 @@ func convertCapellaHeader(payload *capella.ExecutionPayload, h *types.Header) {
 	h.Extra = []byte(payload.ExtraData)
 	h.MixDigest = common.Hash(payload.PrevRandao)
 	h.Nonce = types.BlockNonce{}
-	h.BaseFee = (*uint256.Int)(&payload.BaseFeePerGas).ToBig()
+	h.EthBaseFee = (*uint256.Int)(&payload.BaseFeePerGas).ToBig()
 }
 
 func convertDenebHeader(payload *deneb.ExecutionPayload, parentRoot common.Hash, h *types.Header) {
@@ -108,7 +108,7 @@ func convertDenebHeader(payload *deneb.ExecutionPayload, parentRoot common.Hash,
 	h.Extra = []byte(payload.ExtraData)
 	h.MixDigest = common.Hash(payload.PrevRandao)
 	h.Nonce = types.BlockNonce{}
-	h.BaseFee = (*uint256.Int)(&payload.BaseFeePerGas).ToBig()
+	h.EthBaseFee = (*uint256.Int)(&payload.BaseFeePerGas).ToBig()
 	// new in deneb
 	h.BlobGasUsed = (*uint64)(&payload.BlobGasUsed)
 	h.ExcessBlobGas = (*uint64)(&payload.ExcessBlobGas)

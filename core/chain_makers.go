@@ -191,7 +191,7 @@ func (b *BlockGen) Timestamp() uint64 {
 
 // BaseFee returns the EIP-1559 base fee of the block being generated.
 func (b *BlockGen) BaseFee() *big.Int {
-	return new(big.Int).Set(b.header.BaseFee)
+	return new(big.Int).Set(b.header.BaseFee())
 }
 
 // Gas returns the amount of gas left in the current block.
@@ -239,7 +239,7 @@ func (b *BlockGen) AddUncle(h *types.Header) {
 	// The gas limit and price should be derived from the parent
 	h.GasLimit = parent.GasLimit
 	if b.cm.config.IsLondon(h.Number) {
-		h.BaseFee = eip1559.CalcBaseFee(b.cm.config, parent, h.Time)
+		h.EthBaseFee = eip1559.CalcBaseFee(b.cm.config, parent, h.Time)
 		if !b.cm.config.IsLondon(parent.Number) {
 			parentGasLimit := parent.GasLimit * b.cm.config.ElasticityMultiplier()
 			h.GasLimit = CalcGasLimit(parentGasLimit, parentGasLimit)
@@ -619,7 +619,7 @@ func (cm *chainMaker) makeHeader(parent *types.Block, state *state.StateDB, engi
 	}
 
 	if cm.config.IsLondon(header.Number) {
-		header.BaseFee = eip1559.CalcBaseFee(cm.config, parentHeader, header.Time)
+		header.EthBaseFee = eip1559.CalcBaseFee(cm.config, parentHeader, header.Time)
 		if !cm.config.IsLondon(parent.Number()) {
 			parentGasLimit := parent.GasLimit() * cm.config.ElasticityMultiplier()
 			header.GasLimit = CalcGasLimit(parentGasLimit, parentGasLimit)

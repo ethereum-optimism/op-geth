@@ -297,7 +297,7 @@ func (c *BoundContract) createDynamicTx(opts *TransactOpts, contract *common.Add
 	if gasFeeCap == nil {
 		gasFeeCap = new(big.Int).Add(
 			gasTipCap,
-			new(big.Int).Mul(head.BaseFee, big.NewInt(basefeeWiggleMultiplier)),
+			new(big.Int).Mul(head.BaseFee(), big.NewInt(basefeeWiggleMultiplier)),
 		)
 	}
 	if gasFeeCap.Cmp(gasTipCap) < 0 {

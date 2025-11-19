@@ -18,6 +18,7 @@ package state
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -159,6 +160,7 @@ func (p *triePrefetcher) report() {
 //     repeated.
 //  2. Finalize of the main account trie. This happens only once per block.
 func (p *triePrefetcher) prefetch(owner common.Hash, root common.Hash, addr common.Address, addrs []common.Address, slots []common.Hash, read bool) error {
+	fmt.Println("trie_prefetcher.go ~ prefetch ~ Prefetching", owner, root, addr, addrs, slots, read)
 	// If the state item is only being read, but reads are disabled, return
 	if read && p.noreads {
 		return nil
@@ -170,11 +172,16 @@ func (p *triePrefetcher) prefetch(owner common.Hash, root common.Hash, addr comm
 	default:
 	}
 	id := p.trieID(owner, root)
+	fmt.Println("trie_prefetcher.go ~ prefetch ~ Trie ID", id)
 	fetcher := p.fetchers[id]
 	if fetcher == nil {
+		fmt.Println("trie_prefetcher.go ~ prefetch ~ New subfetcher")
 		fetcher = newSubfetcher(p.db, p.root, owner, root, addr)
 		p.fetchers[id] = fetcher
+	} else {
+		fmt.Println("trie_prefetcher.go ~ prefetch ~ Subfetcher already exists")
 	}
+	fmt.Println("trie_prefetcher.go ~ prefetch ~ Scheduling", addrs, slots, read)
 	return fetcher.schedule(addrs, slots, read)
 }
 

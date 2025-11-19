@@ -228,11 +228,11 @@ func (sim *simulator) processBlock(ctx context.Context, block *simBlock, header,
 		// In non-validation mode base fee is set to 0 if it is not overridden.
 		// This is because it creates an edge case in EVM where gasPrice < baseFee.
 		// Base fee could have been overridden.
-		if header.BaseFee == nil {
+		if header.BaseFee() == nil {
 			if sim.validate {
-				header.BaseFee = eip1559.CalcBaseFee(sim.chainConfig, parent, header.Time)
+				header.EthBaseFee = eip1559.CalcBaseFee(sim.chainConfig, parent, header.Time)
 			} else {
-				header.BaseFee = big.NewInt(0)
+				header.EthBaseFee = big.NewInt(0)
 			}
 		}
 	}
@@ -301,7 +301,7 @@ func (sim *simulator) processBlock(ctx context.Context, block *simBlock, header,
 		tracer.reset(txHash, uint(i))
 		sim.state.SetTxContext(txHash, i)
 		// EoA check is always skipped, even in validation mode.
-		msg := call.ToMessage(header.BaseFee, !sim.validate, true)
+		msg := call.ToMessage(header.BaseFee(), !sim.validate, true)
 		result, err := applyMessageWithEVM(ctx, evm, msg, timeout, sim.gp)
 		if err != nil {
 			txErr := txValidationError(err)
@@ -393,7 +393,7 @@ func (sim *simulator) sanitizeCall(call *TransactionArgs, state vm.StateDB, head
 	if *gasUsed+uint64(*call.Gas) > blockContext.GasLimit {
 		return &blockGasLimitReachedError{fmt.Sprintf("block gas limit reached: %d >= %d", gasUsed, blockContext.GasLimit)}
 	}
-	if err := call.CallDefaults(sim.gp.Gas(), header.BaseFee, sim.chainConfig.ChainID); err != nil {
+	if err := call.CallDefaults(sim.gp.Gas(), header.BaseFee(), sim.chainConfig.ChainID); err != nil {
 		return err
 	}
 	return nil

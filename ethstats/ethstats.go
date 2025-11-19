@@ -771,7 +771,7 @@ func (s *Service) reportStats(conn *connWrapper) error {
 
 		price, _ := fullBackend.SuggestGasTipCap(context.Background())
 		gasprice = int(price.Uint64())
-		if basefee := fullBackend.CurrentHeader().BaseFee; basefee != nil {
+		if basefee := fullBackend.CurrentHeader().BaseFee(); basefee != nil {
 			gasprice += int(basefee.Uint64())
 		}
 	} else {

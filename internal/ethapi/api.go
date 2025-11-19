@@ -73,8 +73,8 @@ func (api *EthereumAPI) GasPrice(ctx context.Context) (*hexutil.Big, error) {
 	if err != nil {
 		return nil, err
 	}
-	if head := api.b.CurrentHeader(); head.BaseFee != nil {
-		tipcap.Add(tipcap, head.BaseFee)
+	if head := api.b.CurrentHeader(); head.BaseFee() != nil {
+		tipcap.Add(tipcap, head.BaseFee())
 	}
 	return (*hexutil.Big)(tipcap), err
 }
@@ -792,7 +792,7 @@ func applyMessage(ctx context.Context, b Backend, args TransactionArgs, state *s
 	if err := args.CallDefaults(gp.Gas(), blockContext.BaseFee, b.ChainConfig().ChainID); err != nil {
 		return nil, err
 	}
-	msg := args.ToMessage(header.BaseFee, skipChecks, skipChecks)
+	msg := args.ToMessage(header.BaseFee(), skipChecks, skipChecks)
 	// Lower the basefee to 0 to avoid breaking EVM
 	// invariants (basefee < feecap).
 	if msg.GasPrice.Sign() == 0 {
@@ -959,10 +959,10 @@ func DoEstimateGas(ctx context.Context, b Backend, args TransactionArgs, blockNr
 	if args.Gas == nil {
 		args.Gas = new(hexutil.Uint64)
 	}
-	if err := args.CallDefaults(gasCap, header.BaseFee, b.ChainConfig().ChainID); err != nil {
+	if err := args.CallDefaults(gasCap, header.BaseFee(), b.ChainConfig().ChainID); err != nil {
 		return 0, err
 	}
-	call := args.ToMessage(header.BaseFee, true, true)
+	call := args.ToMessage(header.BaseFee(), true, true)
 
 	// Run the gas estimation and wrap any revertals into a custom return
 	estimate, revert, err := gasestimator.Estimate(ctx, call, opts, gasCap)
@@ -1028,8 +1028,8 @@ func RPCMarshalHeader(head *types.Header) map[string]interface{} {
 		"transactionsRoot": head.TxHash,
 		"receiptsRoot":     head.ReceiptHash,
 	}
-	if head.BaseFee != nil {
-		result["baseFeePerGas"] = (*hexutil.Big)(head.BaseFee)
+	if head.BaseFee() != nil {
+		result["baseFeePerGas"] = (*hexutil.Big)(head.BaseFee())
 	}
 	if head.WithdrawalsHash != nil {
 		result["withdrawalsRoot"] = head.WithdrawalsHash
@@ -1486,7 +1486,7 @@ func AccessList(ctx context.Context, b Backend, blockNrOrHash rpc.BlockNumberOrH
 		statedb := db.Copy()
 		// Set the accesslist to the last al
 		args.AccessList = &accessList
-		msg := args.ToMessage(header.BaseFee, true, true)
+		msg := args.ToMessage(header.BaseFee(), true, true)
 
 		// Apply the transaction with the access list tracer
 		tracer := logger.NewAccessListTracer(accessList, addressesToExclude)
@@ -1640,7 +1640,7 @@ func (api *TransactionAPI) GetTransactionByHash(ctx context.Context, hash common
 		return nil, err
 	}
 	rcpt := depositTxReceipt(ctx, blockHash, index, api.b, tx)
-	return newRPCTransaction(tx, blockHash, blockNumber, header.Time, index, header.BaseFee, api.b.ChainConfig(), rcpt), nil
+	return newRPCTransaction(tx, blockHash, blockNumber, header.Time, index, header.BaseFee(), api.b.ChainConfig(), rcpt), nil
 }
 
 // GetRawTransactionByHash returns the bytes of the transaction for the given hash.

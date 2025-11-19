@@ -18,6 +18,7 @@ package vm
 
 import (
 	"errors"
+	"fmt"
 	"math/big"
 	"sync/atomic"
 
@@ -255,6 +256,7 @@ func isSystemCall(caller common.Address) bool {
 // the necessary steps to create accounts and reverses the state in case of an
 // execution error or failed value transfer.
 func (evm *EVM) Call(caller common.Address, addr common.Address, input []byte, gas uint64, value *uint256.Int) (ret []byte, leftOverGas uint64, err error) {
+	fmt.Println("evm.go ~ EVM ~ Call ~ Calling contract", caller, addr, gas, value)
 	caller = evm.maybeOverrideCaller(caller)
 	// Capture the tracer start/end events in debug mode
 	if evm.Config.Tracer != nil {
@@ -265,10 +267,12 @@ func (evm *EVM) Call(caller common.Address, addr common.Address, input []byte, g
 	}
 	// Fail if we're trying to execute above the call depth limit
 	if evm.depth > int(params.CallCreateDepth) {
+		fmt.Println("evm.go ~ EVM ~ Call ~ Depth limit exceeded", evm.depth)
 		return nil, gas, ErrDepth
 	}
 	// Fail if we're trying to transfer more than the available balance
 	if !value.IsZero() && !evm.Context.CanTransfer(evm.StateDB, caller, value) {
+		fmt.Println("evm.go ~ EVM ~ Call ~ Insufficient balance", caller, value)
 		return nil, gas, ErrInsufficientBalance
 	}
 	snapshot := evm.StateDB.Snapshot()
@@ -298,19 +302,24 @@ func (evm *EVM) Call(caller common.Address, addr common.Address, input []byte, g
 		evm.StateDB.CreateAccount(addr)
 	}
 	evm.Context.Transfer(evm.StateDB, caller, addr, value)
-
+	fmt.Println("evm.go ~ EVM ~ Call ~ Transferred value", caller, addr, value)
 	if isPrecompile {
 		ret, gas, err = RunPrecompiledContract(p, input, gas, evm.Config.Tracer)
+		fmt.Println("evm.go ~ EVM ~ Call ~ RunPrecompiledContract no output", gas, err)
 	} else {
 		// Initialise a new contract and set the code that is to be used by the EVM.
 		code := evm.resolveCode(addr)
 		if len(code) == 0 {
+			fmt.Println("evm.go ~ EVM ~ Call ~ No code to run", addr)
 			ret, err = nil, nil // gas is unchanged
 		} else {
+			fmt.Println("evm.go ~ EVM ~ Call ~ Code to run", addr)
 			// The contract is a scoped environment for this execution context only.
 			contract := NewContract(caller, addr, value, gas, evm.jumpDests)
+			fmt.Println("evm.go ~ EVM ~ Call ~ New contract", contract)
 			contract.IsSystemCall = isSystemCall(caller)
 			contract.SetCallCode(evm.resolveCodeHash(addr), code)
+			fmt.Println("evm.go ~ EVM ~ Call ~ Running contract", contract.Address())
 			ret, err = evm.Run(contract, input, false)
 			gas = contract.Gas
 		}
@@ -319,7 +328,9 @@ func (evm *EVM) Call(caller common.Address, addr common.Address, input []byte, g
 	// above we revert to the snapshot and consume any gas remaining. Additionally,
 	// when we're in homestead this also counts for code storage gas errors.
 	if err != nil {
+		fmt.Println("evm.go ~ EVM ~ Call ~ Error", err.Error())
 		evm.StateDB.RevertToSnapshot(snapshot)
+		fmt.Println("evm.go ~ EVM ~ Call ~ Reverted to snapshot", snapshot)
 		if err != ErrExecutionReverted {
 			if evm.Config.Tracer != nil && evm.Config.Tracer.OnGasChange != nil {
 				evm.Config.Tracer.OnGasChange(gas, 0, tracing.GasChangeCallFailedExecution)
@@ -646,11 +657,14 @@ func (evm *EVM) Create2(caller common.Address, code []byte, gas uint64, endowmen
 // resolveCode returns the code associated with the provided account. After
 // Prague, it can also resolve code pointed to by a delegation designator.
 func (evm *EVM) resolveCode(addr common.Address) []byte {
+	fmt.Println("evm.go ~ EVM ~ resolveCode ~ Resolving code for", addr)
 	code := evm.StateDB.GetCode(addr)
 	if !evm.chainRules.IsPrague {
+		fmt.Println("evm.go ~ EVM ~ resolveCode ~ Not Prague")
 		return code
 	}
 	if target, ok := types.ParseDelegation(code); ok {
+		fmt.Println("evm.go ~ EVM ~ resolveCode ~ Parsed delegation target", target)
 		// Note we only follow one level of delegation.
 		return evm.StateDB.GetCode(target)
 	}

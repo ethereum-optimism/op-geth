@@ -55,7 +55,7 @@ func (h Header) MarshalJSON() ([]byte, error) {
 	enc.Extra = h.Extra
 	enc.MixDigest = h.MixDigest
 	enc.Nonce = h.Nonce
-	enc.BaseFee = (*hexutil.Big)(h.BaseFee)
+	enc.BaseFee = (*hexutil.Big)(h.BaseFee())
 	enc.WithdrawalsHash = h.WithdrawalsHash
 	enc.BlobGasUsed = (*hexutil.Uint64)(h.BlobGasUsed)
 	enc.ExcessBlobGas = (*hexutil.Uint64)(h.ExcessBlobGas)
@@ -83,7 +83,8 @@ func (h *Header) UnmarshalJSON(input []byte) error {
 		Extra            *hexutil.Bytes  `json:"extraData"        gencodec:"required"`
 		MixDigest        *common.Hash    `json:"mixHash"`
 		Nonce            *BlockNonce     `json:"nonce"`
-		BaseFee          *hexutil.Big    `json:"baseFeePerGas" rlp:"optional"`
+		EthBaseFee       *hexutil.Big    `json:"baseFeePerGas" rlp:"optional"`
+		RskMinimumGasPrice *hexutil.Big    `json:"minimumGasPrice,omitempty" rlp:"optional"`
 		WithdrawalsHash  *common.Hash    `json:"withdrawalsRoot" rlp:"optional"`
 		BlobGasUsed      *hexutil.Uint64 `json:"blobGasUsed" rlp:"optional"`
 		ExcessBlobGas    *hexutil.Uint64 `json:"excessBlobGas" rlp:"optional"`
@@ -151,8 +152,11 @@ func (h *Header) UnmarshalJSON(input []byte) error {
 	if dec.Nonce != nil {
 		h.Nonce = *dec.Nonce
 	}
-	if dec.BaseFee != nil {
-		h.BaseFee = (*big.Int)(dec.BaseFee)
+	if dec.EthBaseFee != nil {
+		h.EthBaseFee = (*big.Int)(dec.EthBaseFee)
+	}
+	if dec.RskMinimumGasPrice != nil {
+		h.RskMinimumGasPrice = (*big.Int)(dec.RskMinimumGasPrice)
 	}
 	if dec.WithdrawalsHash != nil {
 		h.WithdrawalsHash = dec.WithdrawalsHash

@@ -267,7 +267,7 @@ func (args *TransactionArgs) setLondonFeeDefaults(ctx context.Context, head *typ
 		// fee is rising.
 		val := new(big.Int).Add(
 			args.MaxPriorityFeePerGas.ToInt(),
-			new(big.Int).Mul(head.BaseFee, big.NewInt(2)),
+			new(big.Int).Mul(head.BaseFee(), big.NewInt(2)),
 		)
 		args.MaxFeePerGas = (*hexutil.Big)(val)
 	}

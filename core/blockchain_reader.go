@@ -247,7 +247,7 @@ func (bc *BlockChain) GetCanonicalReceipt(tx *types.Transaction, blockHash commo
 		BlockHash:    blockHash,
 		BlockNumber:  blockNumber,
 		BlockTime:    header.Time,
-		BaseFee:      header.BaseFee,
+		BaseFee:      header.BaseFee(),
 		BlobGasPrice: blobGasPrice,
 		GasUsed:      ctx.GasUsed,
 		LogIndex:     ctx.LogIndex,

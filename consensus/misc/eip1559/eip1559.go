@@ -42,14 +42,14 @@ func VerifyEIP1559Header(config *params.ChainConfig, parent, header *types.Heade
 		}
 	}
 	// Verify the header is not malformed
-	if header.BaseFee == nil {
+	if header.BaseFee() == nil {
 		return errors.New("header is missing baseFee")
 	}
 	// Verify the baseFee is correct based on the parent header.
 	expectedBaseFee := CalcBaseFee(config, parent, header.Time)
-	if header.BaseFee.Cmp(expectedBaseFee) != 0 {
+	if header.BaseFee().Cmp(expectedBaseFee) != 0 {
 		return fmt.Errorf("invalid baseFee: have %s, want %s, parentBaseFee %s, parentGasUsed %d",
-			header.BaseFee, expectedBaseFee, parent.BaseFee, parent.GasUsed)
+			header.BaseFee(), expectedBaseFee, parent.BaseFee(), parent.GasUsed)
 	}
 	return nil
 }
@@ -103,7 +103,7 @@ func calcBaseFeeInner(config *params.ChainConfig, parent *types.Header, elastici
 	}
 	// If the parent gasMetered is the same as the target, the baseFee remains unchanged.
 	if parentGasMetered == parentGasTarget {
-		return new(big.Int).Set(parent.BaseFee)
+		return new(big.Int).Set(parent.BaseFee())
 	}
 
 	var (
@@ -115,22 +115,22 @@ func calcBaseFeeInner(config *params.ChainConfig, parent *types.Header, elastici
 		// If the parent block used more gas than its target, the baseFee should increase.
 		// max(1, parentBaseFee * gasUsedDelta / parentGasTarget / baseFeeChangeDenominator)
 		num.SetUint64(parentGasMetered - parentGasTarget)
-		num.Mul(num, parent.BaseFee)
+		num.Mul(num, parent.BaseFee())
 		num.Div(num, denom.SetUint64(parentGasTarget))
 		num.Div(num, denom.SetUint64(denominator))
 		if num.Cmp(common.Big1) < 0 {
-			return num.Add(parent.BaseFee, common.Big1)
+			return num.Add(parent.BaseFee(), common.Big1)
 		}
-		return num.Add(parent.BaseFee, num)
+		return num.Add(parent.BaseFee(), num)
 	} else {
 		// Otherwise if the parent block used less gas than its target, the baseFee should decrease.
 		// max(0, parentBaseFee * gasUsedDelta / parentGasTarget / baseFeeChangeDenominator)
 		num.SetUint64(parentGasTarget - parentGasMetered)
-		num.Mul(num, parent.BaseFee)
+		num.Mul(num, parent.BaseFee())
 		num.Div(num, denom.SetUint64(parentGasTarget))
 		num.Div(num, denom.SetUint64(denominator))
 
-		baseFee := num.Sub(parent.BaseFee, num)
+		baseFee := num.Sub(parent.BaseFee(), num)
 		if baseFee.Cmp(common.Big0) < 0 {
 			baseFee = common.Big0
 		}
