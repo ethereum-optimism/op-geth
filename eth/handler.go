@@ -44,7 +44,6 @@ import (
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
-	"github.com/ethereum/go-ethereum/p2p/netutil"
 )
 
 const (
@@ -107,11 +106,6 @@ type handlerConfig struct {
 	BloomCache     uint64                 // Megabytes to alloc for snap sync bloom
 	EventMux       *event.TypeMux         // Legacy event mux, deprecate for `feed`
 	RequiredBlocks map[uint64]common.Hash // Hard coded map of required block hashes for sync challenges
-
-	// OP Stack additions
-	NoTxGossip               bool             // Disable P2P transaction gossip
-	TxGossipNetRestrict      *netutil.Netlist // Restrict tx gossip to specific IP networks
-	TxGossipTrustedPeersOnly bool             // Restrict tx gossip to trusted peers only
 }
 
 type handler struct {
@@ -125,10 +119,6 @@ type handler struct {
 	txpool   txPool
 	chain    *core.BlockChain
 	maxPeers int
-
-	noTxGossip               bool
-	txGossipNetRestrict      *netutil.Netlist
-	txGossipTrustedPeersOnly bool
 
 	downloader     *downloader.Downloader
 	txFetcher      *fetcher.TxFetcher
@@ -170,11 +160,6 @@ func newHandler(config *handlerConfig) (*handler, error) {
 		quitSync:       make(chan struct{}),
 		handlerDoneCh:  make(chan struct{}),
 		handlerStartCh: make(chan struct{}),
-
-		// OP Stack additions
-		noTxGossip:               config.NoTxGossip,
-		txGossipNetRestrict:      config.TxGossipNetRestrict,
-		txGossipTrustedPeersOnly: config.TxGossipTrustedPeersOnly,
 	}
 	if config.Sync == ethconfig.FullSync {
 		// The database seems empty as the current block is the genesis. Yet the snap
@@ -195,10 +180,8 @@ func newHandler(config *handlerConfig) (*handler, error) {
 		}
 	} else {
 		head := h.chain.CurrentBlock()
-		if head.Number.Uint64() > 0 && h.chain.HasState(head.Root) && (!config.Chain.Config().IsOptimism() || head.Number.Cmp(config.Chain.Config().BedrockBlock) != 0) {
-			// Print warning log if database is not empty to run snap sync.
-			// For OP chains, snap sync from bedrock block is allowed.
-			log.Warn("Switch sync mode from snap sync to full sync")
+		if head.Number.Uint64() > 0 && h.chain.HasState(head.Root) {
+			log.Info("Switch sync mode from snap sync to full sync", "reason", "snap sync complete")
 		} else {
 			// If snap sync was requested and our database is empty, grant it
 			h.snapSync.Store(true)

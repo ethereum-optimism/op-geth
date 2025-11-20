@@ -35,16 +35,19 @@ import (
 //
 // StateProcessor implements Processor.
 type StateProcessor struct {
-	config *params.ChainConfig // Chain configuration options
-	chain  *HeaderChain        // Canonical header chain
+	chain ChainContext // Chain context interface
 }
 
 // NewStateProcessor initialises a new StateProcessor.
-func NewStateProcessor(config *params.ChainConfig, chain *HeaderChain) *StateProcessor {
+func NewStateProcessor(chain ChainContext) *StateProcessor {
 	return &StateProcessor{
-		config: config,
-		chain:  chain,
+		chain: chain,
 	}
+}
+
+// chainConfig returns the chain configuration.
+func (p *StateProcessor) chainConfig() *params.ChainConfig {
+	return p.chain.Config()
 }
 
 // Process processes the state changes according to the Ethereum rules by running
@@ -56,6 +59,7 @@ func NewStateProcessor(config *params.ChainConfig, chain *HeaderChain) *StatePro
 // transactions failed to execute due to insufficient gas it will return an error.
 func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg vm.Config) (*ProcessResult, error) {
 	var (
+		config      = p.chainConfig()
 		receipts    types.Receipts
 		usedGas     = new(uint64)
 		header      = block.Header()
@@ -66,26 +70,26 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 	)
 
 	// Mutate the block and state according to any hard-fork specs
-	if p.config.DAOForkSupport && p.config.DAOForkBlock != nil && p.config.DAOForkBlock.Cmp(block.Number()) == 0 {
+	if config.DAOForkSupport && config.DAOForkBlock != nil && config.DAOForkBlock.Cmp(block.Number()) == 0 {
 		misc.ApplyDAOHardFork(statedb)
 	}
-	misc.EnsureCreate2Deployer(p.config, block.Time(), statedb)
 	var (
 		context vm.BlockContext
-		signer  = types.MakeSigner(p.config, header.Number, header.Time)
+		signer  = types.MakeSigner(config, header.Number, header.Time)
 	)
+
 	// Apply pre-execution system calls.
-	tracingStateDB := vm.StateDB(statedb)
+	var tracingStateDB = vm.StateDB(statedb)
 	if hooks := cfg.Tracer; hooks != nil {
 		tracingStateDB = state.NewHookedState(statedb, hooks)
 	}
-	context = NewEVMBlockContext(header, p.chain, nil, p.config, statedb)
-	evm := vm.NewEVM(context, tracingStateDB, p.config, cfg)
+	context = NewEVMBlockContext(header, p.chain, nil)
+	evm := vm.NewEVM(context, tracingStateDB, config, cfg)
 
 	if beaconRoot := block.BeaconRoot(); beaconRoot != nil {
 		ProcessBeaconBlockRoot(*beaconRoot, evm)
 	}
-	if p.config.IsPrague(block.Number(), block.Time()) || p.config.IsVerkle(block.Number(), block.Time()) {
+	if config.IsPrague(block.Number(), block.Time()) || config.IsVerkle(block.Number(), block.Time()) {
 		ProcessParentBlockHash(block.ParentHash(), evm)
 	}
 
@@ -104,15 +108,12 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 		receipts = append(receipts, receipt)
 		allLogs = append(allLogs, receipt.Logs...)
 	}
-
-	isIsthmus := p.config.IsIsthmus(block.Time())
-
 	// Read requests if Prague is enabled.
 	var requests [][]byte
-	if p.config.IsPrague(block.Number(), block.Time()) && !isIsthmus {
+	if config.IsPrague(block.Number(), block.Time()) {
 		requests = [][]byte{}
 		// EIP-6110
-		if err := ParseDepositLogs(&requests, allLogs, p.config); err != nil {
+		if err := ParseDepositLogs(&requests, allLogs, config); err != nil {
 			return nil, fmt.Errorf("failed to parse deposit logs: %w", err)
 		}
 		// EIP-7002
@@ -125,12 +126,8 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 		}
 	}
 
-	if isIsthmus {
-		requests = [][]byte{}
-	}
-
 	// Finalize the block, applying any consensus engine specific extras (e.g. block rewards)
-	p.chain.engine.Finalize(p.chain, header, tracingStateDB, block.Body())
+	p.chain.Engine().Finalize(p.chain, header, tracingStateDB, block.Body())
 
 	return &ProcessResult{
 		Receipts: receipts,
@@ -152,12 +149,6 @@ func ApplyTransactionWithEVM(msg *Message, gp *GasPool, statedb *state.StateDB, 
 			defer func() { hooks.OnTxEnd(receipt, err) }()
 		}
 	}
-
-	nonce := tx.Nonce()
-	if msg.IsDepositTx && evm.ChainConfig().IsOptimismRegolith(evm.Context.Time) {
-		nonce = statedb.GetNonce(msg.From)
-	}
-
 	// Apply the transaction to the current state (included in the env).
 	result, err := ApplyMessage(evm, msg, gp)
 	if err != nil {
@@ -177,11 +168,11 @@ func ApplyTransactionWithEVM(msg *Message, gp *GasPool, statedb *state.StateDB, 
 	if statedb.Database().TrieDB().IsVerkle() {
 		statedb.AccessEvents().Merge(evm.AccessEvents)
 	}
-	return MakeReceipt(evm, result, statedb, blockNumber, blockHash, blockTime, tx, *usedGas, root, evm.ChainConfig(), nonce), nil
+	return MakeReceipt(evm, result, statedb, blockNumber, blockHash, blockTime, tx, *usedGas, root), nil
 }
 
 // MakeReceipt generates the receipt object for a transaction given its execution result.
-func MakeReceipt(evm *vm.EVM, result *ExecutionResult, statedb *state.StateDB, blockNumber *big.Int, blockHash common.Hash, blockTime uint64, tx *types.Transaction, usedGas uint64, root []byte, config *params.ChainConfig, nonce uint64) *types.Receipt {
+func MakeReceipt(evm *vm.EVM, result *ExecutionResult, statedb *state.StateDB, blockNumber *big.Int, blockHash common.Hash, blockTime uint64, tx *types.Transaction, usedGas uint64, root []byte) *types.Receipt {
 	// Create a new receipt for the transaction, storing the intermediate root and gas used
 	// by the tx.
 	receipt := &types.Receipt{Type: tx.Type(), PostState: root, CumulativeGasUsed: usedGas}
@@ -193,17 +184,6 @@ func MakeReceipt(evm *vm.EVM, result *ExecutionResult, statedb *state.StateDB, b
 	receipt.TxHash = tx.Hash()
 	receipt.GasUsed = result.UsedGas
 
-	if tx.IsDepositTx() && config.IsOptimismRegolith(evm.Context.Time) {
-		// The actual nonce for deposit transactions is only recorded from Regolith onwards and
-		// otherwise must be nil.
-		receipt.DepositNonce = &nonce
-		// The DepositReceiptVersion for deposit transactions is only recorded from Canyon onwards
-		// and otherwise must be nil.
-		if config.IsOptimismCanyon(evm.Context.Time) {
-			receipt.DepositReceiptVersion = new(uint64)
-			*receipt.DepositReceiptVersion = types.CanyonDepositReceiptVersion
-		}
-	}
 	if tx.Type() == types.BlobTxType {
 		receipt.BlobGasUsed = uint64(len(tx.BlobHashes()) * params.BlobTxBlobGasPerBlob)
 		receipt.BlobGasPrice = evm.Context.BlobBaseFee
@@ -211,7 +191,7 @@ func MakeReceipt(evm *vm.EVM, result *ExecutionResult, statedb *state.StateDB, b
 
 	// If the transaction created a contract, store the creation address in the receipt.
 	if tx.To() == nil {
-		receipt.ContractAddress = crypto.CreateAddress(evm.TxContext.Origin, nonce)
+		receipt.ContractAddress = crypto.CreateAddress(evm.TxContext.Origin, tx.Nonce())
 	}
 
 	// Set the receipt logs and create the bloom filter.
