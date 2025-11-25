@@ -4,6 +4,7 @@ import (
 	_ "embed"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/tracing"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
@@ -35,5 +36,5 @@ func EnsureCreate2Deployer(c *params.ChainConfig, timestamp uint64, db vm.StateD
 		return
 	}
 	log.Info("Setting Create2Deployer code", "address", create2DeployerAddress, "codeHash", create2DeployerCodeHash)
-	db.SetCode(create2DeployerAddress, create2DeployerCode)
+	db.SetCode(create2DeployerAddress, create2DeployerCode, tracing.CodeChangeUnspecified)
 }

@@ -96,6 +96,7 @@ type Header struct {
 	WithdrawalsHash *common.Hash `json:"withdrawalsRoot" rlp:"optional"`
 
 	// BlobGasUsed was added by EIP-4844 and is ignored in legacy headers.
+	// OP Stack stores the DA footprint in this field starting with the Jovian fork.
 	BlobGasUsed *uint64 `json:"blobGasUsed" rlp:"optional"`
 
 	// ExcessBlobGas was added by EIP-4844 and is ignored in legacy headers.

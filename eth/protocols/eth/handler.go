@@ -61,12 +61,13 @@ type Backend interface {
 	// Chain retrieves the blockchain object to serve data.
 	Chain() *core.BlockChain
 
-	// TxPool retrieves the transaction pool object to serve data.
-	TxPool() TxPool
+	// TxPool retrieves the transaction pool object to serve data
+	// if txpool gossip is enabled, and not restricted in some way.
+	TxPool(peer *p2p.Peer) TxPool
 
 	// AcceptTxs retrieves whether transaction processing is enabled on the node
 	// or if inbound transactions should simply be dropped.
-	AcceptTxs() bool
+	AcceptTxs(peer *Peer) bool
 
 	// RunPeer is invoked when a peer joins on the `eth` protocol. The handler
 	// should do any peer maintenance work, handshakes and validations. If all
@@ -106,7 +107,7 @@ func MakeProtocols(backend Backend, network uint64, disc enode.Iterator) []p2p.P
 			Version: version,
 			Length:  protocolLengths[version],
 			Run: func(p *p2p.Peer, rw p2p.MsgReadWriter) error {
-				peer := NewPeer(version, p, rw, backend.TxPool())
+				peer := NewPeer(version, p, rw, backend.TxPool(p))
 				defer peer.Close()
 
 				return backend.RunPeer(peer, func(peer *Peer) error {

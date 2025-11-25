@@ -784,15 +784,15 @@ func doCall(ctx context.Context, b Backend, args TransactionArgs, state *state.S
 	} else {
 		gp.AddGas(globalGasCap)
 	}
-	return applyMessage(ctx, b, args, state, header, timeout, gp, &blockCtx, &vm.Config{NoBaseFee: true}, precompiles, true)
+	return applyMessage(ctx, b, args, state, header, timeout, gp, &blockCtx, &vm.Config{NoBaseFee: true}, precompiles)
 }
 
-func applyMessage(ctx context.Context, b Backend, args TransactionArgs, state *state.StateDB, header *types.Header, timeout time.Duration, gp *core.GasPool, blockContext *vm.BlockContext, vmConfig *vm.Config, precompiles vm.PrecompiledContracts, skipChecks bool) (*core.ExecutionResult, error) {
+func applyMessage(ctx context.Context, b Backend, args TransactionArgs, state *state.StateDB, header *types.Header, timeout time.Duration, gp *core.GasPool, blockContext *vm.BlockContext, vmConfig *vm.Config, precompiles vm.PrecompiledContracts) (*core.ExecutionResult, error) {
 	// Get a new instance of the EVM.
 	if err := args.CallDefaults(gp.Gas(), blockContext.BaseFee, b.ChainConfig().ChainID); err != nil {
 		return nil, err
 	}
-	msg := args.ToMessage(header.BaseFee, skipChecks, skipChecks)
+	msg := args.ToMessage(header.BaseFee, true)
 	// Lower the basefee to 0 to avoid breaking EVM
 	// invariants (basefee < feecap).
 	if msg.GasPrice.Sign() == 0 {
@@ -962,7 +962,7 @@ func DoEstimateGas(ctx context.Context, b Backend, args TransactionArgs, blockNr
 	if err := args.CallDefaults(gasCap, header.BaseFee, b.ChainConfig().ChainID); err != nil {
 		return 0, err
 	}
-	call := args.ToMessage(header.BaseFee, true, true)
+	call := args.ToMessage(header.BaseFee, true)
 
 	// Run the gas estimation and wrap any revertals into a custom return
 	estimate, revert, err := gasestimator.Estimate(ctx, call, opts, gasCap)
@@ -1486,7 +1486,7 @@ func AccessList(ctx context.Context, b Backend, blockNrOrHash rpc.BlockNumberOrH
 		statedb := db.Copy()
 		// Set the accesslist to the last al
 		args.AccessList = &accessList
-		msg := args.ToMessage(header.BaseFee, true, true)
+		msg := args.ToMessage(header.BaseFee, true)
 
 		// Apply the transaction with the access list tracer
 		tracer := logger.NewAccessListTracer(accessList, addressesToExclude)
@@ -1710,7 +1710,7 @@ func marshalReceipt(receipt *types.Receipt, blockHash common.Hash, blockNumber u
 		"effectiveGasPrice": (*hexutil.Big)(receipt.EffectiveGasPrice),
 	}
 
-	if chainConfig.Optimism != nil && !tx.IsDepositTx() {
+	if chainConfig.IsOptimism() && !tx.IsDepositTx() {
 		fields["l1GasPrice"] = (*hexutil.Big)(receipt.L1GasPrice)
 		fields["l1GasUsed"] = (*hexutil.Big)(receipt.L1GasUsed)
 		fields["l1Fee"] = (*hexutil.Big)(receipt.L1Fee)
@@ -1735,8 +1735,14 @@ func marshalReceipt(receipt *types.Receipt, blockHash common.Hash, blockNumber u
 		if receipt.OperatorFeeConstant != nil {
 			fields["operatorFeeConstant"] = hexutil.Uint64(*receipt.OperatorFeeConstant)
 		}
+		// Fields added in Jovian
+		if receipt.DAFootprintGasScalar != nil {
+			fields["daFootprintGasScalar"] = hexutil.Uint64(*receipt.DAFootprintGasScalar)
+			// Jovian repurposes blobGasUsed for DA footprint gas used
+			fields["blobGasUsed"] = hexutil.Uint64(receipt.BlobGasUsed)
+		}
 	}
-	if chainConfig.Optimism != nil && tx.IsDepositTx() && receipt.DepositNonce != nil {
+	if chainConfig.IsOptimism() && tx.IsDepositTx() && receipt.DepositNonce != nil {
 		fields["depositNonce"] = hexutil.Uint64(*receipt.DepositNonce)
 		if receipt.DepositReceiptVersion != nil {
 			fields["depositReceiptVersion"] = hexutil.Uint64(*receipt.DepositReceiptVersion)

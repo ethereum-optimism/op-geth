@@ -8,7 +8,7 @@ orbs:
 parameters:
   go_version:
     type: string
-    default: 1.23.8 # update CI Go version here
+    default: 1.25.1 # update CI Go version here
 
 commands:
   gcp-oidc-authenticate:

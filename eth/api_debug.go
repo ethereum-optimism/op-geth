@@ -24,7 +24,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/stateless"
@@ -449,45 +448,90 @@ func (api *DebugAPI) GetTrieFlushInterval() (string, error) {
 	return api.eth.blockchain.GetTrieFlushInterval().String(), nil
 }
 
-func (api *DebugAPI) ExecutionWitness(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*stateless.ExecutionWitness, error) {
-	block, err := api.eth.APIBackend.BlockByNumberOrHash(ctx, blockNrOrHash)
+// StateSize returns the current state size statistics from the state size tracker.
+// Returns an error if the state size tracker is not initialized or if stats are not ready.
+func (api *DebugAPI) StateSize(blockHashOrNumber *rpc.BlockNumberOrHash) (interface{}, error) {
+	sizer := api.eth.blockchain.StateSizer()
+	if sizer == nil {
+		return nil, errors.New("state size tracker is not enabled")
+	}
+	var (
+		err   error
+		stats *state.SizeStats
+	)
+	if blockHashOrNumber == nil {
+		stats, err = sizer.Query(nil)
+	} else {
+		header, herr := api.eth.APIBackend.HeaderByNumberOrHash(context.Background(), *blockHashOrNumber)
+		if herr != nil || header == nil {
+			return nil, fmt.Errorf("block %s is unknown", blockHashOrNumber)
+		}
+		stats, err = sizer.Query(&header.Root)
+	}
 	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve block: %w", err)
+		return nil, err
 	}
-	if block == nil {
-		return nil, fmt.Errorf("block not found: %s", blockNrOrHash.String())
+	if stats == nil {
+		var s string
+		if blockHashOrNumber == nil {
+			s = "chain head"
+		} else {
+			s = blockHashOrNumber.String()
+		}
+		return nil, fmt.Errorf("state size of %s is not available", s)
 	}
-
-	witness, err := generateWitness(api.eth.blockchain, block)
-	return witness.ToExecutionWitness(), err
+	return map[string]interface{}{
+		"stateRoot":            stats.StateRoot,
+		"blockNumber":          hexutil.Uint64(stats.BlockNumber),
+		"accounts":             hexutil.Uint64(stats.Accounts),
+		"accountBytes":         hexutil.Uint64(stats.AccountBytes),
+		"storages":             hexutil.Uint64(stats.Storages),
+		"storageBytes":         hexutil.Uint64(stats.StorageBytes),
+		"accountTrienodes":     hexutil.Uint64(stats.AccountTrienodes),
+		"accountTrienodeBytes": hexutil.Uint64(stats.AccountTrienodeBytes),
+		"storageTrienodes":     hexutil.Uint64(stats.StorageTrienodes),
+		"storageTrienodeBytes": hexutil.Uint64(stats.StorageTrienodeBytes),
+		"contractCodes":        hexutil.Uint64(stats.ContractCodes),
+		"contractCodeBytes":    hexutil.Uint64(stats.ContractCodeBytes),
+	}, nil
 }
 
-func generateWitness(blockchain *core.BlockChain, block *types.Block) (*stateless.Witness, error) {
-	witness, err := stateless.NewWitness(block.Header(), blockchain)
+func (api *DebugAPI) ExecutionWitness(bn rpc.BlockNumber) (*stateless.ExtWitness, error) {
+	bc := api.eth.blockchain
+	block, err := api.eth.APIBackend.BlockByNumber(context.Background(), bn)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create witness: %w", err)
+		return &stateless.ExtWitness{}, fmt.Errorf("block number %v not found", bn)
 	}
 
-	parentHeader := witness.Headers[0]
-	statedb, err := blockchain.StateAt(parentHeader.Root)
+	parent := bc.GetHeader(block.ParentHash(), block.NumberU64()-1)
+	if parent == nil {
+		return &stateless.ExtWitness{}, fmt.Errorf("block number %v found, but parent missing", bn)
+	}
+
+	result, err := bc.ProcessBlock(parent.Root, block, false, true)
 	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve parent state: %w", err)
+		return nil, err
 	}
 
-	statedb.StartPrefetcher("debug_execution_witness", witness, nil)
-	defer statedb.StopPrefetcher()
+	return result.Witness().ToExtWitness(), nil
+}
 
-	res, err := blockchain.Processor().Process(block, statedb, *blockchain.GetVMConfig())
+func (api *DebugAPI) ExecutionWitnessByHash(hash common.Hash) (*stateless.ExtWitness, error) {
+	bc := api.eth.blockchain
+	block := bc.GetBlockByHash(hash)
+	if block == nil {
+		return &stateless.ExtWitness{}, fmt.Errorf("block hash %x not found", hash)
+	}
+
+	parent := bc.GetHeader(block.ParentHash(), block.NumberU64()-1)
+	if parent == nil {
+		return &stateless.ExtWitness{}, fmt.Errorf("block number %x found, but parent missing", hash)
+	}
+
+	result, err := bc.ProcessBlock(parent.Root, block, false, true)
 	if err != nil {
-		return nil, fmt.Errorf("failed to process block %d: %w", block.Number(), err)
+		return nil, err
 	}
 
-	// OP-Stack warning: below has the side-effect of including the withdrawals storage-root
-	// into the execution witness through the storage lookup by ValidateState, triggering the pre-fetcher.
-	// The Process function only runs through Finalize steps, not through FinalizeAndAssemble, missing merkleization.
-	if err := blockchain.Validator().ValidateState(block, statedb, res, false); err != nil {
-		return nil, fmt.Errorf("failed to validate block %d: %w", block.Number(), err)
-	}
-
-	return witness, nil
+	return result.Witness().ToExtWitness(), nil
 }

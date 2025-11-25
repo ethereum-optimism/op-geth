@@ -5,7 +5,7 @@ footer: |
 base:
   name: go-ethereum
   url: https://github.com/ethereum/go-ethereum
-  hash: d818a9af7bd5919808df78f31580f59382c53150 # v1.16.3
+  hash: 41714b4975845b1d6e3277b7b92e80c66a584d2b # v1.16.4
 fork:
   name: op-geth
   url: https://github.com/ethereum-optimism/op-geth
@@ -177,6 +177,8 @@ def:
                   - Transactions can be forwarded to an RPC for sequencing.
                   - Historical calls can be forwarded to a legacy node.
                   - The tx pool propagation can be enabled/disabled.
+                  - The tx pool gossip can be restricted to specific IP networks.
+                  - The tx pool gossip can be restricted to trusted peers only.
                   - The Optimism bedrock fork activation can be changed for testing.
               globs:
                 - "cmd/utils/flags.go"
@@ -192,14 +194,19 @@ def:
         - title: Node config
           globs:
             - "eth/ethconfig/config.go"
-        - title: Tx gossip disable option
+        - title: Tx gossip disable, netrestrict, and trusted peers only options
           globs:
+            - "p2p/peer.go"
             - "eth/handler.go"
             - "eth/handler_eth.go"
+            - "eth/protocols/eth/handler.go"
         - title: Warn on missing hardfork data and emit additional metrics
           globs:
             - "core/blockchain.go"
-        - title: Additional metrics
+        - title: Define additional header-based metrics
+          globs:
+            - "core/blockchain_optimism.go"
+        - title: Add hooks for additional header-chain metrics
           globs:
             - "core/headerchain.go"
         - title: Optional Engine API extensions
@@ -250,12 +257,15 @@ def:
     - title: "User API enhancements"
       description: "Encode the Deposit Tx properties, the L1 costs, and daisy-chain RPC-calls for pre-Bedrock historical data"
       sub:
-        - title: "Receipts metadata"
+        - title: "Receipts metadata & deposit receipts"
           description: |
             Pre-Bedrock L1-cost receipt data is loaded from the database if available, and post-Bedrock the L1-cost
             metadata is hydrated on-the-fly based on the L1 fee information in the corresponding block.
+            We also populate receipts with L1 block attributes like Operator Fee and DA Footprint parameters.
+            Furthermore, OP Stack introduces Deposit receipts, a special kind of receipts for Deposit transactions.
           globs:
             - "core/types/receipt.go"
+            - "core/types/receipt_opstack.go"
             - "core/types/gen_receipt_json.go"
             - "core/rawdb/accessors_chain.go"
         - title: "API Backend"

@@ -40,7 +40,6 @@ import (
 	"github.com/ethereum/go-ethereum/triedb"
 	"github.com/holiman/uint256"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 var dumper = spew.ConfigState{Indent: "    "}
@@ -335,31 +334,4 @@ func TestGetModifiedAccounts(t *testing.T) {
 			}
 		}
 	})
-}
-
-func TestExecutionWitness(t *testing.T) {
-	t.Parallel()
-
-	// Create a database pre-initialize with a genesis block
-	db := rawdb.NewMemoryDatabase()
-	gspec := &core.Genesis{
-		Config: params.TestChainConfig,
-		Alloc:  types.GenesisAlloc{testAddr: {Balance: big.NewInt(1000000)}},
-	}
-	chain, _ := core.NewBlockChain(db, gspec, ethash.NewFaker(), nil)
-
-	blockNum := 10
-	_, bs, _ := core.GenerateChainWithGenesis(gspec, ethash.NewFaker(), blockNum, nil)
-	if _, err := chain.InsertChain(bs); err != nil {
-		panic(err)
-	}
-
-	block := chain.GetBlockByNumber(uint64(blockNum - 1))
-	require.NotNil(t, block)
-
-	witness, err := generateWitness(chain, block)
-	require.NoError(t, err)
-
-	_, _, err = core.ExecuteStateless(params.TestChainConfig, *chain.GetVMConfig(), block, witness)
-	require.NoError(t, err)
 }

@@ -64,6 +64,7 @@ import (
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/dnsdisc"
 	"github.com/ethereum/go-ethereum/p2p/enode"
+	"github.com/ethereum/go-ethereum/p2p/netutil"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
@@ -251,12 +252,15 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 			TxLookupLimit:    int64(min(config.TransactionHistory, math.MaxInt64)),
 			VmConfig: vm.Config{
 				EnablePreimageRecording: config.EnablePreimageRecording,
+				EnableWitnessStats:      config.EnableWitnessStats,
+				StatelessSelfValidation: config.StatelessSelfValidation,
 			},
 			// Enables file journaling for the trie database. The journal files will be stored
 			// within the data directory. The corresponding paths will be either:
 			// - DATADIR/triedb/merkle.journal
 			// - DATADIR/triedb/verkle.journal
 			TrieJournalDirectory: stack.ResolvePath("triedb"),
+			StateSizeTracking:    config.EnableStateSizeTracking,
 		}
 	)
 	if config.VMTrace != "" {
@@ -274,6 +278,12 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 	var overrides core.ChainOverrides
 	if config.OverrideOsaka != nil {
 		overrides.OverrideOsaka = config.OverrideOsaka
+	}
+	if config.OverrideBPO1 != nil {
+		overrides.OverrideBPO1 = config.OverrideBPO1
+	}
+	if config.OverrideBPO2 != nil {
+		overrides.OverrideBPO2 = config.OverrideBPO2
 	}
 	if config.OverrideVerkle != nil {
 		overrides.OverrideVerkle = config.OverrideVerkle
@@ -379,6 +389,11 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 		stack.RegisterLifecycle(pj)
 	}
 
+	txGossipNetRestrict, err := parseTxGossipNetRestrict(config.RollupTxPoolNetrestrict)
+	if err != nil {
+		return nil, err
+	}
+
 	// Permit the downloader to use the trie cache allowance during fast sync
 	cacheLimit := options.TrieCleanLimit + options.TrieDirtyLimit + options.SnapshotLimit
 	if eth.handler, err = newHandler(&handlerConfig{
@@ -391,7 +406,11 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 		BloomCache:     uint64(cacheLimit),
 		EventMux:       eth.eventMux,
 		RequiredBlocks: config.RequiredBlocks,
-		NoTxGossip:     config.RollupDisableTxPoolGossip,
+
+		// OP Stack additions
+		NoTxGossip:               config.RollupDisableTxPoolGossip,
+		TxGossipNetRestrict:      txGossipNetRestrict,
+		TxGossipTrustedPeersOnly: config.RollupTxPoolTrustedPeersOnly,
 	}); err != nil {
 		return nil, err
 	}
@@ -749,4 +768,16 @@ func (s *Ethereum) HandleRequiredProtocolVersion(required params.ProtocolVersion
 		return s.nodeCloser()
 	}
 	return nil
+}
+
+// parseTxGossipNetRestrict parses the netrestrict string for txpool gossip
+func parseTxGossipNetRestrict(netrestrict string) (*netutil.Netlist, error) {
+	if netrestrict == "" {
+		return nil, nil
+	}
+	list, err := netutil.ParseNetlist(netrestrict)
+	if err != nil {
+		return nil, fmt.Errorf("invalid txpool gossip netrestrict list: %w", err)
+	}
+	return list, nil
 }

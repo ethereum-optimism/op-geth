@@ -19,6 +19,7 @@ package types
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"math/big"
 
@@ -41,6 +42,9 @@ const (
 	// array. baseFeeScalar is in the first four bytes of the segment, blobBaseFeeScalar the next
 	// four.
 	scalarSectionStart = 32 - BaseFeeScalarSlotOffset - 4
+
+	IsthmusL1AttributesLen = 176
+	JovianL1AttributesLen  = 178
 )
 
 func init() {
@@ -57,6 +61,8 @@ var (
 	EcotoneL1AttributesSelector = []byte{0x44, 0x0a, 0x5e, 0x20}
 	// IsthmusL1AttributesSelector is the selector indicating Isthmus style L1 gas attributes.
 	IsthmusL1AttributesSelector = []byte{0x09, 0x89, 0x99, 0xbe}
+	// JovianL1AttributesSelector is the selector indicating Jovian style L1 gas attributes.
+	JovianL1AttributesSelector = []byte{0x3d, 0xb6, 0xbe, 0x2b}
 
 	// L1BlockAddr is the address of the L1Block contract which stores the L1 gas attributes.
 	L1BlockAddr = common.HexToAddress("0x4200000000000000000000000000000000000015")
@@ -77,6 +83,7 @@ var (
 	// attributes
 	OperatorFeeParamsSlot = common.BigToHash(big.NewInt(8))
 
+	oneHundred     = big.NewInt(100)
 	oneMillion     = big.NewInt(1_000_000)
 	ecotoneDivisor = big.NewInt(1_000_000 * 16)
 	fjordDivisor   = big.NewInt(1_000_000_000_000)
@@ -226,7 +233,11 @@ func NewOperatorCostFunc(config *params.ChainConfig, statedb StateGetter) Operat
 		}
 		operatorFeeScalar, operatorFeeConstant := ExtractOperatorFeeParams(operatorFeeParams)
 
-		return newOperatorCostFunc(operatorFeeScalar, operatorFeeConstant)
+		// Return the Operator Fee fix version if the feature is active
+		if config.IsOperatorFeeFix(blockTime) {
+			return newOperatorCostFuncOperatorFeeFix(operatorFeeScalar, operatorFeeConstant)
+		}
+		return newOperatorCostFuncIsthmus(operatorFeeScalar, operatorFeeConstant)
 	}
 
 	return func(gas uint64, blockTime uint64) *uint256.Int {
@@ -239,7 +250,8 @@ func NewOperatorCostFunc(config *params.ChainConfig, statedb StateGetter) Operat
 	}
 }
 
-func newOperatorCostFunc(operatorFeeScalar *big.Int, operatorFeeConstant *big.Int) operatorCostFunc {
+// newOperatorCostFuncIsthmus returns the operator cost function introduced with Isthmus.
+func newOperatorCostFuncIsthmus(operatorFeeScalar *big.Int, operatorFeeConstant *big.Int) operatorCostFunc {
 	return func(gas uint64) *uint256.Int {
 		fee := new(big.Int).SetUint64(gas)
 		fee = fee.Mul(fee, operatorFeeScalar)
@@ -248,7 +260,25 @@ func newOperatorCostFunc(operatorFeeScalar *big.Int, operatorFeeConstant *big.In
 
 		feeU256, overflow := uint256.FromBig(fee)
 		if overflow {
-			// This should never happen, as (u64.max * u32.max / 1e6) + u64.max is an int of bit length 77
+			// This should never happen, as ((u64.max * u32.max) / 1e6) + u64.max fits in 77 bits
+			panic("overflow in operator cost calculation")
+		}
+
+		return feeU256
+	}
+}
+
+// newOperatorCostFuncOperatorFeeFix returns the operator cost function for the operator fee fix feature.
+func newOperatorCostFuncOperatorFeeFix(operatorFeeScalar *big.Int, operatorFeeConstant *big.Int) operatorCostFunc {
+	return func(gas uint64) *uint256.Int {
+		fee := new(big.Int).SetUint64(gas)
+		fee = fee.Mul(fee, operatorFeeScalar)
+		fee = fee.Mul(fee, oneHundred)
+		fee = fee.Add(fee, operatorFeeConstant)
+
+		feeU256, overflow := uint256.FromBig(fee)
+		if overflow {
+			// This should never happen, as (u64.max * u32.max * 100) + u64.max fits in 103 bits
 			panic("overflow in operator cost calculation")
 		}
 
@@ -512,6 +542,54 @@ func extractL1GasParamsPostIsthmus(data []byte) (gasParams, error) {
 	}, nil
 }
 
+// ExtractDAFootprintGasScalar extracts the DA footprint gas scalar from the L1 attributes transaction data
+// of a Jovian-enabled block.
+func ExtractDAFootprintGasScalar(data []byte) (uint16, error) {
+	if len(data) < JovianL1AttributesLen {
+		return 0, fmt.Errorf("L1 attributes transaction data too short for DA footprint gas scalar: %d", len(data))
+	}
+	// Future forks need to be added here
+	if !bytes.Equal(data[0:4], JovianL1AttributesSelector) {
+		return 0, fmt.Errorf("L1 attributes transaction data does not have Jovian selector")
+	}
+	daFootprintGasScalar := binary.BigEndian.Uint16(data[JovianL1AttributesLen-2 : JovianL1AttributesLen])
+	return daFootprintGasScalar, nil
+}
+
+// CalcDAFootprint calculates the total DA footprint of a block for an OP Stack chain.
+// Jovian introduces a DA footprint block limit which is stored in the BlobGasUsed header field and that is taken
+// into account during base fee updates.
+// CalcDAFootprint must not be called for pre-Jovian blocks.
+func CalcDAFootprint(txs []*Transaction) (uint64, error) {
+	if len(txs) == 0 || !txs[0].IsDepositTx() {
+		return 0, errors.New("missing deposit transaction")
+	}
+
+	// First Jovian block doesn't set the DA footprint gas scalar yet and
+	// it must not have user transactions.
+	data := txs[0].Data()
+	if len(data) == IsthmusL1AttributesLen {
+		if !txs[len(txs)-1].IsDepositTx() {
+			// sufficient to check last transaction because deposits precede non-deposit txs
+			return 0, errors.New("unexpected non-deposit transactions in Jovian activation block")
+		}
+		return 0, nil
+	} // ExtractDAFootprintGasScalar catches all invalid lengths
+
+	daFootprintGasScalar, err := ExtractDAFootprintGasScalar(data)
+	if err != nil {
+		return 0, err
+	}
+	var daFootprint uint64
+	for _, tx := range txs {
+		if tx.IsDepositTx() {
+			continue
+		}
+		daFootprint += tx.RollupCostData().EstimatedDASize().Uint64() * uint64(daFootprintGasScalar)
+	}
+	return daFootprint, nil
+}
+
 // L1Cost computes the the data availability fee for transactions in blocks prior to the Ecotone
 // upgrade. It is used by e2e tests so must remain exported.
 func L1Cost(rollupDataGas uint64, l1BaseFee, overhead, scalar *big.Int) *big.Int {
@@ -572,13 +650,13 @@ func ExtractEcotoneFeeParams(l1FeeParams []byte) (l1BaseFeeScalar, l1BlobBaseFee
 	offset := scalarSectionStart
 	l1BaseFeeScalar = new(big.Int).SetBytes(l1FeeParams[offset : offset+4])
 	l1BlobBaseFeeScalar = new(big.Int).SetBytes(l1FeeParams[offset+4 : offset+8])
-	return
+	return l1BaseFeeScalar, l1BlobBaseFeeScalar
 }
 
 func ExtractOperatorFeeParams(operatorFeeParams common.Hash) (operatorFeeScalar, operatorFeeConstant *big.Int) {
 	operatorFeeScalar = new(big.Int).SetBytes(operatorFeeParams[20:24])
 	operatorFeeConstant = new(big.Int).SetBytes(operatorFeeParams[24:32])
-	return
+	return operatorFeeScalar, operatorFeeConstant
 }
 
 func bedrockCalldataGasUsed(costData RollupCostData) (calldataGasUsed *big.Int) {
