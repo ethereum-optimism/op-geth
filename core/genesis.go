@@ -247,6 +247,8 @@ func getGenesisState(db ethdb.Database, blockhash common.Hash) (alloc types.Gene
 	// - private network, can't recover
 	var genesis *Genesis
 	switch blockhash {
+	case params.RootstockTestnetGenesisHash:
+		genesis = DefaultRootstockTestnetGenesisBlock()
 	case params.MainnetGenesisHash:
 		genesis = DefaultGenesisBlock()
 	case params.SepoliaGenesisHash:
@@ -414,8 +416,8 @@ func SetupGenesisBlockWithOverride(db ethdb.Database, triedb *triedb.Database, g
 	ghash := rawdb.ReadCanonicalHash(db, 0)
 	if (ghash == common.Hash{}) {
 		if genesis == nil {
-			log.Info("Writing default main-net genesis block")
-			genesis = DefaultGenesisBlock()
+			log.Info("Writing default rootstock testnet genesis block")
+			genesis = DefaultRootstockTestnetGenesisBlock()
 		} else {
 			log.Info("Writing custom genesis block")
 		}
@@ -445,8 +447,8 @@ func SetupGenesisBlockWithOverride(db ethdb.Database, triedb *triedb.Database, g
 		// networks must explicitly specify the genesis in the config file, mainnet
 		// genesis will be used as default and the initialization will always fail.
 		if genesis == nil {
-			log.Info("Writing default main-net genesis block")
-			genesis = DefaultGenesisBlock()
+			log.Info("Writing default rootstock testnet genesis block")
+			genesis = DefaultRootstockTestnetGenesisBlock()
 		} else {
 			log.Info("Writing custom genesis block")
 		}
@@ -559,7 +561,7 @@ func LoadChainConfig(db ethdb.Database, genesis *Genesis) (cfg *params.ChainConf
 	}
 	// There is no stored chain config and no new config provided,
 	// In this case the default chain config(mainnet) will be used
-	return params.MainnetChainConfig, params.MainnetGenesisHash, nil
+	return params.RootstockTestnetChainConfig, params.RootstockTestnetGenesisHash, nil
 }
 
 // chainConfigOrDefault retrieves the attached chain configuration. If the genesis
@@ -568,7 +570,10 @@ func LoadChainConfig(db ethdb.Database, genesis *Genesis) (cfg *params.ChainConf
 func (g *Genesis) chainConfigOrDefault(ghash common.Hash, stored *params.ChainConfig) *params.ChainConfig {
 	switch {
 	case g != nil:
+		println("------------- g != nil --------------")
 		return g.Config
+	case ghash == params.RootstockTestnetGenesisHash:
+		return params.RootstockTestnetChainConfig
 	case ghash == params.MainnetGenesisHash:
 		return params.MainnetChainConfig
 	case ghash == params.HoleskyGenesisHash:
@@ -612,19 +617,19 @@ func (g *Genesis) ToBlock() *types.Block {
 // toBlockWithRoot constructs the genesis block with the given genesis state root.
 func (g *Genesis) toBlockWithRoot(stateRoot, storageRootMessagePasser common.Hash) *types.Block {
 	head := &types.Header{
-		Number:     new(big.Int).SetUint64(g.Number),
-		Nonce:      types.EncodeNonce(g.Nonce),
-		Time:       g.Timestamp,
-		ParentHash: g.ParentHash,
-		Extra:      g.ExtraData,
-		GasLimit:   g.GasLimit,
-		GasUsed:    g.GasUsed,
-		EthBaseFee: g.BaseFee,
+		Number:             new(big.Int).SetUint64(g.Number),
+		Nonce:              types.EncodeNonce(g.Nonce),
+		Time:               g.Timestamp,
+		ParentHash:         g.ParentHash,
+		Extra:              g.ExtraData,
+		GasLimit:           g.GasLimit,
+		GasUsed:            g.GasUsed,
+		EthBaseFee:         g.BaseFee,
 		RskMinimumGasPrice: g.BaseFee,
-		Difficulty: g.Difficulty,
-		MixDigest:  g.Mixhash,
-		Coinbase:   g.Coinbase,
-		Root:       stateRoot,
+		Difficulty:         g.Difficulty,
+		MixDigest:          g.Mixhash,
+		Coinbase:           g.Coinbase,
+		Root:               stateRoot,
 	}
 	if g.GasLimit == 0 {
 		head.GasLimit = params.GenesisGasLimit
@@ -766,7 +771,19 @@ func EnableVerkleAtGenesis(db ethdb.Database, genesis *Genesis) (bool, error) {
 	return false, nil
 }
 
-// DefaultGenesisBlock returns the Ethereum main net genesis block.
+// DefaultRootstockTestnetGenesisBlock returns the Rootstock testnet genesis block.
+func DefaultRootstockTestnetGenesisBlock() *Genesis {
+	return &Genesis{
+		Config:     params.RootstockTestnetChainConfig,
+		Nonce:      0,
+		ExtraData:  []byte("Rootstock Testnet"),
+		GasLimit:   6800000,
+		Difficulty: big.NewInt(0x01),
+		Alloc:      decodePrealloc(rootstockTestnetAllocData),
+	}
+}
+
+// DefaultGenesisBlock returns the Ethereum main n*.
 func DefaultGenesisBlock() *Genesis {
 	return &Genesis{
 		Config:     params.MainnetChainConfig,

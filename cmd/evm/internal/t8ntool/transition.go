@@ -200,10 +200,10 @@ func applyLondonChecks(env *stEnv, chainConfig *params.ChainConfig) error {
 		return NewError(ErrorConfig, errors.New("EIP-1559 config but missing 'parentBaseFee' in env section"))
 	}
 	env.BaseFee = eip1559.CalcBaseFee(chainConfig, &types.Header{
-		Number:   new(big.Int).SetUint64(env.Number - 1),
-		BaseFee:  env.ParentBaseFee,
-		GasUsed:  env.ParentGasUsed,
-		GasLimit: env.ParentGasLimit,
+		Number:     new(big.Int).SetUint64(env.Number - 1),
+		EthBaseFee: env.ParentBaseFee,
+		GasUsed:    env.ParentGasUsed,
+		GasLimit:   env.ParentGasLimit,
 	}, env.Timestamp)
 	return nil
 }

@@ -131,7 +131,7 @@ func (i *bbInput) ToBlock() *types.Block {
 		Time:             i.Header.Time,
 		Extra:            i.Header.Extra,
 		MixDigest:        i.Header.MixDigest,
-		BaseFee:          i.Header.BaseFee,
+		EthBaseFee:       i.Header.BaseFee,
 		WithdrawalsHash:  i.Header.WithdrawalsHash,
 		BlobGasUsed:      i.Header.BlobGasUsed,
 		ExcessBlobGas:    i.Header.ExcessBlobGas,

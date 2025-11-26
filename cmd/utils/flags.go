@@ -165,6 +165,12 @@ var (
 		Category: flags.EthCategory,
 	}
 
+	RootstockTestnetFlag = &cli.BoolFlag{
+		Name:     "rootstock-testnet",
+		Usage:    "Rootstock testnet",
+		Category: flags.EthCategory,
+	}
+
 	// OP-Stack addition
 	OPNetworkFlag = &cli.StringFlag{
 		Name:    "op-network",
@@ -1120,6 +1126,7 @@ var (
 		SepoliaFlag,
 		HoleskyFlag,
 		HoodiFlag,
+		RootstockTestnetFlag,
 	}
 	// NetworkFlags is the flag group of all built-in supported networks.
 	NetworkFlags = append([]cli.Flag{MainnetFlag, OPNetworkFlag}, TestnetFlags...)
@@ -1155,6 +1162,10 @@ func MakeDataDir(ctx *cli.Context) string {
 		}
 		if ctx.Bool(HoodiFlag.Name) {
 			return filepath.Join(path, "hoodi")
+		}
+
+		if ctx.Bool(RootstockTestnetFlag.Name) {
+			return filepath.Join(path, "rootstock-testnet")
 		}
 
 		// OP-Stack addition
@@ -1595,6 +1606,8 @@ func SetDataDir(ctx *cli.Context, cfg *node.Config) {
 		cfg.DataDir = filepath.Join(node.DefaultDataDir(), "holesky")
 	case ctx.Bool(HoodiFlag.Name) && cfg.DataDir == node.DefaultDataDir():
 		cfg.DataDir = filepath.Join(node.DefaultDataDir(), "hoodi")
+	case ctx.Bool(RootstockTestnetFlag.Name) && cfg.DataDir == node.DefaultDataDir():
+		cfg.DataDir = filepath.Join(node.DefaultDataDir(), "rootstock-testnet")
 	case ctx.IsSet(OPNetworkFlag.Name) && cfg.DataDir == node.DefaultDataDir():
 		cfg.DataDir = filepath.Join(node.DefaultDataDir(), ctx.String(OPNetworkFlag.Name))
 	}
@@ -1743,7 +1756,7 @@ func setRequiredBlocks(ctx *cli.Context, cfg *ethconfig.Config) {
 // SetEthConfig applies eth-related command line flags to the config.
 func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 	// Avoid conflicting network flags, don't allow network id override on preset networks
-	flags.CheckExclusive(ctx, MainnetFlag, DeveloperFlag, SepoliaFlag, HoleskyFlag, HoodiFlag, OPNetworkFlag)
+	flags.CheckExclusive(ctx, MainnetFlag, DeveloperFlag, SepoliaFlag, HoleskyFlag, HoodiFlag, OPNetworkFlag, RootstockTestnetFlag)
 	flags.CheckExclusive(ctx, DeveloperFlag, ExternalSignerFlag) // Can't use both ephemeral unlocked and external signer
 
 	// Set configurations from CLI flags
@@ -1932,6 +1945,10 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 
 	// Override any default configs for hard coded networks.
 	switch {
+	case ctx.Bool(RootstockTestnetFlag.Name):
+		cfg.NetworkId = params.RootstockTestnetChainID
+		cfg.Genesis = core.DefaultRootstockTestnetGenesisBlock()
+		SetDNSDiscoveryDefaults(cfg, params.RootstockTestnetGenesisHash)
 	case ctx.Bool(MainnetFlag.Name):
 		cfg.NetworkId = 1
 		cfg.Genesis = core.DefaultGenesisBlock()
@@ -1948,6 +1965,10 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 		cfg.NetworkId = 560048
 		cfg.Genesis = core.DefaultHoodiGenesisBlock()
 		SetDNSDiscoveryDefaults(cfg, params.HoodiGenesisHash)
+	case ctx.Bool(RootstockTestnetFlag.Name):
+		cfg.NetworkId = params.RootstockTestnetChainID
+		cfg.Genesis = core.DefaultRootstockTestnetGenesisBlock()
+		SetDNSDiscoveryDefaults(cfg, params.RootstockTestnetGenesisHash)
 	case ctx.Bool(DeveloperFlag.Name):
 		cfg.NetworkId = 1337
 		cfg.SyncMode = ethconfig.FullSync
@@ -2364,7 +2385,10 @@ func DialRPCWithHeaders(endpoint string, headers []string) (*rpc.Client, error) 
 
 func MakeGenesis(ctx *cli.Context) *core.Genesis {
 	var genesis *core.Genesis
+
 	switch {
+	case ctx.Bool(RootstockTestnetFlag.Name):
+		genesis = core.DefaultRootstockTestnetGenesisBlock()
 	case ctx.Bool(MainnetFlag.Name):
 		genesis = core.DefaultGenesisBlock()
 	case ctx.Bool(HoleskyFlag.Name):

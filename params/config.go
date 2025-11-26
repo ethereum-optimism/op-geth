@@ -29,22 +29,48 @@ import (
 
 // Genesis hashes to enforce below configs on.
 var (
-	MainnetGenesisHash = common.HexToHash("0xd4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3")
-	HoleskyGenesisHash = common.HexToHash("0xb5f7f912443c940f21fd611f12828d75b534364ed9e95ca4e307729a4661bde4")
-	SepoliaGenesisHash = common.HexToHash("0x25a5cc106eea7138acab33231d7160d69cb777ee0c2c553fcddf5138993e6dd9")
-	HoodiGenesisHash   = common.HexToHash("0xbbe312868b376a3001692a646dd2d7d1e4406380dfd86b98aa8a34d1557c971b")
+	MainnetGenesisHash          = common.HexToHash("0xd4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3")
+	HoleskyGenesisHash          = common.HexToHash("0xb5f7f912443c940f21fd611f12828d75b534364ed9e95ca4e307729a4661bde4")
+	SepoliaGenesisHash          = common.HexToHash("0x25a5cc106eea7138acab33231d7160d69cb777ee0c2c553fcddf5138993e6dd9")
+	HoodiGenesisHash            = common.HexToHash("0xbbe312868b376a3001692a646dd2d7d1e4406380dfd86b98aa8a34d1557c971b")
+	RootstockTestnetGenesisHash = common.HexToHash("0x9bc336c8b98b7f112eea5c9fff1a65447a8d4f9ee7e8f893d5f0e6b674fc4750") // TODO: add rootstock testnet genesis hash (from op-deployer rollup.json output)
 )
 
 const (
-	OPMainnetChainID   = 10
-	BaseMainnetChainID = 8453
-	baseSepoliaChainID = 84532
+	RootstockTestnetChainID = 31
+	OPMainnetChainID        = 10
+	BaseMainnetChainID      = 8453
+	baseSepoliaChainID      = 84532
 )
 
 func newUint64(val uint64) *uint64 { return &val }
 
 var (
 	MainnetTerminalTotalDifficulty, _ = new(big.Int).SetString("58_750_000_000_000_000_000_000", 0)
+
+	RootstockTestnetChainConfig = &ChainConfig{
+		ChainID:                 big.NewInt(RootstockTestnetChainID),
+		HomesteadBlock:          big.NewInt(0),
+		DAOForkBlock:            nil,
+		DAOForkSupport:          true,
+		EIP150Block:             big.NewInt(0),
+		EIP155Block:             big.NewInt(0),
+		EIP158Block:             big.NewInt(0),
+		ByzantiumBlock:          big.NewInt(0),
+		ConstantinopleBlock:     big.NewInt(0),
+		PetersburgBlock:         big.NewInt(0),
+		IstanbulBlock:           big.NewInt(0),
+		MuirGlacierBlock:        big.NewInt(0),
+		BerlinBlock:             big.NewInt(0),
+		LondonBlock:             big.NewInt(0),
+		ArrowGlacierBlock:       big.NewInt(0),
+		GrayGlacierBlock:        big.NewInt(0),
+		TerminalTotalDifficulty: big.NewInt(0),
+		MergeNetsplitBlock:      big.NewInt(0),
+		ShanghaiTime:            newUint64(0),
+		CancunTime:              newUint64(0),
+		DepositContractAddress:  common.HexToAddress("0x0000000000000000000000000000000000000000"),
+	}
 
 	// MainnetChainConfig is the chain parameters to run a node on the main network.
 	MainnetChainConfig = &ChainConfig{
@@ -453,10 +479,11 @@ var (
 
 // NetworkNames are user friendly names to use in the chain spec banner.
 var NetworkNames = map[string]string{
-	MainnetChainConfig.ChainID.String(): "mainnet",
-	SepoliaChainConfig.ChainID.String(): "sepolia",
-	HoleskyChainConfig.ChainID.String(): "holesky",
-	HoodiChainConfig.ChainID.String():   "hoodi",
+	RootstockTestnetChainConfig.ChainID.String(): "rootstock-testnet",
+	MainnetChainConfig.ChainID.String():          "mainnet",
+	SepoliaChainConfig.ChainID.String():          "sepolia",
+	HoleskyChainConfig.ChainID.String():          "holesky",
+	HoodiChainConfig.ChainID.String():            "hoodi",
 }
 
 // ChainConfig is the core config which determines the blockchain settings.
