@@ -617,19 +617,18 @@ func (g *Genesis) ToBlock() *types.Block {
 // toBlockWithRoot constructs the genesis block with the given genesis state root.
 func (g *Genesis) toBlockWithRoot(stateRoot, storageRootMessagePasser common.Hash) *types.Block {
 	head := &types.Header{
-		Number:             new(big.Int).SetUint64(g.Number),
-		Nonce:              types.EncodeNonce(g.Nonce),
-		Time:               g.Timestamp,
-		ParentHash:         g.ParentHash,
-		Extra:              g.ExtraData,
-		GasLimit:           g.GasLimit,
-		GasUsed:            g.GasUsed,
-		EthBaseFee:         g.BaseFee,
-		RskMinimumGasPrice: g.BaseFee,
-		Difficulty:         g.Difficulty,
-		MixDigest:          g.Mixhash,
-		Coinbase:           g.Coinbase,
-		Root:               stateRoot,
+		Number:     new(big.Int).SetUint64(g.Number),
+		Nonce:      types.EncodeNonce(g.Nonce),
+		Time:       g.Timestamp,
+		ParentHash: g.ParentHash,
+		Extra:      g.ExtraData,
+		GasLimit:   g.GasLimit,
+		GasUsed:    g.GasUsed,
+		EthBaseFee: g.BaseFee,
+		Difficulty: g.Difficulty,
+		MixDigest:  g.Mixhash,
+		Coinbase:   g.Coinbase,
+		Root:       stateRoot,
 	}
 	if g.GasLimit == 0 {
 		head.GasLimit = params.GenesisGasLimit
@@ -644,10 +643,8 @@ func (g *Genesis) toBlockWithRoot(stateRoot, storageRootMessagePasser common.Has
 	if g.Config != nil && g.Config.IsLondon(common.Big0) {
 		if g.BaseFee != nil {
 			head.EthBaseFee = g.BaseFee
-			head.RskMinimumGasPrice = g.BaseFee
 		} else {
 			head.EthBaseFee = new(big.Int).SetUint64(params.InitialBaseFee)
-			head.RskMinimumGasPrice = new(big.Int).SetUint64(params.InitialBaseFee)
 		}
 	}
 	var withdrawals []*types.Withdrawal

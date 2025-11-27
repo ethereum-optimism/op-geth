@@ -33,7 +33,7 @@ func (h header) MarshalJSON() ([]byte, error) {
 		Extra                 hexutil.Bytes         `json:"extraData"`
 		MixDigest             common.Hash           `json:"mixHash"`
 		Nonce                 *types.BlockNonce     `json:"nonce"`
-		BaseFee               *math.HexOrDecimal256 `json:"baseFeePerGas" rlp:"optional"`
+		EthBaseFee            *math.HexOrDecimal256 `json:"baseFeePerGas" rlp:"optional"`
 		WithdrawalsHash       *common.Hash          `json:"withdrawalsRoot" rlp:"optional"`
 		BlobGasUsed           *math.HexOrDecimal64  `json:"blobGasUsed"   rlp:"optional"`
 		ExcessBlobGas         *math.HexOrDecimal64  `json:"excessBlobGas"   rlp:"optional"`
@@ -55,7 +55,7 @@ func (h header) MarshalJSON() ([]byte, error) {
 	enc.Extra = h.Extra
 	enc.MixDigest = h.MixDigest
 	enc.Nonce = h.Nonce
-	enc.BaseFee = (*math.HexOrDecimal256)(h.BaseFee)
+	enc.EthBaseFee = (*math.HexOrDecimal256)(h.EthBaseFee)
 	enc.WithdrawalsHash = h.WithdrawalsHash
 	enc.BlobGasUsed = (*math.HexOrDecimal64)(h.BlobGasUsed)
 	enc.ExcessBlobGas = (*math.HexOrDecimal64)(h.ExcessBlobGas)
@@ -81,7 +81,7 @@ func (h *header) UnmarshalJSON(input []byte) error {
 		Extra                 *hexutil.Bytes        `json:"extraData"`
 		MixDigest             *common.Hash          `json:"mixHash"`
 		Nonce                 *types.BlockNonce     `json:"nonce"`
-		BaseFee               *math.HexOrDecimal256 `json:"baseFeePerGas" rlp:"optional"`
+		EthBaseFee            *math.HexOrDecimal256 `json:"baseFeePerGas" rlp:"optional"`
 		WithdrawalsHash       *common.Hash          `json:"withdrawalsRoot" rlp:"optional"`
 		BlobGasUsed           *math.HexOrDecimal64  `json:"blobGasUsed"   rlp:"optional"`
 		ExcessBlobGas         *math.HexOrDecimal64  `json:"excessBlobGas"   rlp:"optional"`
@@ -140,8 +140,8 @@ func (h *header) UnmarshalJSON(input []byte) error {
 	if dec.Nonce != nil {
 		h.Nonce = dec.Nonce
 	}
-	if dec.BaseFee != nil {
-		h.BaseFee = (*big.Int)(dec.BaseFee)
+	if dec.EthBaseFee != nil {
+		h.EthBaseFee = (*big.Int)(dec.EthBaseFee)
 	}
 	if dec.WithdrawalsHash != nil {
 		h.WithdrawalsHash = dec.WithdrawalsHash

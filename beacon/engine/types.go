@@ -331,7 +331,6 @@ func ExecutableDataToBlockNoHash(data ExecutableData, versionedHashes []common.H
 		GasUsed:          data.GasUsed,
 		Time:             data.Timestamp,
 		EthBaseFee:       data.BaseFeePerGas,
-		RskMinimumGasPrice: data.BaseFeePerGas,
 		Extra:            data.ExtraData,
 		MixDigest:        data.Random,
 		WithdrawalsHash:  withdrawalsRoot,

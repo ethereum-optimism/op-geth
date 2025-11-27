@@ -46,7 +46,7 @@ type mockTransactor struct {
 }
 
 func (mt *mockTransactor) HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error) {
-	return &types.Header{BaseFee: mt.baseFee}, nil
+	return &types.Header{EthBaseFee: mt.baseFee}, nil
 }
 
 func (mt *mockTransactor) PendingCodeAt(ctx context.Context, account common.Address) ([]byte, error) {

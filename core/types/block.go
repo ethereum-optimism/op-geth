@@ -93,7 +93,7 @@ type Header struct {
 	EthBaseFee *big.Int `json:"baseFeePerGas" rlp:"optional"`
 
 	// Rootstock specific
-	RskMinimumGasPrice *big.Int `json:"minimumGasPrice,omitempty" rlp:"-"`
+	RskMinimumGasPrice *big.Int `json:"minimumGasPrice,omitempty" rlp:"optional"`
 
 	// WithdrawalsHash was added by EIP-4895 and is ignored in legacy headers.
 	WithdrawalsHash *common.Hash `json:"withdrawalsRoot" rlp:"optional"`
@@ -353,7 +353,6 @@ func CopyHeader(h *Header) *Header {
 	}
 	if h.BaseFee() != nil {
 		cpy.EthBaseFee = new(big.Int).Set(h.BaseFee())
-		cpy.RskMinimumGasPrice = new(big.Int).Set(h.RskMinimumGasPrice)
 	}
 	if len(h.Extra) > 0 {
 		cpy.Extra = make([]byte, len(h.Extra))
@@ -583,13 +582,17 @@ func (b *Block) WithWitness(witness *ExecutionWitness) *Block {
 }
 
 // Hash returns the keccak256 hash of b's header.
-// The hash is computed on the first call and cached thereafter.
+// The hash is computed on the first call if there was no hash on the json object and cached thereafter.
 func (b *Block) Hash() common.Hash {
 	if hash := b.hash.Load(); hash != nil {
 		return *hash
 	}
-	h := b.header.Hash()
+	h := b.header.NodeHash
+	if h == (common.Hash{}) {
+		h = b.header.Hash()
+	}
 	b.hash.Store(&h)
+
 	return h
 }
 

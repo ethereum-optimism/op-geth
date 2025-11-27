@@ -51,7 +51,7 @@ type header struct {
 	Extra                 []byte            `json:"extraData"`
 	MixDigest             common.Hash       `json:"mixHash"`
 	Nonce                 *types.BlockNonce `json:"nonce"`
-	BaseFee               *big.Int          `json:"baseFeePerGas" rlp:"optional"`
+	EthBaseFee            *big.Int          `json:"baseFeePerGas" rlp:"optional"`
 	WithdrawalsHash       *common.Hash      `json:"withdrawalsRoot" rlp:"optional"`
 	BlobGasUsed           *uint64           `json:"blobGasUsed"   rlp:"optional"`
 	ExcessBlobGas         *uint64           `json:"excessBlobGas"   rlp:"optional"`
@@ -65,7 +65,7 @@ type headerMarshaling struct {
 	GasUsed       math.HexOrDecimal64
 	Time          math.HexOrDecimal64
 	Extra         hexutil.Bytes
-	BaseFee       *math.HexOrDecimal256
+	EthBaseFee    *math.HexOrDecimal256
 	BlobGasUsed   *math.HexOrDecimal64
 	ExcessBlobGas *math.HexOrDecimal64
 }
@@ -131,7 +131,7 @@ func (i *bbInput) ToBlock() *types.Block {
 		Time:             i.Header.Time,
 		Extra:            i.Header.Extra,
 		MixDigest:        i.Header.MixDigest,
-		EthBaseFee:       i.Header.BaseFee,
+		EthBaseFee:       i.Header.EthBaseFee,
 		WithdrawalsHash:  i.Header.WithdrawalsHash,
 		BlobGasUsed:      i.Header.BlobGasUsed,
 		ExcessBlobGas:    i.Header.ExcessBlobGas,
