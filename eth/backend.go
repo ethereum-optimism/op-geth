@@ -346,10 +346,11 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 		config.BlobPool.Datadir = stack.ResolvePath(config.BlobPool.Datadir)
 	}
 	txPools := []txpool.SubPool{legacyPool}
-	if !eth.BlockChain().Config().IsOptimism() {
-		eth.blobTxPool = blobpool.New(config.BlobPool, eth.blockchain, legacyPool.HasPendingAuth)
-		txPools = append(txPools, eth.blobTxPool)
-	}
+	// We don't support blobs in Rootstock, so we don't want to initialize the blob pool.
+	// if !eth.BlockChain().Config().IsOptimism() {
+	// 	eth.blobTxPool = blobpool.New(config.BlobPool, eth.blockchain, legacyPool.HasPendingAuth)
+	// 	txPools = append(txPools, eth.blobTxPool)
+	// }
 
 	// if interop is enabled, establish an Interop Filter connected to this Ethereum instance's
 	// simulated logs and message safety check functions
