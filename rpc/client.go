@@ -340,13 +340,11 @@ func (c *Client) Call(result interface{}, method string, args ...interface{}) er
 // The result must be a pointer so that package json can unmarshal into it. You
 // can also pass nil, in which case the result is ignored.
 func (c *Client) CallContext(ctx context.Context, result interface{}, method string, args ...interface{}) error {
-	fmt.Println("client.go ~ Client ~ CallContext ~ Calling", method, args)
 	if result != nil && reflect.TypeOf(result).Kind() != reflect.Ptr {
 		return fmt.Errorf("call result parameter must be pointer or nil interface: %v", result)
 	}
 	msg, err := c.newMessage(method, args...)
 	if err != nil {
-		fmt.Println("client.go ~ Client ~ CallContext ~ NewMessage error", err.Error())
 		return err
 	}
 	var recordDone RecordDone
@@ -359,10 +357,8 @@ func (c *Client) CallContext(ctx context.Context, result interface{}, method str
 	}
 
 	if c.isHTTP {
-		fmt.Println("client.go ~ Client ~ CallContext ~ Sending HTTP", method, args)
 		err = c.sendHTTP(ctx, op, msg)
 	} else {
-		fmt.Println("client.go ~ Client ~ CallContext ~ Sending", method, args)
 		err = c.send(ctx, op, msg)
 	}
 	if err != nil {
@@ -372,11 +368,9 @@ func (c *Client) CallContext(ctx context.Context, result interface{}, method str
 	// dispatch has accepted the request and will close the channel when it quits.
 	batchresp, err := op.wait(ctx, c)
 	if err != nil {
-		fmt.Println("client.go ~ Client ~ CallContext ~ Error", err)
 		return err
 	}
 	resp := batchresp[0]
-	fmt.Println("client.go ~ Client ~ CallContext ~ Response", resp)
 	if recordDone != nil {
 		recordDone(ctx, msg, resp)
 	}

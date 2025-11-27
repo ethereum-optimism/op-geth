@@ -88,7 +88,6 @@ func (j *journal) revertToSnapshot(revid int, s *StateDB) {
 		return j.validRevisions[i].id >= revid
 	})
 	if idx == len(j.validRevisions) || j.validRevisions[idx].id != revid {
-		fmt.Printf("\n\n journal.go ~ revertToSnapshot ~ revision id %v cannot be reverted\n\n", revid)
 		panic(fmt.Errorf("revision id %v cannot be reverted", revid))
 	}
 	snapshot := j.validRevisions[idx].journalIndex
