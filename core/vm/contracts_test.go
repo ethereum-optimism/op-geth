@@ -343,6 +343,91 @@ func TestPrecompileBlsInputSize(t *testing.T) {
 
 func TestPrecompiledEcrecover(t *testing.T) { testJson("ecRecover", "01", t) }
 
+func TestPrecompileJovianInputSizeLimits(t *testing.T) {
+	const (
+		maxTxGas           = 16_000_000 // Target limit (actual params.MaxTxGas is 16,777,216)
+		txBaseGas          = 21_000     // params.TxGas
+		preimageOracleGas  = 100_000    // PreimageOracle.PRECOMPILE_CALL_RESERVED_GAS
+		calldataOverhead   = 164        // Function selector + ABI params
+		calldataGasPerByte = 16         // params.TxDataNonZeroGasEIP2028
+	)
+
+	tests := []struct {
+		name             string
+		precompileAddr   string
+		maxInputSize     uint64
+		inputElementSize int
+		expectedError    string
+	}{
+		{
+			name:             "bn256Pairing",
+			precompileAddr:   "2f08",
+			maxInputSize:     params.Bn256PairingMaxInputSizeJovian,
+			inputElementSize: 192,
+			expectedError:    "bad elliptic curve pairing input size",
+		},
+		{
+			name:             "BLS G1 MSM",
+			precompileAddr:   "2f0b",
+			maxInputSize:     params.Bls12381G1MulMaxInputSizeJovian,
+			inputElementSize: 160,
+			expectedError:    "g1 msm input size exceeds maximum",
+		},
+		{
+			name:             "BLS G2 MSM",
+			precompileAddr:   "2f0d",
+			maxInputSize:     params.Bls12381G2MulMaxInputSizeJovian,
+			inputElementSize: 288,
+			expectedError:    "g2 msm input size exceeds maximum",
+		},
+		{
+			name:             "BLS Pairing",
+			precompileAddr:   "2f0e",
+			maxInputSize:     params.Bls12381PairingMaxInputSizeJovian,
+			inputElementSize: 384,
+			expectedError:    "pairing input size exceeds maximum",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			addr := common.HexToAddress(tt.precompileAddr)
+			precompile, ok := allPrecompiles[addr]
+			if !ok {
+				t.Fatalf("precompile %s not found in allPrecompiles", tt.precompileAddr)
+			}
+
+			t.Run("GasAtLimit", func(t *testing.T) {
+				inputSize := (int(tt.maxInputSize) / tt.inputElementSize) * tt.inputElementSize
+				input := make([]byte, inputSize)
+
+				precompileGas := precompile.RequiredGas(input)
+
+				calldataGas := uint64(calldataOverhead+inputSize) * calldataGasPerByte
+
+				totalGas := txBaseGas + preimageOracleGas + calldataGas + precompileGas
+
+				if totalGas >= maxTxGas {
+					t.Errorf("%s at Jovian limit (%d bytes) exceeds 16M gas: %d gas (over by %d)",
+						tt.name, inputSize, totalGas, totalGas-maxTxGas)
+				}
+
+				margin := maxTxGas - totalGas
+				t.Logf("✓ %s: %d bytes → %d gas (margin: %d gas)", tt.name, inputSize, totalGas, margin)
+			})
+
+			t.Run("AboveLimit", func(t *testing.T) {
+				big := make([]byte, tt.maxInputSize+1)
+				testPrecompiledFailure(tt.precompileAddr, precompiledFailureTest{
+					Input:         common.Bytes2Hex(big),
+					ExpectedError: tt.expectedError,
+					Name:          tt.name + "_jovian_input_too_big",
+				}, t)
+			})
+		})
+	}
+}
+
 func testJson(name, addr string, t *testing.T) {
 	tests, err := loadJson(name)
 	if err != nil {

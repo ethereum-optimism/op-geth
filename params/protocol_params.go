@@ -185,6 +185,10 @@ const (
 	Bls12381G2MulMaxInputSizeIsthmus   uint64 = 488448 // Maximum input size for BLS12-381 G2 multiple-scalar-multiply operation
 	Bls12381PairingMaxInputSizeIsthmus uint64 = 235008 // Maximum input size for BLS12-381 pairing check
 
+	// Jovian precompile limits ensure accelerated precompiles for fault proofs stay under the 16M gas
+	// transaction limit introduced in Fusaka (EIP-7825). Since accelerated precompiles execute on L1
+	// via PreimageOracle.loadPrecompilePreimagePart, the entire L1 transaction must stay under 16M gas:
+	//   Total Gas = TxBaseGas (21K) + PreimageOracleGas (100K) + CalldataGas + PrecompileGas < 16M
 	Bn256PairingMaxInputSizeJovian    uint64 = 81984  // bn256Pairing limit (427 pairs)
 	Bls12381G1MulMaxInputSizeJovian   uint64 = 288960 // BLS12-381 G1 MSM limit (1,806 pairs)
 	Bls12381G2MulMaxInputSizeJovian   uint64 = 278784 // BLS12-381 G2 MSM limit (968 pairs)
