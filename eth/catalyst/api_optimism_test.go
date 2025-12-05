@@ -162,7 +162,7 @@ func TestCheckOptimismPayload(t *testing.T) {
 				ExtraData: validExtraData,
 			},
 			cfg:      postJovian(),
-			expected: errors.New("MinBaseFee extraData should be 17 bytes, got 9"),
+			expected: errors.New("Jovian extraData should be 17 bytes, got 9"),
 		},
 	}
 
