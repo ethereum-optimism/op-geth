@@ -37,20 +37,6 @@ index d97937020..c56080d02 100644
  	return pool
  }
  
-@@ -533,11 +535,11 @@ func (pool *LegacyPool) ToJournal() map[common.Address]types.Transactions {
- 	pool.mu.Lock()
- 	defer pool.mu.Unlock()
- 
--	txs := make(map[common.Address]types.Transactions, len(pool.pending)+len(pool.queue))
-+	txs := make(map[common.Address]types.Transactions, len(pool.pending)+len(pool.queue.queued))
- 	for addr, pending := range pool.pending {
- 		txs[addr] = pending.Flatten()
- 	}
--	for addr, queued := range pool.queue {
-+	for addr, queued := range pool.queue.queued {
- 		txs[addr] = append(txs[addr], queued.Flatten()...)
- 	}
- 	return txs
 @@ -899,16 +901,9 @@ func (pool *LegacyPool) isGapped(from common.Address, tx *types.Transaction) boo
  //
  // Note, this method assumes the pool lock is held!
