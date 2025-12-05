@@ -24,19 +24,6 @@ index 749747e6a..e56b3e032 100644
  github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
  github.com/prometheus/client_golang v1.15.0 h1:5fCgGYogn0hFdhyhLbw7hEsWxufKtY9klyvdNfFlFhM=
 
-diff --git a/fork.yaml b/fork.yaml
-index 82d815e90..1b71ff77f 100644
---- a/fork.yaml
-+++ b/fork.yaml
-@@ -5,7 +5,7 @@ footer: |
- base:
-   name: go-ethereum
-   url: https://github.com/ethereum/go-ethereum
--  hash: 41714b4975845b1d6e3277b7b92e80c66a584d2b # v1.16.4
-+  hash: 737ffd1bf0cbee378d0111a5b17ae4724fb2216c # v1.16.5
- fork:
-   name: op-geth
-   url: https://github.com/ethereum-optimism/op-geth
 @@ -150,6 +150,7 @@ def:
              The parameters can be overriden for testing.
            globs:
