@@ -28,22 +28,7 @@ diff --git a/params/config.go b/params/config.go
 index ae9c42f24..f1b177e0d 100644
 --- a/params/config.go
 +++ b/params/config.go
-@@ -562,18 +562,6 @@ func (c CliqueConfig) String() string {
- 	return fmt.Sprintf("clique(period: %d, epoch: %d)", c.Period, c.Epoch)
- }
- 
--<<<<<<< HEAD
--// OptimismConfig is the optimism config.
--type OptimismConfig struct {
--	EIP1559Elasticity        uint64  `json:"eip1559Elasticity"`
--	EIP1559Denominator       uint64  `json:"eip1559Denominator"`
--	EIP1559DenominatorCanyon *uint64 `json:"eip1559DenominatorCanyon,omitempty"`
--}
--
--// String implements the stringer interface, returning the optimism fee config details.
--func (o *OptimismConfig) String() string {
--	return "optimism"
--=======
+
  // String implements the fmt.Stringer interface, returning a string representation
  // of ChainConfig.
  func (c *ChainConfig) String() string {
