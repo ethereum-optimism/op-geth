@@ -23,18 +23,7 @@ index 749747e6a..e56b3e032 100644
  github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 h1:Jamvg5psRIccs7FGNTlIRMkT8wgtp5eCXdBlqhYGL6U=
  github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
  github.com/prometheus/client_golang v1.15.0 h1:5fCgGYogn0hFdhyhLbw7hEsWxufKtY9klyvdNfFlFhM=
-diff --git a/core/evm.go b/core/evm.go
-index 98f8c9d0c..5bee12640 100644
---- a/core/evm.go
-+++ b/core/evm.go
-@@ -25,6 +25,7 @@ import (
- 	"github.com/ethereum/go-ethereum/core/tracing"
- 	"github.com/ethereum/go-ethereum/core/types"
- 	"github.com/ethereum/go-ethereum/core/vm"
-+	"github.com/ethereum/go-ethereum/params"
- 	"github.com/holiman/uint256"
- )
- 
+
 diff --git a/core/rawdb/accessors_chain.go b/core/rawdb/accessors_chain.go
 index b215dd547..da8b3c38d 100644
 --- a/core/rawdb/accessors_chain.go
