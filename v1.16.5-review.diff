@@ -281,11 +281,3 @@ index 000000000..ee9699118
 +func (o *OptimismConfig) String() string {
 +	return "optimism"
 +}
-diff --git a/superchain-registry-commit.txt b/superchain-registry-commit.txt
-index 29dedc772..239646ec0 100644
---- a/superchain-registry-commit.txt
-+++ b/superchain-registry-commit.txt
-@@ -1,3 +1 @@
- 59e22d265b7a423b7f51a67a722471a6f3c3cc39
--
--asdfaddas
