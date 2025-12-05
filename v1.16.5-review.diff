@@ -24,27 +24,6 @@ index 749747e6a..e56b3e032 100644
  github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
  github.com/prometheus/client_golang v1.15.0 h1:5fCgGYogn0hFdhyhLbw7hEsWxufKtY9klyvdNfFlFhM=
 
-diff --git a/eth/handler.go b/eth/handler.go
-index 37ea72c4c..12f1c55eb 100644
---- a/eth/handler.go
-+++ b/eth/handler.go
-@@ -195,15 +195,9 @@ func newHandler(config *handlerConfig) (*handler, error) {
- 		}
- 	} else {
- 		head := h.chain.CurrentBlock()
--<<<<<<< HEAD
- 		if head.Number.Uint64() > 0 && h.chain.HasState(head.Root) && (!config.Chain.Config().IsOptimism() || head.Number.Cmp(config.Chain.Config().BedrockBlock) != 0) {
--			// Print warning log if database is not empty to run snap sync.
- 			// For OP chains, snap sync from bedrock block is allowed.
--			log.Warn("Switch sync mode from snap sync to full sync")
--=======
--		if head.Number.Uint64() > 0 && h.chain.HasState(head.Root) {
--			log.Info("Switch sync mode from snap sync to full sync", "reason", "snap sync complete")
-->>>>>>> v1.16.5
-+			log.Info("Switch sync mode from snap sync to full sync")
- 		} else {
- 			// If snap sync was requested and our database is empty, grant it
- 			h.snapSync.Store(true)
 diff --git a/fork.yaml b/fork.yaml
 index 82d815e90..1b71ff77f 100644
 --- a/fork.yaml
