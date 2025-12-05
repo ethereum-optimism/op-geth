@@ -25,24 +25,6 @@ index 749747e6a..e56b3e032 100644
  github.com/prometheus/client_golang v1.15.0 h1:5fCgGYogn0hFdhyhLbw7hEsWxufKtY9klyvdNfFlFhM=
 
 
-
-diff --git a/core/types/block.go b/core/types/block.go
-index 3bb33eff1..98c6d6a04 100644
---- a/core/types/block.go
-+++ b/core/types/block.go
-@@ -263,11 +263,7 @@ type BlockType interface {
- //
- // The receipt's bloom must already calculated for the block's bloom to be
- // correctly calculated.
--<<<<<<< HEAD
--func NewBlock(header *Header, body *Body, receipts []*Receipt, hasher TrieHasher, bType BlockType) *Block {
--=======
--func NewBlock(header *Header, body *Body, receipts []*Receipt, hasher ListHasher) *Block {
-->>>>>>> v1.16.5
-+func NewBlock(header *Header, body *Body, receipts []*Receipt, hasher ListHasher, bType BlockType) *Block {
- 	if body == nil {
- 		body = &Body{}
- 	}
 diff --git a/eth/filters/api.go b/eth/filters/api.go
 index 58baf2c3a..211f3c449 100644
 --- a/eth/filters/api.go
