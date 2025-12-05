@@ -24,14 +24,6 @@ index 749747e6a..e56b3e032 100644
  github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
  github.com/prometheus/client_golang v1.15.0 h1:5fCgGYogn0hFdhyhLbw7hEsWxufKtY9klyvdNfFlFhM=
 
-@@ -150,6 +150,7 @@ def:
-             The parameters can be overriden for testing.
-           globs:
-             - "params/config.go"
-+            - "params/config_op.go"
-             - "params/protocol_params.go"
-             - "core/genesis.go"
-         - title: "Chain config cleanup"
 diff --git a/params/config.go b/params/config.go
 index ae9c42f24..f1b177e0d 100644
 --- a/params/config.go
@@ -164,51 +156,6 @@ index ae9c42f24..f1b177e0d 100644
  	return banner
  }
  
-@@ -1317,40 +1332,11 @@ func (c *ChainConfig) checkCompatible(newcfg *ChainConfig, headNumber *big.Int,
- 	if isForkTimestampIncompatible(c.BPO5Time, newcfg.BPO5Time, headTimestamp, genesisTimestamp) {
- 		return newTimestampCompatError("BPO5 fork timestamp", c.BPO5Time, newcfg.BPO5Time)
- 	}
--<<<<<<< HEAD
--	if isForkBlockIncompatible(c.BedrockBlock, newcfg.BedrockBlock, headNumber) {
--		return newBlockCompatError("Bedrock fork block", c.BedrockBlock, newcfg.BedrockBlock)
--	}
--	if isForkTimestampIncompatible(c.RegolithTime, newcfg.RegolithTime, headTimestamp, genesisTimestamp) {
--		return newTimestampCompatError("Regolith fork timestamp", c.RegolithTime, newcfg.RegolithTime)
--	}
--	if isForkTimestampIncompatible(c.CanyonTime, newcfg.CanyonTime, headTimestamp, genesisTimestamp) {
--		return newTimestampCompatError("Canyon fork timestamp", c.CanyonTime, newcfg.CanyonTime)
--	}
--	if isForkTimestampIncompatible(c.EcotoneTime, newcfg.EcotoneTime, headTimestamp, genesisTimestamp) {
--		return newTimestampCompatError("Ecotone fork timestamp", c.EcotoneTime, newcfg.EcotoneTime)
--	}
--	if isForkTimestampIncompatible(c.FjordTime, newcfg.FjordTime, headTimestamp, genesisTimestamp) {
--		return newTimestampCompatError("Fjord fork timestamp", c.FjordTime, newcfg.FjordTime)
--	}
--	if isForkTimestampIncompatible(c.GraniteTime, newcfg.GraniteTime, headTimestamp, genesisTimestamp) {
--		return newTimestampCompatError("Granite fork timestamp", c.GraniteTime, newcfg.GraniteTime)
--	}
--	if isForkTimestampIncompatible(c.HoloceneTime, newcfg.HoloceneTime, headTimestamp, genesisTimestamp) {
--		return newTimestampCompatError("Holocene fork timestamp", c.HoloceneTime, newcfg.HoloceneTime)
--	}
--	if isForkTimestampIncompatible(c.IsthmusTime, newcfg.IsthmusTime, headTimestamp, genesisTimestamp) {
--		return newTimestampCompatError("Isthmus fork timestamp", c.IsthmusTime, newcfg.IsthmusTime)
--	}
--	if isForkTimestampIncompatible(c.JovianTime, newcfg.JovianTime, headTimestamp, genesisTimestamp) {
--		return newTimestampCompatError("Jovian fork timestamp", c.JovianTime, newcfg.JovianTime)
--	}
--	if isForkTimestampIncompatible(c.InteropTime, newcfg.InteropTime, headTimestamp, genesisTimestamp) {
--		return newTimestampCompatError("Interop fork timestamp", c.InteropTime, newcfg.InteropTime)
--=======
--	if isForkTimestampIncompatible(c.AmsterdamTime, newcfg.AmsterdamTime, headTimestamp) {
-+	if isForkTimestampIncompatible(c.AmsterdamTime, newcfg.AmsterdamTime, headTimestamp, genesisTimestamp) {
- 		return newTimestampCompatError("Amsterdam fork timestamp", c.AmsterdamTime, newcfg.AmsterdamTime)
-->>>>>>> v1.16.5
-+	}
-+	if err := c.opCheckCompatible(newcfg, headNumber, headTimestamp, genesisTimestamp); err != nil {
-+		return err
- 	}
- 	return nil
- }
 @@ -1630,15 +1616,11 @@ type Rules struct {
  	IsByzantium, IsConstantinople, IsPetersburg, IsIstanbul bool
  	IsBerlin, IsLondon                                      bool
@@ -226,58 +173,4 @@ index ae9c42f24..f1b177e0d 100644
  }
  
  // Rules ensures c's ChainID is not nil.
-diff --git a/params/config_op.go b/params/config_op.go
-new file mode 100644
-index 000000000..ee9699118
---- /dev/null
-+++ b/params/config_op.go
-@@ -0,0 +1,49 @@
-+package params
-+
-+import "math/big"
-+
-+func (c *ChainConfig) opCheckCompatible(newcfg *ChainConfig, headNumber *big.Int, headTimestamp uint64, genesisTimestamp *uint64) *ConfigCompatError {
-+	if isForkBlockIncompatible(c.BedrockBlock, newcfg.BedrockBlock, headNumber) {
-+		return newBlockCompatError("Bedrock fork block", c.BedrockBlock, newcfg.BedrockBlock)
-+	}
-+	if isForkTimestampIncompatible(c.RegolithTime, newcfg.RegolithTime, headTimestamp, genesisTimestamp) {
-+		return newTimestampCompatError("Regolith fork timestamp", c.RegolithTime, newcfg.RegolithTime)
-+	}
-+	if isForkTimestampIncompatible(c.CanyonTime, newcfg.CanyonTime, headTimestamp, genesisTimestamp) {
-+		return newTimestampCompatError("Canyon fork timestamp", c.CanyonTime, newcfg.CanyonTime)
-+	}
-+	if isForkTimestampIncompatible(c.EcotoneTime, newcfg.EcotoneTime, headTimestamp, genesisTimestamp) {
-+		return newTimestampCompatError("Ecotone fork timestamp", c.EcotoneTime, newcfg.EcotoneTime)
-+	}
-+	if isForkTimestampIncompatible(c.FjordTime, newcfg.FjordTime, headTimestamp, genesisTimestamp) {
-+		return newTimestampCompatError("Fjord fork timestamp", c.FjordTime, newcfg.FjordTime)
-+	}
-+	if isForkTimestampIncompatible(c.GraniteTime, newcfg.GraniteTime, headTimestamp, genesisTimestamp) {
-+		return newTimestampCompatError("Granite fork timestamp", c.GraniteTime, newcfg.GraniteTime)
-+	}
-+	if isForkTimestampIncompatible(c.HoloceneTime, newcfg.HoloceneTime, headTimestamp, genesisTimestamp) {
-+		return newTimestampCompatError("Holocene fork timestamp", c.HoloceneTime, newcfg.HoloceneTime)
-+	}
-+	if isForkTimestampIncompatible(c.IsthmusTime, newcfg.IsthmusTime, headTimestamp, genesisTimestamp) {
-+		return newTimestampCompatError("Isthmus fork timestamp", c.IsthmusTime, newcfg.IsthmusTime)
-+	}
-+	if isForkTimestampIncompatible(c.JovianTime, newcfg.JovianTime, headTimestamp, genesisTimestamp) {
-+		return newTimestampCompatError("Jovian fork timestamp", c.JovianTime, newcfg.JovianTime)
-+	}
-+	if isForkTimestampIncompatible(c.InteropTime, newcfg.InteropTime, headTimestamp, genesisTimestamp) {
-+		return newTimestampCompatError("Interop fork timestamp", c.InteropTime, newcfg.InteropTime)
-+	}
-+	return nil
-+}
-+
-+// OptimismConfig is the optimism config.
-+type OptimismConfig struct {
-+	EIP1559Elasticity        uint64  `json:"eip1559Elasticity"`
-+	EIP1559Denominator       uint64  `json:"eip1559Denominator"`
-+	EIP1559DenominatorCanyon *uint64 `json:"eip1559DenominatorCanyon,omitempty"`
-+}
-+
-+// String implements the stringer interface, returning the optimism fee config details.
-+func (o *OptimismConfig) String() string {
-+	return "optimism"
-+}
+
