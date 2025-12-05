@@ -345,7 +345,7 @@ func testBuildPayload(t *testing.T, noTxPool, interrupt bool, params1559 []byte,
 	if len(params1559) != 0 {
 		versionByte := eip1559.HoloceneExtraDataVersionByte
 		if config.IsJovian(testTimestamp) {
-			versionByte = eip1559.MinBaseFeeExtraDataVersionByte
+			versionByte = eip1559.JovianExtraDataVersionByte
 		}
 		expected = []byte{versionByte}
 
@@ -355,7 +355,7 @@ func testBuildPayload(t *testing.T, noTxPool, interrupt bool, params1559 []byte,
 		} else {
 			expected = append(expected, params1559...)
 		}
-		if versionByte == eip1559.MinBaseFeeExtraDataVersionByte {
+		if versionByte == eip1559.JovianExtraDataVersionByte {
 			buf := make([]byte, 8)
 			binary.BigEndian.PutUint64(buf, *args.MinBaseFee)
 			expected = append(expected, buf...)

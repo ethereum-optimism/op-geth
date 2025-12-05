@@ -8,7 +8,7 @@ import (
 )
 
 const HoloceneExtraDataVersionByte = uint8(0x00)
-const MinBaseFeeExtraDataVersionByte = uint8(0x01)
+const JovianExtraDataVersionByte = uint8(0x01)
 
 type ForkChecker interface {
 	IsHolocene(time uint64) bool
@@ -133,7 +133,7 @@ func ValidateHoloceneExtraData(extra []byte) error {
 	return ValidateHolocene1559Params(extra[1:])
 }
 
-// DecodeMinBaseFeeExtraData decodes the extraData parameters from the encoded form defined here:
+// DecodeJovianExtraData decodes the extraData parameters from the encoded form defined here:
 // https://specs.optimism.io/protocol/jovian/exec-engine.html
 //
 // Returns 0,0,nil if the format is invalid, and d, e, nil for the Holocene length, to provide best effort behavior for non-MinBaseFee extradata, though ValidateJovianExtraData should be used instead of this function for
@@ -154,14 +154,14 @@ func DecodeJovianExtraData(extra []byte) (uint64, uint64, *uint64) {
 	return 0, 0, nil
 }
 
-// EncodeMinBaseFeeExtraData encodes the EIP-1559 and minBaseFee parameters into the header 'ExtraData' format.
+// EncodeJovianExtraData encodes the EIP-1559 and minBaseFee parameters into the header 'ExtraData' format.
 // Will panic if EIP-1559 parameters are outside uint32 range.
 func EncodeJovianExtraData(denom, elasticity, minBaseFee uint64) []byte {
 	r := make([]byte, 17)
 	if denom > gomath.MaxUint32 || elasticity > gomath.MaxUint32 {
 		panic("eip-1559 parameters out of uint32 range")
 	}
-	r[0] = MinBaseFeeExtraDataVersionByte
+	r[0] = JovianExtraDataVersionByte
 	binary.BigEndian.PutUint32(r[1:5], uint32(denom))
 	binary.BigEndian.PutUint32(r[5:9], uint32(elasticity))
 	binary.BigEndian.PutUint64(r[9:], minBaseFee)
@@ -171,10 +171,10 @@ func EncodeJovianExtraData(denom, elasticity, minBaseFee uint64) []byte {
 // ValidateJovianExtraData checks if the header extraData is valid according to the minimum base fee feature.
 func ValidateJovianExtraData(extra []byte) error {
 	if len(extra) != 17 {
-		return fmt.Errorf("MinBaseFee extraData should be 17 bytes, got %d", len(extra))
+		return fmt.Errorf("Jovian extraData should be 17 bytes, got %d", len(extra))
 	}
-	if extra[0] != MinBaseFeeExtraDataVersionByte {
-		return fmt.Errorf("MinBaseFee extraData version byte should be %d, got %d", MinBaseFeeExtraDataVersionByte, extra[0])
+	if extra[0] != JovianExtraDataVersionByte {
+		return fmt.Errorf("Jovian extraData version byte should be %d, got %d", JovianExtraDataVersionByte, extra[0])
 	}
 	return ValidateHolocene1559Params(extra[1:9])
 }
