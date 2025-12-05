@@ -141,21 +141,3 @@ index ae9c42f24..f1b177e0d 100644
  	return banner
  }
  
-@@ -1630,15 +1616,11 @@ type Rules struct {
- 	IsByzantium, IsConstantinople, IsPetersburg, IsIstanbul bool
- 	IsBerlin, IsLondon                                      bool
- 	IsMerge, IsShanghai, IsCancun, IsPrague, IsOsaka        bool
--<<<<<<< HEAD
--	IsVerkle                                                bool
-+	IsAmsterdam, IsVerkle                                   bool
- 	IsOptimismBedrock, IsOptimismRegolith                   bool
- 	IsOptimismCanyon, IsOptimismFjord                       bool
- 	IsOptimismGranite, IsOptimismHolocene                   bool
- 	IsOptimismIsthmus, IsOptimismJovian                     bool
--=======
--	IsAmsterdam, IsVerkle                                   bool
-->>>>>>> v1.16.5
- }
- 
- // Rules ensures c's ChainID is not nil.
-
