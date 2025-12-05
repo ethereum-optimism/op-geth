@@ -663,6 +663,7 @@ func DeleteReceipts(db ethdb.KeyValueWriter, hash common.Hash, number uint64) {
 	}
 }
 
+<<<<<<< HEAD
 // storedReceiptRLP is the storage encoding of a receipt.
 // Re-definition in core/types/receipt.go.
 // TODO: Re-use the existing definition.
@@ -681,6 +682,8 @@ type storedReceiptRLP struct {
 	FeeScalar  string   `rlp:"optional"` // OVM legacy
 }
 
+=======
+>>>>>>> v1.16.5
 // ReceiptLogs is a barebone version of ReceiptForStorage which only keeps
 // the list of logs. When decoding a stored receipt into this object we
 // avoid creating the bloom filter.
@@ -690,11 +693,11 @@ type receiptLogs struct {
 
 // DecodeRLP implements rlp.Decoder.
 func (r *receiptLogs) DecodeRLP(s *rlp.Stream) error {
-	var stored storedReceiptRLP
-	if err := s.Decode(&stored); err != nil {
+	var rs types.ReceiptForStorage
+	if err := rs.DecodeRLP(s); err != nil {
 		return err
 	}
-	r.Logs = stored.Logs
+	r.Logs = rs.Logs
 	return nil
 }
 
