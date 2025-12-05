@@ -24,19 +24,6 @@ index 749747e6a..e56b3e032 100644
  github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
  github.com/prometheus/client_golang v1.15.0 h1:5fCgGYogn0hFdhyhLbw7hEsWxufKtY9klyvdNfFlFhM=
 
-
-diff --git a/eth/filters/api.go b/eth/filters/api.go
-index 58baf2c3a..211f3c449 100644
---- a/eth/filters/api.go
-+++ b/eth/filters/api.go
-@@ -362,6 +362,7 @@ func (api *FilterAPI) TransactionReceipts(ctx context.Context, filter *Transacti
- 							signer,
- 							receiptWithTx.Transaction,
- 							int(receiptWithTx.Receipt.TransactionIndex),
-+							api.sys.backend.ChainConfig(),
- 						)
- 					}
- 
 diff --git a/eth/handler.go b/eth/handler.go
 index 37ea72c4c..12f1c55eb 100644
 --- a/eth/handler.go
@@ -79,46 +66,6 @@ index 82d815e90..1b71ff77f 100644
              - "params/protocol_params.go"
              - "core/genesis.go"
          - title: "Chain config cleanup"
-diff --git a/internal/ethapi/api.go b/internal/ethapi/api.go
-index e6446c561..507f64b96 100644
---- a/internal/ethapi/api.go
-+++ b/internal/ethapi/api.go
-@@ -712,11 +712,7 @@ func (api *BlockChainAPI) GetBlockReceipts(ctx context.Context, blockNrOrHash rp
- 
- 	result := make([]map[string]interface{}, len(receipts))
- 	for i, receipt := range receipts {
--<<<<<<< HEAD
--		result[i] = marshalReceipt(receipt, block.Hash(), block.NumberU64(), signer, txs[i], i, api.b.ChainConfig())
--=======
--		result[i] = MarshalReceipt(receipt, block.Hash(), block.NumberU64(), signer, txs[i], i)
-->>>>>>> v1.16.5
-+		result[i] = MarshalReceipt(receipt, block.Hash(), block.NumberU64(), signer, txs[i], i, api.b.ChainConfig())
- 	}
- 	return result, nil
- }
-@@ -1706,20 +1702,12 @@ func (api *TransactionAPI) GetTransactionReceipt(ctx context.Context, hash commo
- 	receipt := receipts[index]
- 
- 	// Derive the sender.
--<<<<<<< HEAD
- 	signer := types.MakeSigner(api.b.ChainConfig(), header.Number, header.Time)
--	return marshalReceipt(receipt, blockHash, blockNumber, signer, tx, int(index), api.b.ChainConfig()), nil
--}
--
--// marshalReceipt marshals a transaction receipt into a JSON object.
--func marshalReceipt(receipt *types.Receipt, blockHash common.Hash, blockNumber uint64, signer types.Signer, tx *types.Transaction, txIndex int, chainConfig *params.ChainConfig) map[string]interface{} {
--=======
--	return MarshalReceipt(receipt, blockHash, blockNumber, api.signer, tx, int(index)), nil
-+	return MarshalReceipt(receipt, blockHash, blockNumber, signer, tx, int(index), api.b.ChainConfig()), nil
- }
- 
- // MarshalReceipt marshals a transaction receipt into a JSON object.
--func MarshalReceipt(receipt *types.Receipt, blockHash common.Hash, blockNumber uint64, signer types.Signer, tx *types.Transaction, txIndex int) map[string]interface{} {
-->>>>>>> v1.16.5
-+func MarshalReceipt(receipt *types.Receipt, blockHash common.Hash, blockNumber uint64, signer types.Signer, tx *types.Transaction, txIndex int, chainConfig *params.ChainConfig) map[string]interface{} {
- 	from, _ := types.Sender(signer, tx)
- 
- 	fields := map[string]interface{}{
 diff --git a/params/config.go b/params/config.go
 index ae9c42f24..f1b177e0d 100644
 --- a/params/config.go
