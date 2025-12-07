@@ -303,6 +303,7 @@ type ChainOverrides struct {
 	OverrideOptimismHolocene *uint64
 	OverrideOptimismIsthmus  *uint64
 	OverrideOptimismJovian   *uint64
+	OverrideOptimismKarst    *uint64
 	OverrideOptimismInterop  *uint64
 	ApplySuperchainUpgrades  bool
 }
@@ -380,6 +381,9 @@ func (o *ChainOverrides) apply(cfg *params.ChainConfig) error {
 	}
 	if o.OverrideOptimismJovian != nil {
 		cfg.JovianTime = o.OverrideOptimismJovian
+	}
+	if o.OverrideOptimismKarst != nil {
+		cfg.KarstTime = o.OverrideOptimismKarst
 	}
 	if o.OverrideOptimismInterop != nil {
 		cfg.InteropTime = o.OverrideOptimismInterop

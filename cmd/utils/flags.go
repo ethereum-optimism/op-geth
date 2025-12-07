@@ -312,6 +312,11 @@ var (
 		Usage:    "Manually specify the Optimism Jovian fork timestamp, overriding the bundled setting",
 		Category: flags.EthCategory,
 	}
+	OverrideOptimismKarst = &cli.Uint64Flag{
+		Name:     "override.karst",
+		Usage:    "Manually specify the Optimism Karst fork timestamp, overriding the bundled setting",
+		Category: flags.EthCategory,
+	}
 	OverrideOptimismInterop = &cli.Uint64Flag{
 		Name:     "override.interop",
 		Usage:    "Manually specify the Optimsim Interop feature-set fork timestamp, overriding the bundled setting",

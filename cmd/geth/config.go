@@ -275,6 +275,11 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 		cfg.Eth.OverrideOptimismJovian = &v
 	}
 
+	if ctx.IsSet(utils.OverrideOptimismKarst.Name) {
+		v := ctx.Uint64(utils.OverrideOptimismKarst.Name)
+		cfg.Eth.OverrideOptimismKarst = &v
+	}
+
 	if ctx.IsSet(utils.OverrideOptimismInterop.Name) {
 		v := ctx.Uint64(utils.OverrideOptimismInterop.Name)
 		cfg.Eth.OverrideOptimismInterop = &v

@@ -205,6 +205,8 @@ type Config struct {
 
 	OverrideOptimismJovian *uint64 `toml:",omitempty"`
 
+	OverrideOptimismKarst *uint64 `toml:",omitempty"`
+
 	OverrideOptimismInterop *uint64 `toml:",omitempty"`
 
 	// ApplySuperchainUpgrades requests the node to load chain-configuration from the superchain-registry.

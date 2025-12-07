@@ -49,6 +49,7 @@ type HardforkConfig struct {
 	HoloceneTime *uint64 `toml:"holocene_time"`
 	IsthmusTime  *uint64 `toml:"isthmus_time"`
 	JovianTime   *uint64 `toml:"jovian_time"`
+	KarstTime    *uint64 `toml:"karst_time"`
 	InteropTime  *uint64 `toml:"interop_time"`
 	// Optional Forks
 	PectraBlobScheduleTime *uint64 `toml:"pectra_blob_schedule_time,omitempty"`

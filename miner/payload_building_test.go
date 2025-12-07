@@ -229,6 +229,7 @@ func TestDAFilters(t *testing.T) {
 func holoceneConfig() *params.ChainConfig {
 	config := *params.OptimismTestConfig
 	config.IsthmusTime = nil
+	config.KarstTime = nil
 	config.JovianTime = nil
 	config.PragueTime = nil
 	config.OsakaTime = nil

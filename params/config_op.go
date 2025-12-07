@@ -33,6 +33,9 @@ func (c *ChainConfig) opCheckCompatible(newcfg *ChainConfig, headNumber *big.Int
 	if isForkTimestampIncompatible(c.JovianTime, newcfg.JovianTime, headTimestamp, genesisTimestamp) {
 		return newTimestampCompatError("Jovian fork timestamp", c.JovianTime, newcfg.JovianTime)
 	}
+	if isForkTimestampIncompatible(c.KarstTime, newcfg.KarstTime, headTimestamp, genesisTimestamp) {
+		return newTimestampCompatError("Karst fork timestamp", c.KarstTime, newcfg.KarstTime)
+	}
 	if isForkTimestampIncompatible(c.InteropTime, newcfg.InteropTime, headTimestamp, genesisTimestamp) {
 		return newTimestampCompatError("Interop fork timestamp", c.InteropTime, newcfg.InteropTime)
 	}
@@ -64,6 +67,9 @@ func (c *ChainConfig) opDescription() string {
 	}
 	if c.JovianTime != nil {
 		banner += fmt.Sprintf(" - Jovian:                      @%-10v\n", *c.JovianTime)
+	}
+	if c.KarstTime != nil {
+		banner += fmt.Sprintf(" - Karst:                       @%-10v\n", *c.KarstTime)
 	}
 	if c.InteropTime != nil {
 		banner += fmt.Sprintf(" - Interop:                     @%-10v\n", *c.InteropTime)
