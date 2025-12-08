@@ -1777,8 +1777,8 @@ func testRepairWithScheme(t *testing.T, tt *rewindTest, snapshots bool, scheme s
 	// Initialize a fresh chain
 	var (
 		gspec = &Genesis{
-			BaseFee: big.NewInt(params.InitialBaseFee),
-			Config:  params.AllEthashProtocolChanges,
+			EthBaseFee: big.NewInt(params.InitialBaseFee),
+			Config:     params.AllEthashProtocolChanges,
 		}
 		engine = ethash.NewFullFaker()
 		option = &BlockChainConfig{
@@ -1928,8 +1928,8 @@ func testIssue23496(t *testing.T, scheme string) {
 	// Initialize a fresh chain
 	var (
 		gspec = &Genesis{
-			Config:  params.TestChainConfig,
-			BaseFee: big.NewInt(params.InitialBaseFee),
+			Config:     params.TestChainConfig,
+			EthBaseFee: big.NewInt(params.InitialBaseFee),
 		}
 		engine  = ethash.NewFullFaker()
 		options = DefaultConfig().WithStateScheme(scheme)

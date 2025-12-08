@@ -203,8 +203,8 @@ func TestGenesisHashes(t *testing.T) {
 
 func TestGenesisCommit(t *testing.T) {
 	genesis := &Genesis{
-		BaseFee: big.NewInt(params.InitialBaseFee),
-		Config:  params.TestChainConfig,
+		EthBaseFee: big.NewInt(params.InitialBaseFee),
+		Config:     params.TestChainConfig,
 		// difficulty is nil
 	}
 
@@ -302,7 +302,7 @@ func TestVerkleGenesisCommit(t *testing.T) {
 	}
 
 	genesis := &Genesis{
-		BaseFee:    big.NewInt(params.InitialBaseFee),
+		EthBaseFee: big.NewInt(params.InitialBaseFee),
 		Config:     verkleConfig,
 		Timestamp:  verkleTime,
 		Difficulty: big.NewInt(0),

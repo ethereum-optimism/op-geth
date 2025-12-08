@@ -198,7 +198,7 @@ func TestGraphQLBlockSerializationEIP2718(t *testing.T) {
 				Balance: big.NewInt(0),
 			},
 		},
-		BaseFee: big.NewInt(params.InitialBaseFee),
+		EthBaseFee: big.NewInt(params.InitialBaseFee),
 	}
 	signer := types.LatestSigner(genesis.Config)
 	newGQLService(t, stack, false, genesis, 1, func(i int, gen *core.BlockGen) {

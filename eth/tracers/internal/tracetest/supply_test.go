@@ -218,8 +218,8 @@ func TestSupplyEip1559Burn(t *testing.T) {
 		eth1    = new(big.Int).Mul(common.Big1, big.NewInt(params.Ether))
 
 		gspec = &core.Genesis{
-			Config:  &config,
-			BaseFee: big.NewInt(params.InitialBaseFee),
+			Config:     &config,
+			EthBaseFee: big.NewInt(params.InitialBaseFee),
 			Alloc: types.GenesisAlloc{
 				addr1: {Balance: eth1},
 			},
@@ -325,8 +325,8 @@ func TestSupplySelfdestruct(t *testing.T) {
 		eth1    = new(big.Int).Mul(common.Big1, big.NewInt(params.Ether))
 
 		gspec = &core.Genesis{
-			Config:  &config,
-			BaseFee: big.NewInt(params.InitialBaseFee),
+			Config:     &config,
+			EthBaseFee: big.NewInt(params.InitialBaseFee),
 			Alloc: types.GenesisAlloc{
 				addr1: {Balance: eth1},
 				aa: {

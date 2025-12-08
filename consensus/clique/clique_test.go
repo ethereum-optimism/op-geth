@@ -49,7 +49,7 @@ func TestReimportMirroredState(t *testing.T) {
 		Alloc: map[common.Address]types.Account{
 			addr: {Balance: big.NewInt(10000000000000000)},
 		},
-		BaseFee: big.NewInt(params.InitialBaseFee),
+		EthBaseFee: big.NewInt(params.InitialBaseFee),
 	}
 	copy(genspec.ExtraData[extraVanity:], addr[:])
 

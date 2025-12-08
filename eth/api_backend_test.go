@@ -49,7 +49,7 @@ var (
 			address: {Balance: funds},
 		},
 		Difficulty: common.Big0,
-		BaseFee:    big.NewInt(params.InitialBaseFee),
+		EthBaseFee: big.NewInt(params.InitialBaseFee),
 	}
 	signer = types.LatestSignerForChainID(gspec.Config.ChainID)
 )

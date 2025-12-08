@@ -570,9 +570,9 @@ func (tc *testChain) addBlocks(count, maxTxPerBlock, maxLogsPerReceipt, maxTopic
 
 	if len(tc.canonical) == 0 {
 		gspec := &core.Genesis{
-			Alloc:   types.GenesisAlloc{},
-			BaseFee: big.NewInt(params.InitialBaseFee),
-			Config:  params.TestChainConfig,
+			Alloc:      types.GenesisAlloc{},
+			EthBaseFee: big.NewInt(params.InitialBaseFee),
+			Config:     params.TestChainConfig,
 		}
 		tc.db, blocks, receipts = core.GenerateChainWithGenesis(gspec, engine, count, blockGen)
 		gblock := gspec.ToBlock()

@@ -45,7 +45,7 @@ func LoadOPStackGenesis(chainID uint64) (*Genesis, error) {
 		Number:        gen.Number,
 		GasUsed:       gen.GasUsed,
 		ParentHash:    gen.ParentHash,
-		BaseFee:       gen.BaseFee,
+		EthBaseFee:    gen.EthBaseFee,
 		ExcessBlobGas: gen.ExcessBlobGas,
 		BlobGasUsed:   gen.BlobGasUsed,
 	}

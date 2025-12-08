@@ -64,8 +64,8 @@ var (
 func newCanonical(engine consensus.Engine, n int, full bool, scheme string) (ethdb.Database, *Genesis, *BlockChain, error) {
 	var (
 		genesis = &Genesis{
-			BaseFee: big.NewInt(params.InitialBaseFee),
-			Config:  params.AllEthashProtocolChanges,
+			EthBaseFee: big.NewInt(params.InitialBaseFee),
+			Config:     params.AllEthashProtocolChanges,
 		}
 	)
 	// Initialize a fresh chain with only a genesis block
@@ -701,9 +701,9 @@ func testFastVsFullChains(t *testing.T, scheme string) {
 		address = crypto.PubkeyToAddress(key.PublicKey)
 		funds   = big.NewInt(1000000000000000)
 		gspec   = &Genesis{
-			Config:  params.TestChainConfig,
-			Alloc:   types.GenesisAlloc{address: {Balance: funds}},
-			BaseFee: big.NewInt(params.InitialBaseFee),
+			Config:     params.TestChainConfig,
+			Alloc:      types.GenesisAlloc{address: {Balance: funds}},
+			EthBaseFee: big.NewInt(params.InitialBaseFee),
 		}
 		signer = types.LatestSigner(gspec.Config)
 	)
@@ -818,9 +818,9 @@ func testLightVsFastVsFullChainHeads(t *testing.T, scheme string) {
 		address = crypto.PubkeyToAddress(key.PublicKey)
 		funds   = big.NewInt(1000000000000000)
 		gspec   = &Genesis{
-			Config:  params.TestChainConfig,
-			Alloc:   types.GenesisAlloc{address: {Balance: funds}},
-			BaseFee: big.NewInt(params.InitialBaseFee),
+			Config:     params.TestChainConfig,
+			Alloc:      types.GenesisAlloc{address: {Balance: funds}},
+			EthBaseFee: big.NewInt(params.InitialBaseFee),
 		}
 	)
 	height := uint64(64)
@@ -1538,8 +1538,8 @@ func testBlockchainHeaderchainReorgConsistency(t *testing.T, scheme string) {
 	// Generate a canonical chain to act as the main dataset
 	engine := ethash.NewFaker()
 	genesis := &Genesis{
-		Config:  params.TestChainConfig,
-		BaseFee: big.NewInt(params.InitialBaseFee),
+		Config:     params.TestChainConfig,
+		EthBaseFee: big.NewInt(params.InitialBaseFee),
 	}
 	genDb, blocks, _ := GenerateChainWithGenesis(genesis, engine, 64, func(i int, b *BlockGen) { b.SetCoinbase(common.Address{1}) })
 
@@ -1583,8 +1583,8 @@ func TestTrieForkGC(t *testing.T) {
 	// Generate a canonical chain to act as the main dataset
 	engine := ethash.NewFaker()
 	genesis := &Genesis{
-		Config:  params.TestChainConfig,
-		BaseFee: big.NewInt(params.InitialBaseFee),
+		Config:     params.TestChainConfig,
+		EthBaseFee: big.NewInt(params.InitialBaseFee),
 	}
 	genDb, blocks, _ := GenerateChainWithGenesis(genesis, engine, 2*state.TriesInMemory, func(i int, b *BlockGen) { b.SetCoinbase(common.Address{1}) })
 
@@ -1634,8 +1634,8 @@ func testLargeReorgTrieGC(t *testing.T, scheme string) {
 	// Generate the original common chain segment and the two competing forks
 	engine := ethash.NewFaker()
 	genesis := &Genesis{
-		Config:  params.TestChainConfig,
-		BaseFee: big.NewInt(params.InitialBaseFee),
+		Config:     params.TestChainConfig,
+		EthBaseFee: big.NewInt(params.InitialBaseFee),
 	}
 	genDb, shared, _ := GenerateChainWithGenesis(genesis, engine, 64, func(i int, b *BlockGen) { b.SetCoinbase(common.Address{1}) })
 	original, _ := GenerateChain(genesis.Config, shared[len(shared)-1], engine, genDb, 2*state.TriesInMemory, func(i int, b *BlockGen) { b.SetCoinbase(common.Address{2}) })
@@ -1755,8 +1755,8 @@ func testLowDiffLongChain(t *testing.T, scheme string) {
 	// Generate a canonical chain to act as the main dataset
 	engine := ethash.NewFaker()
 	genesis := &Genesis{
-		Config:  params.TestChainConfig,
-		BaseFee: big.NewInt(params.InitialBaseFee),
+		Config:     params.TestChainConfig,
+		EthBaseFee: big.NewInt(params.InitialBaseFee),
 	}
 	// We must use a pretty long chain to ensure that the fork doesn't overtake us
 	// until after at least 128 blocks post tip
@@ -1822,9 +1822,9 @@ func testSideImport(t *testing.T, numCanonBlocksInSidechain, blocksBetweenCommon
 		nonce  = uint64(0)
 
 		gspec = &Genesis{
-			Config:  &chainConfig,
-			Alloc:   types.GenesisAlloc{addr: {Balance: big.NewInt(gomath.MaxInt64)}},
-			BaseFee: big.NewInt(params.InitialBaseFee),
+			Config:     &chainConfig,
+			Alloc:      types.GenesisAlloc{addr: {Balance: big.NewInt(gomath.MaxInt64)}},
+			EthBaseFee: big.NewInt(params.InitialBaseFee),
 		}
 		signer     = types.LatestSigner(gspec.Config)
 		mergeBlock = gomath.MaxInt32
@@ -1964,8 +1964,8 @@ func TestInsertKnownBlocks(t *testing.T) {
 func testInsertKnownChainData(t *testing.T, typ string, scheme string) {
 	engine := ethash.NewFaker()
 	genesis := &Genesis{
-		Config:  params.TestChainConfig,
-		BaseFee: big.NewInt(params.InitialBaseFee),
+		Config:     params.TestChainConfig,
+		EthBaseFee: big.NewInt(params.InitialBaseFee),
 	}
 	genDb, blocks, receipts := GenerateChainWithGenesis(genesis, engine, 32, func(i int, b *BlockGen) { b.SetCoinbase(common.Address{1}) })
 
@@ -2098,8 +2098,8 @@ func testInsertKnownChainDataWithMerging(t *testing.T, typ string, mergeHeight i
 	chainConfig := *params.TestChainConfig
 	var (
 		genesis = &Genesis{
-			BaseFee: big.NewInt(params.InitialBaseFee),
-			Config:  &chainConfig,
+			EthBaseFee: big.NewInt(params.InitialBaseFee),
+			Config:     &chainConfig,
 		}
 		engine     = beacon.New(ethash.NewFaker())
 		mergeBlock = uint64(gomath.MaxUint64)
@@ -2245,8 +2245,8 @@ func getLongAndShortChains(scheme string) (*BlockChain, []*types.Block, []*types
 	// Generate a canonical chain to act as the main dataset
 	engine := ethash.NewFaker()
 	genesis := &Genesis{
-		Config:  params.TestChainConfig,
-		BaseFee: big.NewInt(params.InitialBaseFee),
+		Config:     params.TestChainConfig,
+		EthBaseFee: big.NewInt(params.InitialBaseFee),
 	}
 	// Generate and import the canonical chain,
 	// Offset the time, to keep the difficulty low
@@ -2501,8 +2501,8 @@ func testSideImportPrunedBlocks(t *testing.T, scheme string) {
 	// Generate a canonical chain to act as the main dataset
 	engine := ethash.NewFaker()
 	genesis := &Genesis{
-		Config:  params.TestChainConfig,
-		BaseFee: big.NewInt(params.InitialBaseFee),
+		Config:     params.TestChainConfig,
+		EthBaseFee: big.NewInt(params.InitialBaseFee),
 	}
 	// Generate and import the canonical chain
 	_, blocks, _ := GenerateChainWithGenesis(genesis, engine, 2*state.TriesInMemory, nil)
@@ -3417,9 +3417,9 @@ func testSetCanonical(t *testing.T, scheme string) {
 		address = crypto.PubkeyToAddress(key.PublicKey)
 		funds   = big.NewInt(100000000000000000)
 		gspec   = &Genesis{
-			Config:  params.TestChainConfig,
-			Alloc:   types.GenesisAlloc{address: {Balance: funds}},
-			BaseFee: big.NewInt(params.InitialBaseFee),
+			Config:     params.TestChainConfig,
+			Alloc:      types.GenesisAlloc{address: {Balance: funds}},
+			EthBaseFee: big.NewInt(params.InitialBaseFee),
 		}
 		signer      = types.LatestSigner(gspec.Config)
 		engine      = ethash.NewFaker()
@@ -3536,9 +3536,9 @@ func testCanonicalHashMarker(t *testing.T, scheme string) {
 	for _, c := range cases {
 		var (
 			gspec = &Genesis{
-				Config:  params.TestChainConfig,
-				Alloc:   types.GenesisAlloc{},
-				BaseFee: big.NewInt(params.InitialBaseFee),
+				Config:     params.TestChainConfig,
+				Alloc:      types.GenesisAlloc{},
+				EthBaseFee: big.NewInt(params.InitialBaseFee),
 			}
 			engine = ethash.NewFaker()
 		)
@@ -4206,9 +4206,9 @@ func testChainReorgSnapSync(t *testing.T, ancientLimit uint64) {
 		address = crypto.PubkeyToAddress(key.PublicKey)
 		funds   = big.NewInt(1000000000000000)
 		gspec   = &Genesis{
-			Config:  params.TestChainConfig,
-			Alloc:   types.GenesisAlloc{address: {Balance: funds}},
-			BaseFee: big.NewInt(params.InitialBaseFee),
+			Config:     params.TestChainConfig,
+			Alloc:      types.GenesisAlloc{address: {Balance: funds}},
+			EthBaseFee: big.NewInt(params.InitialBaseFee),
 		}
 		signer = types.LatestSigner(gspec.Config)
 		engine = beacon.New(ethash.NewFaker())
@@ -4302,9 +4302,9 @@ func TestInsertChainWithCutoff(t *testing.T) {
 		address = crypto.PubkeyToAddress(key.PublicKey)
 		funds   = big.NewInt(1000000000000000)
 		gspec   = &Genesis{
-			Config:  params.TestChainConfig,
-			Alloc:   types.GenesisAlloc{address: {Balance: funds}},
-			BaseFee: big.NewInt(params.InitialBaseFee),
+			Config:     params.TestChainConfig,
+			Alloc:      types.GenesisAlloc{address: {Balance: funds}},
+			EthBaseFee: big.NewInt(params.InitialBaseFee),
 		}
 		signer = types.LatestSigner(gspec.Config)
 		engine = beacon.New(ethash.NewFaker())
@@ -4444,9 +4444,9 @@ func TestGetCanonicalReceipt(t *testing.T) {
 		address = crypto.PubkeyToAddress(key.PublicKey)
 		funds   = big.NewInt(1000000000000000000)
 		gspec   = &Genesis{
-			Config:  params.MergedTestChainConfig,
-			Alloc:   types.GenesisAlloc{address: {Balance: funds}},
-			BaseFee: big.NewInt(params.InitialBaseFee),
+			Config:     params.MergedTestChainConfig,
+			Alloc:      types.GenesisAlloc{address: {Balance: funds}},
+			EthBaseFee: big.NewInt(params.InitialBaseFee),
 		}
 		signer  = types.LatestSigner(gspec.Config)
 		engine  = beacon.New(ethash.NewFaker())

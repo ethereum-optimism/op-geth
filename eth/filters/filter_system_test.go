@@ -213,8 +213,8 @@ func TestBlockSubscription(t *testing.T) {
 		backend, sys = newTestFilterSystem(db, Config{})
 		api          = NewFilterAPI(sys)
 		genesis      = &core.Genesis{
-			Config:  params.TestChainConfig,
-			BaseFee: big.NewInt(params.InitialBaseFee),
+			Config:     params.TestChainConfig,
+			EthBaseFee: big.NewInt(params.InitialBaseFee),
 		}
 		_, chain, _ = core.GenerateChainWithGenesis(genesis, ethash.NewFaker(), 10, func(i int, gen *core.BlockGen) {})
 		chainEvents []core.ChainEvent
@@ -451,8 +451,8 @@ func TestInvalidGetLogsRequest(t *testing.T) {
 
 	var (
 		genesis = &core.Genesis{
-			Config:  params.TestChainConfig,
-			BaseFee: big.NewInt(params.InitialBaseFee),
+			Config:     params.TestChainConfig,
+			EthBaseFee: big.NewInt(params.InitialBaseFee),
 		}
 		db, blocks, _    = core.GenerateChainWithGenesis(genesis, ethash.NewFaker(), 10, func(i int, gen *core.BlockGen) {})
 		_, sys           = newTestFilterSystem(db, Config{})

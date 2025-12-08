@@ -77,17 +77,17 @@ var genesis = &core.Genesis{
 		testAddr:           {Balance: testBalance},
 		revertContractAddr: {Code: revertCode},
 	},
-	ExtraData: []byte("test genesis"),
-	Timestamp: 9000,
-	BaseFee:   big.NewInt(params.InitialBaseFee),
+	ExtraData:  []byte("test genesis"),
+	Timestamp:  9000,
+	EthBaseFee: big.NewInt(params.InitialBaseFee),
 }
 
 var genesisForHistorical = &core.Genesis{
-	Config:    params.OptimismTestCliqueConfig,
-	Alloc:     types.GenesisAlloc{testAddr: {Balance: testBalance}},
-	ExtraData: []byte("test genesis"),
-	Timestamp: 9000,
-	BaseFee:   big.NewInt(params.InitialBaseFee),
+	Config:     params.OptimismTestCliqueConfig,
+	Alloc:      types.GenesisAlloc{testAddr: {Balance: testBalance}},
+	ExtraData:  []byte("test genesis"),
+	Timestamp:  9000,
+	EthBaseFee: big.NewInt(params.InitialBaseFee),
 }
 
 var depositTx = types.NewTx(&types.DepositTx{

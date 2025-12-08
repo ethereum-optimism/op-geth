@@ -69,9 +69,9 @@ func benchmarkFilters(b *testing.B, history uint64, noHistory bool) {
 		addr4        = common.BytesToAddress([]byte("random addresses please"))
 
 		gspec = &core.Genesis{
-			Alloc:   types.GenesisAlloc{addr1: {Balance: big.NewInt(1000000)}},
-			BaseFee: big.NewInt(params.InitialBaseFee),
-			Config:  params.TestChainConfig,
+			Alloc:      types.GenesisAlloc{addr1: {Balance: big.NewInt(1000000)}},
+			EthBaseFee: big.NewInt(params.InitialBaseFee),
+			Config:     params.TestChainConfig,
 		}
 	)
 	defer db.Close()
@@ -197,7 +197,7 @@ func testFilters(t *testing.T, history uint64, noHistory bool) {
 				contract:  {Balance: big.NewInt(0), Code: bytecode},
 				contract2: {Balance: big.NewInt(0), Code: bytecode},
 			},
-			BaseFee: big.NewInt(params.InitialBaseFee),
+			EthBaseFee: big.NewInt(params.InitialBaseFee),
 		}
 	)
 
@@ -424,9 +424,9 @@ func TestRangeLogs(t *testing.T) {
 		db           = rawdb.NewMemoryDatabase()
 		backend, sys = newTestFilterSystem(db, Config{})
 		gspec        = &core.Genesis{
-			Config:  params.TestChainConfig,
-			Alloc:   types.GenesisAlloc{},
-			BaseFee: big.NewInt(params.InitialBaseFee),
+			Config:     params.TestChainConfig,
+			Alloc:      types.GenesisAlloc{},
+			EthBaseFee: big.NewInt(params.InitialBaseFee),
 		}
 	)
 	_, err := gspec.Commit(db, triedb.NewDatabase(db, nil))

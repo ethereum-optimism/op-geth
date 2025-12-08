@@ -403,8 +403,8 @@ func (tt *cliqueTest) run(t *testing.T) {
 	}
 	// Create the genesis block with the initial set of signers
 	genesis := &core.Genesis{
-		ExtraData: make([]byte, extraVanity+common.AddressLength*len(signers)+extraSeal),
-		BaseFee:   big.NewInt(params.InitialBaseFee),
+		ExtraData:  make([]byte, extraVanity+common.AddressLength*len(signers)+extraSeal),
+		EthBaseFee: big.NewInt(params.InitialBaseFee),
 	}
 	for j, signer := range signers {
 		copy(genesis.ExtraData[extraVanity+j*common.AddressLength:], signer[:])

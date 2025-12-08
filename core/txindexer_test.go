@@ -77,9 +77,9 @@ func TestTxIndexer(t *testing.T) {
 		testBankFunds   = big.NewInt(1000000000000000000)
 
 		gspec = &Genesis{
-			Config:  params.TestChainConfig,
-			Alloc:   types.GenesisAlloc{testBankAddress: {Balance: testBankFunds}},
-			BaseFee: big.NewInt(params.InitialBaseFee),
+			Config:     params.TestChainConfig,
+			Alloc:      types.GenesisAlloc{testBankAddress: {Balance: testBankFunds}},
+			EthBaseFee: big.NewInt(params.InitialBaseFee),
 		}
 		engine    = ethash.NewFaker()
 		nonce     = uint64(0)
@@ -140,9 +140,9 @@ func TestTxIndexerRepair(t *testing.T) {
 		testBankFunds   = big.NewInt(1000000000000000000)
 
 		gspec = &Genesis{
-			Config:  params.TestChainConfig,
-			Alloc:   types.GenesisAlloc{testBankAddress: {Balance: testBankFunds}},
-			BaseFee: big.NewInt(params.InitialBaseFee),
+			Config:     params.TestChainConfig,
+			Alloc:      types.GenesisAlloc{testBankAddress: {Balance: testBankFunds}},
+			EthBaseFee: big.NewInt(params.InitialBaseFee),
 		}
 		engine    = ethash.NewFaker()
 		nonce     = uint64(0)
@@ -265,9 +265,9 @@ func TestTxIndexerReport(t *testing.T) {
 		testBankFunds   = big.NewInt(1000000000000000000)
 
 		gspec = &Genesis{
-			Config:  params.TestChainConfig,
-			Alloc:   types.GenesisAlloc{testBankAddress: {Balance: testBankFunds}},
-			BaseFee: big.NewInt(params.InitialBaseFee),
+			Config:     params.TestChainConfig,
+			Alloc:      types.GenesisAlloc{testBankAddress: {Balance: testBankFunds}},
+			EthBaseFee: big.NewInt(params.InitialBaseFee),
 		}
 		engine    = ethash.NewFaker()
 		nonce     = uint64(0)

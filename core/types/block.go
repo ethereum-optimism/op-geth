@@ -110,9 +110,6 @@ type Header struct {
 
 	// RequestsHash was added by EIP-7685 and is ignored in legacy headers.
 	RequestsHash *common.Hash `json:"requestsHash" rlp:"optional"`
-
-	// Hash from the json object.
-	NodeHash common.Hash `json:"hash" rlp:"-"`
 }
 
 // field type overrides for gencodec
@@ -378,6 +375,10 @@ func CopyHeader(h *Header) *Header {
 		cpy.RequestsHash = new(common.Hash)
 		*cpy.RequestsHash = *h.RequestsHash
 	}
+
+	if h.RskMinimumGasPrice != nil {
+		cpy.RskMinimumGasPrice = new(big.Int).Set(h.RskMinimumGasPrice)
+	}
 	return &cpy
 }
 
@@ -587,10 +588,7 @@ func (b *Block) Hash() common.Hash {
 	if hash := b.hash.Load(); hash != nil {
 		return *hash
 	}
-	h := b.header.NodeHash
-	if h == (common.Hash{}) {
-		h = b.header.Hash()
-	}
+	h := b.header.Hash()
 	b.hash.Store(&h)
 
 	return h
