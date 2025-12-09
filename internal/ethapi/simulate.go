@@ -37,6 +37,7 @@ import (
 	"github.com/ethereum/go-ethereum/internal/ethapi/override"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/ethereum/go-ethereum/trie"
 )
 
 const (
@@ -364,8 +365,9 @@ func (sim *simulator) processBlock(ctx context.Context, block *simBlock, header,
 	// For OP Stack Jovian blocks, inject a synthetic deposit transaction at the beginning of the block.
 	// This is required because CalcDAFootprint (called by FinalizeAndAssemble for Jovian blocks)
 	// expects the first transaction to be a deposit transaction containing L1 attributes data.
+	isJovian := sim.chainConfig.IsJovian(header.Time)
 	finalTxes := txes
-	if sim.chainConfig.IsJovian(header.Time) {
+	if isJovian {
 		depositTx := createSimulatedJovianDepositTx()
 		finalTxes = append([]*types.Transaction{depositTx}, txes...)
 	}
@@ -376,6 +378,20 @@ func (sim *simulator) processBlock(ctx context.Context, block *simBlock, header,
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
+
+	// For Jovian blocks, reconstruct the block without the synthetic deposit transaction
+	// to maintain consistent indexing between transactions and receipts.
+	// We must use types.NewBlock to recompute TxHash correctly for the user transactions only.
+	if isJovian {
+		b = types.NewBlock(
+			b.Header(),
+			&types.Body{Transactions: txes, Withdrawals: *block.BlockOverrides.Withdrawals},
+			receipts,
+			trie.NewStackTrie(nil),
+			sim.chainConfig,
+		)
+	}
+
 	repairLogs(callResults, b.Hash())
 	return b, callResults, senders, receipts, nil
 }
