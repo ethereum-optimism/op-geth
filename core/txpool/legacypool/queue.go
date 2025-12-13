@@ -35,7 +35,7 @@ type queue struct {
 	queued map[common.Address]*list     // Queued but non-processable transactions
 	beats  map[common.Address]time.Time // Last heartbeat from each known account
 
-	rollupCostFnProvider rollupCostFuncProvider
+	rollupCostFnProvider rollupCostFuncProvider // OP Stack diff
 }
 
 func newQueue(config Config, signer types.Signer) *queue {
