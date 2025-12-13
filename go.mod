@@ -17,7 +17,7 @@ require (
 	github.com/consensys/gnark-crypto v0.18.0
 	github.com/crate-crypto/go-eth-kzg v1.4.0
 	github.com/crate-crypto/go-ipa v0.0.0-20240724233137-53bbb0ceb27a
-	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
+	github.com/davecgh/go-spew v1.1.1
 	github.com/dchest/siphash v1.2.3
 	github.com/deckarep/golang-set/v2 v2.6.0
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.0.1
@@ -133,7 +133,7 @@ require (
 	github.com/pion/transport/v2 v2.2.1 // indirect
 	github.com/pion/transport/v3 v3.0.1 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
-	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
+	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/prometheus/client_golang v1.15.0 // indirect
 	github.com/prometheus/client_model v0.3.0 // indirect
 	github.com/prometheus/common v0.42.0 // indirect
