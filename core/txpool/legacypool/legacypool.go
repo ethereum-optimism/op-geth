@@ -307,6 +307,7 @@ func New(config Config, chain BlockChain) *LegacyPool {
 	}
 	pool.priced = newPricedList(pool.all)
 
+	// OP Stack diff
 	pool.queue.withRollupCostFnProvider(pool)
 
 	return pool
