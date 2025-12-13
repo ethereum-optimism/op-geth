@@ -738,7 +738,9 @@ func (c *ChainConfig) Description() string {
 	banner += "\n"
 
 	blobScheduleConfig := c.BlobScheduleConfig
-	if c.BlobScheduleConfig == nil { // will occur when IsOptimism().
+	// OP Stack configurations do not have a blob schedule, which causes the diff throughout the
+	// rest of this function.
+	if c.BlobScheduleConfig == nil && c.IsOptimism() {
 		blobScheduleConfig = &BlobScheduleConfig{}
 	}
 
@@ -777,33 +779,8 @@ func (c *ChainConfig) Description() string {
 	if c.VerkleTime != nil {
 		banner += fmt.Sprintf(" - Verkle:                      @%-10v blob: (%s)\n", *c.VerkleTime, blobScheduleConfig.Verkle)
 	}
-	if c.RegolithTime != nil {
-		banner += fmt.Sprintf(" - Regolith:                    @%-10v\n", *c.RegolithTime)
-	}
-	if c.CanyonTime != nil {
-		banner += fmt.Sprintf(" - Canyon:                      @%-10v\n", *c.CanyonTime)
-	}
-	if c.EcotoneTime != nil {
-		banner += fmt.Sprintf(" - Ecotone:                     @%-10v\n", *c.EcotoneTime)
-	}
-	if c.FjordTime != nil {
-		banner += fmt.Sprintf(" - Fjord:                       @%-10v\n", *c.FjordTime)
-	}
-	if c.GraniteTime != nil {
-		banner += fmt.Sprintf(" - Granite:                     @%-10v\n", *c.GraniteTime)
-	}
-	if c.HoloceneTime != nil {
-		banner += fmt.Sprintf(" - Holocene:                    @%-10v\n", *c.HoloceneTime)
-	}
-	if c.IsthmusTime != nil {
-		banner += fmt.Sprintf(" - Isthmus:                     @%-10v\n", *c.IsthmusTime)
-	}
-	if c.JovianTime != nil {
-		banner += fmt.Sprintf(" - Jovian:                      @%-10v\n", *c.JovianTime)
-	}
-	if c.InteropTime != nil {
-		banner += fmt.Sprintf(" - Interop:                     @%-10v\n", *c.InteropTime)
-	}
+	banner += fmt.Sprintf("\nAll fork specifications can be found at https://ethereum.github.io/execution-specs/src/ethereum/forks/\n")
+	banner += c.opDescription()
 	return banner
 }
 

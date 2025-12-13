@@ -1,6 +1,9 @@
 package params
 
-import "math/big"
+import (
+	"fmt"
+	"math/big"
+)
 
 func (c *ChainConfig) opCheckCompatible(newcfg *ChainConfig, headNumber *big.Int, headTimestamp uint64, genesisTimestamp *uint64) *ConfigCompatError {
 	if isForkBlockIncompatible(c.BedrockBlock, newcfg.BedrockBlock, headNumber) {
@@ -34,6 +37,39 @@ func (c *ChainConfig) opCheckCompatible(newcfg *ChainConfig, headNumber *big.Int
 		return newTimestampCompatError("Interop fork timestamp", c.InteropTime, newcfg.InteropTime)
 	}
 	return nil
+}
+
+func (c *ChainConfig) opDescription() string {
+	var banner string
+	if c.RegolithTime != nil {
+		banner += fmt.Sprintf(" - Regolith:                    @%-10v\n", *c.RegolithTime)
+	}
+	if c.CanyonTime != nil {
+		banner += fmt.Sprintf(" - Canyon:                      @%-10v\n", *c.CanyonTime)
+	}
+	if c.EcotoneTime != nil {
+		banner += fmt.Sprintf(" - Ecotone:                     @%-10v\n", *c.EcotoneTime)
+	}
+	if c.FjordTime != nil {
+		banner += fmt.Sprintf(" - Fjord:                       @%-10v\n", *c.FjordTime)
+	}
+	if c.GraniteTime != nil {
+		banner += fmt.Sprintf(" - Granite:                     @%-10v\n", *c.GraniteTime)
+	}
+	if c.HoloceneTime != nil {
+		banner += fmt.Sprintf(" - Holocene:                    @%-10v\n", *c.HoloceneTime)
+	}
+	if c.IsthmusTime != nil {
+		banner += fmt.Sprintf(" - Isthmus:                     @%-10v\n", *c.IsthmusTime)
+	}
+	if c.JovianTime != nil {
+		banner += fmt.Sprintf(" - Jovian:                      @%-10v\n", *c.JovianTime)
+	}
+	if c.InteropTime != nil {
+		banner += fmt.Sprintf(" - Interop:                     @%-10v\n", *c.InteropTime)
+	}
+	banner += fmt.Sprintf("\nAll op fork specifications can be found at https://specs.optimism.io/\n")
+	return banner
 }
 
 // OptimismConfig is the optimism config.
