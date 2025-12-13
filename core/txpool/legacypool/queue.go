@@ -124,7 +124,7 @@ func (q *queue) add(tx *types.Transaction) (*common.Hash, error) {
 	// Try to insert the transaction into the future queue
 	from, _ := types.Sender(q.signer, tx) // already validated
 	if q.queued[from] == nil {
-		q.queued[from] = newRollupList(false, q.rollupCostFnProvider)
+		q.queued[from] = newRollupList(false, q.rollupCostFnProvider) // OP Stack diff
 	}
 	inserted, old := q.queued[from].Add(tx, q.config.PriceBump)
 	if !inserted {
