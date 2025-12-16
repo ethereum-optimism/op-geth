@@ -663,24 +663,6 @@ func DeleteReceipts(db ethdb.KeyValueWriter, hash common.Hash, number uint64) {
 	}
 }
 
-// storedReceiptRLP is the storage encoding of a receipt.
-// Re-definition in core/types/receipt.go.
-// TODO: Re-use the existing definition.
-type storedReceiptRLP struct {
-	PostStateOrStatus []byte
-	CumulativeGasUsed uint64
-	Logs              []*types.Log
-
-	// Remaining fields are declared to allow the receipt RLP to be parsed without errors.
-	// However, they must not be used as they may not be populated correctly due to multiple receipt formats
-	// being combined into a single list of optional fields which can be mistaken for each other.
-	// DepositNonce (*uint64) from Regolith deposit tx receipts will be parsed into L1GasUsed
-	L1GasUsed  *big.Int `rlp:"optional"` // OVM legacy
-	L1GasPrice *big.Int `rlp:"optional"` // OVM legacy
-	L1Fee      *big.Int `rlp:"optional"` // OVM legacy
-	FeeScalar  string   `rlp:"optional"` // OVM legacy
-}
-
 // ReceiptLogs is a barebone version of ReceiptForStorage which only keeps
 // the list of logs. When decoding a stored receipt into this object we
 // avoid creating the bloom filter.
@@ -690,11 +672,11 @@ type receiptLogs struct {
 
 // DecodeRLP implements rlp.Decoder.
 func (r *receiptLogs) DecodeRLP(s *rlp.Stream) error {
-	var stored storedReceiptRLP
-	if err := s.Decode(&stored); err != nil {
+	var rs types.ReceiptForStorage
+	if err := rs.DecodeRLP(s); err != nil {
 		return err
 	}
-	r.Logs = stored.Logs
+	r.Logs = rs.Logs
 	return nil
 }
 

@@ -34,13 +34,15 @@ func TestParseLegacyReceiptRLP(t *testing.T) {
 
 	data, err := rlp.EncodeToBytes(receipt)
 	require.NoError(t, err)
-	var result storedReceiptRLP
+	var result types.ReceiptForStorage
 	err = rlp.DecodeBytes(data, &result)
 	require.NoError(t, err)
 	require.Equal(t, receipt.L1GasUsed, result.L1GasUsed)
 	require.Equal(t, receipt.L1GasPrice, result.L1GasPrice)
 	require.Equal(t, receipt.L1Fee, result.L1Fee)
-	require.Equal(t, receipt.FeeScalar, result.FeeScalar)
+	feeScalarFloat, ok := new(big.Float).SetString(receipt.FeeScalar)
+	require.True(t, ok)
+	require.Equal(t, feeScalarFloat, result.FeeScalar)
 }
 
 func TestDecodeRawLegacyReceipt(t *testing.T) {
