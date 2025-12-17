@@ -18,7 +18,6 @@ package ethapi
 
 import (
 	"context"
-	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -365,10 +364,11 @@ func (sim *simulator) processBlock(ctx context.Context, block *simBlock, header,
 	// For OP Stack Jovian blocks, inject a synthetic deposit transaction at the beginning of the block.
 	// This is required because CalcDAFootprint (called by FinalizeAndAssemble for Jovian blocks)
 	// expects the first transaction to be a deposit transaction containing L1 attributes data.
-	isJovian := sim.chainConfig.IsJovian(header.Time)
+	isJovian := sim.chainConfig.IsJovian(parent.Time)
 	finalTxes := txes
 	if isJovian {
-		depositTx := createSimulatedJovianDepositTx()
+		// Use a reasonable default DA footprint gas scalar (e.g., 1 wei)
+		depositTx := types.NewTx(types.JovianDepositTx(1))
 		finalTxes = append([]*types.Transaction{depositTx}, txes...)
 	}
 
@@ -405,30 +405,6 @@ func repairLogs(calls []simCallResult, hash common.Hash) {
 			calls[i].Logs[j].BlockHash = hash
 		}
 	}
-}
-
-// createSimulatedJovianDepositTx creates a synthetic L1 attributes deposit transaction for
-// Jovian simulations. This is required because CalcDAFootprint expects the first transaction in a
-// Jovian block to be a deposit transaction containing L1 attributes data with the Jovian selector
-// and DA footprint gas scalar.
-func createSimulatedJovianDepositTx() *types.Transaction {
-	// Jovian format: 178 bytes with JovianL1AttributesSelector and daFootprintGasScalar in last 2 bytes
-	data := make([]byte, types.JovianL1AttributesLen)
-	copy(data[0:4], types.JovianL1AttributesSelector)
-	// Set a reasonable default DA footprint gas scalar (e.g., 1 wei)
-	// This scalar is used to calculate DA footprint: EstimatedDASize * daFootprintGasScalar
-	binary.BigEndian.PutUint16(data[types.JovianL1AttributesLen-2:types.JovianL1AttributesLen], 1)
-
-	return types.NewTx(&types.DepositTx{
-		SourceHash:          common.Hash{},    // Zero hash for simulated deposit
-		From:                common.Address{}, // Zero address (system)
-		To:                  &types.L1BlockAddr,
-		Mint:                nil,
-		Value:               big.NewInt(0),
-		Gas:                 0,
-		IsSystemTransaction: true,
-		Data:                data,
-	})
 }
 
 func (sim *simulator) sanitizeCall(call *TransactionArgs, state vm.StateDB, header *types.Header, blockContext vm.BlockContext, gasUsed *uint64) error {

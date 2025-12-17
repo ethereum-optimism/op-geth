@@ -1,7 +1,6 @@
 package miner
 
 import (
-	"encoding/binary"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -114,7 +113,7 @@ func testMineAndExecute(t *testing.T, numTxs uint64, cfg *params.ChainConfig, as
 	ts := parent.Time + 12
 	dtx := new(types.DepositTx)
 	if cfg.IsJovian(parent.Time) {
-		dtx = jovianDepositTx(testDAFootprintGasScalar)
+		dtx = types.JovianDepositTx(testDAFootprintGasScalar)
 	}
 
 	genParams := &generateParams{
@@ -138,13 +137,6 @@ func testMineAndExecute(t *testing.T, numTxs uint64, cfg *params.ChainConfig, as
 	// Import the block into the chain, which executes it via StateProcessor.
 	_, err := b.chain.InsertChain(types.Blocks{r.block})
 	require.NoError(t, err, "block import/execution failed")
-}
-
-func jovianDepositTx(daFootprintGasScalar uint16) *types.DepositTx {
-	data := make([]byte, types.JovianL1AttributesLen)
-	copy(data[0:4], types.JovianL1AttributesSelector)
-	binary.BigEndian.PutUint16(data[types.JovianL1AttributesLen-2:types.JovianL1AttributesLen], daFootprintGasScalar)
-	return &types.DepositTx{Data: data}
 }
 
 func ptr[T any](v T) *T {
