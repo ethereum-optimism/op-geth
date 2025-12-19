@@ -66,8 +66,8 @@ func TestDecodeRawLegacyReceipt(t *testing.T) {
 			rawDBReceiptBytes, err := hexutil.Decode(rawDBReceiptHex)
 			require.NoError(t, err)
 
-			sr := new([]receiptLogs)
-			err = rlp.DecodeBytes(rawDBReceiptBytes, sr)
+			sr := make([]*types.ReceiptForStorage, 0)
+			err = rlp.DecodeBytes(rawDBReceiptBytes, &sr)
 			require.NoError(t, err)
 		})
 	}
