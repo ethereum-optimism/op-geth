@@ -504,6 +504,7 @@ func (r *ReceiptForStorage) DecodeRLP(s *rlp.Stream) error {
 	if err := decodeStoredReceiptRLP(r, blob); err == nil {
 		return nil
 	}
+	log.Info("decoding legacy receipt") // NOTE remove prior to merging
 	return decodeLegacyOptimismReceiptRLP(r, blob)
 }
 
