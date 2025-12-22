@@ -5,14 +5,13 @@ on:
 
 jobs:
   build:
-    uses: ethereum-optimism/factory/.github/workflows/docker-build.yaml@c8bcfc1a537d01a005a09276b1b673dca9132540
+    uses: ethereum-optimism/factory/.github/workflows/docker.yaml@f8f3cb4800e538003134fb5f50cc734c2c98d762
     with:
       image_name: ${{ github.workflow }}
       context: .
       dockerfile: Dockerfile
-      platforms: linux/amd64,linux/arm64
       gcp_project_id: ${{ vars.GCP_PROJECT_ID_OPLABS_TOOLS_ARTIFACTS }}
-      gcp_registry: us-docker.pkg.dev/oplabs-tools-artifacts/oss
+      registry: us-docker.pkg.dev/oplabs-tools-artifacts/images
       build_args: |
         VERSION=${{ github.ref_type == 'tag' && github.ref_name || '' }}
         COMMIT=${{ github.sha }}
