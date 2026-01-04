@@ -47,6 +47,7 @@ func LoadOPStackChainConfig(chConfig *superchain.ChainConfig) (*ChainConfig, err
 		ShanghaiTime:            hardforks.CanyonTime,  // Shanghai activates with Canyon
 		CancunTime:              hardforks.EcotoneTime, // Cancun activates with Ecotone
 		PragueTime:              hardforks.IsthmusTime, // Prague activates with Isthmus
+		OsakaTime:               hardforks.KarstTime,   // Osaka activates with Karst
 		BedrockBlock:            common.Big0,
 		RegolithTime:            &genesisActivation,
 		CanyonTime:              hardforks.CanyonTime,

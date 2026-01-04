@@ -386,7 +386,6 @@ var (
 	OptimismTestConfig = func() *ChainConfig {
 		conf := *MergedTestChainConfig // copy the config
 		conf.BlobScheduleConfig = nil
-		conf.OsakaTime = nil // needs to be removed when production fork introduces Osaka
 		conf.BedrockBlock = big.NewInt(0)
 		zero := uint64(0)
 		conf.RegolithTime = &zero
@@ -1623,6 +1622,7 @@ type Rules struct {
 	IsOptimismCanyon, IsOptimismFjord                       bool
 	IsOptimismGranite, IsOptimismHolocene                   bool
 	IsOptimismIsthmus, IsOptimismJovian                     bool
+	IsOptimismKarst                                         bool
 }
 
 // Rules ensures c's ChainID is not nil.
@@ -1659,6 +1659,7 @@ func (c *ChainConfig) Rules(num *big.Int, isMerge bool, timestamp uint64) Rules 
 		IsOptimismHolocene: isMerge && c.IsOptimismHolocene(timestamp),
 		IsOptimismIsthmus:  isMerge && c.IsOptimismIsthmus(timestamp),
 		IsOptimismJovian:   isMerge && c.IsOptimismJovian(timestamp),
+		IsOptimismKarst:    isMerge && c.IsOptimismKarst(timestamp),
 	}
 }
 
