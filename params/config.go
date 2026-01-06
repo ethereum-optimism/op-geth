@@ -383,7 +383,6 @@ var (
 	OptimismTestConfig = func() *ChainConfig {
 		conf := *MergedTestChainConfig // copy the config
 		conf.BlobScheduleConfig = nil
-		conf.OsakaTime = nil // needs to be removed when production fork introduces Osaka
 		conf.BedrockBlock = big.NewInt(0)
 		zero := uint64(0)
 		conf.RegolithTime = &zero
@@ -393,7 +392,7 @@ var (
 		conf.GraniteTime = &zero
 		conf.HoloceneTime = &zero
 		conf.IsthmusTime = &zero
-		conf.JovianTime = nil
+		conf.JovianTime = &zero
 		conf.InteropTime = nil
 		conf.Optimism = &OptimismConfig{EIP1559Elasticity: 6, EIP1559Denominator: 50, EIP1559DenominatorCanyon: uint64ptr(250)}
 		return &conf
