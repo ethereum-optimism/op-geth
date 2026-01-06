@@ -383,6 +383,7 @@ var (
 	OptimismTestConfig = func() *ChainConfig {
 		conf := *MergedTestChainConfig // copy the config
 		conf.BlobScheduleConfig = nil
+		conf.OsakaTime = nil // needs to be removed when production fork introduces Osaka
 		conf.BedrockBlock = big.NewInt(0)
 		zero := uint64(0)
 		conf.RegolithTime = &zero
