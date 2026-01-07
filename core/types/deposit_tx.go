@@ -18,7 +18,6 @@ package types
 
 import (
 	"bytes"
-	"encoding/binary"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -117,11 +116,4 @@ func (tx *Transaction) From() common.Address {
 		panic("From() called on non-deposit transaction")
 	}
 	return tx.inner.(interface{ from() common.Address }).from()
-}
-
-func JovianDepositTx(daFootprintGasScalar uint16) *DepositTx {
-	data := make([]byte, JovianL1AttributesLen)
-	copy(data[0:4], JovianL1AttributesSelector)
-	binary.BigEndian.PutUint16(data[JovianL1AttributesLen-2:JovianL1AttributesLen], daFootprintGasScalar)
-	return &DepositTx{Data: data}
 }

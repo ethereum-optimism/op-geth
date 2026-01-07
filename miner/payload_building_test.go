@@ -272,7 +272,7 @@ func newPayloadArgs(parentHash common.Hash, cfg *params.ChainConfig) *BuildPaylo
 	}
 	dtx := new(types.DepositTx)
 	if cfg.IsJovian(args.Timestamp) {
-		dtx = types.JovianDepositTx(testDAFootprintGasScalar)
+		dtx = jovianDepositTx(testDAFootprintGasScalar)
 	}
 	args.Transactions = []*types.Transaction{types.NewTx(dtx)}
 	if cfg.IsJovian(args.Timestamp) {
