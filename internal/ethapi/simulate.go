@@ -178,7 +178,9 @@ type simulator struct {
 }
 
 // execute runs the simulation of a series of blocks.
-func (sim *simulator) execute(ctx context.Context, blocks []simBlock) ([]*simBlockResult, error) {
+// OPStack-diff: execute accepts an l1 attributes transaction which (if non-nil) will be injected into each block
+// at position 0.
+func (sim *simulator) execute(ctx context.Context, blocks []simBlock, l1AttributesTx *types.Transaction) ([]*simBlockResult, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -210,7 +212,7 @@ func (sim *simulator) execute(ctx context.Context, blocks []simBlock) ([]*simBlo
 		parent  = sim.base
 	)
 	for bi, block := range blocks {
-		result, callResults, senders, receipts, err := sim.processBlock(ctx, &block, headers[bi], parent, headers[:bi], timeout)
+		result, callResults, senders, receipts, err := sim.processBlock(ctx, &block, headers[bi], parent, headers[:bi], timeout, l1AttributesTx)
 		if err != nil {
 			return nil, err
 		}
@@ -221,7 +223,9 @@ func (sim *simulator) execute(ctx context.Context, blocks []simBlock) ([]*simBlo
 	return results, nil
 }
 
-func (sim *simulator) processBlock(ctx context.Context, block *simBlock, header, parent *types.Header, headers []*types.Header, timeout time.Duration) (*types.Block, []simCallResult, map[common.Hash]common.Address, types.Receipts, error) {
+// OP-Stack diff: proceesBlock accepts an l1 attributes transaction which (if non-nil) will be injected into the block
+// at position 0.
+func (sim *simulator) processBlock(ctx context.Context, block *simBlock, header, parent *types.Header, headers []*types.Header, timeout time.Duration, l1AttributesTransaction *types.Transaction) (*types.Block, []simCallResult, map[common.Hash]common.Address, types.Receipts, error) {
 	// Set header fields that depend only on parent block.
 	// Parent hash is needed for evm.GetHashFn to work.
 	header.ParentHash = parent.Hash()
@@ -361,15 +365,13 @@ func (sim *simulator) processBlock(ctx context.Context, block *simBlock, header,
 		header.RequestsHash = &reqHash
 	}
 
-	// For OP Stack Jovian blocks, inject a synthetic deposit transaction at the beginning of the block.
+	// For Optimism blocks, inject the provided l1 attributes transaction at the beginning of the block.
 	// This is required because CalcDAFootprint (called by FinalizeAndAssemble for Jovian blocks)
 	// expects the first transaction to be a deposit transaction containing L1 attributes data.
-	isJovian := sim.chainConfig.IsJovian(parent.Time)
+	isOptimism := sim.chainConfig.IsOptimism()
 	finalTxes := txes
-	if isJovian {
-		// Use a reasonable default DA footprint gas scalar (e.g., 1 wei)
-		depositTx := types.NewTx(types.JovianDepositTx(1))
-		finalTxes = append([]*types.Transaction{depositTx}, txes...)
+	if isOptimism {
+		finalTxes = append([]*types.Transaction{l1AttributesTransaction}, txes...)
 	}
 
 	blockBody := &types.Body{Transactions: finalTxes, Withdrawals: *block.BlockOverrides.Withdrawals}
@@ -379,10 +381,10 @@ func (sim *simulator) processBlock(ctx context.Context, block *simBlock, header,
 		return nil, nil, nil, nil, err
 	}
 
-	// For Jovian blocks, reconstruct the block without the synthetic deposit transaction
+	// For Optimism blocks, reconstruct the block without the l1 attributes transaction
 	// to maintain consistent indexing between transactions and receipts.
 	// We must use types.NewBlock to recompute TxHash correctly for the user transactions only.
-	if isJovian {
+	if isOptimism {
 		b = types.NewBlock(
 			b.Header(),
 			&types.Body{Transactions: txes, Withdrawals: *block.BlockOverrides.Withdrawals},
