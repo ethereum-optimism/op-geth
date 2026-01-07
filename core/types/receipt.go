@@ -492,6 +492,17 @@ func (r *ReceiptForStorage) EncodeRLP(_w io.Writer) error {
 	return w.Flush()
 }
 
+type LegacyReceiptError struct {
+	err error
+}
+
+func (e *LegacyReceiptError) Error() string {
+	if e.err == nil {
+		return ""
+	}
+	return e.err.Error()
+}
+
 // DecodeRLP implements rlp.Decoder, and loads both consensus and implementation
 // fields of a receipt from an RLP stream.
 func (r *ReceiptForStorage) DecodeRLP(s *rlp.Stream) error {
@@ -504,7 +515,12 @@ func (r *ReceiptForStorage) DecodeRLP(s *rlp.Stream) error {
 	if err := decodeStoredReceiptRLP(r, blob); err == nil {
 		return nil
 	}
-	return decodeLegacyOptimismReceiptRLP(r, blob)
+	// NOTE undo prior to merging
+	fmt.Println("decoding legacy receipt")
+	fmt.Println(hexutil.Encode(blob))
+	return &LegacyReceiptError{
+		err: decodeLegacyOptimismReceiptRLP(r, blob),
+	}
 }
 
 func decodeLegacyOptimismReceiptRLP(r *ReceiptForStorage, blob []byte) error {
