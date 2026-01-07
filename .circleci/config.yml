@@ -194,6 +194,8 @@ jobs:
       - checkout
       - run:
           command: go run build/ci.go lint
+      - run:
+          command: go run build/ci.go check_generate
   tidy-geth:
     resource_class: small
     docker:
