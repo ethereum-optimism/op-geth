@@ -2639,7 +2639,7 @@ func TestSimulateV1ChainLinkage(t *testing.T) {
 		}
 	)
 
-	results, err := sim.execute(ctx, blocks)
+	results, err := sim.execute(ctx, blocks, nil)
 	if err != nil {
 		t.Fatalf("simulation execution failed: %v", err)
 	}
