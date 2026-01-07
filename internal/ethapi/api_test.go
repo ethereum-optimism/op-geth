@@ -2703,7 +2703,7 @@ func TestSimulateV1TxSender(t *testing.T) {
 		{Calls: []TransactionArgs{
 			{From: &sender2, To: &recipient, Value: (*hexutil.Big)(big.NewInt(4000))},
 		}},
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("simulation execution failed: %v", err)
 	}
