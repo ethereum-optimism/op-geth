@@ -921,7 +921,6 @@ func (api *BlockChainAPI) SimulateV1(ctx context.Context, opts simOpts, blockNrO
 		validate:       opts.Validation,
 		fullTx:         opts.ReturnFullTransactions,
 	}
-	var l1AttributesTx *types.Transaction
 	if api.b.ChainConfig().IsOptimism() {
 		latestBlock, err := api.b.BlockByNumber(ctx, rpc.LatestBlockNumber)
 		if err != nil {
@@ -930,9 +929,9 @@ func (api *BlockChainAPI) SimulateV1(ctx context.Context, opts simOpts, blockNrO
 		if len(latestBlock.Transactions()) == 0 {
 			return nil, errors.New("optimism: no L1 attributes transaction found in latest block")
 		}
-		l1AttributesTx = latestBlock.Transactions()[0]
+		sim.l1AttributesTx = latestBlock.Transactions()[0]
 	}
-	return sim.execute(ctx, opts.BlockStateCalls, l1AttributesTx)
+	return sim.execute(ctx, opts.BlockStateCalls)
 }
 
 // DoEstimateGas returns the lowest possible gas limit that allows the transaction to run

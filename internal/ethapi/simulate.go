@@ -175,12 +175,15 @@ type simulator struct {
 	traceTransfers bool
 	validate       bool
 	fullTx         bool
+
+	// OP-Stack diff
+	l1AttributesTx *types.Transaction
 }
 
 // execute runs the simulation of a series of blocks.
 // OPStack-diff: execute accepts an l1 attributes transaction which (if non-nil) will be injected into each block
 // at position 0.
-func (sim *simulator) execute(ctx context.Context, blocks []simBlock, l1AttributesTx *types.Transaction) ([]*simBlockResult, error) {
+func (sim *simulator) execute(ctx context.Context, blocks []simBlock) ([]*simBlockResult, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -212,7 +215,7 @@ func (sim *simulator) execute(ctx context.Context, blocks []simBlock, l1Attribut
 		parent  = sim.base
 	)
 	for bi, block := range blocks {
-		result, callResults, senders, receipts, err := sim.processBlock(ctx, &block, headers[bi], parent, headers[:bi], timeout, l1AttributesTx)
+		result, callResults, senders, receipts, err := sim.processBlock(ctx, &block, headers[bi], parent, headers[:bi], timeout)
 		if err != nil {
 			return nil, err
 		}
@@ -225,7 +228,7 @@ func (sim *simulator) execute(ctx context.Context, blocks []simBlock, l1Attribut
 
 // OP-Stack diff: proceesBlock accepts an l1 attributes transaction which (if non-nil) will be injected into the block
 // at position 0.
-func (sim *simulator) processBlock(ctx context.Context, block *simBlock, header, parent *types.Header, headers []*types.Header, timeout time.Duration, l1AttributesTransaction *types.Transaction) (*types.Block, []simCallResult, map[common.Hash]common.Address, types.Receipts, error) {
+func (sim *simulator) processBlock(ctx context.Context, block *simBlock, header, parent *types.Header, headers []*types.Header, timeout time.Duration) (*types.Block, []simCallResult, map[common.Hash]common.Address, types.Receipts, error) {
 	// Set header fields that depend only on parent block.
 	// Parent hash is needed for evm.GetHashFn to work.
 	header.ParentHash = parent.Hash()
@@ -371,7 +374,7 @@ func (sim *simulator) processBlock(ctx context.Context, block *simBlock, header,
 	isOptimism := sim.chainConfig.IsOptimism()
 	finalTxes := txes
 	if isOptimism {
-		finalTxes = append([]*types.Transaction{l1AttributesTransaction}, txes...)
+		finalTxes = append([]*types.Transaction{sim.l1AttributesTx}, txes...)
 	}
 
 	blockBody := &types.Body{Transactions: finalTxes, Withdrawals: *block.BlockOverrides.Withdrawals}
