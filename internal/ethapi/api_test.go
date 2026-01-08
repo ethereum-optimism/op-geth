@@ -2639,7 +2639,7 @@ func TestSimulateV1ChainLinkage(t *testing.T) {
 		}
 	)
 
-	results, err := sim.execute(ctx, blocks, nil)
+	results, err := sim.execute(ctx, blocks)
 	if err != nil {
 		t.Fatalf("simulation execution failed: %v", err)
 	}
@@ -2703,7 +2703,7 @@ func TestSimulateV1TxSender(t *testing.T) {
 		{Calls: []TransactionArgs{
 			{From: &sender2, To: &recipient, Value: (*hexutil.Big)(big.NewInt(4000))},
 		}},
-	}, nil)
+	})
 	if err != nil {
 		t.Fatalf("simulation execution failed: %v", err)
 	}
