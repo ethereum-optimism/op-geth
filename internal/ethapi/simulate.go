@@ -373,7 +373,7 @@ func (sim *simulator) processBlock(ctx context.Context, block *simBlock, header,
 	// expects the first transaction to be a deposit transaction containing L1 attributes data.
 	isOptimism := sim.chainConfig.IsOptimism()
 	finalTxes := txes
-	if isOptimism {
+	if isOptimism && sim.l1AttributesTx != nil {
 		finalTxes = append([]*types.Transaction{sim.l1AttributesTx}, txes...)
 	}
 
@@ -387,7 +387,7 @@ func (sim *simulator) processBlock(ctx context.Context, block *simBlock, header,
 	// For Optimism blocks, reconstruct the block without the l1 attributes transaction
 	// to maintain consistent indexing between transactions and receipts.
 	// We must use types.NewBlock to recompute TxHash correctly for the user transactions only.
-	if isOptimism {
+	if isOptimism && sim.l1AttributesTx != nil {
 		b = types.NewBlock(
 			b.Header(),
 			&types.Body{Transactions: txes, Withdrawals: *block.BlockOverrides.Withdrawals},

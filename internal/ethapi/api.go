@@ -926,10 +926,12 @@ func (api *BlockChainAPI) SimulateV1(ctx context.Context, opts simOpts, blockNrO
 		if err != nil {
 			return nil, err
 		}
-		if len(latestBlock.Transactions()) == 0 {
-			return nil, errors.New("optimism: no L1 attributes transaction found in latest block")
+		if len(latestBlock.Transactions()) > 0 {
+			// For the special case of the genesis block, there are no transactions
+			// so we won't set the l1AttributesTx and the simulation will
+			// likely fail.
+			sim.l1AttributesTx = latestBlock.Transactions()[0]
 		}
-		sim.l1AttributesTx = latestBlock.Transactions()[0]
 	}
 	return sim.execute(ctx, opts.BlockStateCalls)
 }
