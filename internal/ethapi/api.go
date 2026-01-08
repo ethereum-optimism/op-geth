@@ -922,15 +922,15 @@ func (api *BlockChainAPI) SimulateV1(ctx context.Context, opts simOpts, blockNrO
 		fullTx:         opts.ReturnFullTransactions,
 	}
 	if api.b.ChainConfig().IsOptimism() {
-		latestBlock, err := api.b.BlockByNumber(ctx, rpc.LatestBlockNumber)
+		block, err := api.b.BlockByNumberOrHash(ctx, *blockNrOrHash)
 		if err != nil {
 			return nil, err
 		}
-		if len(latestBlock.Transactions()) > 0 {
+		if len(block.Transactions()) > 0 {
 			// For the special case of the genesis block, there are no transactions
 			// so we won't set the l1AttributesTx and the simulation will
 			// likely fail.
-			sim.l1AttributesTx = latestBlock.Transactions()[0]
+			sim.l1AttributesTx = block.Transactions()[0]
 		}
 	}
 	return sim.execute(ctx, opts.BlockStateCalls)
