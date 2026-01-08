@@ -372,12 +372,12 @@ func (sim *simulator) processBlock(ctx context.Context, block *simBlock, header,
 	// This is required because CalcDAFootprint (called by FinalizeAndAssemble for Jovian blocks)
 	// expects the first transaction to be a deposit transaction containing L1 attributes data.
 	isOptimism := sim.chainConfig.IsOptimism()
-	finalTxes := txes
+	prependedTxes := txes
 	if isOptimism && sim.l1AttributesTx != nil {
-		finalTxes = append([]*types.Transaction{sim.l1AttributesTx}, txes...)
+		prependedTxes = append([]*types.Transaction{sim.l1AttributesTx}, txes...)
 	}
 
-	blockBody := &types.Body{Transactions: finalTxes, Withdrawals: *block.BlockOverrides.Withdrawals}
+	blockBody := &types.Body{Transactions: prependedTxes, Withdrawals: *block.BlockOverrides.Withdrawals}
 	chainHeadReader := &simChainHeadReader{ctx, sim.b}
 	b, err := sim.b.Engine().FinalizeAndAssemble(chainHeadReader, header, sim.state, blockBody, receipts)
 	if err != nil {
