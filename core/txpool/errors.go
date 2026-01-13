@@ -72,6 +72,9 @@ var (
 	// transactions is reached for specific accounts.
 	ErrInflightTxLimitReached = errors.New("in-flight transaction limit reached for delegated accounts")
 
+	// ErrKZGVerificationError is returned when a KZG proof was not verified correctly.
+	ErrKZGVerificationError = errors.New("KZG verification error")
+
 	// ErrTxGasLimitExceeded is returned if a transaction's gas limit exceeds the
 	// configured maximum per-transaction limit.
 	ErrTxGasLimitExceeded = errors.New("exceeds maximum per-transaction gas limit")
