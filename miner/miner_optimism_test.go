@@ -104,7 +104,7 @@ func testMineAndExecute(t *testing.T, numTxs uint64, cfg *params.ChainConfig, as
 	txs := genTxs(1, numTxs)
 
 	// Add to txpool for the miner to pick up.
-	if errs := b.txPool.Add(txs, false); len(errs) > 0 {
+	if errs := b.txPool.Add(txs, true); len(errs) > 0 {
 		for _, err := range errs {
 			require.NoError(t, err, "failed adding tx to pool")
 		}
