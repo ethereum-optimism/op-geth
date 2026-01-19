@@ -114,8 +114,8 @@ func testInteropTransaction(t *testing.T, failsafeEnabled bool, expectIncluded b
 	miner, testBankKey, testUserAddress := createInteropMiner(t, failsafeEnabled, nil)
 	tx := createInteropTransaction(t, miner, testBankKey, testUserAddress)
 
-	// Add the transaction to the pool
-	err := miner.txpool.Add(types.Transactions{tx}, false)
+	// Add the transaction to the pool (sync=true to ensure promotion to pending completes)
+	err := miner.txpool.Add(types.Transactions{tx}, true)
 	if len(err) > 0 && err[0] != nil {
 		t.Fatalf("Failed to add interop transaction to pool: %v", err[0])
 	}
