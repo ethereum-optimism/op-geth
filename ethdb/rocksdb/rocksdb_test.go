@@ -15,7 +15,6 @@
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
 // Package pebble implements the key-value database layer based on pebble.
-//go:build !js && !wasip1 && rocksdb
 
 package rocksdb
 
