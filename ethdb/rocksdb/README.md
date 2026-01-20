@@ -101,31 +101,6 @@ db, err := rocksdb.NewCustom("/path/to/db", "metrics/", func(opts *grocksdb.Opti
 })
 ```
 
-## Features
-
-### ✅ Implemented Features
-- **Complete KeyValueStore interface compliance**
-- **Basic operations**: Get, Put, Delete, Has
-- **Batch operations**: Atomic writes with batching
-- **Iterators**: Prefix-based iteration with range support
-- **Database compaction**: Manual compaction for performance
-- **Statistics**: Integration with geth metrics system and RocksDB internal stats via `Stat()`
-- **WAL sync**: `SyncKeyValue()` method to ensure durability by flushing write-ahead-log
-- **Resource management**: Proper cleanup and resource handling
-- **Build tag support**: Conditional compilation for optional dependency
-
-### ⚠️ Limitations
-- **Range deletion**: Database-level uses fallback iteration (limited to 10,000 keys); batch-level uses native RocksDB DeleteRange
-- **Batch replay**: Supports Put, Delete, and DeleteRange operations
-- **Compression**: Default compression only (specific algorithms not exposed)
-- **Iterator thread safety**: Iterators are not thread-safe and should not be used concurrently (Database and Batch are thread-safe)
-
-### 🔧 Advanced Features
-- **Configurable caching**: Block cache and write buffer tuning
-- **Background operations**: Configurable compaction and flush threads
-- **Bloom filters**: Optimized read performance
-- **Memory management**: Tracked memory allocation metrics
-
 ## Performance Tuning
 
 ### Cache Configuration
