@@ -17,7 +17,6 @@
 // Package pebble implements the key-value database layer based on pebble.
 
 //go:build !js && !wasip1 && rocksdb
-// +build !js,!wasip1,rocksdb
 
 // Package rocksdb implements the key-value database layer based on RocksDB.
 package rocksdb
