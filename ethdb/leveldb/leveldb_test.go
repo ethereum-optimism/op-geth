@@ -17,7 +17,10 @@
 package leveldb
 
 import (
+	"fmt"
+	"os"
 	"testing"
+	"time"
 
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/ethdb/dbtest"
@@ -48,5 +51,15 @@ func BenchmarkLevelDB(b *testing.B) {
 		return &Database{
 			db: db,
 		}
+	})
+}
+
+func BenchmarkLevelDBDisk(b *testing.B) {
+	dbtest.BenchDatabaseSuite(b, func() ethdb.KeyValueStore {
+		db, err := New(fmt.Sprintf("/tmp/bench-leveldb-%d-%d", os.Getpid(), time.Now().UnixNano()), 32, 16, "", false)
+		if err != nil {
+			b.Fatal(err)
+		}
+		return db
 	})
 }
