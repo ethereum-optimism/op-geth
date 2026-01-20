@@ -4,7 +4,7 @@ This package provides RocksDB support for the Ethereum client as an alternative 
 
 ## Prerequisites
 
-To enable RocksDB support, you need to install the RocksDB C++ library on your system. We recommend building [RocksDB](https://github.com/facebook/rocksdb/releases/tag/v10.4.2) from sources by following the official [install guide](https://github.com/facebook/rocksdb/blob/master/INSTALL.md).
+To enable RocksDB support, you need to install the RocksDB C++ library on your system. We recommend building [RocksDB](https://github.com/facebook/rocksdb/releases/) from sources by following the official [install guide](https://github.com/facebook/rocksdb/blob/master/INSTALL.md).
 
 In summary, on Ubuntu:
 ```
