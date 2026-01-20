@@ -17,6 +17,7 @@
 package rawdb
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"errors"
@@ -345,6 +346,7 @@ func NewMemoryDatabase() ethdb.Database {
 const (
 	DBPebble  = "pebble"
 	DBLeveldb = "leveldb"
+	DBRocksdb = "rocksdb"
 )
 
 // PreexistingDatabase checks the given data directory whether a database is already
@@ -354,6 +356,14 @@ func PreexistingDatabase(path string) string {
 	if _, err := os.Stat(filepath.Join(path, "CURRENT")); err != nil {
 		return "" // No pre-existing db
 	}
+
+	// Check for RocksDB database (has LOG file with RocksDB in the first line)
+	if _, err := os.Stat(filepath.Join(path, "LOG")); err == nil {
+		if contains, err := checkFirstLineContains(filepath.Join(path, "LOG"), "RocksDB"); err == nil && contains {
+			return DBRocksdb
+		}
+	}
+
 	if matches, err := filepath.Glob(filepath.Join(path, "OPTIONS*")); len(matches) > 0 || err != nil {
 		if err != nil {
 			panic(err) // only possible if the pattern is malformed
@@ -783,4 +793,28 @@ func SafeDeleteRange(db ethdb.KeyValueStore, start, end []byte, hashScheme bool,
 		}
 	}
 	return batch.Write()
+}
+
+// checkFirstLineContains checks if the first line of a file contains a specific string
+func checkFirstLineContains(filename, searchString string) (bool, error) {
+	file, err := os.Open(filename)
+	if err != nil {
+		return false, fmt.Errorf("failed to open file %s: %w", filename, err)
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+
+	// Read the first line
+	if !scanner.Scan() {
+		// Check if there was an error or just empty file
+		if err := scanner.Err(); err != nil {
+			return false, fmt.Errorf("failed to read from file %s: %w", filename, err)
+		}
+		// Empty file
+		return false, nil
+	}
+
+	firstLine := scanner.Text()
+	return strings.Contains(firstLine, searchString), nil
 }
