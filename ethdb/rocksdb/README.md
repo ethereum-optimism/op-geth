@@ -50,11 +50,6 @@ If you build without the `rocksdb` tag, the stub implementation will be used, an
 go build ./cmd/geth
 ```
 
-### Docker
-```bash
-docker build -t op-geth-rocksdb -f Dockerfile.rocksdb .
-```
-
 ## Benchmarking
 ```bash
 # clear caches
