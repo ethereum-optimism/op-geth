@@ -236,27 +236,6 @@ ethdb/rocksdb/
 - **Write stall warning interval**: 1 minute
 - **DeleteRange key limit**: 10,000 keys per operation (to prevent blocking)
 
-### Metrics Collected
-The implementation collects comprehensive metrics for monitoring:
-- **Compaction metrics**: Time, input/output data, counts by level
-- **Disk I/O**: Read/write rates and total size
-- **Cache statistics**: Block cache and table cache hit/miss ratios
-- **Memory usage**: MemTable counts (live/zombie) and manual allocations
-- **Filter performance**: Bloom filter hit/miss statistics
-- **Write delays**: Stall counts and durations
-- **Active operations**: Live iterators and in-progress compactions
-
-## Contributing
-
-To improve RocksDB support:
-
-1. **Performance optimizations**: Benchmark and tune default configurations
-2. **Feature completeness**: Implement native DeleteRange at database level (currently uses iteration fallback)
-3. **Error handling**: Improve error messages and recovery mechanisms
-4. **Compression configuration**: Expose compression algorithm selection via API
-5. **Documentation**: Add more usage examples and troubleshooting guides
-6. **Testing**: Expand test coverage for edge cases and performance scenarios
-
 ### Development Setup
 ```bash
 # Install RocksDB development libraries (see Prerequisites)
@@ -274,6 +253,3 @@ go test -tags rocksdb ./ethdb/rocksdb
 go build -tags rocksdb ./...
 ```
 
-## License
-
-This RocksDB integration follows the same licensing as go-ethereum (GNU LGPL v3.0).
