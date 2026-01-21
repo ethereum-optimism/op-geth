@@ -44,7 +44,7 @@ func (st *insertStats) report(chain []*types.Block, index int, snapDiffItems, sn
 	var (
 		now     = mclock.Now()
 		elapsed = now.Sub(st.startTime) + 1 // prevent zero division
-		mgasps  = float64(st.usedGas) * 1000 / float64(elapsed)
+		mgasps  = float64(st.usedGas) * 1000 / float64(elapsed.Milliseconds())
 	)
 	// If we're at the last block of the batch or report period reached, log
 	if index == len(chain)-1 || elapsed >= statsReportLimit {
@@ -58,7 +58,7 @@ func (st *insertStats) report(chain []*types.Block, index int, snapDiffItems, sn
 		// Assemble the log context and send it to the logger
 		context := []interface{}{
 			"number", end.Number(), "hash", end.Hash(),
-			"blocks", st.processed, "txs", txs, "mgas", float64(st.usedGas) * 1000 / 1000000,
+			"blocks", st.processed, "txs", txs, "mgas", float64(st.usedGas) / 1000000,
 			"elapsed", common.PrettyDuration(elapsed), "mgasps", mgasps,
 		}
 		if timestamp := time.Unix(int64(end.Time()), 0); time.Since(timestamp) > time.Minute {
