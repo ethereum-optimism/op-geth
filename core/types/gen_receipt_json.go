@@ -43,6 +43,7 @@ func (r Receipt) MarshalJSON() ([]byte, error) {
 		OperatorFeeScalar     *hexutil.Uint64 `json:"operatorFeeScalar,omitempty"`
 		OperatorFeeConstant   *hexutil.Uint64 `json:"operatorFeeConstant,omitempty"`
 		DAFootprintGasScalar  *hexutil.Uint64 `json:"daFootprintGasScalar,omitempty"`
+		OPGasRefund           *hexutil.Uint64 `json:"opGasRefund,omitempty"`
 	}
 	var enc Receipt
 	enc.Type = hexutil.Uint64(r.Type)
@@ -72,6 +73,7 @@ func (r Receipt) MarshalJSON() ([]byte, error) {
 	enc.OperatorFeeScalar = (*hexutil.Uint64)(r.OperatorFeeScalar)
 	enc.OperatorFeeConstant = (*hexutil.Uint64)(r.OperatorFeeConstant)
 	enc.DAFootprintGasScalar = (*hexutil.Uint64)(r.DAFootprintGasScalar)
+	enc.OPGasRefund = (*hexutil.Uint64)(r.OPGasRefund)
 	return json.Marshal(&enc)
 }
 
@@ -105,6 +107,7 @@ func (r *Receipt) UnmarshalJSON(input []byte) error {
 		OperatorFeeScalar     *hexutil.Uint64 `json:"operatorFeeScalar,omitempty"`
 		OperatorFeeConstant   *hexutil.Uint64 `json:"operatorFeeConstant,omitempty"`
 		DAFootprintGasScalar  *hexutil.Uint64 `json:"daFootprintGasScalar,omitempty"`
+		OPGasRefund           *hexutil.Uint64 `json:"opGasRefund,omitempty"`
 	}
 	var dec Receipt
 	if err := json.Unmarshal(input, &dec); err != nil {
@@ -195,6 +198,9 @@ func (r *Receipt) UnmarshalJSON(input []byte) error {
 	}
 	if dec.DAFootprintGasScalar != nil {
 		r.DAFootprintGasScalar = (*uint64)(dec.DAFootprintGasScalar)
+	}
+	if dec.OPGasRefund != nil {
+		r.OPGasRefund = (*uint64)(dec.OPGasRefund)
 	}
 	return nil
 }

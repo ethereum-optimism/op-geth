@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"math/rand"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/tracing"
@@ -34,10 +35,11 @@ import (
 // ExecutionResult includes all output after executing given evm
 // message no matter the execution itself is successful or not.
 type ExecutionResult struct {
-	UsedGas    uint64 // Total used gas, not including the refunded gas
-	MaxUsedGas uint64 // Maximum gas consumed during execution, excluding gas refunds.
-	Err        error  // Any error encountered during the execution(listed in core/vm/errors.go)
-	ReturnData []byte // Returned data from evm(function result or data supplied with revert opcode)
+	UsedGas     uint64 // Total used gas, not including the refunded gas
+	OPGasRefund uint64 // Total OP gas refunded from the EVM gas used
+	MaxUsedGas  uint64 // Maximum gas consumed during execution, excluding gas refunds.
+	Err         error  // Any error encountered during the execution(listed in core/vm/errors.go)
+	ReturnData  []byte // Returned data from evm(function result or data supplied with revert opcode)
 }
 
 // Unwrap returns the internal evm error which allows us for further
@@ -118,6 +120,7 @@ func IntrinsicGas(data []byte, accessList types.AccessList, authList []types.Set
 
 // FloorDataGas computes the minimum gas required for a transaction based on its data tokens (EIP-7623).
 func FloorDataGas(data []byte) (uint64, error) {
+	return 0, nil
 	var (
 		z      = uint64(bytes.Count(data, []byte{0}))
 		nz     = uint64(len(data)) - z
@@ -494,12 +497,14 @@ func (st *stateTransition) execute() (*ExecutionResult, error) {
 			gasUsed = 0
 		}
 		result = &ExecutionResult{
-			UsedGas:    gasUsed,
-			Err:        fmt.Errorf("failed deposit: %w", err),
-			ReturnData: nil,
+			UsedGas:     gasUsed,
+			OPGasRefund: 0, // TODO(anteva): confirm if and what refund we need here
+			Err:         fmt.Errorf("failed deposit: %w", err),
+			ReturnData:  nil,
 		}
 		err = nil
 	}
+	fmt.Println("anteva: result for non-deposit tx: ", result.UsedGas, result.OPGasRefund)
 	return result, err
 }
 
@@ -631,8 +636,33 @@ func (st *stateTransition) innerExecute() (*ExecutionResult, error) {
 	// gas allowance required to complete execution.
 	peakGasUsed := st.gasUsed()
 
+	//TODO(anteva): dummy value for opGasRefund
+	var opGasRefund uint64
+
+	if st.evm.Context.IsMining {
+		if !st.msg.IsDepositTx &&
+			msg.From != common.HexToAddress("0xDeaDDEaDDeAdDeAdDEAdDEaddeAddEAdDEAd0001") &&
+			msg.From != common.HexToAddress("0x0000000000000000000000000000000000000000") {
+			opGasRefund = uint64(rand.Intn(10000))
+			fmt.Println("anteva: mining, opGasRefund: ", opGasRefund)
+		}
+	} else {
+		fmt.Println("anteva: validating, container len: ", len(st.evm.Context.OPContainer.MetadataOPGas))
+		for _, entry := range st.evm.Context.OPContainer.MetadataOPGas {
+			// TODO(anteva): need uniqueness check
+			if entry.FromAddress == msg.From {
+				opGasRefund = entry.OPGasRefund
+				fmt.Println("anteva: validating, opGasRefund: ", opGasRefund)
+				break
+			}
+		}
+	}
+	st.state.AddRefund(opGasRefund)
+
 	// Compute refund counter, capped to a refund quotient.
-	st.gasRemaining += st.calcRefund()
+	refundAmount := st.calcRefund()
+	st.gasRemaining += refundAmount
+	fmt.Println("anteva: peakGasUsed: ", peakGasUsed, "; opGasRefund: ", opGasRefund, "; refundAmount: ", refundAmount, "; gasRemaining after refund: ", st.gasRemaining, "; gasUsed after refund: ", st.gasUsed(), "; floor data gas: ", floorDataGas, "; isPrague: ", rules.IsPrague)
 	if rules.IsPrague {
 		// After EIP-7623: Data-heavy transactions pay the floor gas.
 		if st.gasUsed() < floorDataGas {
@@ -654,10 +684,11 @@ func (st *stateTransition) innerExecute() (*ExecutionResult, error) {
 	if st.msg.IsDepositTx && rules.IsOptimismRegolith {
 		// Skip coinbase payments for deposit tx in Regolith
 		return &ExecutionResult{
-			UsedGas:    st.gasUsed(),
-			MaxUsedGas: peakGasUsed,
-			Err:        vmerr,
-			ReturnData: ret,
+			UsedGas:     st.gasUsed(),
+			OPGasRefund: opGasRefund, // TODO(anteva): confirm if we need a refund here
+			MaxUsedGas:  peakGasUsed,
+			Err:         vmerr,
+			ReturnData:  ret,
 		}, nil
 	}
 
@@ -707,11 +738,13 @@ func (st *stateTransition) innerExecute() (*ExecutionResult, error) {
 		}
 	}
 
+	fmt.Println("anteva: result for tx1 after all: ", st.gasUsed(), opGasRefund, peakGasUsed)
 	return &ExecutionResult{
-		UsedGas:    st.gasUsed(),
-		MaxUsedGas: peakGasUsed,
-		Err:        vmerr,
-		ReturnData: ret,
+		UsedGas:     st.gasUsed(),
+		OPGasRefund: opGasRefund,
+		MaxUsedGas:  peakGasUsed,
+		Err:         vmerr,
+		ReturnData:  ret,
 	}, nil
 }
 
@@ -783,6 +816,8 @@ func (st *stateTransition) calcRefund() uint64 {
 		// After EIP-3529: refunds are capped to gasUsed / 5
 		refund = st.gasUsed() / params.RefundQuotientEIP3529
 	}
+	//TODO(anteva): disable capping of refunds for OP Stack for now
+	refund = st.gasUsed()
 	if refund > st.state.GetRefund() {
 		refund = st.state.GetRefund()
 	}

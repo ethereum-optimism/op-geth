@@ -93,7 +93,7 @@ type Header struct {
 	BaseFee *big.Int `json:"baseFeePerGas" rlp:"optional"`
 
 	// WithdrawalsHash was added by EIP-4895 and is ignored in legacy headers.
-	WithdrawalsHash *common.Hash `json:"withdrawalsRoot" rlp:"optional"`
+	WithdrawalsHash *common.Hash `json:"withdrawalsRoot" rlp:"optional,nil"`
 
 	// BlobGasUsed was added by EIP-4844 and is ignored in legacy headers.
 	// OP Stack stores the DA footprint in this field starting with the Jovian fork.
@@ -103,10 +103,25 @@ type Header struct {
 	ExcessBlobGas *uint64 `json:"excessBlobGas" rlp:"optional"`
 
 	// ParentBeaconRoot was added by EIP-4788 and is ignored in legacy headers.
-	ParentBeaconRoot *common.Hash `json:"parentBeaconBlockRoot" rlp:"optional"`
+	ParentBeaconRoot *common.Hash `json:"parentBeaconBlockRoot" rlp:"optional,nil"`
 
 	// RequestsHash was added by EIP-7685 and is ignored in legacy headers.
-	RequestsHash *common.Hash `json:"requestsHash" rlp:"optional"`
+	RequestsHash *common.Hash `json:"requestsHash" rlp:"optional,nil"`
+
+	// OPContainer was added as part of the OP Stack SDM project
+	OPContainer *OPContainer `json:"opContainer" rlp:"optional,nil"`
+}
+
+// OPGasEntry represents a single transaction's OP gas metadata.
+type OPGasEntry struct {
+	FromAddress common.Address `json:"fromAddress,omitempty"` // TODO(anteva): we need uniqueness here
+	TxHash      common.Hash    `json:"txHash,omitempty"`
+	OPGasRefund uint64         `json:"opGasRefund"`
+}
+
+// OPContainer represents a container for OP-related metadata.
+type OPContainer struct {
+	MetadataOPGas []OPGasEntry `json:"metadataOPGas" rlp:"optional"`
 }
 
 // field type overrides for gencodec
@@ -358,6 +373,11 @@ func CopyHeader(h *Header) *Header {
 	if h.RequestsHash != nil {
 		cpy.RequestsHash = new(common.Hash)
 		*cpy.RequestsHash = *h.RequestsHash
+	}
+	if h.OPContainer != nil {
+		cpy.OPContainer = &OPContainer{
+			MetadataOPGas: slices.Clone(h.OPContainer.MetadataOPGas),
+		}
 	}
 	return &cpy
 }

@@ -414,6 +414,37 @@ func (beacon *Beacon) FinalizeAndAssemble(chain consensus.ChainHeaderReader, hea
 		header.BlobGasUsed = &daFootprint
 	}
 
+	// Initialize and populate OPContainer for OP Stack chains when building blocks.
+	// The header is created in the miner without OPContainer; it is only set when
+	// receiving a sequenced block via newPayload. For locally-built payloads
+	// (forkchoiceUpdated -> buildPayload -> getPayload), we must initialize it
+	// here so GetPayload returns a non-nil OPContainer.
+	if chain.Config().IsOptimismBedrock(header.Number) {
+		if header.OPContainer == nil {
+			header.OPContainer = &types.OPContainer{}
+		}
+		if len(body.Transactions) > 0 && len(receipts) > 0 {
+			// Populate MetadataOPGas for all transactions in the block
+			for i, tx := range body.Transactions {
+				if i < len(receipts) {
+					if tx.Type() == types.DepositTxType {
+						header.OPContainer.MetadataOPGas = append(header.OPContainer.MetadataOPGas, types.OPGasEntry{
+							FromAddress: tx.From(),
+							TxHash:      tx.Hash(),
+							OPGasRefund: *receipts[i].OPGasRefund,
+						})
+					} else {
+						header.OPContainer.MetadataOPGas = append(header.OPContainer.MetadataOPGas, types.OPGasEntry{
+							TxHash:      tx.Hash(),
+							FromAddress: common.HexToAddress("0x0000000000000000000000000000000000000001"),
+							OPGasRefund: *receipts[i].OPGasRefund,
+						})
+					}
+				}
+			}
+		}
+	}
+
 	// Assemble the final block.
 	block := types.NewBlock(header, body, receipts, trie.NewStackTrie(nil), chain.Config())
 

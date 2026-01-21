@@ -114,7 +114,8 @@ type ExecutableData struct {
 	// OP-Stack Isthmus specific field:
 	// instead of computing the root from a withdrawals list, set it directly.
 	// The "withdrawals" list attribute must be non-nil but empty.
-	WithdrawalsRoot *common.Hash `json:"withdrawalsRoot,omitempty"`
+	WithdrawalsRoot *common.Hash       `json:"withdrawalsRoot,omitempty"`
+	OPContainer     *types.OPContainer `json:"opContainer,omitempty"`
 }
 
 // JSON type overrides for executableData.
@@ -357,6 +358,7 @@ func ExecutableDataToBlockNoHash(data ExecutableData, versionedHashes []common.H
 		BlobGasUsed:      data.BlobGasUsed,
 		ParentBeaconRoot: beaconRoot,
 		RequestsHash:     requestsHash,
+		OPContainer:      data.OPContainer,
 	}
 	return types.NewBlockWithHeader(header).
 			WithBody(types.Body{Transactions: txs, Uncles: nil, Withdrawals: data.Withdrawals}).
@@ -386,6 +388,7 @@ func BlockToExecutableData(block *types.Block, fees *big.Int, sidecars []*types.
 		BlobGasUsed:      block.BlobGasUsed(),
 		ExcessBlobGas:    block.ExcessBlobGas(),
 		ExecutionWitness: block.ExecutionWitness(),
+		OPContainer:      block.Header().OPContainer,
 	}
 
 	// OP-Stack: only Isthmus execution payloads must set the withdrawals root.

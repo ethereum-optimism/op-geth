@@ -1075,6 +1075,9 @@ func RPCMarshalHeader(head *types.Header) map[string]interface{} {
 	if head.RequestsHash != nil {
 		result["requestsHash"] = head.RequestsHash
 	}
+	if head.OPContainer != nil {
+		result["opContainer"] = head.OPContainer
+	}
 	return result
 }
 

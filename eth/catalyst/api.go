@@ -28,6 +28,7 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/ethereum/go-ethereum/beacon/engine"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -473,7 +474,10 @@ func (api *ConsensusAPI) GetPayloadV4(payloadID engine.PayloadID) (*engine.Execu
 	if !payloadID.Is(engine.PayloadV3) {
 		return nil, engine.UnsupportedFork
 	}
-	return api.getPayload(payloadID, false)
+	fmt.Println("anteva: GetPayloadV4, payloadID: ", payloadID)
+	p, err := api.getPayload(payloadID, false)
+	fmt.Println("anteva: got payload, GetPayloadV4, payloadID: ", payloadID, "; p: ", spew.Sdump(p))
+	return p, err
 }
 
 // GetPayloadV5 returns a cached payload by id. This endpoint should only
@@ -740,6 +744,10 @@ func (api *ConsensusAPI) newPayload(params engine.ExecutableData, versionedHashe
 		if params.ExcessBlobGas != nil {
 			ebg = strconv.Itoa(int(*params.ExcessBlobGas))
 		}
+		lenOPContainer := 0
+		if params.OPContainer != nil {
+			lenOPContainer = len(params.OPContainer.MetadataOPGas)
+		}
 		log.Warn("Invalid NewPayload params",
 			"params.Number", params.Number,
 			"params.ParentHash", params.ParentHash,
@@ -758,6 +766,8 @@ func (api *ConsensusAPI) newPayload(params engine.ExecutableData, versionedHashe
 			"len(params.Transactions)", len(params.Transactions),
 			"len(params.Withdrawals)", len(params.Withdrawals),
 			"params.WithdrawalsRoot", params.WithdrawalsRoot,
+			"params.OPContainer", params.OPContainer,
+			"params.OPContainer len", lenOPContainer,
 			"beaconRoot", beaconRoot,
 			"len(requests)", len(requests),
 			"error", err)

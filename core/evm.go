@@ -17,6 +17,7 @@
 package core
 
 import (
+	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -49,9 +50,32 @@ func NewEVMBlockContext(header *types.Header, chain ChainContext, author *common
 	)
 
 	// If we don't have an explicit author (i.e. not mining), extract from the header
+	var opContainer *types.OPContainer
 	if author == nil {
+		fmt.Println("anteva: setting mining, author is nil")
 		beneficiary, _ = chain.Engine().Author(header) // Ignore error, we're past header validation
+		opContainer = &types.OPContainer{
+			MetadataOPGas: make([]types.OPGasEntry, 0),
+		}
+		opContainer.MetadataOPGas = append(opContainer.MetadataOPGas, types.OPGasEntry{
+			FromAddress: common.HexToAddress("0x0000000000000000000000000000000000000001"),
+			OPGasRefund: 1000,
+		})
 	} else {
+		if header.OPContainer == nil {
+			fmt.Println("anteva: setting validating, author is not nil", "container len: nil")
+
+			opContainer = &types.OPContainer{
+				MetadataOPGas: make([]types.OPGasEntry, 0),
+			}
+			opContainer.MetadataOPGas = append(opContainer.MetadataOPGas, types.OPGasEntry{
+				FromAddress: common.HexToAddress("0x0000000000000000000000000000000000000001"),
+				OPGasRefund: 2000,
+			})
+		} else {
+			fmt.Println("anteva: setting validating, author is not nil", "container len: ", len(header.OPContainer.MetadataOPGas))
+			opContainer = header.OPContainer
+		}
 		beneficiary = *author
 	}
 	if header.BaseFee != nil {
@@ -82,6 +106,8 @@ func NewEVMBlockContext(header *types.Header, chain ChainContext, author *common
 		// OP-Stack additions
 		L1CostFunc:       types.NewL1CostFunc(config, statedb),
 		OperatorCostFunc: operatorCostFn,
+		OPContainer:      opContainer,
+		IsMining:         author == nil,
 	}
 }
 

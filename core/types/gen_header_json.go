@@ -32,11 +32,12 @@ func (h Header) MarshalJSON() ([]byte, error) {
 		MixDigest        common.Hash     `json:"mixHash"`
 		Nonce            BlockNonce      `json:"nonce"`
 		BaseFee          *hexutil.Big    `json:"baseFeePerGas" rlp:"optional"`
-		WithdrawalsHash  *common.Hash    `json:"withdrawalsRoot" rlp:"optional"`
+		WithdrawalsHash  *common.Hash    `json:"withdrawalsRoot" rlp:"optional,nil"`
 		BlobGasUsed      *hexutil.Uint64 `json:"blobGasUsed" rlp:"optional"`
 		ExcessBlobGas    *hexutil.Uint64 `json:"excessBlobGas" rlp:"optional"`
-		ParentBeaconRoot *common.Hash    `json:"parentBeaconBlockRoot" rlp:"optional"`
-		RequestsHash     *common.Hash    `json:"requestsHash" rlp:"optional"`
+		ParentBeaconRoot *common.Hash    `json:"parentBeaconBlockRoot" rlp:"optional,nil"`
+		RequestsHash     *common.Hash    `json:"requestsHash" rlp:"optional,nil"`
+		OPContainer      *OPContainer    `json:"opContainer" rlp:"optional,nil"`
 		Hash             common.Hash     `json:"hash"`
 	}
 	var enc Header
@@ -61,6 +62,7 @@ func (h Header) MarshalJSON() ([]byte, error) {
 	enc.ExcessBlobGas = (*hexutil.Uint64)(h.ExcessBlobGas)
 	enc.ParentBeaconRoot = h.ParentBeaconRoot
 	enc.RequestsHash = h.RequestsHash
+	enc.OPContainer = h.OPContainer
 	enc.Hash = h.Hash()
 	return json.Marshal(&enc)
 }
@@ -84,11 +86,12 @@ func (h *Header) UnmarshalJSON(input []byte) error {
 		MixDigest        *common.Hash    `json:"mixHash"`
 		Nonce            *BlockNonce     `json:"nonce"`
 		BaseFee          *hexutil.Big    `json:"baseFeePerGas" rlp:"optional"`
-		WithdrawalsHash  *common.Hash    `json:"withdrawalsRoot" rlp:"optional"`
+		WithdrawalsHash  *common.Hash    `json:"withdrawalsRoot" rlp:"optional,nil"`
 		BlobGasUsed      *hexutil.Uint64 `json:"blobGasUsed" rlp:"optional"`
 		ExcessBlobGas    *hexutil.Uint64 `json:"excessBlobGas" rlp:"optional"`
-		ParentBeaconRoot *common.Hash    `json:"parentBeaconBlockRoot" rlp:"optional"`
-		RequestsHash     *common.Hash    `json:"requestsHash" rlp:"optional"`
+		ParentBeaconRoot *common.Hash    `json:"parentBeaconBlockRoot" rlp:"optional,nil"`
+		RequestsHash     *common.Hash    `json:"requestsHash" rlp:"optional,nil"`
+		OPContainer      *OPContainer    `json:"opContainer" rlp:"optional,nil"`
 	}
 	var dec Header
 	if err := json.Unmarshal(input, &dec); err != nil {
@@ -168,6 +171,9 @@ func (h *Header) UnmarshalJSON(input []byte) error {
 	}
 	if dec.RequestsHash != nil {
 		h.RequestsHash = dec.RequestsHash
+	}
+	if dec.OPContainer != nil {
+		h.OPContainer = dec.OPContainer
 	}
 	return nil
 }

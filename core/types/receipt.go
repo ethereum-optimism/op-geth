@@ -96,6 +96,7 @@ type Receipt struct {
 	OperatorFeeScalar    *uint64    `json:"operatorFeeScalar,omitempty"`    // Always nil prior to the Isthmus hardfork
 	OperatorFeeConstant  *uint64    `json:"operatorFeeConstant,omitempty"`  // Always nil prior to the Isthmus hardfork
 	DAFootprintGasScalar *uint64    `json:"daFootprintGasScalar,omitempty"` // Always nil prior to the Jovian hardfork
+	OPGasRefund          *uint64    `json:"opGasRefund,omitempty"`          // Always nil prior to the OP Stack hardfork
 }
 
 type receiptMarshaling struct {
@@ -123,6 +124,7 @@ type receiptMarshaling struct {
 	OperatorFeeScalar     *hexutil.Uint64
 	OperatorFeeConstant   *hexutil.Uint64
 	DAFootprintGasScalar  *hexutil.Uint64
+	OPGasRefund           *hexutil.Uint64
 }
 
 // receiptRLP is the consensus encoding of a receipt.

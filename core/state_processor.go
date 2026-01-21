@@ -167,6 +167,7 @@ func ApplyTransactionWithEVM(msg *Message, gp *GasPool, statedb *state.StateDB, 
 	if err != nil {
 		return nil, err
 	}
+	fmt.Println("anteva: result after ApplyMessage: ", result.UsedGas, result.OPGasRefund)
 	// Update the state with pending changes.
 	var root []byte
 	if evm.ChainConfig().IsByzantium(blockNumber) {
@@ -196,6 +197,11 @@ func MakeReceipt(evm *vm.EVM, result *ExecutionResult, statedb *state.StateDB, b
 	}
 	receipt.TxHash = tx.Hash()
 	receipt.GasUsed = result.UsedGas
+
+	// TODO(anteva): dummy value for op gas refund, currently a random value set by the sequencer,
+	// lower than the actual EVM gas used, similarly simple and dangerous as measuring wall-clock time
+	receipt.OPGasRefund = new(uint64)
+	*receipt.OPGasRefund = result.OPGasRefund
 
 	if tx.IsDepositTx() && config.IsOptimismRegolith(evm.Context.Time) {
 		// The actual nonce for deposit transactions is only recorded from Regolith onwards and
