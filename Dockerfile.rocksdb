@@ -1,0 +1,54 @@
+# Support setting various labels on the final image
+ARG COMMIT=""
+ARG VERSION=""
+ARG BUILDNUM=""
+
+# Build RocksDB in a separate stage for better caching
+FROM golang:1.24-alpine AS rocksdb-builder
+
+RUN apk add --no-cache gcc g++ musl-dev linux-headers git make bash perl zstd-static lz4-static snappy-dev snappy-static zlib-static bzip2-static liburing-dev gflags-dev
+
+# Install RocksDB (NOTE: grocksdb must match with rocksdb version)
+# This layer will be cached unless RocksDB version/repo changes
+RUN git clone --depth 1 https://github.com/facebook/rocksdb.git && \
+    cd rocksdb && \
+    DEBUG_LEVEL=0 PORTABLE=1 make static_lib -j$(nproc)
+
+# Build Geth in a stock Go builder container
+FROM golang:1.24-alpine AS builder
+
+RUN apk add --no-cache gcc g++ musl-dev linux-headers git make bash perl zstd-static lz4-static snappy-dev snappy-static zlib-static bzip2-static liburing-dev gflags-dev
+
+# Copy RocksDB from the previous stage
+COPY --from=rocksdb-builder /go/rocksdb/librocksdb.a /usr/lib/
+COPY --from=rocksdb-builder /go/rocksdb/include/rocksdb /usr/include/rocksdb
+
+ENV CGO_CFLAGS="-I/usr/include"
+ENV CGO_LDFLAGS="-L/usr/lib -lrocksdb -lstdc++ -lm -lz -lsnappy -llz4 -lzstd -lbz2 -luring"
+
+# Get dependencies - will also be cached if we won't change go.mod/go.sum
+COPY go.mod /go-ethereum/
+COPY go.sum /go-ethereum/
+RUN cd /go-ethereum && go mod download
+
+ADD . /go-ethereum
+RUN cd /go-ethereum && \
+    go build -tags rocksdb -trimpath \
+    -ldflags="-s -w -extldflags '-static -Wl,-z,stack-size=0x800000,--build-id=none,--strip-all'" \
+    -o build/bin/geth ./cmd/geth
+
+# Pull Geth into a second stage deploy alpine container
+FROM alpine:latest
+
+RUN apk add --no-cache ca-certificates
+COPY --from=builder /go-ethereum/build/bin/geth /usr/local/bin/
+
+EXPOSE 8545 8546 30303 30303/udp
+ENTRYPOINT ["geth"]
+
+# Add some metadata labels to help programmatic image consumption
+ARG COMMIT=""
+ARG VERSION=""
+ARG BUILDNUM=""
+
+LABEL commit="$COMMIT" version="$VERSION" buildnum="$BUILDNUM"
