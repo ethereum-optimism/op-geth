@@ -1,4 +1,4 @@
-# RocksDB Support for op-geth-okx
+# RocksDB Support for op-geth
 
 This package provides RocksDB support for the Ethereum client as an alternative to LevelDB and Pebble database backends.
 
@@ -241,7 +241,7 @@ ethdb/rocksdb/
 # Install RocksDB development libraries (see Prerequisites)
 # Clone and setup project
 git clone <repository>
-cd op-geth-okx
+cd op-geth
 
 # Build with RocksDB
 go build -tags rocksdb ./ethdb/rocksdb
