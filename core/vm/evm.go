@@ -76,7 +76,6 @@ type BlockContext struct {
 	Random      *common.Hash   // Provides information for PREVRANDAO
 
 	OPContainer *types.OPContainer // Provides information for OPCONTAINER
-	IsMining    bool
 }
 
 // TxContext provides the EVM with information about a transaction.

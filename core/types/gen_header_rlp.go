@@ -94,13 +94,13 @@ func (obj *Header) EncodeRLP(_w io.Writer) error {
 			w.Write([]byte{0xC0})
 		} else {
 			_tmp8 := w.List()
+			w.WriteUint64(obj.OPContainer.Version)
 			_tmp9 := len(obj.OPContainer.MetadataOPGas) > 0
 			if _tmp9 {
 				_tmp10 := w.List()
 				for _, _tmp11 := range obj.OPContainer.MetadataOPGas {
 					_tmp12 := w.List()
-					w.WriteBytes(_tmp11.FromAddress[:])
-					w.WriteBytes(_tmp11.TxHash[:])
+					w.WriteUint64(_tmp11.Index)
 					w.WriteUint64(_tmp11.OPGasRefund)
 					w.ListEnd(_tmp12)
 				}

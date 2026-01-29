@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/misc"
 	"github.com/ethereum/go-ethereum/core/state"
@@ -58,6 +59,8 @@ func (p *StateProcessor) chainConfig() *params.ChainConfig {
 // returns the amount of gas that was used in the process. If any of the
 // transactions failed to execute due to insufficient gas it will return an error.
 func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg vm.Config) (*ProcessResult, error) {
+	fmt.Println("anteva: StateProcessor.Process: block", "num", block.Number(), "hash", block.Hash())
+	spew.Dump(block.Header().OPContainer)
 	var (
 		config      = p.chainConfig()
 		receipts    types.Receipts
@@ -100,6 +103,8 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 			return nil, fmt.Errorf("could not apply tx %d [%v]: %w", i, tx.Hash().Hex(), err)
 		}
 		statedb.SetTxContext(tx.Hash(), i)
+
+		msg.OPGasRefund = header.OPContainer.GasRefundForIdx(uint64(i))
 
 		receipt, err := ApplyTransactionWithEVM(msg, gp, statedb, blockNumber, blockHash, context.Time, tx, usedGas, evm)
 		if err != nil {
@@ -242,6 +247,7 @@ func ApplyTransaction(evm *vm.EVM, gp *GasPool, statedb *state.StateDB, header *
 	if err != nil {
 		return nil, err
 	}
+
 	// Create a new context to be used in the EVM environment
 	return ApplyTransactionWithEVM(msg, gp, statedb, header.Number, header.Hash(), header.Time, tx, usedGas, evm)
 }

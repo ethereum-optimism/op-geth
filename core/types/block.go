@@ -114,14 +114,24 @@ type Header struct {
 
 // OPGasEntry represents a single transaction's OP gas metadata.
 type OPGasEntry struct {
-	FromAddress common.Address `json:"fromAddress,omitempty"` // TODO(anteva): we need uniqueness here
-	TxHash      common.Hash    `json:"txHash,omitempty"`
-	OPGasRefund uint64         `json:"opGasRefund"`
+	Index       uint64 `json:"index"`
+	OPGasRefund uint64 `json:"opGasRefund"`
 }
 
 // OPContainer represents a container for OP-related metadata.
 type OPContainer struct {
+	Version       uint64       `json:"version"`
 	MetadataOPGas []OPGasEntry `json:"metadataOPGas" rlp:"optional"`
+}
+
+func (op OPContainer) GasRefundForIdx(index uint64) *uint64 {
+	for _, v := range op.MetadataOPGas {
+		if v.Index == index {
+			return &v.OPGasRefund
+		}
+	}
+
+	return nil
 }
 
 // field type overrides for gencodec

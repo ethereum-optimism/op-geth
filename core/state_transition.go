@@ -178,6 +178,8 @@ type Message struct {
 	IsDepositTx    bool                 // IsDepositTx indicates the message is force-included and can persist a mint.
 	Mint           *big.Int             // Mint is the amount to mint before EVM processing, or nil if there is no minting.
 	RollupCostData types.RollupCostData // RollupCostData caches data to compute the fee we charge for data availability
+
+	OPGasRefund *uint64 // OPGasRefund is the amount of OP gas refunded for the transaction
 }
 
 // TransactionToMessage converts a transaction into a Message.
@@ -639,23 +641,18 @@ func (st *stateTransition) innerExecute() (*ExecutionResult, error) {
 	//TODO(anteva): dummy value for opGasRefund
 	var opGasRefund uint64
 
-	if st.evm.Context.IsMining {
+	// then we are mining
+	if st.evm.Context.OPContainer == nil {
 		if !st.msg.IsDepositTx &&
 			msg.From != common.HexToAddress("0xDeaDDEaDDeAdDeAdDEAdDEaddeAddEAdDEAd0001") &&
+			msg.From != common.HexToAddress("0x5D284fe6D6AEb73857960a0D041CF394b1198392") &&
 			msg.From != common.HexToAddress("0x0000000000000000000000000000000000000000") {
 			opGasRefund = uint64(rand.Intn(10000))
 			fmt.Println("anteva: mining, opGasRefund: ", opGasRefund)
+			fmt.Println("anteva: mining, msg.From: ", msg.From, " msg.To: ", msg.To, " msg.Nonce", msg.Nonce, " msg.Data Len: ", len(msg.Data))
 		}
-	} else {
-		fmt.Println("anteva: validating, container len: ", len(st.evm.Context.OPContainer.MetadataOPGas))
-		for _, entry := range st.evm.Context.OPContainer.MetadataOPGas {
-			// TODO(anteva): need uniqueness check
-			if entry.FromAddress == msg.From {
-				opGasRefund = entry.OPGasRefund
-				fmt.Println("anteva: validating, opGasRefund: ", opGasRefund)
-				break
-			}
-		}
+	} else if msg.OPGasRefund != nil { // we should have set the OPGasRefund for that msg if it existed
+		opGasRefund = *msg.OPGasRefund
 	}
 	st.state.AddRefund(opGasRefund)
 

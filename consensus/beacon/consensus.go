@@ -427,16 +427,9 @@ func (beacon *Beacon) FinalizeAndAssemble(chain consensus.ChainHeaderReader, hea
 			// Populate MetadataOPGas for all transactions in the block
 			for i, tx := range body.Transactions {
 				if i < len(receipts) {
-					if tx.Type() == types.DepositTxType {
+					if tx.Type() != types.DepositTxType {
 						header.OPContainer.MetadataOPGas = append(header.OPContainer.MetadataOPGas, types.OPGasEntry{
-							FromAddress: tx.From(),
-							TxHash:      tx.Hash(),
-							OPGasRefund: *receipts[i].OPGasRefund,
-						})
-					} else {
-						header.OPContainer.MetadataOPGas = append(header.OPContainer.MetadataOPGas, types.OPGasEntry{
-							TxHash:      tx.Hash(),
-							FromAddress: common.HexToAddress("0x0000000000000000000000000000000000000001"),
+							Index:       uint64(i),
 							OPGasRefund: *receipts[i].OPGasRefund,
 						})
 					}
