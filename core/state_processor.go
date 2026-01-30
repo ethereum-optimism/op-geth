@@ -104,7 +104,12 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 		}
 		statedb.SetTxContext(tx.Hash(), i)
 
-		msg.OPGasRefund = header.OPContainer.GasRefundForIdx(uint64(i))
+		if config.ChainID != nil && config.ChainID.Cmp(big.NewInt(900)) != 0 {
+			msg.OPGasRefund = header.OPContainer.GasRefundForIdx(uint64(i))
+		} else {
+			msg.OPGasRefund = new(uint64)
+			*msg.OPGasRefund = 0
+		}
 
 		receipt, err := ApplyTransactionWithEVM(msg, gp, statedb, blockNumber, blockHash, context.Time, tx, usedGas, evm)
 		if err != nil {

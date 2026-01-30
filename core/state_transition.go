@@ -506,7 +506,7 @@ func (st *stateTransition) execute() (*ExecutionResult, error) {
 		}
 		err = nil
 	}
-	fmt.Println("anteva: result for non-deposit tx: ", result.UsedGas, result.OPGasRefund)
+	// fmt.Println("anteva: result for non-deposit tx: ", result.UsedGas, result.OPGasRefund)
 	return result, err
 }
 
@@ -642,7 +642,7 @@ func (st *stateTransition) innerExecute() (*ExecutionResult, error) {
 	var opGasRefund uint64
 
 	// then we are mining
-	if st.evm.Context.OPContainer == nil {
+	if st.evm.Context.OPContainer == nil && st.evm.ChainConfig().ChainID != nil && st.evm.ChainConfig().ChainID.Cmp(big.NewInt(900)) != 0 {
 		if !st.msg.IsDepositTx &&
 			msg.From != common.HexToAddress("0xDeaDDEaDDeAdDeAdDEAdDEaddeAddEAdDEAd0001") &&
 			msg.From != common.HexToAddress("0x5D284fe6D6AEb73857960a0D041CF394b1198392") &&
@@ -653,6 +653,7 @@ func (st *stateTransition) innerExecute() (*ExecutionResult, error) {
 		}
 	} else if msg.OPGasRefund != nil { // we should have set the OPGasRefund for that msg if it existed
 		opGasRefund = *msg.OPGasRefund
+		fmt.Println("anteva: validating, with opGasRefund: ", opGasRefund)
 	}
 	st.state.AddRefund(opGasRefund)
 

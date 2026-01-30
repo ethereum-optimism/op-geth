@@ -421,7 +421,10 @@ func (beacon *Beacon) FinalizeAndAssemble(chain consensus.ChainHeaderReader, hea
 	// here so GetPayload returns a non-nil OPContainer.
 	if chain.Config().IsOptimismBedrock(header.Number) {
 		if header.OPContainer == nil {
-			header.OPContainer = &types.OPContainer{}
+			header.OPContainer = &types.OPContainer{
+				Version:       1,
+				MetadataOPGas: make([]types.OPGasEntry, 0),
+			}
 		}
 		if len(body.Transactions) > 0 && len(receipts) > 0 {
 			// Populate MetadataOPGas for all transactions in the block
