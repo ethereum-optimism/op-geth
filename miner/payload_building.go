@@ -21,13 +21,11 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"math/big"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/ethereum/go-ethereum/beacon/engine"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -175,9 +173,6 @@ func (payload *Payload) update(r *newPayloadResult, elapsed time.Duration) {
 		payload.requests = r.requests
 		payload.fullWitness = r.witness
 
-		fmt.Println("anteva: the block")
-		spew.Dump(r.block)
-
 		feesInEther := new(big.Float).Quo(new(big.Float).SetInt(r.fees), big.NewFloat(params.Ether))
 		log.Info("Updated payload",
 			"id", payload.id,
@@ -188,7 +183,6 @@ func (payload *Payload) update(r *newPayloadResult, elapsed time.Duration) {
 			"gas", r.block.GasUsed(),
 			"fees", feesInEther,
 			"root", r.block.Root(),
-			"opContainer", spew.Sdump(r.block.Header().OPContainer),
 			"elapsed", common.PrettyDuration(elapsed),
 		)
 	}

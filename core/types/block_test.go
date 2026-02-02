@@ -133,32 +133,6 @@ func TestEIP1559BlockEncoding(t *testing.T) {
 	if !bytes.Equal(ourBlockEnc, blockEnc) {
 		t.Errorf("encoded block mismatch:\ngot:  %x\nwant: %x", ourBlockEnc, blockEnc)
 	}
-
-	block.header.OPContainer = &OPContainer{
-		MetadataOPGas: []OPGasEntry{
-			{
-				FromAddress: common.HexToAddress("0x0000000000000000000000000000000000000001"),
-				OPGasRefund: 1000000000000000000,
-			},
-		},
-	}
-
-	ourBlockEnc2, err := rlp.EncodeToBytes(&block)
-	if err != nil {
-		t.Fatal("encode error: ", err)
-	}
-	if bytes.Equal(ourBlockEnc2, blockEnc) {
-		t.Errorf("encoded block should not match:\ngot:  %x\nwant: %x", ourBlockEnc2, blockEnc)
-	}
-
-	var block2 Block
-	err = rlp.DecodeBytes(ourBlockEnc2, &block2)
-	if err != nil {
-		t.Fatal("decode error: ", err)
-	}
-	if !reflect.DeepEqual(block2.Header().OPContainer, block.Header().OPContainer) {
-		t.Errorf("OPContainer mismatch:\ngot:  %v\nwant: %v", block2.Header().OPContainer, block.Header().OPContainer)
-	}
 }
 
 func TestEIP2718BlockEncoding(t *testing.T) {

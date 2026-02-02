@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/misc"
 	"github.com/ethereum/go-ethereum/core/state"
@@ -59,8 +58,6 @@ func (p *StateProcessor) chainConfig() *params.ChainConfig {
 // returns the amount of gas that was used in the process. If any of the
 // transactions failed to execute due to insufficient gas it will return an error.
 func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg vm.Config) (*ProcessResult, error) {
-	fmt.Println("anteva: StateProcessor.Process: block", "num", block.Number(), "hash", block.Hash())
-	spew.Dump(block.Header().OPContainer)
 	var (
 		config      = p.chainConfig()
 		receipts    types.Receipts
@@ -177,7 +174,6 @@ func ApplyTransactionWithEVM(msg *Message, gp *GasPool, statedb *state.StateDB, 
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("anteva: result after ApplyMessage: ", result.UsedGas, result.OPGasRefund)
 	// Update the state with pending changes.
 	var root []byte
 	if evm.ChainConfig().IsByzantium(blockNumber) {
@@ -208,8 +204,7 @@ func MakeReceipt(evm *vm.EVM, result *ExecutionResult, statedb *state.StateDB, b
 	receipt.TxHash = tx.Hash()
 	receipt.GasUsed = result.UsedGas
 
-	// TODO(anteva): dummy value for op gas refund, currently a random value set by the sequencer,
-	// lower than the actual EVM gas used, similarly simple and dangerous as measuring wall-clock time
+	// Subjective value for `opgas` refund set by the sequencer - it is lower than the actual EVM gas used.
 	receipt.OPGasRefund = new(uint64)
 	*receipt.OPGasRefund = result.OPGasRefund
 
@@ -252,7 +247,6 @@ func ApplyTransaction(evm *vm.EVM, gp *GasPool, statedb *state.StateDB, header *
 	if err != nil {
 		return nil, err
 	}
-
 	// Create a new context to be used in the EVM environment
 	return ApplyTransactionWithEVM(msg, gp, statedb, header.Number, header.Hash(), header.Time, tx, usedGas, evm)
 }

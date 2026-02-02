@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
-	"math/rand"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/tracing"
@@ -31,6 +31,8 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/holiman/uint256"
 )
+
+var WORST_CASE_GAS_PER_MICROSECOND = uint64(50) // 50M gas per second
 
 // ExecutionResult includes all output after executing given evm
 // message no matter the execution itself is successful or not.
@@ -506,8 +508,17 @@ func (st *stateTransition) execute() (*ExecutionResult, error) {
 		}
 		err = nil
 	}
-	// fmt.Println("anteva: result for non-deposit tx: ", result.UsedGas, result.OPGasRefund)
 	return result, err
+}
+
+func evmgasToOpgas(evm_gas_used, microseconds_used uint64) uint64 {
+	if microseconds_used == 0 {
+		microseconds_used = 1
+	}
+	worst_case_gas_used := WORST_CASE_GAS_PER_MICROSECOND * microseconds_used
+	op_gas_scalar := min(float64(worst_case_gas_used)/float64(evm_gas_used), float64(1))
+	fmt.Println("anteva: op_gas_scalar: ", op_gas_scalar, "; worst_case_gas_used: ", worst_case_gas_used)
+	return uint64(float64(evm_gas_used) * op_gas_scalar)
 }
 
 func (st *stateTransition) innerExecute() (*ExecutionResult, error) {
@@ -587,6 +598,7 @@ func (st *stateTransition) innerExecute() (*ExecutionResult, error) {
 	// - reset transient storage(eip 1153)
 	st.state.Prepare(rules, msg.From, st.evm.Context.Coinbase, msg.To, vm.ActivePrecompiles(rules), msg.AccessList)
 
+	start_time := time.Now()
 	var (
 		ret   []byte
 		vmerr error // vm errors do not effect consensus and are therefore not assigned to err
@@ -617,6 +629,8 @@ func (st *stateTransition) innerExecute() (*ExecutionResult, error) {
 		// Execute the transaction's call.
 		ret, st.gasRemaining, vmerr = st.evm.Call(msg.From, st.to(), msg.Data, st.gasRemaining, value)
 	}
+	end_time := time.Now()
+	microseconds_used := end_time.Sub(start_time).Microseconds()
 
 	// OP-Stack: pre-Regolith: if deposit, skip refunds, skip tipping coinbase
 	// Regolith changes this behaviour to report the actual gasUsed instead of always reporting all gas used.
@@ -638,29 +652,20 @@ func (st *stateTransition) innerExecute() (*ExecutionResult, error) {
 	// gas allowance required to complete execution.
 	peakGasUsed := st.gasUsed()
 
-	//TODO(anteva): dummy value for opGasRefund
 	var opGasRefund uint64
-
-	// then we are mining
 	if st.evm.Context.OPContainer == nil && st.evm.ChainConfig().ChainID != nil && st.evm.ChainConfig().ChainID.Cmp(big.NewInt(900)) != 0 {
-		if !st.msg.IsDepositTx &&
-			msg.From != common.HexToAddress("0xDeaDDEaDDeAdDeAdDEAdDEaddeAddEAdDEAd0001") &&
-			msg.From != common.HexToAddress("0x5D284fe6D6AEb73857960a0D041CF394b1198392") &&
-			msg.From != common.HexToAddress("0x0000000000000000000000000000000000000000") {
-			opGasRefund = uint64(rand.Intn(10000))
-			fmt.Println("anteva: mining, opGasRefund: ", opGasRefund)
-			fmt.Println("anteva: mining, msg.From: ", msg.From, " msg.To: ", msg.To, " msg.Nonce", msg.Nonce, " msg.Data Len: ", len(msg.Data))
+		if !st.msg.IsDepositTx {
+			opgas := evmgasToOpgas(peakGasUsed, uint64(microseconds_used))
+			opGasRefund = peakGasUsed - opgas
 		}
-	} else if msg.OPGasRefund != nil { // we should have set the OPGasRefund for that msg if it existed
+	} else if msg.OPGasRefund != nil {
 		opGasRefund = *msg.OPGasRefund
-		fmt.Println("anteva: validating, with opGasRefund: ", opGasRefund)
 	}
 	st.state.AddRefund(opGasRefund)
 
 	// Compute refund counter, capped to a refund quotient.
 	refundAmount := st.calcRefund()
 	st.gasRemaining += refundAmount
-	fmt.Println("anteva: peakGasUsed: ", peakGasUsed, "; opGasRefund: ", opGasRefund, "; refundAmount: ", refundAmount, "; gasRemaining after refund: ", st.gasRemaining, "; gasUsed after refund: ", st.gasUsed(), "; floor data gas: ", floorDataGas, "; isPrague: ", rules.IsPrague)
 	if rules.IsPrague {
 		// After EIP-7623: Data-heavy transactions pay the floor gas.
 		if st.gasUsed() < floorDataGas {
@@ -736,7 +741,6 @@ func (st *stateTransition) innerExecute() (*ExecutionResult, error) {
 		}
 	}
 
-	fmt.Println("anteva: result for tx1 after all: ", st.gasUsed(), opGasRefund, peakGasUsed)
 	return &ExecutionResult{
 		UsedGas:     st.gasUsed(),
 		OPGasRefund: opGasRefund,
