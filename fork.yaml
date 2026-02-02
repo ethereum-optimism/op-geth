@@ -5,7 +5,7 @@ footer: |
 base:
   name: go-ethereum
   url: https://github.com/ethereum/go-ethereum
-  hash: 737ffd1bf0cbee378d0111a5b17ae4724fb2216c # v1.16.5
+  hash: abeb78c647e354ed922726a1d719ac7bc64a07e2 # v1.16.8
 fork:
   name: op-geth
   url: https://github.com/ethereum-optimism/op-geth
