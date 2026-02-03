@@ -653,7 +653,10 @@ func (st *stateTransition) innerExecute() (*ExecutionResult, error) {
 	peakGasUsed := st.gasUsed()
 
 	var opGasRefund uint64
-	if st.evm.Context.OPContainer == nil && st.evm.ChainConfig().ChainID != nil && st.evm.ChainConfig().ChainID.Cmp(big.NewInt(900)) != 0 {
+	if st.evm.Context.OPContainer == nil &&
+		st.evm.ChainConfig().ChainID != nil &&
+		st.evm.ChainConfig().ChainID.Cmp(big.NewInt(900)) != 0 &&
+		st.evm.ChainConfig().ChainID.Cmp(big.NewInt(11155111)) != 0 {
 		if !st.msg.IsDepositTx {
 			opgas := evmgasToOpgas(peakGasUsed, uint64(microseconds_used))
 			opGasRefund = peakGasUsed - opgas
