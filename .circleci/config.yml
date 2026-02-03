@@ -211,7 +211,7 @@ jobs:
       - checkout
       - run:
           name: install yq
-          command: go install github.com/mikefarah/yq/v4@latest
+          command: go install github.com/mikefarah/yq/v4@v4.44.1
       - run:
           name: generate artifact and check diff
           command: |
