@@ -27,6 +27,24 @@ cp -r superchain/extra/dictionary "$workdir/dictionary"
 cd "$workdir"
 echo "Using $workdir as workdir..."
 
+# Detect dasel version to use appropriate syntax
+DASEL_MAJOR_VERSION=$(dasel --version 2>&1 | grep -oE 'v[0-9]+' | grep -oE '[0-9]+' | head -n1)
+echo "Detected dasel major version: $DASEL_MAJOR_VERSION"
+
+# Function to read TOML values with dasel, compatible with both v2 and v3
+dasel_read() {
+    local file="$1"
+    local selector="$2"
+
+    if [[ "$DASEL_MAJOR_VERSION" -ge 3 ]]; then
+        # dasel 3.x: selector comes first, file is positional argument
+        dasel -r toml "$selector" "$file"
+    else
+        # dasel 2.x: use -f flag for file
+        dasel -f "$file" -r toml "$selector"
+    fi
+}
+
 # Create a simple mapping of chain id -> config name to make looking up chains by their ID easier.
 echo "Generating index of configs..."
 
@@ -47,7 +65,7 @@ process_network_dir() {
 
         echo "Processing $toml_file..."
         # Extract chain_id from TOML file using dasel
-        chain_id=$(dasel -f "$toml_file" -r toml "chain_id" | tr -d '"')
+        chain_id=$(dasel_read "$toml_file" "chain_id" | tr -d '"')
         chain_name="$(basename "${toml_file%.*}")"
 
         if [[ -z "$chain_id"
