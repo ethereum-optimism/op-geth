@@ -46,8 +46,8 @@ process_network_dir() {
         fi
 
         echo "Processing $toml_file..."
-        # Extract chain_id from TOML file using dasel
-        chain_id=$(dasel -f "$toml_file" -r toml "chain_id" | tr -d '"')
+        # Extract chain_id from TOML file using yq
+        chain_id=$(yq -r '.chain_id' "$toml_file")
         chain_name="$(basename "${toml_file%.*}")"
 
         if [[ -z "$chain_id"
