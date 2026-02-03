@@ -210,8 +210,8 @@ jobs:
     steps:
       - checkout
       - run:
-          name: install dasel
-          command: go install github.com/tomwright/dasel/v2/cmd/dasel@v2.8.1
+          name: install yq
+          command: go install github.com/mikefarah/yq/v4@latest
       - run:
           name: generate artifact and check diff
           command: |
