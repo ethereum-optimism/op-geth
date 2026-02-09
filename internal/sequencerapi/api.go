@@ -22,13 +22,19 @@ var (
 	sendRawTxConditionalAcceptedCounter = metrics.NewRegisteredCounter("sequencer/sendRawTransactionConditional/accepted", nil)
 )
 
+// SequencerRPC defines the interface for making RPC calls to the sequencer.
+// This allows using either a single rpc.Client or a multi-endpoint SequencerClient with failover.
+type SequencerRPC interface {
+	CallContext(ctx context.Context, result interface{}, method string, args ...interface{}) error
+}
+
 type sendRawTxCond struct {
 	b           ethapi.Backend
-	seqRPC      *rpc.Client
+	seqRPC      SequencerRPC
 	costLimiter *rate.Limiter
 }
 
-func GetSendRawTxConditionalAPI(b ethapi.Backend, seqRPC *rpc.Client, costRateLimit rate.Limit) rpc.API {
+func GetSendRawTxConditionalAPI(b ethapi.Backend, seqRPC SequencerRPC, costRateLimit rate.Limit) rpc.API {
 	// Applying a manual bump to the burst to allow conditional txs to queue. Metrics will
 	// will inform of adjustments that may need to be made here.
 	costLimiter := rate.NewLimiter(costRateLimit, 3*params.TransactionConditionalMaxCost)

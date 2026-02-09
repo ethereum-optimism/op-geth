@@ -232,7 +232,9 @@ type Config struct {
 	// ApplySuperchainUpgrades requests the node to load chain-configuration from the superchain-registry.
 	ApplySuperchainUpgrades bool `toml:",omitempty"`
 
-	RollupSequencerHTTP                       string
+	RollupSequencerHTTP                       []string      // Sequencer HTTP endpoint(s) with automatic failover
+	RollupSequencerDialTimeout                time.Duration // Timeout for dialing sequencer endpoints
+	RollupSequencerRequestTimeout             time.Duration // Timeout for individual requests to sequencer
 	RollupSequencerTxConditionalEnabled       bool
 	RollupSequencerTxConditionalCostRateLimit int
 	RollupHistoricalRPC                       string

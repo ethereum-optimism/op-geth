@@ -1046,7 +1046,21 @@ var (
 	// Rollup Flags
 	RollupSequencerHTTPFlag = &cli.StringFlag{
 		Name:     "rollup.sequencerhttp",
-		Usage:    "HTTP endpoint for the sequencer mempool",
+		Usage:    "HTTP endpoint(s) for the sequencer mempool (comma-separated for failover)",
+		Category: flags.RollupCategory,
+	}
+
+	RollupSequencerDialTimeoutFlag = &cli.DurationFlag{
+		Name:     "rollup.sequencerdialtimeout",
+		Usage:    "Timeout for dialing sequencer endpoints",
+		Value:    5 * time.Second,
+		Category: flags.RollupCategory,
+	}
+
+	RollupSequencerRequestTimeoutFlag = &cli.DurationFlag{
+		Name:     "rollup.sequencerrequesttimeout",
+		Usage:    "Timeout for individual requests to sequencer endpoints",
+		Value:    5 * time.Second,
 		Category: flags.RollupCategory,
 	}
 
@@ -2128,7 +2142,7 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 	}
 	// Only configure sequencer http flag if we're running in verifier mode i.e. --mine is disabled.
 	if ctx.IsSet(RollupSequencerHTTPFlag.Name) && !ctx.IsSet(MiningEnabledFlag.Name) {
-		cfg.RollupSequencerHTTP = ctx.String(RollupSequencerHTTPFlag.Name)
+		cfg.RollupSequencerHTTP = SplitAndTrim(ctx.String(RollupSequencerHTTPFlag.Name))
 	}
 	if ctx.IsSet(RollupHistoricalRPCFlag.Name) {
 		cfg.RollupHistoricalRPC = ctx.String(RollupHistoricalRPCFlag.Name)
@@ -2142,10 +2156,12 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 	if ctx.IsSet(RollupInteropMempoolFilteringFlag.Name) {
 		cfg.InteropMempoolFiltering = ctx.Bool(RollupInteropMempoolFilteringFlag.Name)
 	}
+	cfg.RollupSequencerDialTimeout = ctx.Duration(RollupSequencerDialTimeoutFlag.Name)
+	cfg.RollupSequencerRequestTimeout = ctx.Duration(RollupSequencerRequestTimeoutFlag.Name)
 	cfg.RollupDisableTxPoolGossip = ctx.Bool(RollupTxPoolDisableGossipFlag.Name)
 	cfg.RollupTxPoolNetrestrict = ctx.String(RollupTxPoolNetrestrictFlag.Name)
 	cfg.RollupTxPoolTrustedPeersOnly = ctx.Bool(RollupTxPoolTrustedPeersOnlyFlag.Name)
-	cfg.RollupDisableTxPoolAdmission = cfg.RollupSequencerHTTP != "" && !ctx.Bool(RollupTxPoolEnableAdmissionFlag.Name)
+	cfg.RollupDisableTxPoolAdmission = len(cfg.RollupSequencerHTTP) > 0 && !ctx.Bool(RollupTxPoolEnableAdmissionFlag.Name)
 	cfg.RollupHaltOnIncompatibleProtocolVersion = ctx.String(RollupHaltOnIncompatibleProtocolVersionFlag.Name)
 	cfg.ApplySuperchainUpgrades = ctx.Bool(RollupSuperchainUpgradesFlag.Name)
 	cfg.RollupSequencerTxConditionalEnabled = ctx.Bool(RollupSequencerTxConditionalEnabledFlag.Name)
