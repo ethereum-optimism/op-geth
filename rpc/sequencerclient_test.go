@@ -5,10 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"sync/atomic"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -391,13 +394,19 @@ func TestShouldFailover(t *testing.T) {
 		{"context deadline exceeded", context.DeadlineExceeded, true},
 		{"context canceled", context.Canceled, true},
 		{"rpc client quit", ErrClientQuit, true},
-		{"connection refused", errors.New("connection refused"), true},
-		{"connection reset", errors.New("connection reset by peer"), true},
-		{"no such host", errors.New("no such host"), true},
-		{"network unreachable", errors.New("network is unreachable"), true},
-		{"i/o timeout", errors.New("i/o timeout"), true},
-		{"EOF", errors.New("EOF"), true},
-		{"broken pipe", errors.New("broken pipe"), true},
+		{"io.EOF", io.EOF, true},
+		{"io.ErrUnexpectedEOF", io.ErrUnexpectedEOF, true},
+		{"wrapped EOF", fmt.Errorf("read failed: %w", io.EOF), true},
+		{"connection refused", &net.OpError{Op: "dial", Err: &net.DNSError{Err: "connection refused"}}, true},
+		{"dns error", &net.DNSError{Err: "no such host", Name: "example.com"}, true},
+		{"syscall ECONNREFUSED", syscall.ECONNREFUSED, true},
+		{"syscall ECONNRESET", syscall.ECONNRESET, true},
+		{"syscall EPIPE", syscall.EPIPE, true},
+		{"syscall ETIMEDOUT", syscall.ETIMEDOUT, true},
+		{"wrapped net error", fmt.Errorf("request failed: %w", &net.OpError{Op: "read", Err: syscall.ECONNRESET}), true},
+		{"http 500", HTTPError{StatusCode: 500, Status: "500 Internal Server Error"}, true},
+		{"http 503", HTTPError{StatusCode: 503, Status: "503 Service Unavailable"}, true},
+		{"http 400", HTTPError{StatusCode: 400, Status: "400 Bad Request"}, false},
 		{"application error", errors.New("nonce too low"), false},
 		{"insufficient funds", errors.New("insufficient funds"), false},
 		{"gas too low", errors.New("intrinsic gas too low"), false},
