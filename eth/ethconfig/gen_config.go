@@ -156,6 +156,8 @@ func (c Config) MarshalTOML() (interface{}, error) {
 	enc.OverrideOptimismInterop = c.OverrideOptimismInterop
 	enc.ApplySuperchainUpgrades = c.ApplySuperchainUpgrades
 	enc.RollupSequencerHTTP = c.RollupSequencerHTTP
+	enc.RollupSequencerDialTimeout = c.RollupSequencerDialTimeout
+	enc.RollupSequencerRequestTimeout = c.RollupSequencerRequestTimeout
 	enc.RollupSequencerTxConditionalEnabled = c.RollupSequencerTxConditionalEnabled
 	enc.RollupSequencerTxConditionalCostRateLimit = c.RollupSequencerTxConditionalCostRateLimit
 	enc.RollupHistoricalRPC = c.RollupHistoricalRPC

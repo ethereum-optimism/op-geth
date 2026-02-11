@@ -30,9 +30,9 @@ var (
 // It tries the preferred endpoint first, and on connection failures, automatically
 // fails over to the next available endpoint.
 type SequencerClient struct {
-	mu             sync.RWMutex
+	mu             sync.Mutex
 	endpoints      []string
-	clients        []*Client
+	client         *Client
 	preferredIndex int // index of currently preferred endpoint
 	closed         bool
 	dialTimeout    time.Duration
@@ -46,6 +46,10 @@ func NewSequencerClient(endpoints []string, dialTimeout, requestTimeout time.Dur
 		return nil, errors.New("at least one sequencer endpoint required")
 	}
 
+	if dialTimeout == 0 || requestTimeout == 0 {
+		return nil, errors.New("dialTimeout and requestTimeout must be greater than 0")
+	}
+
 	for i, ep := range endpoints {
 		if ep == "" {
 			return nil, fmt.Errorf("sequencer endpoint %d is empty", i)
@@ -54,97 +58,68 @@ func NewSequencerClient(endpoints []string, dialTimeout, requestTimeout time.Dur
 
 	return &SequencerClient{
 		endpoints:      endpoints,
-		clients:        make([]*Client, len(endpoints)),
+		client:         nil,
 		preferredIndex: 0,
 		dialTimeout:    dialTimeout,
 		requestTimeout: requestTimeout,
 	}, nil
 }
 
-// getClient returns an available RPC client, starting from the preferred endpoint.
-// If the preferred endpoint's client is not connected, it dials it. If dialing fails,
-// it cycles through the remaining endpoints. Returns the client and its endpoint index.
-func (sc *SequencerClient) getClient(ctx context.Context) (*Client, int, error) {
-	sc.mu.RLock()
+// getClient returns the current RPC client or dials a new one.
+// If the current client is nil or connection fails, try the next endpoint.
+func (sc *SequencerClient) getClient(ctx context.Context) (*Client, error) {
 	if sc.closed {
-		sc.mu.RUnlock()
-		return nil, 0, errSequencerClosed
+		return nil, errSequencerClosed
 	}
+
+	if sc.client != nil {
+		return sc.client, nil
+	}
+
+	// Try to connect to an endpoint, starting from preferredIndex
 	startIdx := sc.preferredIndex
 	numEndpoints := len(sc.endpoints)
-	sc.mu.RUnlock()
 
 	for i := range numEndpoints {
-		idx := (startIdx + i) % numEndpoints
-
 		if ctx.Err() != nil {
-			return nil, 0, ctx.Err()
+			return nil, ctx.Err()
 		}
 
-		client, err := sc.connectEndpoint(ctx, idx)
-		if errors.Is(err, errSequencerClosed) {
-			return nil, 0, err
-		}
+		idx := (startIdx + i) % numEndpoints
+		endpoint := sc.endpoints[idx]
+
+		dialCtx, cancel := context.WithTimeout(ctx, sc.dialTimeout)
+		defer cancel()
+		client, err := DialContext(dialCtx, endpoint)
+
 		if err != nil {
-			log.Warn("Failed to connect to sequencer endpoint", "endpoint", sc.endpoints[idx], "err", err)
+			log.Warn("Failed to connect to sequencer endpoint", "endpoint", endpoint, "err", err)
 			continue
 		}
-		return client, idx, nil
-	}
 
-	return nil, 0, fmt.Errorf("all %d sequencer endpoints are unreachable", numEndpoints)
-}
-
-// connectEndpoint returns a cached client for the given index or dials a new one.
-func (sc *SequencerClient) connectEndpoint(ctx context.Context, idx int) (*Client, error) {
-	sc.mu.RLock()
-	if sc.closed {
-		sc.mu.RUnlock()
-		return nil, errSequencerClosed
-	}
-	if client := sc.clients[idx]; client != nil {
-		sc.mu.RUnlock()
+		sc.client = client
+		sc.preferredIndex = idx
+		log.Info("Connected to sequencer endpoint", "endpoint", endpoint, "index", idx)
 		return client, nil
 	}
-	sc.mu.RUnlock()
 
-	dialCtx, cancel := context.WithTimeout(ctx, sc.dialTimeout)
-	client, err := DialContext(dialCtx, sc.endpoints[idx])
-	cancel()
-	if err != nil {
-		return nil, fmt.Errorf("failed to dial %s: %w", sc.endpoints[idx], err)
-	}
-
-	sc.mu.Lock()
-	defer sc.mu.Unlock()
-
-	if sc.closed {
-		client.Close()
-		return nil, errSequencerClosed
-	}
-	if existing := sc.clients[idx]; existing != nil {
-		client.Close()
-		return existing, nil
-	}
-	sc.clients[idx] = client
-	log.Info("Connected to sequencer endpoint", "endpoint", sc.endpoints[idx], "index", idx)
-	return client, nil
+	return nil, fmt.Errorf("all %d sequencer endpoints are unreachable", numEndpoints)
 }
 
-// invalidateClient closes the client at the given index and advances the preferred
-// endpoint so subsequent calls start from the next endpoint.
-func (sc *SequencerClient) invalidateClient(idx int) {
-	sc.mu.Lock()
-	defer sc.mu.Unlock()
+// invalidateCurrentClient closes the current client and moves to the next endpoint.
+func (sc *SequencerClient) invalidateCurrentClient() {
+	if sc.client != nil {
+		sc.client.Close()
+		sc.client = nil
+	}
 
-	if sc.clients[idx] != nil {
-		sc.clients[idx].Close()
-		sc.clients[idx] = nil
-	}
-	if sc.preferredIndex == idx {
-		sc.preferredIndex = (idx + 1) % len(sc.endpoints)
-		sequencerEndpointGauge.Update(int64(sc.preferredIndex))
-	}
+	// Move to next endpoint for the next connection attempt
+	sc.preferredIndex = (sc.preferredIndex + 1) % len(sc.endpoints)
+	log.Info("Invalidated sequencer client, will try next endpoint",
+		"new_index", sc.preferredIndex,
+		"endpoint", sc.endpoints[sc.preferredIndex])
+	sequencerEndpointGauge.Update(int64(sc.preferredIndex))
+	sequencerFailovers.Inc(1)
 }
 
 // shouldFailover determines if the error warrants trying another endpoint.
@@ -154,8 +129,8 @@ func shouldFailover(err error) bool {
 		return false
 	}
 
-	// Context errors — timeout or cancellation
-	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+	// Context errors — timeout
+	if errors.Is(err, context.DeadlineExceeded) {
 		return true
 	}
 
@@ -198,64 +173,62 @@ func shouldFailover(err error) bool {
 }
 
 // CallContext performs an RPC call with automatic failover on connection errors.
-// It gets a client via getClient, makes the call, and on connection failure
-// invalidates the client and retries with the next available endpoint.
-// Application-level errors (like nonce too low) are returned immediately without failover.
+// If the call fails with a network error, it invalidates the current client and retries
+// with the next endpoint. Application-level errors are returned immediately without failover.
 func (sc *SequencerClient) CallContext(ctx context.Context, result interface{}, method string, args ...interface{}) error {
+	sc.mu.Lock()
+	defer sc.mu.Unlock()
+
 	sequencerCallsTotal.Inc(1)
 
 	numEndpoints := len(sc.endpoints)
 	var lastErr error
 
 	for attempt := range numEndpoints {
-		client, idx, err := sc.getClient(ctx)
+		client, err := sc.getClient(ctx)
 		if err != nil {
+			lastErr = err
 			sequencerCallsFailed.Inc(1)
-			if lastErr != nil {
-				return fmt.Errorf("all %d sequencer endpoints failed, last error: %w", numEndpoints, lastErr)
-			}
-			return err
+			return fmt.Errorf("failed to get sequencer client: %w", err)
 		}
 
 		reqCtx, cancel := context.WithTimeout(ctx, sc.requestTimeout)
+		defer cancel()
 		err = client.CallContext(reqCtx, result, method, args...)
-		cancel()
 
+		// Success case
 		if err == nil {
 			sequencerCallsSuccess.Inc(1)
-			// Update preferred endpoint on success
-			sc.mu.Lock()
-			if sc.preferredIndex != idx {
-				log.Info("Switching preferred sequencer endpoint",
-					"from", sc.endpoints[sc.preferredIndex],
-					"to", sc.endpoints[idx])
-				sc.preferredIndex = idx
-				sequencerEndpointGauge.Update(int64(idx))
-			}
-			sc.mu.Unlock()
 			return nil
 		}
 
 		lastErr = err
+
+		// If the caller's context was canceled, don't blame the endpoint
+		if ctx.Err() != nil {
+			sequencerCallsFailed.Inc(1)
+			return ctx.Err()
+		}
 
 		if !shouldFailover(err) {
 			sequencerCallsFailed.Inc(1)
 			return err
 		}
 
-		log.Warn("Sequencer endpoint failed", "endpoint", sc.endpoints[idx], "err", err, "remaining", numEndpoints-attempt-1)
-		sc.invalidateClient(idx)
+		log.Warn("Sequencer endpoint failed with network error",
+			"endpoint", sc.endpoints[sc.preferredIndex],
+			"err", err,
+			"remaining_attempts", numEndpoints-attempt-1)
 
-		if attempt < numEndpoints-1 {
-			sequencerFailovers.Inc(1)
-		}
+		sc.invalidateCurrentClient()
 	}
 
+	// All endpoints failed
 	sequencerCallsFailed.Inc(1)
 	return fmt.Errorf("all %d sequencer endpoints failed, last error: %w", numEndpoints, lastErr)
 }
 
-// Close closes all underlying RPC clients.
+// Closes the underlying RPC client if connected.
 func (sc *SequencerClient) Close() {
 	sc.mu.Lock()
 	defer sc.mu.Unlock()
@@ -265,11 +238,9 @@ func (sc *SequencerClient) Close() {
 	}
 	sc.closed = true
 
-	for i, client := range sc.clients {
-		if client != nil {
-			client.Close()
-			sc.clients[i] = nil
-		}
+	if sc.client != nil {
+		sc.client.Close()
+		sc.client = nil
 	}
 	log.Info("Sequencer client closed", "endpoints", len(sc.endpoints))
 }
@@ -281,7 +252,7 @@ func (sc *SequencerClient) EndpointCount() int {
 
 // PreferredEndpoint returns the currently preferred endpoint URL.
 func (sc *SequencerClient) PreferredEndpoint() string {
-	sc.mu.RLock()
-	defer sc.mu.RUnlock()
+	sc.mu.Lock()
+	defer sc.mu.Unlock()
 	return sc.endpoints[sc.preferredIndex]
 }

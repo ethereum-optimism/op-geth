@@ -61,21 +61,35 @@ func mockRPCServer(t *testing.T, handler func(method string, params []json.RawMe
 
 func TestNewSequencerClient(t *testing.T) {
 	t.Run("empty endpoints", func(t *testing.T) {
-		_, err := NewSequencerClient(nil, 0, 0)
+		_, err := NewSequencerClient(nil, time.Second, time.Second)
 		if err == nil {
 			t.Fatal("expected error for empty endpoints")
 		}
 	})
 
 	t.Run("empty endpoint string", func(t *testing.T) {
-		_, err := NewSequencerClient([]string{""}, 0, 0)
+		_, err := NewSequencerClient([]string{""}, time.Second, time.Second)
 		if err == nil {
 			t.Fatal("expected error for empty endpoint string")
 		}
 	})
 
+	t.Run("zero dial timeout", func(t *testing.T) {
+		_, err := NewSequencerClient([]string{"http://localhost:8545"}, 0, time.Second)
+		if err == nil {
+			t.Fatal("expected error for zero dial timeout")
+		}
+	})
+
+	t.Run("zero request timeout", func(t *testing.T) {
+		_, err := NewSequencerClient([]string{"http://localhost:8545"}, time.Second, 0)
+		if err == nil {
+			t.Fatal("expected error for zero request timeout")
+		}
+	})
+
 	t.Run("single endpoint", func(t *testing.T) {
-		client, err := NewSequencerClient([]string{"http://localhost:8545"}, 0, 0)
+		client, err := NewSequencerClient([]string{"http://localhost:8545"}, time.Second, time.Second)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -86,7 +100,7 @@ func TestNewSequencerClient(t *testing.T) {
 	})
 
 	t.Run("multiple endpoints", func(t *testing.T) {
-		client, err := NewSequencerClient([]string{"http://localhost:8545", "http://localhost:8546"}, 0, 0)
+		client, err := NewSequencerClient([]string{"http://localhost:8545", "http://localhost:8546"}, time.Second, time.Second)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -364,7 +378,7 @@ func TestSequencerClient_CallContext_Concurrent(t *testing.T) {
 
 	// Run 10 concurrent calls
 	done := make(chan error, 10)
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		go func() {
 			var result string
 			err := client.CallContext(context.Background(), &result, "eth_sendRawTransaction", "0xdeadbeef")
@@ -373,7 +387,7 @@ func TestSequencerClient_CallContext_Concurrent(t *testing.T) {
 	}
 
 	// Wait for all to complete
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		if err := <-done; err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -423,7 +437,7 @@ func TestShouldFailover(t *testing.T) {
 }
 
 func TestSequencerClient_PreferredEndpoint(t *testing.T) {
-	client, err := NewSequencerClient([]string{"http://endpoint1:8545", "http://endpoint2:8545"}, 0, 0)
+	client, err := NewSequencerClient([]string{"http://endpoint1:8545", "http://endpoint2:8545"}, time.Second, time.Second)
 	if err != nil {
 		t.Fatalf("failed to create client: %v", err)
 	}
