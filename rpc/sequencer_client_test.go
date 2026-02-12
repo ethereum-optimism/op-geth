@@ -406,7 +406,7 @@ func TestShouldFailover(t *testing.T) {
 	}{
 		{"nil error", nil, false},
 		{"context deadline exceeded", context.DeadlineExceeded, true},
-		{"context canceled", context.Canceled, true},
+		{"context canceled", context.Canceled, false},
 		{"rpc client quit", ErrClientQuit, true},
 		{"io.EOF", io.EOF, true},
 		{"io.ErrUnexpectedEOF", io.ErrUnexpectedEOF, true},
