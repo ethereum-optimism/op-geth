@@ -238,7 +238,6 @@ func newTestBackend(t *testing.T, config *node.Config, enableHistoricalState boo
 func generateTestChain(genesis *core.Genesis, length int) []*types.Block {
 	generate := func(i int, g *core.BlockGen) {
 		g.OffsetTime(5)
-		g.SetExtra([]byte("test"))
 		if i == 1 {
 			// Test transactions are included in block #2.
 			if genesis.Config.Optimism != nil && genesis.Config.IsBedrock(big.NewInt(1)) {
