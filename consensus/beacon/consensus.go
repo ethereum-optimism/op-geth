@@ -19,6 +19,7 @@ package beacon
 import (
 	"errors"
 	"fmt"
+	"math"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -30,7 +31,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/ethereum/go-ethereum/trie"
 	"github.com/holiman/uint256"
 )
@@ -73,18 +73,6 @@ func New(ethone consensus.Engine) *Beacon {
 	return &Beacon{ethone: ethone}
 }
 
-// isPostMerge reports whether the given block number is assumed to be post-merge.
-// Here we check the MergeNetsplitBlock to allow configuring networks with a PoW or
-// PoA chain for unit testing purposes.
-func isPostMerge(config *params.ChainConfig, blockNum uint64, timestamp uint64) bool {
-	mergedAtGenesis := config.TerminalTotalDifficulty != nil && config.TerminalTotalDifficulty.Sign() == 0
-	return mergedAtGenesis ||
-		config.MergeNetsplitBlock != nil && blockNum >= config.MergeNetsplitBlock.Uint64() ||
-		config.ShanghaiTime != nil && timestamp >= *config.ShanghaiTime ||
-		// If OP-Stack then bedrock activation number determines when TTD (eth Merge) has been reached.
-		config.IsOptimismBedrock(new(big.Int).SetUint64(blockNum))
-}
-
 // Author implements consensus.Engine, returning the verified author of the block.
 func (beacon *Beacon) Author(header *types.Header) (common.Address, error) {
 	if !beacon.IsPoSHeader(header) {
@@ -125,7 +113,7 @@ func (beacon *Beacon) VerifyHeader(chain consensus.ChainHeaderReader, header *ty
 	// Check >0 TDs with pre-merge, --0 TDs with post-merge rules
 	if header.Difficulty.Sign() > 0 ||
 		// OP-Stack: transitioned networks must use legacy consensus pre-Bedrock
-		cfg.IsOptimismBedrock(header.Number) {
+		cfg.IsOptimismPreBedrock(header.Number) {
 		return beacon.ethone.VerifyHeader(chain, header)
 	}
 	return beacon.verifyHeader(chain, header, parent)
@@ -247,6 +235,12 @@ func (beacon *Beacon) verifyHeader(chain consensus.ChainHeaderReader, header, pa
 	if len(header.Extra) > int(params.MaximumExtraDataSize) {
 		return fmt.Errorf("extra-data longer than 32 bytes (%d)", len(header.Extra))
 	}
+	// Validate Optimism extraData format
+	if chain.Config().IsOptimism() {
+		if err := eip1559.ValidateOptimismExtraData(chain.Config(), header.Time, header.Extra); err != nil {
+			return fmt.Errorf("invalid optimism extraData: %w", err)
+		}
+	}
 	// Verify the seal parts. Ensure the nonce and uncle hash are the expected value.
 	if header.Nonce != beaconNonce {
 		return errInvalidNonce
@@ -351,7 +345,7 @@ func (beacon *Beacon) verifyHeaders(chain consensus.ChainHeaderReader, headers [
 // Prepare implements consensus.Engine, initializing the difficulty field of a
 // header to conform to the beacon protocol. The changes are done inline.
 func (beacon *Beacon) Prepare(chain consensus.ChainHeaderReader, header *types.Header) error {
-	if !isPostMerge(chain.Config(), header.Number.Uint64(), header.Time) {
+	if !chain.Config().IsPostMerge(header.Number.Uint64(), header.Time) {
 		return beacon.ethone.Prepare(chain, header)
 	}
 	header.Difficulty = beaconDifficulty
@@ -406,8 +400,18 @@ func (beacon *Beacon) FinalizeAndAssemble(chain consensus.ChainHeaderReader, hea
 		header.WithdrawalsHash = &h
 		sa := state.AccessEvents()
 		if sa != nil {
-			sa.AddAccount(params.OptimismL2ToL1MessagePasser, false) // include in execution witness
+			sa.AddAccount(params.OptimismL2ToL1MessagePasser, false, math.MaxUint64) // include in execution witness
 		}
+	}
+
+	// Store DA footprint in BlobGasUsed header field if it hasn't already been set yet.
+	// Builder code may already calculate it during block building to avoid recalculating it here.
+	if chain.Config().IsJovian(header.Time) && (header.BlobGasUsed == nil || *header.BlobGasUsed == 0) {
+		daFootprint, err := types.CalcDAFootprint(body.Transactions)
+		if err != nil {
+			return nil, fmt.Errorf("error calculating DA footprint: %w", err)
+		}
+		header.BlobGasUsed = &daFootprint
 	}
 
 	// Assemble the final block.
@@ -427,8 +431,12 @@ func (beacon *Beacon) FinalizeAndAssemble(chain consensus.ChainHeaderReader, hea
 		if err != nil {
 			return nil, fmt.Errorf("error opening pre-state tree root: %w", err)
 		}
+		postTrie := state.GetTrie()
+		if postTrie == nil {
+			return nil, errors.New("post-state tree is not available")
+		}
 		vktPreTrie, okpre := preTrie.(*trie.VerkleTrie)
-		vktPostTrie, okpost := state.GetTrie().(*trie.VerkleTrie)
+		vktPostTrie, okpost := postTrie.(*trie.VerkleTrie)
 
 		// The witness is only attached iff both parent and current block are
 		// using verkle tree.
@@ -474,23 +482,10 @@ func (beacon *Beacon) SealHash(header *types.Header) common.Hash {
 // the difficulty that a new block should have when created at time
 // given the parent block's time and difficulty.
 func (beacon *Beacon) CalcDifficulty(chain consensus.ChainHeaderReader, time uint64, parent *types.Header) *big.Int {
-	// The beacon engine requires access to total difficulties to be able to
-	// seal pre-merge and post-merge blocks. With the transition to removing
-	// old blocks, TDs become unaccessible, thus making TTD based pre-/post-
-	// merge decisions impossible.
-	//
-	// We do not need to seal non-merge blocks anymore live, but we do need
-	// to be able to generate test chains, thus we're reverting to a testing-
-	// settable field to direct that.
-	if !isPostMerge(chain.Config(), parent.Number.Uint64()+1, time) {
+	if !chain.Config().IsPostMerge(parent.Number.Uint64()+1, time) {
 		return beacon.ethone.CalcDifficulty(chain, time, parent)
 	}
 	return beaconDifficulty
-}
-
-// APIs implements consensus.Engine, returning the user facing RPC APIs.
-func (beacon *Beacon) APIs(chain consensus.ChainHeaderReader) []rpc.API {
-	return beacon.ethone.APIs(chain)
 }
 
 // Close shutdowns the consensus engine

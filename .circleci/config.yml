@@ -8,7 +8,7 @@ orbs:
 parameters:
   go_version:
     type: string
-    default: 1.23.8 # update CI Go version here
+    default: 1.25.1 # update CI Go version here
 
 commands:
   gcp-oidc-authenticate:
@@ -69,7 +69,7 @@ jobs:
           name: Build forkdiff
           command: |
             docker run --volume $(pwd):/workspace \
-              protolambda/forkdiff:0.1.0 \
+              protolambda/forkdiff:0.1.1 \
               -repo=/workspace \
               -fork=/workspace/fork.yaml \
               -out=/workspace/index.html
@@ -194,6 +194,8 @@ jobs:
       - checkout
       - run:
           command: go run build/ci.go lint
+      - run:
+          command: go run build/ci.go check_generate
   tidy-geth:
     resource_class: small
     docker:
@@ -208,8 +210,8 @@ jobs:
     steps:
       - checkout
       - run:
-          name: install dasel
-          command: go install github.com/tomwright/dasel/v2/cmd/dasel@v2.8.1
+          name: install yq
+          command: go install github.com/mikefarah/yq/v4@v4.44.1
       - run:
           name: generate artifact and check diff
           command: |
@@ -236,13 +238,6 @@ workflows:
           name: Check superchain registry bundle diff
   release:
     jobs:
-      - hold:
-          type: approval
-          filters:
-            tags:
-              only: /^v.*/
-            branches:
-              ignore: /.*/
       - docker-release:
           name: Push to Docker (release)
           filters:
@@ -254,8 +249,6 @@ workflows:
           push_tags: true
           context:
             - oplabs-gcr-release
-          requires:
-            - hold
 
   merge:
     jobs:

@@ -317,7 +317,7 @@ type rollupCostFuncProvider interface {
 }
 
 // newRollupList creates a new transaction list with a rollup cost function pointer
-// that must point back to the pool's rollup cost function this list belongs to.
+// that must point back to the queue's rollup cost function this list belongs to.
 func newRollupList(strict bool, rollupCostFnPrv rollupCostFuncProvider) *list {
 	l := newList(strict)
 	l.rollupCostFnPrv = rollupCostFnPrv
@@ -367,8 +367,6 @@ func (l *list) Add(tx *types.Transaction, priceBump uint64) (bool, *types.Transa
 		if tx.GasFeeCapIntCmp(thresholdFeeCap) < 0 || tx.GasTipCapIntCmp(thresholdTip) < 0 {
 			return false, nil
 		}
-		// Old is being replaced, subtract old cost
-		l.subTotalCost([]*types.Transaction{old})
 	}
 	// Add new tx cost to totalcost
 	cost, overflow := txpool.TotalTxCost(tx, l.rollupCostFn())
@@ -376,7 +374,17 @@ func (l *list) Add(tx *types.Transaction, priceBump uint64) (bool, *types.Transa
 		return false, nil
 	}
 	l.txCosts[tx.Hash()] = cost // OP-Stack addition
-	l.totalcost.Add(l.totalcost, cost)
+	total, overflow := new(uint256.Int).AddOverflow(l.totalcost, cost)
+	if overflow {
+		return false, nil
+	}
+	l.totalcost = total
+
+	// Old is being replaced, subtract old cost
+	if old != nil {
+		l.subTotalCost([]*types.Transaction{old})
+	}
+
 	// Otherwise overwrite the old transaction with the current one
 	l.txs.Put(tx)
 	if l.costcap.Cmp(cost) < 0 {
@@ -528,7 +536,7 @@ func (l *list) subTotalCost(txs []*types.Transaction) {
 // then the heap is sorted based on the effective tip based on the given base fee.
 // If baseFee is nil then the sorting is based on gasFeeCap.
 type priceHeap struct {
-	baseFee *big.Int // heap should always be re-sorted after baseFee is changed
+	baseFee *uint256.Int // heap should always be re-sorted after baseFee is changed
 	list    []*types.Transaction
 }
 
@@ -730,6 +738,10 @@ func (l *pricedList) Reheap() {
 // SetBaseFee updates the base fee and triggers a re-heap. Note that Removed is not
 // necessary to call right before SetBaseFee when processing a new block.
 func (l *pricedList) SetBaseFee(baseFee *big.Int) {
-	l.urgent.baseFee = baseFee
+	base := new(uint256.Int)
+	if baseFee != nil {
+		base.SetFromBig(baseFee)
+	}
+	l.urgent.baseFee = base
 	l.Reheap()
 }

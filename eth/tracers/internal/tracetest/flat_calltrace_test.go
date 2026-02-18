@@ -96,8 +96,8 @@ func flatCallTracerTestRunner(tracerName string, filename string, dirPath string
 		return fmt.Errorf("failed to parse testcase input: %v", err)
 	}
 	signer := types.MakeSigner(test.Genesis.Config, new(big.Int).SetUint64(uint64(test.Context.Number)), uint64(test.Context.Time))
-	context := test.Context.toBlockContext(test.Genesis)
 	state := tests.MakePreState(rawdb.NewMemoryDatabase(), test.Genesis.Alloc, false, rawdb.HashScheme)
+	context := test.Context.toBlockContext(test.Genesis, state.StateDB)
 	defer state.Close()
 
 	// Create the tracer, the EVM environment and run it
@@ -200,7 +200,7 @@ func BenchmarkFlatCallTracer(b *testing.B) {
 	for _, file := range files {
 		filename := strings.TrimPrefix(file, "testdata/call_tracer_flat/")
 		b.Run(camel(strings.TrimSuffix(filename, ".json")), func(b *testing.B) {
-			for n := 0; n < b.N; n++ {
+			for b.Loop() {
 				err := flatCallTracerTestRunner("flatCallTracer", filename, "call_tracer_flat", b)
 				if err != nil {
 					b.Fatal(err)

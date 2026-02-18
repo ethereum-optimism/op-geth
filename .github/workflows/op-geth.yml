@@ -1,0 +1,24 @@
+name: op-geth
+
+on:
+  push:
+
+jobs:
+  build:
+    uses: ethereum-optimism/factory/.github/workflows/docker-build.yaml@c8bcfc1a537d01a005a09276b1b673dca9132540
+    with:
+      image_name: ${{ github.workflow }}
+      context: .
+      dockerfile: Dockerfile
+      platforms: linux/amd64,linux/arm64
+      gcp_project_id: ${{ vars.GCP_PROJECT_ID_OPLABS_TOOLS_ARTIFACTS }}
+      gcp_registry: us-docker.pkg.dev/oplabs-tools-artifacts/oss
+      build_args: |
+        VERSION=${{ github.ref_type == 'tag' && github.ref_name || '' }}
+        COMMIT=${{ github.sha }}
+        BUILDNUM=${{ github.run_number }}
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+

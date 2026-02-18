@@ -55,3 +55,13 @@ func (cl *InteropClient) CheckAccessList(ctx context.Context, inboxEntries []com
 	err := cl.client.CallContext(ctx, nil, "supervisor_checkAccessList", inboxEntries, minSafety, executingDescriptor)
 	return err
 }
+
+// GetFailsafeEnabled queries the supervisor for the failsafe status using the admin_failsafeEnabled RPC.
+func (cl *InteropClient) GetFailsafeEnabled(ctx context.Context) (bool, error) {
+	if err := cl.maybeDial(ctx); err != nil {
+		return false, err
+	}
+	var enabled bool
+	err := cl.client.CallContext(ctx, &enabled, "admin_getFailsafeEnabled")
+	return enabled, err
+}

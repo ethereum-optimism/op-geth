@@ -45,14 +45,6 @@ func newMemoryTable(name string, config freezerTableConfig) *memoryTable {
 	return &memoryTable{name: name, config: config}
 }
 
-// has returns an indicator whether the specified data exists.
-func (t *memoryTable) has(number uint64) bool {
-	t.lock.RLock()
-	defer t.lock.RUnlock()
-
-	return number >= t.offset && number < t.items
-}
-
 // retrieve retrieves multiple items in sequence, starting from the index 'start'.
 // It will return:
 //   - at most 'count' items,
@@ -232,17 +224,6 @@ func NewMemoryFreezer(readonly bool, tableName map[string]freezerTableConfig) *M
 	}
 }
 
-// HasAncient returns an indicator whether the specified data exists.
-func (f *MemoryFreezer) HasAncient(kind string, number uint64) (bool, error) {
-	f.lock.RLock()
-	defer f.lock.RUnlock()
-
-	if table := f.tables[kind]; table != nil {
-		return table.has(number), nil
-	}
-	return false, nil
-}
-
 // Ancient retrieves an ancient binary blob from the in-memory freezer.
 func (f *MemoryFreezer) Ancient(kind string, number uint64) ([]byte, error) {
 	f.lock.RLock()
@@ -395,8 +376,8 @@ func (f *MemoryFreezer) TruncateTail(tail uint64) (uint64, error) {
 	return old, nil
 }
 
-// Sync flushes all data tables to disk.
-func (f *MemoryFreezer) Sync() error {
+// SyncAncient flushes all data tables to disk.
+func (f *MemoryFreezer) SyncAncient() error {
 	return nil
 }
 
@@ -430,4 +411,29 @@ func (f *MemoryFreezer) Reset() error {
 // Since the memory freezer is ephemeral, an empty string is returned.
 func (f *MemoryFreezer) AncientDatadir() (string, error) {
 	return "", nil
+}
+
+// AncientBytes retrieves the value segment of the element specified by the id
+// and value offsets.
+func (f *MemoryFreezer) AncientBytes(kind string, id, offset, length uint64) ([]byte, error) {
+	f.lock.RLock()
+	defer f.lock.RUnlock()
+
+	table := f.tables[kind]
+	if table == nil {
+		return nil, errUnknownTable
+	}
+	entries, err := table.retrieve(id, 1, 0)
+	if err != nil {
+		return nil, err
+	}
+	if len(entries) == 0 {
+		return nil, errOutOfBounds
+	}
+	data := entries[0]
+
+	if offset > uint64(len(data)) || offset+length > uint64(len(data)) {
+		return nil, fmt.Errorf("requested range out of bounds: item size %d, offset %d, length %d", len(data), offset, length)
+	}
+	return data[offset : offset+length], nil
 }
