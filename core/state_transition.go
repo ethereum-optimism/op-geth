@@ -652,17 +652,35 @@ func (st *stateTransition) innerExecute() (*ExecutionResult, error) {
 	// gas allowance required to complete execution.
 	peakGasUsed := st.gasUsed()
 
-	var opGasRefund uint64
-	if st.evm.Context.OPContainer == nil &&
-		st.evm.ChainConfig().ChainID != nil &&
-		st.evm.ChainConfig().ChainID.Cmp(big.NewInt(900)) != 0 &&
-		st.evm.ChainConfig().ChainID.Cmp(big.NewInt(11155111)) != 0 {
-		if !st.msg.IsDepositTx {
-			opgas := evmgasToOpgas(peakGasUsed, uint64(microseconds_used))
-			opGasRefund = peakGasUsed - opgas
+	// Check if tx is storage-heavy; if so, zero the OPGas refund.
+	const (
+		opSstoreRatioThreshold = 0.5 // SSTORE gas / total gas
+		opSstoreCountThreshold = 20  // max SSTORE operations
+	)
+	storageHeavy := false
+	if peakGasUsed > 0 && st.evm.SstoreGas > 0 {
+		sstoreRatio := float64(st.evm.SstoreGas) / float64(peakGasUsed)
+		if sstoreRatio > opSstoreRatioThreshold {
+			storageHeavy = true
 		}
-	} else if msg.OPGasRefund != nil {
-		opGasRefund = *msg.OPGasRefund
+	}
+	if st.evm.SstoreCount > opSstoreCountThreshold {
+		storageHeavy = true
+	}
+
+	var opGasRefund uint64
+	if !storageHeavy {
+		if st.evm.Context.OPContainer == nil &&
+			st.evm.ChainConfig().ChainID != nil &&
+			st.evm.ChainConfig().ChainID.Cmp(big.NewInt(900)) != 0 &&
+			st.evm.ChainConfig().ChainID.Cmp(big.NewInt(11155111)) != 0 {
+			if !st.msg.IsDepositTx {
+				opgas := evmgasToOpgas(peakGasUsed, uint64(microseconds_used))
+				opGasRefund = peakGasUsed - opgas
+			}
+		} else if msg.OPGasRefund != nil {
+			opGasRefund = *msg.OPGasRefund
+		}
 	}
 	st.state.AddRefund(opGasRefund)
 

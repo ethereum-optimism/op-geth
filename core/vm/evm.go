@@ -140,6 +140,9 @@ type EVM struct {
 
 	readOnly   bool   // Whether to throw on stateful modifications
 	returnData []byte // Last CALL's return data for subsequent reuse
+
+	SstoreCount uint64 // Number of SSTORE operations in current tx
+	SstoreGas   uint64 // Cumulative gas charged for SSTORE in current tx
 }
 
 // NewEVM constructs an EVM instance with the supplied block context, state
@@ -227,6 +230,8 @@ func (evm *EVM) SetTxContext(txCtx TxContext) {
 		txCtx.AccessEvents = state.NewAccessEvents(evm.StateDB.PointCache())
 	}
 	evm.TxContext = txCtx
+	evm.SstoreCount = 0
+	evm.SstoreGas = 0
 }
 
 // Cancel cancels any running EVM operation. This may be called concurrently and
