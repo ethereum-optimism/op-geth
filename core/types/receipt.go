@@ -97,6 +97,12 @@ type Receipt struct {
 	OperatorFeeConstant  *uint64    `json:"operatorFeeConstant,omitempty"`  // Always nil prior to the Isthmus hardfork
 	DAFootprintGasScalar *uint64    `json:"daFootprintGasScalar,omitempty"` // Always nil prior to the Jovian hardfork
 	OPGasRefund          *uint64    `json:"opGasRefund,omitempty"`          // Always nil prior to the OP Stack hardfork
+
+	// SDM profiling fields (non-consensus, not RLP/SSZ encoded, local only)
+	SstoreCount     uint64 `json:"sstoreCount,omitempty"`
+	SstoreGas       uint64 `json:"sstoreGas,omitempty"`
+	WallClockMicros int64  `json:"wallClockMicros,omitempty"`
+	StorageHeavy    bool   `json:"storageHeavy,omitempty"`
 }
 
 type receiptMarshaling struct {

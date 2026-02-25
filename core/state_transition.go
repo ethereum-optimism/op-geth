@@ -42,6 +42,12 @@ type ExecutionResult struct {
 	MaxUsedGas  uint64 // Maximum gas consumed during execution, excluding gas refunds.
 	Err         error  // Any error encountered during the execution(listed in core/vm/errors.go)
 	ReturnData  []byte // Returned data from evm(function result or data supplied with revert opcode)
+
+	// SDM profiling fields (non-consensus, populated during innerExecute)
+	SstoreCount    uint64 // Number of SSTORE operations in the transaction
+	SstoreGas      uint64 // Cumulative gas charged for SSTORE operations
+	WallClockMicros int64  // Wall-clock execution time in microseconds
+	StorageHeavy   bool   // Whether the tx was classified as storage-heavy (refund zeroed)
 }
 
 // Unwrap returns the internal evm error which allows us for further
@@ -642,9 +648,13 @@ func (st *stateTransition) innerExecute() (*ExecutionResult, error) {
 			gasUsed = 0
 		}
 		return &ExecutionResult{
-			UsedGas:    gasUsed,
-			Err:        vmerr,
-			ReturnData: ret,
+			UsedGas:         gasUsed,
+			Err:             vmerr,
+			ReturnData:      ret,
+			SstoreCount:     st.evm.SstoreCount,
+			SstoreGas:       st.evm.SstoreGas,
+			WallClockMicros: microseconds_used,
+			StorageHeavy:    false,
 		}, nil
 	}
 
@@ -708,11 +718,15 @@ func (st *stateTransition) innerExecute() (*ExecutionResult, error) {
 	if st.msg.IsDepositTx && rules.IsOptimismRegolith {
 		// Skip coinbase payments for deposit tx in Regolith
 		return &ExecutionResult{
-			UsedGas:     st.gasUsed(),
-			OPGasRefund: opGasRefund, // TODO(anteva): confirm if we need a refund here
-			MaxUsedGas:  peakGasUsed,
-			Err:         vmerr,
-			ReturnData:  ret,
+			UsedGas:         st.gasUsed(),
+			OPGasRefund:     opGasRefund, // TODO(anteva): confirm if we need a refund here
+			MaxUsedGas:      peakGasUsed,
+			Err:             vmerr,
+			ReturnData:      ret,
+			SstoreCount:     st.evm.SstoreCount,
+			SstoreGas:       st.evm.SstoreGas,
+			WallClockMicros: microseconds_used,
+			StorageHeavy:    storageHeavy,
 		}, nil
 	}
 
@@ -763,11 +777,15 @@ func (st *stateTransition) innerExecute() (*ExecutionResult, error) {
 	}
 
 	return &ExecutionResult{
-		UsedGas:     st.gasUsed(),
-		OPGasRefund: opGasRefund,
-		MaxUsedGas:  peakGasUsed,
-		Err:         vmerr,
-		ReturnData:  ret,
+		UsedGas:         st.gasUsed(),
+		OPGasRefund:     opGasRefund,
+		MaxUsedGas:      peakGasUsed,
+		Err:             vmerr,
+		ReturnData:      ret,
+		SstoreCount:     st.evm.SstoreCount,
+		SstoreGas:       st.evm.SstoreGas,
+		WallClockMicros: microseconds_used,
+		StorageHeavy:    storageHeavy,
 	}, nil
 }
 

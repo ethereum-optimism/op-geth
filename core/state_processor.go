@@ -208,6 +208,12 @@ func MakeReceipt(evm *vm.EVM, result *ExecutionResult, statedb *state.StateDB, b
 	receipt.OPGasRefund = new(uint64)
 	*receipt.OPGasRefund = result.OPGasRefund
 
+	// SDM profiling fields (non-consensus, local only)
+	receipt.SstoreCount = result.SstoreCount
+	receipt.SstoreGas = result.SstoreGas
+	receipt.WallClockMicros = result.WallClockMicros
+	receipt.StorageHeavy = result.StorageHeavy
+
 	if tx.IsDepositTx() && config.IsOptimismRegolith(evm.Context.Time) {
 		// The actual nonce for deposit transactions is only recorded from Regolith onwards and
 		// otherwise must be nil.
