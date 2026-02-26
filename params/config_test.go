@@ -364,3 +364,41 @@ func TestCheckOptimismValidity(t *testing.T) {
 func ptr[T any](t T) *T {
 	return &t
 }
+
+func TestIsOptimismGenesisBlock(t *testing.T) {
+	highChainID := new(big.Int)
+	highChainID.SetString("99918446744073709551615", 10)
+	highBlockNum := new(big.Int)
+	highBlockNum.SetString("18446744073709551616", 10) // Uint64 max + 1, resulting in Uint64 overflow, and Uint64 equal to 0
+	tests := []struct {
+		name    string
+		chainID *big.Int
+		blockNo *big.Int
+		want    bool
+	}{
+		{"OP Mainnet genesis", big.NewInt(OPMainnetChainID), big.NewInt(OPMainnetGenesisBlockNum), true},
+		{"OP Mainnet non-genesis", big.NewInt(OPMainnetChainID), big.NewInt(0), false},
+		{"OP Mainnet non-genesis high", big.NewInt(OPMainnetChainID), big.NewInt(OPMainnetGenesisBlockNum + 1), false},
+		{"other chain genesis", big.NewInt(42069), big.NewInt(0), true},
+		{"other chain non-genesis", big.NewInt(42069), big.NewInt(1), false},
+		{"Base genesis", big.NewInt(BaseMainnetChainID), big.NewInt(0), true},
+		{"chain with a high chain id", highChainID, big.NewInt(0), true},
+		{"chain with a high block num", highChainID, highBlockNum, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := &ChainConfig{
+				ChainID:  tt.chainID,
+				Optimism: &OptimismConfig{},
+			}
+			got := c.IsOptimismGenesisBlock(tt.blockNo)
+			require.Equal(t, tt.want, got)
+		})
+	}
+	// non-optimism chain always returns false
+	c := &ChainConfig{ChainID: big.NewInt(1)}
+	require.False(t, c.IsOptimismGenesisBlock(big.NewInt(0)))
+	// nil block number returns false
+	c.Optimism = &OptimismConfig{}
+	require.False(t, c.IsOptimismGenesisBlock(nil))
+}

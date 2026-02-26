@@ -24,7 +24,7 @@ func ValidateOptimismExtraData(fc ForkChecker, time uint64, extraData []byte) er
 		return ValidateJovianExtraData(extraData)
 	} else if fc.IsHolocene(time) {
 		return ValidateHoloceneExtraData(extraData)
-	} else if len(extraData) > 0 { // pre-Holocene
+	} else if len(extraData) > 0 { // pre-Holocene, apart from the genesis block
 		return errors.New("extraData must be empty before Holocene")
 	}
 	return nil
