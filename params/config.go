@@ -36,10 +36,10 @@ var (
 )
 
 const (
-	OPMainnetChainID          = 10
-	OPMainnetGenesisBlockNum  = 105235063
-	BaseMainnetChainID        = 8453
-	baseSepoliaChainID        = 84532
+	OPMainnetChainID         = 10
+	OPMainnetGenesisBlockNum = 105235063
+	BaseMainnetChainID       = 8453
+	baseSepoliaChainID       = 84532
 )
 
 func newUint64(val uint64) *uint64 { return &val }
@@ -1041,10 +1041,10 @@ func (c *ChainConfig) IsOptimismGenesisBlock(num *big.Int) bool {
 	if !c.IsOptimism() || num == nil {
 		return false
 	}
-	if c.ChainID.Uint64() == OPMainnetChainID {
+	if c.ChainID.Cmp(big.NewInt(OPMainnetChainID)) == 0 {
 		return num.Uint64() == OPMainnetGenesisBlockNum
 	}
-	return num.Uint64() == 0
+	return num.Sign() == 0
 }
 
 // IsOptimismBedrock returns true iff this is an optimism node & bedrock is active
