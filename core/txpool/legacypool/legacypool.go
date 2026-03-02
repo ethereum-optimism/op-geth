@@ -35,6 +35,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/txpool"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/core/types/interoptypes"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
@@ -1471,6 +1472,9 @@ func (pool *LegacyPool) reset(oldHead, newHead *types.Header) {
 						lost = append(lost, tx)
 					}
 				}
+				if len(pool.ingressFilters) > 0 {
+					lost = filterInteropTxs(lost)
+				}
 				reinject = lost
 			}
 		}
@@ -1495,6 +1499,20 @@ func (pool *LegacyPool) reset(oldHead, newHead *types.Header) {
 	log.Debug("Reinjecting stale transactions", "count", len(reinject))
 	core.SenderCacher().Recover(pool.signer, reinject)
 	pool.addTxsLocked(reinject)
+}
+
+// filterInteropTxs returns a copy of txs with interop executing messages removed.
+// Interop txs are identified by having access list entries targeting CrossL2InboxAddress.
+func filterInteropTxs(txs []*types.Transaction) []*types.Transaction {
+	filtered := make([]*types.Transaction, 0, len(txs))
+	for _, tx := range txs {
+		if len(interoptypes.TxToInteropAccessList(tx)) > 0 {
+			log.Debug("Dropping interop transaction during reorg", "hash", tx.Hash())
+			continue
+		}
+		filtered = append(filtered, tx)
+	}
+	return filtered
 }
 
 func (pool *LegacyPool) resetRollupCostFn(ts uint64, statedb *state.StateDB) {

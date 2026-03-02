@@ -2847,3 +2847,38 @@ func TestTxPoolMaxTxGasLimitDisabled(t *testing.T) {
 		t.Errorf("Expected transaction to be accepted when MaxTxGasLimit is disabled, got %v", err)
 	}
 }
+
+func TestInteropTxDroppedOnReorg(t *testing.T) {
+	t.Parallel()
+
+	pool, key := setupPool()
+	defer pool.Close()
+
+	// Create a normal transaction (no access list)
+	normalTx := pricedTransaction(0, 100000, big.NewInt(1), key)
+
+	// Create an interop transaction (access list targeting CrossL2InboxAddress)
+	interopTx, _ := types.SignNewTx(key, types.LatestSignerForChainID(params.TestChainConfig.ChainID), &types.AccessListTx{
+		ChainID:  params.TestChainConfig.ChainID,
+		Nonce:    1,
+		GasPrice: big.NewInt(1),
+		Gas:      100000,
+		To:       &common.Address{},
+		Value:    big.NewInt(100),
+		AccessList: types.AccessList{
+			{Address: params.InteropCrossL2InboxAddress, StorageKeys: []common.Hash{{0x01}}},
+		},
+	})
+
+	txs := []*types.Transaction{normalTx, interopTx}
+
+	// filterInteropTxs removes interop txs — the caller gates on
+	// len(pool.ingressFilters) > 0 to decide whether to call it.
+	lost := filterInteropTxs(txs)
+	if len(lost) != 1 {
+		t.Fatalf("expected 1 reinjected tx after filtering, got %d", len(lost))
+	}
+	if lost[0].Hash() != normalTx.Hash() {
+		t.Fatal("expected only the normal tx to survive interop filtering")
+	}
+}
