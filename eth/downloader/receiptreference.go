@@ -142,7 +142,13 @@ func correctReceipts(receiptsRLP rlp.RawValue, transactions types.Transactions, 
 				// correct the deposit nonce
 				// warn because this should not happen unless the data was modified by corruption or a malicious peer
 				// by correcting the nonce, the entire block is still valid for use
-				log.Warn("Receipt Correction: Corrected deposit nonce", "from", from, "nonce", r.DepositNonce, "corrected", nonce)
+				printU64Ptr := func(p *uint64) string {
+					if p == nil {
+						return "nil"
+					}
+					return fmt.Sprintf("%d", *p)
+				}
+				log.Warn("Receipt Correction: Corrected deposit nonce", "from", from, "nonce", printU64Ptr(r.DepositNonce), "corrected", nonce)
 				r.DepositNonce = &nonce
 			}
 		}
