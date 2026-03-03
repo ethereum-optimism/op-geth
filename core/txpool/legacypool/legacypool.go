@@ -1507,7 +1507,7 @@ func filterInteropTxs(txs []*types.Transaction) []*types.Transaction {
 	filtered := make([]*types.Transaction, 0, len(txs))
 	for _, tx := range txs {
 		if len(interoptypes.TxToInteropAccessList(tx)) > 0 {
-			log.Debug("Dropping interop transaction during reorg", "hash", tx.Hash())
+			log.Warn("Dropping interop transaction during reorg", "hash", tx.Hash())
 			continue
 		}
 		filtered = append(filtered, tx)
