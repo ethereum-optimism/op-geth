@@ -116,6 +116,7 @@ func (q *queue) remove(addr common.Address, tx *types.Transaction) {
 		if future.Empty() {
 			delete(q.queued, addr)
 			delete(q.beats, addr)
+			queuedAddrsGauge.Dec(1)
 		}
 	}
 }
@@ -125,6 +126,7 @@ func (q *queue) add(tx *types.Transaction) (*common.Hash, error) {
 	from, _ := types.Sender(q.signer, tx) // already validated
 	if q.queued[from] == nil {
 		q.queued[from] = newRollupList(false, q.rollupCostFnProvider) // OP Stack diff
+		queuedAddrsGauge.Inc(1)
 	}
 	inserted, old := q.queued[from].Add(tx, q.config.PriceBump)
 	if !inserted {
@@ -202,6 +204,7 @@ func (q *queue) promoteExecutables(accounts []common.Address, gasLimit uint64, c
 		if list.Empty() {
 			delete(q.queued, addr)
 			delete(q.beats, addr)
+			queuedAddrsGauge.Dec(1)
 			removedAddresses = append(removedAddresses, addr)
 		}
 	}

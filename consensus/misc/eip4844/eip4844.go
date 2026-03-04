@@ -69,6 +69,8 @@ func latestBlobConfig(cfg *params.ChainConfig, time uint64) *BlobConfig {
 		bc = s.BPO4
 	case cfg.IsBPO3(london, time) && s.BPO3 != nil:
 		bc = s.BPO3
+	case cfg.IsAmsterdam(london, time) && s.Amsterdam != nil:
+		bc = s.Amsterdam
 	case cfg.IsBPO2(london, time) && s.BPO2 != nil:
 		bc = s.BPO2
 	case cfg.IsBPO1(london, time) && s.BPO1 != nil:
@@ -118,7 +120,7 @@ func VerifyEIP4844Header(config *params.ChainConfig, parent, header *types.Heade
 			return fmt.Errorf("blob gas used %d exceeds maximum allowance %d", *header.BlobGasUsed, bcfg.maxBlobGas())
 		}
 		if *header.BlobGasUsed%params.BlobTxBlobGasPerBlob != 0 {
-			return fmt.Errorf("blob gas used %d not a multiple of blob gas per blob %d", header.BlobGasUsed, params.BlobTxBlobGasPerBlob)
+			return fmt.Errorf("blob gas used %d not a multiple of blob gas per blob %d", *header.BlobGasUsed, params.BlobTxBlobGasPerBlob)
 		}
 	}
 
@@ -222,6 +224,15 @@ func LatestMaxBlobsPerBlock(cfg *params.ChainConfig) int {
 		return 0
 	}
 	return bcfg.Max
+}
+
+// TargetBlobsPerBlock returns the target blobs per block for a block at the given timestamp.
+func TargetBlobsPerBlock(cfg *params.ChainConfig, time uint64) int {
+	blobConfig := latestBlobConfig(cfg, time)
+	if blobConfig == nil {
+		return 0
+	}
+	return blobConfig.Target
 }
 
 // fakeExponential approximates factor * e ** (numerator / denominator) using

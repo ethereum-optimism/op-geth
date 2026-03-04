@@ -72,6 +72,7 @@ type Config struct {
 	GasCeil             uint64         // Target gas ceiling for mined blocks.
 	GasPrice            *big.Int       // Minimum gas price for mining a transaction
 	Recommit            time.Duration  // The time interval for miner to re-create mining work.
+	MaxBlobsPerBlock    int            // Maximum number of blobs per block (0 for unset uses protocol default)
 
 	RollupComputePendingBlock             bool // Compute the pending block from tx-pool, instead of copying the latest-block
 	RollupTransactionConditionalRateLimit int  // Total number of conditional cost units allowed in a second

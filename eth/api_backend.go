@@ -320,6 +320,11 @@ func (b *EthAPIBackend) SubscribeChainHeadEvent(ch chan<- core.ChainHeadEvent) e
 	return b.eth.BlockChain().SubscribeChainHeadEvent(ch)
 }
 
+// SubscribeNewPayloadEvent registers a subscription for NewPayloadEvent.
+func (b *EthAPIBackend) SubscribeNewPayloadEvent(ch chan<- core.NewPayloadEvent) event.Subscription {
+	return b.eth.BlockChain().SubscribeNewPayloadEvent(ch)
+}
+
 func (b *EthAPIBackend) SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscription {
 	return b.eth.BlockChain().SubscribeLogsEvent(ch)
 }
@@ -526,4 +531,23 @@ func (b *EthAPIBackend) RPCTxSyncDefaultTimeout() time.Duration {
 
 func (b *EthAPIBackend) RPCTxSyncMaxTimeout() time.Duration {
 	return b.eth.config.TxSyncMaxTimeout
+}
+
+// GetBlockAccessList returns a block access list for the given number/hash
+// or nil if one does not exist.
+func (b *EthAPIBackend) BlockAccessListByNumberOrHash(number rpc.BlockNumberOrHash) (interface{}, error) {
+	var block *types.Block
+	if num := number.BlockNumber; num != nil {
+		block = b.eth.blockchain.GetBlockByNumber(uint64(num.Int64()))
+	} else if hash := number.BlockHash; hash != nil {
+		block = b.eth.blockchain.GetBlockByHash(*hash)
+	}
+
+	if block == nil {
+		return nil, fmt.Errorf("block not found")
+	}
+	if block.AccessList() == nil {
+		return nil, nil
+	}
+	return block.AccessList().StringableRepresentation(), nil
 }

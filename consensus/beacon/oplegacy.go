@@ -8,6 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/core/types/bal"
 	"github.com/ethereum/go-ethereum/core/vm"
 )
 
@@ -64,7 +65,7 @@ func (o *OpLegacy) Finalize(chain consensus.ChainHeaderReader, header *types.Hea
 	panic(fmt.Errorf("cannot finalize legacy block header: %s (num %d)", header.Hash(), header.Number))
 }
 
-func (o *OpLegacy) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, body *types.Body, receipts []*types.Receipt) (*types.Block, error) {
+func (o *OpLegacy) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, body *types.Body, receipts []*types.Receipt, _ func() *bal.BlockAccessList) (*types.Block, error) {
 	return nil, fmt.Errorf("cannot finalize and assemble for legacy block header: %s (num %d)", header.Hash(), header.Number)
 }
 

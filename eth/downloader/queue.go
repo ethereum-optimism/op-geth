@@ -429,7 +429,7 @@ func (q *queue) reserveHeaders(p *peerConnection, count int, taskPool map[common
 	skip := make([]*types.Header, 0)
 	progress := false
 	throttled := false
-	for proc := 0; len(send) < count && !taskQueue.Empty(); proc++ {
+	for len(send) < count && !taskQueue.Empty() {
 		// the task queue will pop items in order, so the highest prio block
 		// is also the lowest block number.
 		header, _ := taskQueue.Peek()
@@ -444,7 +444,6 @@ func (q *queue) reserveHeaders(p *peerConnection, count int, taskPool map[common
 			taskQueue.PopItem()
 			progress = true
 			delete(taskPool, header.Hash())
-			proc = proc - 1
 			log.Error("Fetch reservation already delivered", "number", header.Number.Uint64())
 			continue
 		}
@@ -466,7 +465,6 @@ func (q *queue) reserveHeaders(p *peerConnection, count int, taskPool map[common
 			// If it's a noop, we can skip this task
 			delete(taskPool, header.Hash())
 			taskQueue.PopItem()
-			proc = proc - 1
 			progress = true
 			continue
 		}

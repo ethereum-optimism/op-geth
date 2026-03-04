@@ -108,6 +108,18 @@ var (
 			Env:  map[string]string{"GOMIPS": "softfloat", "CGO_ENABLED": "0"},
 		},
 		{
+			Name:   "wasm-js",
+			GOOS:   "js",
+			GOARCH: "wasm",
+			Tags:   "example",
+		},
+		{
+			Name:   "wasm-wasi",
+			GOOS:   "wasip1",
+			GOARCH: "wasm",
+			Tags:   "example",
+		},
+		{
 			Name: "example",
 			Tags: "example",
 		},
@@ -162,6 +174,9 @@ var (
 
 	// This is where the tests should be unpacked.
 	executionSpecTestsDir = "tests/spec-tests"
+
+	// This is where the bal-specific release of the tests should be unpacked.
+	executionSpecTestsBALDir = "tests/spec-tests-bal"
 )
 
 var GOBIN, _ = filepath.Abs(filepath.Join("build", "bin"))
@@ -334,6 +349,10 @@ func buildFlags(env build.Environment, staticLinking bool, buildTags []string) (
 		}
 		ld = append(ld, "-extldflags", "'"+strings.Join(extld, " ")+"'")
 	}
+	// TODO(gballet): revisit after the input api has been defined
+	if runtime.GOARCH == "wasm" {
+		ld = append(ld, "-gcflags=all=-d=softfloat")
+	}
 	if len(ld) > 0 {
 		flags = append(flags, "-ldflags", strings.Join(ld, " "))
 	}
@@ -369,6 +388,7 @@ func doTest(cmdline []string) {
 	// Get test fixtures.
 	if !*short {
 		downloadSpecTestFixtures(csdb, *cachedir)
+		downloadBALSpecTestFixtures(csdb, *cachedir)
 	}
 
 	// Configure the toolchain.
@@ -434,6 +454,19 @@ func downloadSpecTestFixtures(csdb *download.ChecksumDB, cachedir string) string
 	return filepath.Join(cachedir, base)
 }
 
+func downloadBALSpecTestFixtures(csdb *download.ChecksumDB, cachedir string) string {
+	ext := ".tar.gz"
+	base := "fixtures_bal"
+	archivePath := filepath.Join(cachedir, base+ext)
+	if err := csdb.DownloadFileFromKnownURL(archivePath); err != nil {
+		log.Fatal(err)
+	}
+	if err := build.ExtractArchive(archivePath, executionSpecTestsBALDir); err != nil {
+		log.Fatal(err)
+	}
+	return filepath.Join(cachedir, base)
+}
+
 // doCheckGenerate ensures that re-generating generated files does not cause
 // any mutations in the source file tree.
 func doCheckGenerate() {
@@ -449,9 +482,14 @@ func doCheckGenerate() {
 	)
 	pathList := []string{filepath.Join(protocPath, "bin"), protocGenGoPath, os.Getenv("PATH")}
 
+	excludes := []string{"tests/testdata", "build/cache", ".git", ".jj"}
+	for i := range excludes {
+		excludes[i] = filepath.FromSlash(excludes[i])
+	}
+
 	for _, mod := range goModules {
 		// Compute the origin hashes of all the files
-		hashes, err := build.HashFolder(mod, []string{"tests/testdata", "build/cache", ".git", ".jj"})
+		hashes, err := build.HashFolder(mod, excludes)
 		if err != nil {
 			log.Fatal("Error computing hashes", "err", err)
 		}
@@ -461,7 +499,7 @@ func doCheckGenerate() {
 		c.Dir = mod
 		build.MustRun(c)
 		// Check if generate file hashes have changed
-		generated, err := build.HashFolder(mod, []string{"tests/testdata", "build/cache", ".git", ".jj"})
+		generated, err := build.HashFolder(mod, excludes)
 		if err != nil {
 			log.Fatalf("Error re-computing hashes: %v", err)
 		}

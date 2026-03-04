@@ -9,7 +9,9 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/core/stateless"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/core/types/bal"
 )
 
 var _ = (*executableDataMarshaling)(nil)
@@ -34,8 +36,10 @@ func (e ExecutableData) MarshalJSON() ([]byte, error) {
 		Withdrawals      []*types.Withdrawal     `json:"withdrawals"`
 		BlobGasUsed      *hexutil.Uint64         `json:"blobGasUsed"`
 		ExcessBlobGas    *hexutil.Uint64         `json:"excessBlobGas"`
-		ExecutionWitness *types.ExecutionWitness `json:"executionWitness,omitempty"`
+		ExecutionWitness *stateless.ExecutionWitness `json:"executionWitness,omitempty"`
 		WithdrawalsRoot  *common.Hash            `json:"withdrawalsRoot,omitempty"`
+		BlockAccessList  *bal.BlockAccessList    `json:"blockAccessList"`
+		SlotNumber       *hexutil.Uint64         `json:"slotNumber"`
 	}
 	var enc ExecutableData
 	enc.ParentHash = e.ParentHash
@@ -62,6 +66,8 @@ func (e ExecutableData) MarshalJSON() ([]byte, error) {
 	enc.ExcessBlobGas = (*hexutil.Uint64)(e.ExcessBlobGas)
 	enc.ExecutionWitness = e.ExecutionWitness
 	enc.WithdrawalsRoot = e.WithdrawalsRoot
+	enc.BlockAccessList = e.BlockAccessList
+	enc.SlotNumber = (*hexutil.Uint64)(e.SlotNumber)
 	return json.Marshal(&enc)
 }
 
@@ -85,8 +91,10 @@ func (e *ExecutableData) UnmarshalJSON(input []byte) error {
 		Withdrawals      []*types.Withdrawal     `json:"withdrawals"`
 		BlobGasUsed      *hexutil.Uint64         `json:"blobGasUsed"`
 		ExcessBlobGas    *hexutil.Uint64         `json:"excessBlobGas"`
-		ExecutionWitness *types.ExecutionWitness `json:"executionWitness,omitempty"`
+		ExecutionWitness *stateless.ExecutionWitness `json:"executionWitness,omitempty"`
 		WithdrawalsRoot  *common.Hash            `json:"withdrawalsRoot,omitempty"`
+		BlockAccessList  *bal.BlockAccessList    `json:"blockAccessList"`
+		SlotNumber       *hexutil.Uint64         `json:"slotNumber"`
 	}
 	var dec ExecutableData
 	if err := json.Unmarshal(input, &dec); err != nil {
@@ -165,6 +173,12 @@ func (e *ExecutableData) UnmarshalJSON(input []byte) error {
 	}
 	if dec.WithdrawalsRoot != nil {
 		e.WithdrawalsRoot = dec.WithdrawalsRoot
+	}
+	if dec.BlockAccessList != nil {
+		e.BlockAccessList = dec.BlockAccessList
+	}
+	if dec.SlotNumber != nil {
+		e.SlotNumber = (*uint64)(dec.SlotNumber)
 	}
 	return nil
 }

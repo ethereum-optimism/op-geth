@@ -115,6 +115,9 @@ var (
 	queuedGauge  = metrics.NewRegisteredGauge("txpool/queued", nil)
 	slotsGauge   = metrics.NewRegisteredGauge("txpool/slots", nil)
 
+	pendingAddrsGauge = metrics.NewRegisteredGauge("txpool/pending/accounts", nil)
+	queuedAddrsGauge  = metrics.NewRegisteredGauge("txpool/queued/accounts", nil)
+
 	reheapTimer = metrics.NewRegisteredTimer("txpool/reheap", nil)
 )
 
@@ -316,7 +319,12 @@ func New(config Config, chain BlockChain) *LegacyPool {
 // Filter returns whether the given transaction can be consumed by the legacy
 // pool, specifically, whether it is a Legacy, AccessList or Dynamic transaction.
 func (pool *LegacyPool) Filter(tx *types.Transaction) bool {
-	switch tx.Type() {
+	return pool.FilterType(tx.Type())
+}
+
+// FilterType returns whether the legacy pool supports the given transaction type.
+func (pool *LegacyPool) FilterType(kind byte) bool {
+	switch kind {
 	case types.LegacyTxType, types.AccessListTxType, types.DynamicFeeTxType, types.SetCodeTxType:
 		return true
 	default:
@@ -929,6 +937,7 @@ func (pool *LegacyPool) promoteTx(addr common.Address, hash common.Hash, tx *typ
 	// Try to insert the transaction into the pending queue
 	if pool.pending[addr] == nil {
 		pool.pending[addr] = newRollupList(true, pool)
+		pendingAddrsGauge.Inc(1)
 	}
 	list := pool.pending[addr]
 
@@ -1182,6 +1191,7 @@ func (pool *LegacyPool) removeTx(hash common.Hash, outofbound bool, unreserve bo
 			// If no more pending transactions are left, remove the list
 			if pending.Empty() {
 				delete(pool.pending, addr)
+				pendingAddrsGauge.Dec(1)
 			}
 			// Postpone any invalidated transactions
 			for _, tx := range invalids {
@@ -1684,6 +1694,7 @@ func (pool *LegacyPool) demoteUnexecutables() {
 			// Internal shuffle shouldn't touch the lookup set.
 			pool.enqueueTx(hash, tx, false)
 		}
+		pool.priced.Removed(len(olds) + len(drops))
 		pendingGauge.Dec(int64(len(olds) + len(drops) + len(invalids) + len(rejectedDrops)))
 
 		// If there's a gap in front, alert (should never happen) and postpone all transactions
@@ -1701,6 +1712,7 @@ func (pool *LegacyPool) demoteUnexecutables() {
 		// Delete the entire pending entry if it became empty.
 		if list.Empty() {
 			delete(pool.pending, addr)
+			pendingAddrsGauge.Dec(1)
 			if _, ok := pool.queue.get(addr); !ok {
 				pool.reserver.Release(addr)
 			}
@@ -1988,6 +2000,13 @@ func (pool *LegacyPool) Clear() {
 	pool.pending = make(map[common.Address]*list)
 	pool.queue = newQueue(pool.config, pool.signer)
 	pool.pendingNonces = newNoncer(pool.currentState)
+
+	// Reset gauges
+	pendingGauge.Update(0)
+	queuedGauge.Update(0)
+	slotsGauge.Update(0)
+	pendingAddrsGauge.Update(0)
+	queuedAddrsGauge.Update(0)
 }
 
 // HasPendingAuth returns a flag indicating whether there are pending

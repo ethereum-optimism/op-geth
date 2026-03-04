@@ -39,11 +39,12 @@ import (
 // BlockGen creates blocks for testing.
 // See GenerateChain for a detailed explanation.
 type BlockGen struct {
-	i       int
-	cm      *chainMaker
-	parent  *types.Block
-	header  *types.Header
-	statedb *state.StateDB
+	i             int
+	cumulativeGas uint64
+	cm            *chainMaker
+	parent        *types.Block
+	header        *types.Header
+	statedb       *state.StateDB
 
 	gasPool     *GasPool
 	txs         []*types.Transaction
@@ -116,12 +117,15 @@ func (b *BlockGen) addTx(bc *BlockChain, vmConfig vm.Config, tx *types.Transacti
 	var (
 		blockContext = NewEVMBlockContext(b.header, bc, &b.header.Coinbase, b.cm.config, b.statedb)
 		evm          = vm.NewEVM(blockContext, b.statedb, b.cm.config, vmConfig)
+		receipt      *types.Receipt
+		err          error
 	)
 	b.statedb.SetTxContext(tx.Hash(), len(b.txs))
-	receipt, err := ApplyTransaction(evm, b.gasPool, b.statedb, b.header, tx, &b.header.GasUsed)
+	receipt, b.cumulativeGas, err = ApplyTransaction(evm, b.gasPool, b.statedb, b.header, tx, b.cumulativeGas)
 	if err != nil {
 		panic(err)
 	}
+	b.header.GasUsed += receipt.GasUsed
 	// Merge the tx-local access event into the "block-local" one, in order to collect
 	// all values, so that the witness can be built.
 	if b.statedb.Database().TrieDB().IsVerkle() {
@@ -422,7 +426,7 @@ func GenerateChain(config *params.ChainConfig, parent *types.Block, engine conse
 		}
 
 		body := types.Body{Transactions: b.txs, Uncles: b.uncles, Withdrawals: b.withdrawals}
-		block, err := b.engine.FinalizeAndAssemble(cm, b.header, statedb, &body, b.receipts)
+		block, err := b.engine.FinalizeAndAssemble(cm, b.header, statedb, &body, b.receipts, nil)
 		if err != nil {
 			panic(err)
 		}
@@ -439,7 +443,11 @@ func GenerateChain(config *params.ChainConfig, parent *types.Block, engine conse
 	}
 
 	// Forcibly use hash-based state scheme for retaining all nodes in disk.
-	triedb := triedb.NewDatabase(db, triedb.HashDefaults)
+	var triedbConfig *triedb.Config = triedb.HashDefaults
+	if config.IsVerkle(config.ChainID, 0) {
+		triedbConfig = triedb.VerkleDefaults
+	}
+	triedb := triedb.NewDatabase(db, triedbConfig)
 	defer triedb.Close()
 
 	for i := 0; i < n; i++ {
@@ -484,9 +492,13 @@ func GenerateChain(config *params.ChainConfig, parent *types.Block, engine conse
 // then generate chain on top.
 func GenerateChainWithGenesis(genesis *Genesis, engine consensus.Engine, n int, gen func(int, *BlockGen)) (ethdb.Database, []*types.Block, []types.Receipts) {
 	db := rawdb.NewMemoryDatabase()
-	triedb := triedb.NewDatabase(db, triedb.HashDefaults)
+	var triedbConfig *triedb.Config = triedb.HashDefaults
+	if genesis.Config != nil && genesis.Config.IsVerkle(genesis.Config.ChainID, 0) {
+		triedbConfig = triedb.VerkleDefaults
+	}
+	triedb := triedb.NewDatabase(db, triedbConfig)
 	defer triedb.Close()
-	_, err := genesis.Commit(db, triedb)
+	_, err := genesis.Commit(db, triedb, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -532,7 +544,7 @@ func GenerateVerkleChain(config *params.ChainConfig, parent *types.Block, engine
 			Uncles:       b.uncles,
 			Withdrawals:  b.withdrawals,
 		}
-		block, err := b.engine.FinalizeAndAssemble(cm, b.header, statedb, body, b.receipts)
+		block, err := b.engine.FinalizeAndAssemble(cm, b.header, statedb, body, b.receipts, nil)
 		if err != nil {
 			panic(err)
 		}
@@ -546,8 +558,13 @@ func GenerateVerkleChain(config *params.ChainConfig, parent *types.Block, engine
 			panic(fmt.Sprintf("trie write error: %v", err))
 		}
 
-		proofs = append(proofs, block.ExecutionWitness().VerkleProof)
-		keyvals = append(keyvals, block.ExecutionWitness().StateDiff)
+		// TODO: re-enable verkle proof generation once the new witness
+		// infrastructure supports it.  The old block.ExecutionWitness()
+		// API has been removed; proofs must now be derived from the
+		// statedb's access events via verkle.MakeVerkleMultiProof +
+		// verkle.SerializeProof.
+		proofs = append(proofs, nil)
+		keyvals = append(keyvals, nil)
 
 		return block, b.receipts
 	}
@@ -597,13 +614,14 @@ func GenerateVerkleChainWithGenesis(genesis *Genesis, engine consensus.Engine, n
 	cacheConfig.SnapshotLimit = 0
 	triedb := triedb.NewDatabase(db, cacheConfig.triedbConfig(true))
 	defer triedb.Close()
-	genesisBlock, err := genesis.Commit(db, triedb)
+	genesisBlock, err := genesis.Commit(db, triedb, nil)
 	if err != nil {
 		panic(err)
 	}
 	blocks, receipts, proofs, keyvals := GenerateVerkleChain(genesis.Config, genesisBlock, engine, db, triedb, n, gen)
 	return genesisBlock.Hash(), db, blocks, receipts, proofs, keyvals
 }
+
 
 func (cm *chainMaker) makeHeader(parent *types.Block, state *state.StateDB, engine consensus.Engine) *types.Header {
 	time := parent.Time() + 10 // block time is fixed at 10 seconds
