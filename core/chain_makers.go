@@ -32,7 +32,6 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/triedb"
-	"github.com/ethereum/go-verkle"
 	"github.com/holiman/uint256"
 )
 
@@ -439,7 +438,11 @@ func GenerateChain(config *params.ChainConfig, parent *types.Block, engine conse
 	}
 
 	// Forcibly use hash-based state scheme for retaining all nodes in disk.
-	triedb := triedb.NewDatabase(db, triedb.HashDefaults)
+	var triedbConfig *triedb.Config = triedb.HashDefaults
+	if config.IsVerkle(config.ChainID, 0) {
+		triedbConfig = triedb.VerkleDefaults
+	}
+	triedb := triedb.NewDatabase(db, triedbConfig)
 	defer triedb.Close()
 
 	for i := 0; i < n; i++ {
@@ -484,9 +487,13 @@ func GenerateChain(config *params.ChainConfig, parent *types.Block, engine conse
 // then generate chain on top.
 func GenerateChainWithGenesis(genesis *Genesis, engine consensus.Engine, n int, gen func(int, *BlockGen)) (ethdb.Database, []*types.Block, []types.Receipts) {
 	db := rawdb.NewMemoryDatabase()
-	triedb := triedb.NewDatabase(db, triedb.HashDefaults)
+	var triedbConfig *triedb.Config = triedb.HashDefaults
+	if genesis.Config != nil && genesis.Config.IsVerkle(genesis.Config.ChainID, 0) {
+		triedbConfig = triedb.VerkleDefaults
+	}
+	triedb := triedb.NewDatabase(db, triedbConfig)
 	defer triedb.Close()
-	_, err := genesis.Commit(db, triedb)
+	_, err := genesis.Commit(db, triedb, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -604,6 +611,7 @@ func GenerateVerkleChainWithGenesis(genesis *Genesis, engine consensus.Engine, n
 	blocks, receipts, proofs, keyvals := GenerateVerkleChain(genesis.Config, genesisBlock, engine, db, triedb, n, gen)
 	return genesisBlock.Hash(), db, blocks, receipts, proofs, keyvals
 }
+
 
 func (cm *chainMaker) makeHeader(parent *types.Block, state *state.StateDB, engine consensus.Engine) *types.Header {
 	time := parent.Time() + 10 // block time is fixed at 10 seconds

@@ -359,8 +359,7 @@ func ExecutableDataToBlockNoHash(data ExecutableData, versionedHashes []common.H
 		RequestsHash:     requestsHash,
 	}
 	return types.NewBlockWithHeader(header).
-			WithBody(types.Body{Transactions: txs, Uncles: nil, Withdrawals: data.Withdrawals}).
-			WithWitness(data.ExecutionWitness),
+			WithBody(types.Body{Transactions: txs, Uncles: nil, Withdrawals: data.Withdrawals}),
 		nil
 }
 
@@ -368,24 +367,23 @@ func ExecutableDataToBlockNoHash(data ExecutableData, versionedHashes []common.H
 // fields from the given block. It assumes the given block is post-merge block.
 func BlockToExecutableData(block *types.Block, fees *big.Int, sidecars []*types.BlobTxSidecar, requests [][]byte) *ExecutionPayloadEnvelope {
 	data := &ExecutableData{
-		BlockHash:        block.Hash(),
-		ParentHash:       block.ParentHash(),
-		FeeRecipient:     block.Coinbase(),
-		StateRoot:        block.Root(),
-		Number:           block.NumberU64(),
-		GasLimit:         block.GasLimit(),
-		GasUsed:          block.GasUsed(),
-		BaseFeePerGas:    block.BaseFee(),
-		Timestamp:        block.Time(),
-		ReceiptsRoot:     block.ReceiptHash(),
-		LogsBloom:        block.Bloom().Bytes(),
-		Transactions:     encodeTransactions(block.Transactions()),
-		Random:           block.MixDigest(),
-		ExtraData:        block.Extra(),
-		Withdrawals:      block.Withdrawals(),
-		BlobGasUsed:      block.BlobGasUsed(),
-		ExcessBlobGas:    block.ExcessBlobGas(),
-		ExecutionWitness: block.ExecutionWitness(),
+		BlockHash:     block.Hash(),
+		ParentHash:    block.ParentHash(),
+		FeeRecipient:  block.Coinbase(),
+		StateRoot:     block.Root(),
+		Number:        block.NumberU64(),
+		GasLimit:      block.GasLimit(),
+		GasUsed:       block.GasUsed(),
+		BaseFeePerGas: block.BaseFee(),
+		Timestamp:     block.Time(),
+		ReceiptsRoot:  block.ReceiptHash(),
+		LogsBloom:     block.Bloom().Bytes(),
+		Transactions:  encodeTransactions(block.Transactions()),
+		Random:        block.MixDigest(),
+		ExtraData:     block.Extra(),
+		Withdrawals:   block.Withdrawals(),
+		BlobGasUsed:   block.BlobGasUsed(),
+		ExcessBlobGas: block.ExcessBlobGas(),
 	}
 
 	// OP-Stack: only Isthmus execution payloads must set the withdrawals root.

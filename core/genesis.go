@@ -221,8 +221,9 @@ func flushAlloc(ga *types.GenesisAlloc, triedb *triedb.Database, isIsthmus bool)
 	if isIsthmus {
 		storageRootMessagePasser = statedb.GetStorageRoot(params.OptimismL2ToL1MessagePasser)
 	}
+
 	// Commit newly generated states into disk if it's not empty.
-	if root != types.EmptyRootHash {
+	if root != emptyRoot {
 		if err := triedb.Commit(root, true); err != nil {
 			return common.Hash{}, common.Hash{}, err
 		}
@@ -411,10 +412,10 @@ func (o *ChainOverrides) apply(cfg *params.ChainConfig) error {
 // specify a fork block below the local head block). In case of a conflict, the
 // error is a *params.ConfigCompatError and the new, unwritten config is returned.
 func SetupGenesisBlock(db ethdb.Database, triedb *triedb.Database, genesis *Genesis) (*params.ChainConfig, common.Hash, *params.ConfigCompatError, error) {
-	return SetupGenesisBlockWithOverride(db, triedb, genesis, nil)
+	return SetupGenesisBlockWithOverride(db, triedb, genesis, nil, nil)
 }
 
-func SetupGenesisBlockWithOverride(db ethdb.Database, triedb *triedb.Database, genesis *Genesis, overrides *ChainOverrides) (*params.ChainConfig, common.Hash, *params.ConfigCompatError, error) {
+func SetupGenesisBlockWithOverride(db ethdb.Database, triedb *triedb.Database, genesis *Genesis, overrides *ChainOverrides, tracer *tracing.Hooks) (*params.ChainConfig, common.Hash, *params.ConfigCompatError, error) {
 	// Copy the genesis, so we can operate on a copy.
 	genesis = genesis.copy()
 	// Sanitize the supplied genesis, ensuring it has the associated chain
@@ -435,7 +436,7 @@ func SetupGenesisBlockWithOverride(db ethdb.Database, triedb *triedb.Database, g
 			return nil, common.Hash{}, nil, err
 		}
 
-		block, err := genesis.Commit(db, triedb)
+		block, err := genesis.Commit(db, triedb, tracer)
 		if err != nil {
 			return nil, common.Hash{}, nil, err
 		}
@@ -469,7 +470,7 @@ func SetupGenesisBlockWithOverride(db ethdb.Database, triedb *triedb.Database, g
 		if hash := genesis.ToBlock().Hash(); hash != ghash {
 			return nil, common.Hash{}, nil, &GenesisMismatchError{ghash, hash}
 		}
-		block, err := genesis.Commit(db, triedb)
+		block, err := genesis.Commit(db, triedb, tracer)
 		if err != nil {
 			return nil, common.Hash{}, nil, err
 		}
@@ -699,7 +700,7 @@ func (g *Genesis) toBlockWithRoot(stateRoot, storageRootMessagePasser common.Has
 
 // Commit writes the block and state of a genesis specification to the database.
 // The block is committed as the canonical head block.
-func (g *Genesis) Commit(db ethdb.Database, triedb *triedb.Database) (*types.Block, error) {
+func (g *Genesis) Commit(db ethdb.Database, triedb *triedb.Database, tracer *tracing.Hooks) (*types.Block, error) {
 	if g.Number != 0 {
 		return nil, errors.New("can't commit genesis block with number > 0")
 	}
@@ -750,7 +751,7 @@ func (g *Genesis) Commit(db ethdb.Database, triedb *triedb.Database) (*types.Blo
 // MustCommit writes the genesis block and state to db, panicking on error.
 // The block is committed as the canonical head block.
 func (g *Genesis) MustCommit(db ethdb.Database, triedb *triedb.Database) *types.Block {
-	block, err := g.Commit(db, triedb)
+	block, err := g.Commit(db, triedb, nil)
 	if err != nil {
 		panic(err)
 	}

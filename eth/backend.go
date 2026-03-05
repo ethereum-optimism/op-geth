@@ -239,17 +239,19 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 	}
 	var (
 		options = &core.BlockChainConfig{
-			TrieCleanLimit:   config.TrieCleanCache,
-			NoPrefetch:       config.NoPrefetch,
-			TrieDirtyLimit:   config.TrieDirtyCache,
-			ArchiveMode:      config.NoPruning,
-			TrieTimeLimit:    config.TrieTimeout,
-			SnapshotLimit:    config.SnapshotCache,
-			Preimages:        config.Preimages,
-			StateHistory:     config.StateHistory,
-			StateScheme:      scheme,
-			ChainHistoryMode: config.HistoryMode,
-			TxLookupLimit:    int64(min(config.TransactionHistory, math.MaxInt64)),
+			TrieCleanLimit:          config.TrieCleanCache,
+			NoPrefetch:              config.NoPrefetch,
+			TrieDirtyLimit:          config.TrieDirtyCache,
+			ArchiveMode:             config.NoPruning,
+			TrieTimeLimit:           config.TrieTimeout,
+			SnapshotLimit:           config.SnapshotCache,
+			Preimages:               config.Preimages,
+			StateHistory:            config.StateHistory,
+			TrienodeHistory:         config.TrienodeHistory,
+			NodeFullValueCheckpoint: config.NodeFullValueCheckpoint,
+			StateScheme:             scheme,
+			ChainHistoryMode:        config.HistoryMode,
+			TxLookupLimit:           int64(min(config.TransactionHistory, math.MaxInt64)),
 			VmConfig: vm.Config{
 				EnablePreimageRecording: config.EnablePreimageRecording,
 				EnableWitnessStats:      config.EnableWitnessStats,
@@ -261,6 +263,7 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 			// - DATADIR/triedb/verkle.journal
 			TrieJournalDirectory: stack.ResolvePath("triedb"),
 			StateSizeTracking:    config.EnableStateSizeTracking,
+			SlowBlockThreshold:   config.SlowBlockThreshold,
 		}
 	)
 	if config.VMTrace != "" {

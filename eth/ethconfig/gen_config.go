@@ -102,8 +102,11 @@ func (c Config) MarshalTOML() (interface{}, error) {
 	enc.LogNoHistory = c.LogNoHistory
 	enc.LogExportCheckpoints = c.LogExportCheckpoints
 	enc.StateHistory = c.StateHistory
+	enc.TrienodeHistory = c.TrienodeHistory
+	enc.NodeFullValueCheckpoint = c.NodeFullValueCheckpoint
 	enc.StateScheme = c.StateScheme
 	enc.RequiredBlocks = c.RequiredBlocks
+	enc.SlowBlockThreshold = c.SlowBlockThreshold
 	enc.SkipBcVersionCheck = c.SkipBcVersionCheck
 	enc.DatabaseHandles = c.DatabaseHandles
 	enc.DatabaseCache = c.DatabaseCache
@@ -279,11 +282,20 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 	if dec.StateHistory != nil {
 		c.StateHistory = *dec.StateHistory
 	}
+	if dec.TrienodeHistory != nil {
+		c.TrienodeHistory = *dec.TrienodeHistory
+	}
+	if dec.NodeFullValueCheckpoint != nil {
+		c.NodeFullValueCheckpoint = *dec.NodeFullValueCheckpoint
+	}
 	if dec.StateScheme != nil {
 		c.StateScheme = *dec.StateScheme
 	}
 	if dec.RequiredBlocks != nil {
 		c.RequiredBlocks = dec.RequiredBlocks
+	}
+	if dec.SlowBlockThreshold != nil {
+		c.SlowBlockThreshold = *dec.SlowBlockThreshold
 	}
 	if dec.SkipBcVersionCheck != nil {
 		c.SkipBcVersionCheck = *dec.SkipBcVersionCheck

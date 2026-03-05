@@ -90,8 +90,12 @@ func (q *queue) get(addr common.Address) (*list, bool) {
 	return l, ok
 }
 
+// bump updates the heartbeat for the given account address.
+// If the address is unknown, the call is a no-op.
 func (q *queue) bump(addr common.Address) {
-	q.beats[addr] = time.Now()
+	if _, ok := q.beats[addr]; ok {
+		q.beats[addr] = time.Now()
+	}
 }
 
 func (q *queue) addresses() []common.Address {
@@ -116,6 +120,7 @@ func (q *queue) remove(addr common.Address, tx *types.Transaction) {
 		if future.Empty() {
 			delete(q.queued, addr)
 			delete(q.beats, addr)
+			queuedAddrsGauge.Dec(1)
 		}
 	}
 }
@@ -202,6 +207,7 @@ func (q *queue) promoteExecutables(accounts []common.Address, gasLimit uint64, c
 		if list.Empty() {
 			delete(q.queued, addr)
 			delete(q.beats, addr)
+			queuedAddrsGauge.Dec(1)
 			removedAddresses = append(removedAddresses, addr)
 		}
 	}
