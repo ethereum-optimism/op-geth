@@ -58,7 +58,11 @@ func createInteropMiner(t *testing.T, supervisorInFailsafe bool, queryFailsafeCb
 		t.Fatalf("can't create new chain %v", err)
 	}
 
-	statedb, _ := state.New(bc.Genesis().Root(), bc.StateCache())
+	bcState, err := bc.State()
+	if err != nil {
+		t.Fatalf("can't get state from blockchain: %v", err)
+	}
+	statedb, _ := state.New(bc.Genesis().Root(), bcState.Database())
 	blockchain := &testBlockChain{bc.Genesis().Root(), chainConfig, statedb, 10000000, new(event.Feed)}
 
 	pool := legacypool.New(legacypool.DefaultConfig, blockchain)
@@ -126,7 +130,7 @@ func testInteropTransaction(t *testing.T, failsafeEnabled bool, expectIncluded b
 
 	// Request block generation with RPC context (required for interop check)
 	timestamp := uint64(time.Now().Unix())
-	r := miner.generateWork(&generateParams{
+	r := miner.generateWork(t.Context(), &generateParams{
 		parentHash: miner.chain.CurrentBlock().Hash(),
 		timestamp:  timestamp,
 		random:     common.HexToHash("0xcafebabe"),

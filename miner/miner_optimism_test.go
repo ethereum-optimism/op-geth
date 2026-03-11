@@ -129,7 +129,7 @@ func testMineAndExecute(t *testing.T, numTxs uint64, cfg *params.ChainConfig, as
 	if cfg.IsJovian(ts) {
 		genParams.minBaseFee = new(uint64)
 	}
-	r := w.generateWork(genParams, false)
+	r := w.generateWork(t.Context(), genParams, false)
 	require.NoError(t, r.err, "block generation failed")
 	require.NotNil(t, r.block, "no block generated")
 

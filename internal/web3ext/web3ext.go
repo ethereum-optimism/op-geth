@@ -428,11 +428,6 @@ web3._extend({
 			inputFormatter:[null, null],
 		}),
 		new web3._extend.Method({
-			name: 'freezeClient',
-			call: 'debug_freezeClient',
-			params: 1,
-		}),
-		new web3._extend.Method({
 			name: 'getAccessibleState',
 			call: 'debug_getAccessibleState',
 			params: 2,
@@ -471,6 +466,12 @@ web3._extend({
 		new web3._extend.Method({
 			name: 'stateSize',
 			call: 'debug_stateSize',
+			params: 1,
+			inputFormatter: [null],
+		}),
+		new web3._extend.Method({
+			name: 'executionWitness',
+			call: 'debug_executionWitness',
 			params: 1,
 			inputFormatter: [null],
 		}),
@@ -611,7 +612,17 @@ web3._extend({
 			name: 'config',
 			call: 'eth_config',
 			params: 0,
-		})
+		}),
+		new web3._extend.Method({
+			name: 'getBlockAccessListByBlockNumber',
+			call: 'eth_getBlockAccessListByBlockNumber',
+			params: 1,
+		}),
+		new web3._extend.Method({
+			name: 'getBlockAccessListByBlockHash',
+			call: 'eth_getBlockAccessListByBlockHash',
+			params: 1,
+		}),
 	],
 	properties: [
 		new web3._extend.Property({

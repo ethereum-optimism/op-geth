@@ -10,6 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/history"
 	"github.com/ethereum/go-ethereum/core/txpool/blobpool"
 	"github.com/ethereum/go-ethereum/core/txpool/legacypool"
+	"github.com/ethereum/go-ethereum/core/types/bal"
 	"github.com/ethereum/go-ethereum/eth/gasprice"
 	"github.com/ethereum/go-ethereum/miner"
 )
@@ -68,16 +69,17 @@ func (c Config) MarshalTOML() (interface{}, error) {
 		TxSyncDefaultTimeout                      time.Duration `toml:",omitempty"`
 		TxSyncMaxTimeout                          time.Duration `toml:",omitempty"`
 		RangeLimit                                uint64        `toml:",omitempty"`
-		OverrideOptimismCanyon                    *uint64       `toml:",omitempty"`
-		OverrideOptimismEcotone                   *uint64       `toml:",omitempty"`
-		OverrideOptimismFjord                     *uint64       `toml:",omitempty"`
-		OverrideOptimismGranite                   *uint64       `toml:",omitempty"`
-		OverrideOptimismHolocene                  *uint64       `toml:",omitempty"`
-		OverrideOptimismIsthmus                   *uint64       `toml:",omitempty"`
-		OverrideOptimismJovian                    *uint64       `toml:",omitempty"`
-		OverrideOptimismKarst                     *uint64       `toml:",omitempty"`
-		OverrideOptimismInterop                   *uint64       `toml:",omitempty"`
-		ApplySuperchainUpgrades                   bool          `toml:",omitempty"`
+		BALExecutionMode                          bal.BALExecutionMode
+		OverrideOptimismCanyon                    *uint64 `toml:",omitempty"`
+		OverrideOptimismEcotone                   *uint64 `toml:",omitempty"`
+		OverrideOptimismFjord                     *uint64 `toml:",omitempty"`
+		OverrideOptimismGranite                   *uint64 `toml:",omitempty"`
+		OverrideOptimismHolocene                  *uint64 `toml:",omitempty"`
+		OverrideOptimismIsthmus                   *uint64 `toml:",omitempty"`
+		OverrideOptimismJovian                    *uint64 `toml:",omitempty"`
+		OverrideOptimismKarst                     *uint64 `toml:",omitempty"`
+		OverrideOptimismInterop                   *uint64 `toml:",omitempty"`
+		ApplySuperchainUpgrades                   bool    `toml:",omitempty"`
 		RollupSequencerHTTP                       string
 		RollupSequencerTxConditionalEnabled       bool
 		RollupSequencerTxConditionalCostRateLimit int
@@ -143,6 +145,7 @@ func (c Config) MarshalTOML() (interface{}, error) {
 	enc.TxSyncDefaultTimeout = c.TxSyncDefaultTimeout
 	enc.TxSyncMaxTimeout = c.TxSyncMaxTimeout
 	enc.RangeLimit = c.RangeLimit
+	enc.BALExecutionMode = c.BALExecutionMode
 	enc.OverrideOptimismCanyon = c.OverrideOptimismCanyon
 	enc.OverrideOptimismEcotone = c.OverrideOptimismEcotone
 	enc.OverrideOptimismFjord = c.OverrideOptimismFjord
@@ -222,16 +225,17 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 		TxSyncDefaultTimeout                      *time.Duration `toml:",omitempty"`
 		TxSyncMaxTimeout                          *time.Duration `toml:",omitempty"`
 		RangeLimit                                *uint64        `toml:",omitempty"`
-		OverrideOptimismCanyon                    *uint64        `toml:",omitempty"`
-		OverrideOptimismEcotone                   *uint64        `toml:",omitempty"`
-		OverrideOptimismFjord                     *uint64        `toml:",omitempty"`
-		OverrideOptimismGranite                   *uint64        `toml:",omitempty"`
-		OverrideOptimismHolocene                  *uint64        `toml:",omitempty"`
-		OverrideOptimismIsthmus                   *uint64        `toml:",omitempty"`
-		OverrideOptimismJovian                    *uint64        `toml:",omitempty"`
-		OverrideOptimismKarst                     *uint64        `toml:",omitempty"`
-		OverrideOptimismInterop                   *uint64        `toml:",omitempty"`
-		ApplySuperchainUpgrades                   *bool          `toml:",omitempty"`
+		BALExecutionMode                          *bal.BALExecutionMode
+		OverrideOptimismCanyon                    *uint64 `toml:",omitempty"`
+		OverrideOptimismEcotone                   *uint64 `toml:",omitempty"`
+		OverrideOptimismFjord                     *uint64 `toml:",omitempty"`
+		OverrideOptimismGranite                   *uint64 `toml:",omitempty"`
+		OverrideOptimismHolocene                  *uint64 `toml:",omitempty"`
+		OverrideOptimismIsthmus                   *uint64 `toml:",omitempty"`
+		OverrideOptimismJovian                    *uint64 `toml:",omitempty"`
+		OverrideOptimismKarst                     *uint64 `toml:",omitempty"`
+		OverrideOptimismInterop                   *uint64 `toml:",omitempty"`
+		ApplySuperchainUpgrades                   *bool   `toml:",omitempty"`
 		RollupSequencerHTTP                       *string
 		RollupSequencerTxConditionalEnabled       *bool
 		RollupSequencerTxConditionalCostRateLimit *int
@@ -401,6 +405,9 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 	}
 	if dec.RangeLimit != nil {
 		c.RangeLimit = *dec.RangeLimit
+	}
+	if dec.BALExecutionMode != nil {
+		c.BALExecutionMode = *dec.BALExecutionMode
 	}
 	if dec.OverrideOptimismCanyon != nil {
 		c.OverrideOptimismCanyon = dec.OverrideOptimismCanyon

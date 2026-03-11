@@ -1276,7 +1276,7 @@ func TestDeleteStorage(t *testing.T) {
 		disk     = rawdb.NewMemoryDatabase()
 		tdb      = triedb.NewDatabase(disk, nil)
 		snaps, _ = snapshot.New(snapshot.Config{CacheSize: 10}, disk, tdb, types.EmptyRootHash)
-		db       = NewDatabase(tdb, snaps)
+		db       = NewDatabase(tdb, nil).WithSnapshot(snaps)
 		state, _ = New(types.EmptyRootHash, db)
 		addr     = common.HexToAddress("0x1")
 	)
@@ -1290,18 +1290,19 @@ func TestDeleteStorage(t *testing.T) {
 	}
 	root, _ := state.Commit(0, true, false)
 	// Init phase done, create two states, one with snap and one without
-	fastState, _ := New(root, NewDatabase(tdb, snaps))
+	fastState, _ := New(root, NewDatabase(tdb, nil).WithSnapshot(snaps))
 	slowState, _ := New(root, NewDatabase(tdb, nil))
 
 	obj := fastState.getOrNewStateObject(addr)
 	storageRoot := obj.data.Root
 
-	_, _, fastNodes, err := fastState.deleteStorage(addr, crypto.Keccak256Hash(addr[:]), storageRoot)
+	// TODO (jwasinger): verify that the invocation of fast/slowDeleteStorage have correct params here
+	_, _, fastNodes, err := fastDeleteStorage(storageRoot, fastState.db.Snapshot(), crypto.Keccak256Hash(addr[:]), root)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, _, slowNodes, err := slowState.deleteStorage(addr, crypto.Keccak256Hash(addr[:]), storageRoot)
+	_, _, slowNodes, err := slowDeleteStorage(slowState.db, slowState.trie, storageRoot, addr, crypto.Keccak256Hash(addr[:]), root)
 	if err != nil {
 		t.Fatal(err)
 	}

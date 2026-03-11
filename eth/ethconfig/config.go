@@ -21,6 +21,8 @@ import (
 	"errors"
 	"time"
 
+	"github.com/ethereum/go-ethereum/core/types/bal"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/beacon"
@@ -60,11 +62,11 @@ var Defaults = Config{
 	StateHistory:            pathdb.Defaults.StateHistory,
 	TrienodeHistory:         pathdb.Defaults.TrienodeHistory,
 	NodeFullValueCheckpoint: pathdb.Defaults.FullValueCheckpoint,
-	DatabaseCache:           512,
-	TrieCleanCache:          154,
-	TrieDirtyCache:          256,
+	DatabaseCache:           2048,
+	TrieCleanCache:          614,
+	TrieDirtyCache:          1024,
+	SnapshotCache:           409,
 	TrieTimeout:             60 * time.Minute,
-	SnapshotCache:           102,
 	FilterLogCacheSize:      32,
 	LogQueryLimit:           1000,
 	Miner:                   miner.DefaultConfig,
@@ -210,6 +212,8 @@ type Config struct {
 
 	// RangeLimit restricts the maximum range (end - start) for range queries.
 	RangeLimit uint64 `toml:",omitempty"`
+
+	BALExecutionMode bal.BALExecutionMode
 
 	OverrideOptimismCanyon *uint64 `toml:",omitempty"`
 

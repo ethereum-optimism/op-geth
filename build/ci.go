@@ -172,6 +172,9 @@ var (
 
 	// This is where the tests should be unpacked.
 	executionSpecTestsDir = "tests/spec-tests"
+
+	// This is where the bal-specific release of the tests should be unpacked.
+	executionSpecTestsBALDir = "tests/spec-tests-bal"
 )
 
 var GOBIN, _ = filepath.Abs(filepath.Join("build", "bin"))
@@ -383,6 +386,7 @@ func doTest(cmdline []string) {
 	// Get test fixtures.
 	if !*short {
 		downloadSpecTestFixtures(csdb, *cachedir)
+		downloadBALSpecTestFixtures(csdb, *cachedir)
 	}
 
 	// Configure the toolchain.
@@ -443,6 +447,19 @@ func downloadSpecTestFixtures(csdb *download.ChecksumDB, cachedir string) string
 		log.Fatal(err)
 	}
 	if err := build.ExtractArchive(archivePath, executionSpecTestsDir); err != nil {
+		log.Fatal(err)
+	}
+	return filepath.Join(cachedir, base)
+}
+
+func downloadBALSpecTestFixtures(csdb *download.ChecksumDB, cachedir string) string {
+	ext := ".tar.gz"
+	base := "fixtures_bal"
+	archivePath := filepath.Join(cachedir, base+ext)
+	if err := csdb.DownloadFileFromKnownURL(archivePath); err != nil {
+		log.Fatal(err)
+	}
+	if err := build.ExtractArchive(archivePath, executionSpecTestsBALDir); err != nil {
 		log.Fatal(err)
 	}
 	return filepath.Join(cachedir, base)
@@ -1199,7 +1216,7 @@ func doWindowsInstaller(cmdline []string) {
 	var (
 		arch    = flag.String("arch", runtime.GOARCH, "Architecture for cross build packaging")
 		signer  = flag.String("signer", "", `Environment variable holding the signing key (e.g. WINDOWS_SIGNING_KEY)`)
-		signify = flag.String("signify key", "", `Environment variable holding the signify signing key (e.g. WINDOWS_SIGNIFY_KEY)`)
+		signify = flag.String("signify", "", `Environment variable holding the signify signing key (e.g. WINDOWS_SIGNIFY_KEY)`)
 		upload  = flag.String("upload", "", `Destination to upload the archives (usually "gethstore/builds")`)
 		workdir = flag.String("workdir", "", `Output directory for packages (uses temp dir if unset)`)
 	)

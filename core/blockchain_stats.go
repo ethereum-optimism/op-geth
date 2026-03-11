@@ -52,8 +52,9 @@ type ExecuteStats struct {
 	Execution       time.Duration // Time spent on the EVM execution
 	Validation      time.Duration // Time spent on the block validation
 	CrossValidation time.Duration // Optional, time spent on the block cross validation
-	SnapshotCommit  time.Duration // Time spent on snapshot commit
-	TrieDBCommit    time.Duration // Time spent on database commit
+	SnapshotCommit  time.Duration // Time spent on the snapshot commit
+	TrieDBCommit    time.Duration // Time spent on the trie database commit
+	DatabaseCommit  time.Duration // Time spent on database commit
 	BlockWrite      time.Duration // Time spent on block write
 	TotalTime       time.Duration // The total time spent on block execution
 	MgasPerSecond   float64       // The million gas processed per second
@@ -61,6 +62,9 @@ type ExecuteStats struct {
 	// Cache hit rates
 	StateReadCacheStats     state.ReaderStats
 	StatePrefetchCacheStats state.ReaderStats
+
+	// Stats specific to BAL state update
+	balTransitionStats *state.BALStateTransitionMetrics
 }
 
 // reportMetrics uploads execution statistics to the metrics system.
@@ -87,22 +91,21 @@ func (s *ExecuteStats) reportMetrics() {
 	blockExecutionTimer.Update(s.Execution)                 // The time spent on EVM processing
 	blockValidationTimer.Update(s.Validation)               // The time spent on block validation
 	blockCrossValidationTimer.Update(s.CrossValidation)     // The time spent on stateless cross validation
-	snapshotCommitTimer.Update(s.SnapshotCommit)            // Snapshot commits are complete, we can mark them
-	triedbCommitTimer.Update(s.TrieDBCommit)                // Trie database commits are complete, we can mark them
+	triedbCommitTimer.Update(s.DatabaseCommit)              // Trie database commits are complete, we can mark them
 	blockWriteTimer.Update(s.BlockWrite)                    // The time spent on block write
 	blockInsertTimer.Update(s.TotalTime)                    // The total time spent on block execution
 	chainMgaspsMeter.Update(time.Duration(s.MgasPerSecond)) // TODO(rjl493456442) generalize the ResettingTimer
 
 	// Cache hit rates
-	accountCacheHitPrefetchMeter.Mark(s.StatePrefetchCacheStats.AccountCacheHit)
-	accountCacheMissPrefetchMeter.Mark(s.StatePrefetchCacheStats.AccountCacheMiss)
-	storageCacheHitPrefetchMeter.Mark(s.StatePrefetchCacheStats.StorageCacheHit)
-	storageCacheMissPrefetchMeter.Mark(s.StatePrefetchCacheStats.StorageCacheMiss)
+	accountCacheHitPrefetchMeter.Mark(s.StatePrefetchCacheStats.StateStats.AccountCacheHit)
+	accountCacheMissPrefetchMeter.Mark(s.StatePrefetchCacheStats.StateStats.AccountCacheMiss)
+	storageCacheHitPrefetchMeter.Mark(s.StatePrefetchCacheStats.StateStats.StorageCacheHit)
+	storageCacheMissPrefetchMeter.Mark(s.StatePrefetchCacheStats.StateStats.StorageCacheMiss)
 
-	accountCacheHitMeter.Mark(s.StateReadCacheStats.AccountCacheHit)
-	accountCacheMissMeter.Mark(s.StateReadCacheStats.AccountCacheMiss)
-	storageCacheHitMeter.Mark(s.StateReadCacheStats.StorageCacheHit)
-	storageCacheMissMeter.Mark(s.StateReadCacheStats.StorageCacheMiss)
+	accountCacheHitMeter.Mark(s.StateReadCacheStats.StateStats.AccountCacheHit)
+	accountCacheMissMeter.Mark(s.StateReadCacheStats.StateStats.AccountCacheMiss)
+	storageCacheHitMeter.Mark(s.StateReadCacheStats.StateStats.StorageCacheHit)
+	storageCacheMissMeter.Mark(s.StateReadCacheStats.StateStats.StorageCacheMiss)
 }
 
 // slowBlockLog represents the JSON structure for slow block logging.
@@ -177,14 +180,6 @@ type slowBlockCodeCacheEntry struct {
 	MissBytes int64   `json:"miss_bytes"`
 }
 
-// calculateHitRate computes the cache hit rate as a percentage (0-100).
-func calculateHitRate(hits, misses int64) float64 {
-	if total := hits + misses; total > 0 {
-		return float64(hits) / float64(total) * 100.0
-	}
-	return 0.0
-}
-
 // durationToMs converts a time.Duration to milliseconds as a float64
 // with sub-millisecond precision for accurate cross-client metrics.
 func durationToMs(d time.Duration) float64 {
@@ -216,7 +211,7 @@ func (s *ExecuteStats) logSlow(block *types.Block, slowBlockThreshold time.Durat
 			ExecutionMs: durationToMs(s.Execution),
 			StateReadMs: durationToMs(s.AccountReads + s.StorageReads + s.CodeReads),
 			StateHashMs: durationToMs(s.AccountHashes + s.AccountUpdates + s.StorageUpdates),
-			CommitMs:    durationToMs(max(s.AccountCommits, s.StorageCommits) + s.TrieDBCommit + s.SnapshotCommit + s.BlockWrite),
+			CommitMs:    durationToMs(max(s.AccountCommits, s.StorageCommits) + s.DatabaseCommit + s.BlockWrite),
 			TotalMs:     durationToMs(s.TotalTime),
 		},
 		Throughput: slowBlockThru{
@@ -238,19 +233,19 @@ func (s *ExecuteStats) logSlow(block *types.Block, slowBlockThreshold time.Durat
 		},
 		Cache: slowBlockCache{
 			Account: slowBlockCacheEntry{
-				Hits:    s.StateReadCacheStats.AccountCacheHit,
-				Misses:  s.StateReadCacheStats.AccountCacheMiss,
-				HitRate: calculateHitRate(s.StateReadCacheStats.AccountCacheHit, s.StateReadCacheStats.AccountCacheMiss),
+				Hits:    s.StateReadCacheStats.StateStats.AccountCacheHit,
+				Misses:  s.StateReadCacheStats.StateStats.AccountCacheMiss,
+				HitRate: s.StateReadCacheStats.StateStats.AccountCacheHitRate(),
 			},
 			Storage: slowBlockCacheEntry{
-				Hits:    s.StateReadCacheStats.StorageCacheHit,
-				Misses:  s.StateReadCacheStats.StorageCacheMiss,
-				HitRate: calculateHitRate(s.StateReadCacheStats.StorageCacheHit, s.StateReadCacheStats.StorageCacheMiss),
+				Hits:    s.StateReadCacheStats.StateStats.StorageCacheHit,
+				Misses:  s.StateReadCacheStats.StateStats.StorageCacheMiss,
+				HitRate: s.StateReadCacheStats.StateStats.StorageCacheHitRate(),
 			},
 			Code: slowBlockCodeCacheEntry{
 				Hits:      s.StateReadCacheStats.CodeStats.CacheHit,
 				Misses:    s.StateReadCacheStats.CodeStats.CacheMiss,
-				HitRate:   calculateHitRate(s.StateReadCacheStats.CodeStats.CacheHit, s.StateReadCacheStats.CodeStats.CacheMiss),
+				HitRate:   s.StateReadCacheStats.CodeStats.HitRate(),
 				HitBytes:  s.StateReadCacheStats.CodeStats.CacheHitBytes,
 				MissBytes: s.StateReadCacheStats.CodeStats.CacheMissBytes,
 			},
@@ -262,4 +257,54 @@ func (s *ExecuteStats) logSlow(block *types.Block, slowBlockThreshold time.Durat
 		return
 	}
 	log.Warn(string(jsonBytes))
+}
+
+func (s *ExecuteStats) reportBALMetrics() {
+	/*
+		if s.AccountLoaded != 0 {
+			accountReadTimer.Update(s.AccountReads)
+			accountReadSingleTimer.Update(s.AccountReads / time.Duration(s.AccountLoaded))
+		}
+		if s.StorageLoaded != 0 {
+			storageReadTimer.Update(s.StorageReads)
+			storageReadSingleTimer.Update(s.StorageReads / time.Duration(s.StorageLoaded))
+		}
+		if s.CodeLoaded != 0 {
+			codeReadTimer.Update(s.CodeReads)
+			codeReadSingleTimer.Update(s.CodeReads / time.Duration(s.CodeLoaded))
+			codeReadBytesTimer.Update(time.Duration(s.CodeLoadBytes))
+		}
+		// TODO: implement these ^
+	*/
+	//accountUpdateTimer.Update(s.AccountUpdates) // Account updates are complete(in validation)
+	//storageUpdateTimer.Update(s.StorageUpdates) // Storage updates are complete(in validation)
+	//accountHashTimer.Update(s.AccountHashes)    // Account hashes are complete(in validation)
+
+	accountCommitTimer.Update(s.AccountCommits) // Account commits are complete, we can mark them
+	storageCommitTimer.Update(s.StorageCommits) // Storage commits are complete, we can mark them
+
+	stateTriePrefetchTimer.Update(s.balTransitionStats.StatePrefetch)
+	accountTriesUpdateTimer.Update(s.balTransitionStats.AccountUpdate)
+	stateTrieUpdateTimer.Update(s.balTransitionStats.StateUpdate)
+	stateTrieHashTimer.Update(s.balTransitionStats.StateHash)
+	stateRootComputeTimer.Update(s.balTransitionStats.AccountUpdate + s.balTransitionStats.StateUpdate + s.balTransitionStats.StateHash)
+
+	//blockExecutionTimer.Update(s.Execution)                 // The time spent on EVM processing
+	// ^basically impossible to get this metric with parallel execution
+
+	//blockValidationTimer.Update(s.Validation)               // The time spent on block validation
+	//blockCrossValidationTimer.Update(s.CrossValidation)     // The time spent on stateless cross validation
+
+	snapshotCommitTimer.Update(s.SnapshotCommit)            // Snapshot commits are complete, we can mark them
+	triedbCommitTimer.Update(s.TrieDBCommit)                // Trie database commits are complete, we can mark them
+	blockWriteTimer.Update(s.BlockWrite)                    // The time spent on block write
+	blockInsertTimer.Update(s.TotalTime)                    // The total time spent on block execution
+	chainMgaspsMeter.Update(time.Duration(s.MgasPerSecond)) // TODO(rjl493456442) generalize the ResettingTimer
+
+	// Cache hit rates
+
+	accountCacheHitMeter.Mark(s.StateReadCacheStats.StateStats.AccountCacheHit)
+	accountCacheMissMeter.Mark(s.StateReadCacheStats.StateStats.AccountCacheMiss)
+	storageCacheHitMeter.Mark(s.StateReadCacheStats.StateStats.StorageCacheHit)
+	storageCacheMissMeter.Mark(s.StateReadCacheStats.StateStats.StorageCacheMiss)
 }

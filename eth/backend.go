@@ -37,6 +37,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/filtermaps"
+	"github.com/ethereum/go-ethereum/core/history"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state/pruner"
 	"github.com/ethereum/go-ethereum/core/txpool"
@@ -190,7 +191,7 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 
 	// Here we determine genesis hash and active ChainConfig.
 	// We need these to figure out the consensus parameters and to set up history pruning.
-	chainConfig, _, err := core.LoadChainConfig(chainDb, config.Genesis)
+	chainConfig, genesisHash, err := core.LoadChainConfig(chainDb, config.Genesis)
 	if err != nil {
 		return nil, err
 	}
@@ -237,6 +238,10 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 			rawdb.WriteDatabaseVersion(chainDb, core.BlockChainVersion)
 		}
 	}
+	histPolicy, err := history.NewPolicy(config.HistoryMode, genesisHash)
+	if err != nil {
+		return nil, err
+	}
 	var (
 		options = &core.BlockChainConfig{
 			TrieCleanLimit:          config.TrieCleanCache,
@@ -250,12 +255,10 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 			TrienodeHistory:         config.TrienodeHistory,
 			NodeFullValueCheckpoint: config.NodeFullValueCheckpoint,
 			StateScheme:             scheme,
-			ChainHistoryMode:        config.HistoryMode,
+			HistoryPolicy:           histPolicy,
 			TxLookupLimit:           int64(min(config.TransactionHistory, math.MaxInt64)),
 			VmConfig: vm.Config{
 				EnablePreimageRecording: config.EnablePreimageRecording,
-				EnableWitnessStats:      config.EnableWitnessStats,
-				StatelessSelfValidation: config.StatelessSelfValidation,
 			},
 			// Enables file journaling for the trie database. The journal files will be stored
 			// within the data directory. The corresponding paths will be either:
@@ -264,6 +267,9 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 			TrieJournalDirectory: stack.ResolvePath("triedb"),
 			StateSizeTracking:    config.EnableStateSizeTracking,
 			SlowBlockThreshold:   config.SlowBlockThreshold,
+
+			StatelessSelfValidation: config.StatelessSelfValidation,
+			EnableWitnessStats:      config.EnableWitnessStats,
 		}
 	)
 	if config.VMTrace != "" {
@@ -320,6 +326,7 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 	}
 	overrides.ApplySuperchainUpgrades = config.ApplySuperchainUpgrades
 	options.Overrides = &overrides
+	options.BALExecutionMode = config.BALExecutionMode
 
 	eth.blockchain, err = core.NewBlockChain(chainDb, config.Genesis, eth.engine, options)
 	if err != nil {

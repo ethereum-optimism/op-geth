@@ -28,6 +28,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/ethereum/go-ethereum/core/types/bal"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/rlp"
@@ -100,6 +102,9 @@ type Header struct {
 	// RequestsHash was added by EIP-7685 and is ignored in legacy headers.
 	RequestsHash *common.Hash `json:"requestsHash" rlp:"optional"`
 
+	// BlockAccessListHash was added by EIP-7928 and is ignored in legacy headers.
+	BlockAccessListHash *common.Hash `json:"blockAccessListHash" rlp:"optional"`
+
 	// SlotNumber was added by EIP-7843 and is ignored in legacy headers.
 	SlotNumber *uint64 `json:"slotNumber" rlp:"optional"`
 }
@@ -164,10 +169,8 @@ func (h *Header) SanityCheck() error {
 // EmptyBody returns true if there is no additional 'body' to complete the header
 // that is: no transactions, no uncles and no withdrawals.
 func (h *Header) EmptyBody() bool {
-	var (
-		emptyWithdrawals = h.WithdrawalsHash == nil || *h.WithdrawalsHash == EmptyWithdrawalsHash
-	)
-	return h.TxHash == EmptyTxsHash && h.UncleHash == EmptyUncleHash && emptyWithdrawals
+	// quick hack to ensure that we download bodies for empty blocks so that we receive the BALs
+	return false
 }
 
 // EmptyReceipts returns true if there are no receipts for this header/block.
@@ -222,6 +225,7 @@ type Block struct {
 	uncles       []*Header
 	transactions Transactions
 	withdrawals  Withdrawals
+	accessList   *bal.BlockAccessList
 
 	// caches
 	hash atomic.Pointer[common.Hash]
@@ -314,6 +318,14 @@ func NewBlock(header *Header, body *Body, receipts []*Receipt, hasher ListHasher
 	return b
 }
 
+func NewBlockWithAccessList(header *Header, body *Body, receipts []*Receipt, accessList *bal.BlockAccessList, hasher ListHasher, bType BlockType) *Block {
+	block := NewBlock(header, body, receipts, hasher, bType)
+	block.accessList = accessList
+	balHash := accessList.Hash()
+	block.header.BlockAccessListHash = &balHash
+	return block
+}
+
 // CopyHeader creates a deep copy of a block header.
 func CopyHeader(h *Header) *Header {
 	cpy := *h
@@ -350,6 +362,10 @@ func CopyHeader(h *Header) *Header {
 		cpy.RequestsHash = new(common.Hash)
 		*cpy.RequestsHash = *h.RequestsHash
 	}
+	if h.BlockAccessListHash != nil {
+		cpy.BlockAccessListHash = new(common.Hash)
+		*cpy.BlockAccessListHash = *h.BlockAccessListHash
+	}
 	if h.SlotNumber != nil {
 		cpy.SlotNumber = new(uint64)
 		*cpy.SlotNumber = *h.SlotNumber
@@ -359,7 +375,9 @@ func CopyHeader(h *Header) *Header {
 
 // DecodeRLP decodes a block from RLP.
 func (b *Block) DecodeRLP(s *rlp.Stream) error {
-	var eb extblock
+	var (
+		eb extblock
+	)
 	_, size, _ := s.Kind()
 	if err := s.Decode(&eb); err != nil {
 		return err
@@ -388,9 +406,10 @@ func (b *Block) Body() *Body {
 // Accessors for body data. These do not return a copy because the content
 // of the body slices does not affect the cached hash/size in block.
 
-func (b *Block) Uncles() []*Header          { return b.uncles }
-func (b *Block) Transactions() Transactions { return b.transactions }
-func (b *Block) Withdrawals() Withdrawals   { return b.withdrawals }
+func (b *Block) Uncles() []*Header                { return b.uncles }
+func (b *Block) Transactions() Transactions       { return b.transactions }
+func (b *Block) Withdrawals() Withdrawals         { return b.withdrawals }
+func (b *Block) AccessList() *bal.BlockAccessList { return b.accessList }
 
 func (b *Block) Transaction(hash common.Hash) *Transaction {
 	for _, transaction := range b.transactions {
@@ -547,6 +566,25 @@ func (b *Block) WithBody(body Body) *Block {
 	}
 	for i := range body.Uncles {
 		block.uncles[i] = CopyHeader(body.Uncles[i])
+	}
+	return block
+}
+
+// WithAccessList returns a copy of the block with the access list embedded.
+// It does not set the access list hash in the header of the returned block.
+func (b *Block) WithAccessList(accessList *bal.BlockAccessList) *Block {
+	alCopy := accessList.Copy()
+	alHash := accessList.Hash()
+	b.header.BlockAccessListHash = &alHash
+	block := &Block{
+		header:       b.header,
+		transactions: slices.Clone(b.transactions),
+		uncles:       make([]*Header, len(b.uncles)),
+		withdrawals:  slices.Clone(b.withdrawals),
+		accessList:   &alCopy,
+	}
+	for i := range b.uncles {
+		block.uncles[i] = CopyHeader(b.uncles[i])
 	}
 	return block
 }

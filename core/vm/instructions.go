@@ -516,9 +516,6 @@ func opSload(pc *uint64, evm *EVM, scope *ScopeContext) ([]byte, error) {
 }
 
 func opSstore(pc *uint64, evm *EVM, scope *ScopeContext) ([]byte, error) {
-	if evm.readOnly {
-		return nil, ErrWriteProtection
-	}
 	loc := scope.Stack.pop()
 	val := scope.Stack.pop()
 	evm.StateDB.SetState(scope.Contract.Address(), loc.Bytes32(), val.Bytes32())
@@ -566,7 +563,7 @@ func opMsize(pc *uint64, evm *EVM, scope *ScopeContext) ([]byte, error) {
 }
 
 func opGas(pc *uint64, evm *EVM, scope *ScopeContext) ([]byte, error) {
-	scope.Stack.push(new(uint256.Int).SetUint64(scope.Contract.Gas))
+	scope.Stack.push(new(uint256.Int).SetUint64(scope.Contract.Gas.RegularGas))
 	return nil, nil
 }
 
@@ -661,15 +658,25 @@ func opCreate(pc *uint64, evm *EVM, scope *ScopeContext) ([]byte, error) {
 		gas          = scope.Contract.Gas
 	)
 	if evm.chainRules.IsEIP150 {
-		gas -= gas / 64
+		gas.RegularGas -= gas.RegularGas / 64
+	}
+
+	// EIP-7954: check init code size after gas is charged (by the gas function)
+	// but before execution. This aborts the caller's execution, ensuring all
+	// regular gas is consumed while the state gas spill is tracked.
+	if evm.chainRules.IsAmsterdam {
+		if err := CheckMaxInitCodeSize(&evm.chainRules, uint64(len(input))); err != nil {
+			return nil, err
+		}
 	}
 
 	// reuse size int for stackvalue
 	stackvalue := size
 
-	scope.Contract.UseGas(gas, evm.Config.Tracer, tracing.GasChangeCallContractCreation)
+	scope.Contract.UseGas(GasCosts{RegularGas: gas.RegularGas}, evm.Config.Tracer, tracing.GasChangeCallContractCreation)
+	scope.Contract.GasUsed.RegularGasUsed -= gas.RegularGas // escrow: undo parent's RGU for forwarded gas
 
-	res, addr, returnGas, suberr := evm.Create(scope.Contract.Address(), input, gas, &value)
+	res, addr, returnGas, childGasUsed, suberr := evm.Create(scope.Contract.Address(), input, GasCosts{RegularGas: gas.RegularGas, StateGas: scope.Contract.Gas.StateGas}, &value)
 	// Push item on the stack based on the returned error. If the ruleset is
 	// homestead we must check for CodeStoreOutOfGasError (homestead only
 	// rule) and treat as an error, if the ruleset is frontier we must
@@ -683,7 +690,7 @@ func opCreate(pc *uint64, evm *EVM, scope *ScopeContext) ([]byte, error) {
 	}
 	scope.Stack.push(&stackvalue)
 
-	scope.Contract.RefundGas(returnGas, evm.Config.Tracer, tracing.GasChangeCallLeftOverRefunded)
+	scope.Contract.RefundGas(suberr, returnGas, childGasUsed, evm.Config.Tracer, tracing.GasChangeCallLeftOverRefunded)
 
 	if suberr == ErrExecutionReverted {
 		evm.returnData = res // set REVERT data to return data buffer
@@ -706,11 +713,22 @@ func opCreate2(pc *uint64, evm *EVM, scope *ScopeContext) ([]byte, error) {
 	)
 
 	// Apply EIP150
-	gas -= gas / 64
-	scope.Contract.UseGas(gas, evm.Config.Tracer, tracing.GasChangeCallContractCreation2)
+	gas.RegularGas -= gas.RegularGas / 64
+
+	// EIP-7954: check init code size after gas is charged (by the gas function)
+	// but before execution. This aborts the caller's execution, ensuring all
+	// regular gas is consumed while the state gas spill is tracked.
+	if evm.chainRules.IsAmsterdam {
+		if err := CheckMaxInitCodeSize(&evm.chainRules, uint64(len(input))); err != nil {
+			return nil, err
+		}
+	}
+
+	scope.Contract.UseGas(GasCosts{RegularGas: gas.RegularGas}, evm.Config.Tracer, tracing.GasChangeCallContractCreation2)
+	scope.Contract.GasUsed.RegularGasUsed -= gas.RegularGas // escrow: undo parent's RGU for forwarded gas
 	// reuse size int for stackvalue
 	stackvalue := size
-	res, addr, returnGas, suberr := evm.Create2(scope.Contract.Address(), input, gas,
+	res, addr, returnGas, childGasUsed, suberr := evm.Create2(scope.Contract.Address(), input, GasCosts{RegularGas: gas.RegularGas, StateGas: scope.Contract.Gas.StateGas},
 		&endowment, &salt)
 	// Push item on the stack based on the returned error.
 	if suberr != nil {
@@ -719,7 +737,8 @@ func opCreate2(pc *uint64, evm *EVM, scope *ScopeContext) ([]byte, error) {
 		stackvalue.SetBytes(addr.Bytes())
 	}
 	scope.Stack.push(&stackvalue)
-	scope.Contract.RefundGas(returnGas, evm.Config.Tracer, tracing.GasChangeCallLeftOverRefunded)
+
+	scope.Contract.RefundGas(suberr, returnGas, childGasUsed, evm.Config.Tracer, tracing.GasChangeCallLeftOverRefunded)
 
 	if suberr == ErrExecutionReverted {
 		evm.returnData = res // set REVERT data to return data buffer
@@ -747,7 +766,8 @@ func opCall(pc *uint64, evm *EVM, scope *ScopeContext) ([]byte, error) {
 	if !value.IsZero() {
 		gas += params.CallStipend
 	}
-	ret, returnGas, err := evm.Call(scope.Contract.Address(), toAddr, args, gas, &value)
+	scope.Contract.GasUsed.RegularGasUsed -= gas // escrow: undo parent's RGU for forwarded gas
+	ret, returnGas, childGasUsed, err := evm.Call(scope.Contract.Address(), toAddr, args, GasCosts{RegularGas: gas, StateGas: scope.Contract.Gas.StateGas}, &value)
 
 	if err != nil {
 		temp.Clear()
@@ -759,7 +779,7 @@ func opCall(pc *uint64, evm *EVM, scope *ScopeContext) ([]byte, error) {
 		scope.Memory.Set(retOffset.Uint64(), retSize.Uint64(), ret)
 	}
 
-	scope.Contract.RefundGas(returnGas, evm.Config.Tracer, tracing.GasChangeCallLeftOverRefunded)
+	scope.Contract.RefundGas(err, returnGas, childGasUsed, evm.Config.Tracer, tracing.GasChangeCallLeftOverRefunded)
 
 	evm.returnData = ret
 	return ret, nil
@@ -781,7 +801,8 @@ func opCallCode(pc *uint64, evm *EVM, scope *ScopeContext) ([]byte, error) {
 		gas += params.CallStipend
 	}
 
-	ret, returnGas, err := evm.CallCode(scope.Contract.Address(), toAddr, args, gas, &value)
+	scope.Contract.GasUsed.RegularGasUsed -= gas // escrow
+	ret, returnGas, childGasUsed, err := evm.CallCode(scope.Contract.Address(), toAddr, args, GasCosts{RegularGas: gas, StateGas: scope.Contract.Gas.StateGas}, &value)
 	if err != nil {
 		temp.Clear()
 	} else {
@@ -792,7 +813,7 @@ func opCallCode(pc *uint64, evm *EVM, scope *ScopeContext) ([]byte, error) {
 		scope.Memory.Set(retOffset.Uint64(), retSize.Uint64(), ret)
 	}
 
-	scope.Contract.RefundGas(returnGas, evm.Config.Tracer, tracing.GasChangeCallLeftOverRefunded)
+	scope.Contract.RefundGas(err, returnGas, childGasUsed, evm.Config.Tracer, tracing.GasChangeCallLeftOverRefunded)
 
 	evm.returnData = ret
 	return ret, nil
@@ -810,7 +831,8 @@ func opDelegateCall(pc *uint64, evm *EVM, scope *ScopeContext) ([]byte, error) {
 	// Get arguments from the memory.
 	args := scope.Memory.GetPtr(inOffset.Uint64(), inSize.Uint64())
 
-	ret, returnGas, err := evm.DelegateCall(scope.Contract.Caller(), scope.Contract.Address(), toAddr, args, gas, scope.Contract.value)
+	scope.Contract.GasUsed.RegularGasUsed -= gas // escrow
+	ret, returnGas, childGasUsed, err := evm.DelegateCall(scope.Contract.Caller(), scope.Contract.Address(), toAddr, args, GasCosts{RegularGas: gas, StateGas: scope.Contract.Gas.StateGas}, scope.Contract.value)
 	if err != nil {
 		temp.Clear()
 	} else {
@@ -821,7 +843,7 @@ func opDelegateCall(pc *uint64, evm *EVM, scope *ScopeContext) ([]byte, error) {
 		scope.Memory.Set(retOffset.Uint64(), retSize.Uint64(), ret)
 	}
 
-	scope.Contract.RefundGas(returnGas, evm.Config.Tracer, tracing.GasChangeCallLeftOverRefunded)
+	scope.Contract.RefundGas(err, returnGas, childGasUsed, evm.Config.Tracer, tracing.GasChangeCallLeftOverRefunded)
 
 	evm.returnData = ret
 	return ret, nil
@@ -839,7 +861,8 @@ func opStaticCall(pc *uint64, evm *EVM, scope *ScopeContext) ([]byte, error) {
 	// Get arguments from the memory.
 	args := scope.Memory.GetPtr(inOffset.Uint64(), inSize.Uint64())
 
-	ret, returnGas, err := evm.StaticCall(scope.Contract.Address(), toAddr, args, gas)
+	scope.Contract.GasUsed.RegularGasUsed -= gas // escrow
+	ret, returnGas, childGasUsed, err := evm.StaticCall(scope.Contract.Address(), toAddr, args, GasCosts{RegularGas: gas, StateGas: scope.Contract.Gas.StateGas})
 	if err != nil {
 		temp.Clear()
 	} else {
@@ -850,7 +873,7 @@ func opStaticCall(pc *uint64, evm *EVM, scope *ScopeContext) ([]byte, error) {
 		scope.Memory.Set(retOffset.Uint64(), retSize.Uint64(), ret)
 	}
 
-	scope.Contract.RefundGas(returnGas, evm.Config.Tracer, tracing.GasChangeCallLeftOverRefunded)
+	scope.Contract.RefundGas(err, returnGas, childGasUsed, evm.Config.Tracer, tracing.GasChangeCallLeftOverRefunded)
 
 	evm.returnData = ret
 	return ret, nil
@@ -934,6 +957,13 @@ func opSelfdestruct6780(pc *uint64, evm *EVM, scope *ScopeContext) ([]byte, erro
 		evm.StateDB.SubBalance(this, balance, tracing.BalanceDecreaseSelfdestruct)
 		evm.StateDB.AddBalance(beneficiary, balance, tracing.BalanceIncreaseSelfdestruct)
 	}
+	if evm.chainRules.IsAmsterdam && !balance.IsZero() {
+		if this != beneficiary {
+			evm.StateDB.AddLog(types.EthTransferLog(this, beneficiary, balance))
+		} else if newContract {
+			evm.StateDB.AddLog(types.EthBurnLog(this, balance))
+		}
+	}
 
 	if tracer := evm.Config.Tracer; tracer != nil {
 		if tracer.OnEnter != nil {
@@ -946,24 +976,34 @@ func opSelfdestruct6780(pc *uint64, evm *EVM, scope *ScopeContext) ([]byte, erro
 	return nil, errStopToken
 }
 
+// decodeSingle decodes the immediate operand of a backward-compatible DUPN or SWAPN instruction (EIP-8024)
+// https://eips.ethereum.org/EIPS/eip-8024
 func decodeSingle(x byte) int {
-	if x <= 90 {
-		return int(x) + 17
-	}
-	return int(x) - 20
+	// Depths 1-16 are already covered by the legacy opcodes. The forbidden byte range [91, 127] removes
+	// 37 values from the 256 possible immediates, leaving 219 usable values, so this encoding covers depths
+	// 17 through 235. The immediate is encoded as (x + 111) % 256, where 111 is chosen so that these values
+	// avoid the forbidden range. Decoding is simply the modular inverse (i.e. 111+145=256).
+	return (int(x) + 145) % 256
 }
 
+// decodePair decodes the immediate operand of a backward-compatible EXCHANGE
+// instruction (EIP-8024) into stack indices (n, m) where 1 <= n < m
+// and n + m <= 30. The forbidden byte range [82, 127] removes 46 values from
+// the 256 possible immediates, leaving exactly 210 usable bytes.
+// https://eips.ethereum.org/EIPS/eip-8024
 func decodePair(x byte) (int, int) {
-	var k int
-	if x <= 79 {
-		k = int(x)
-	} else {
-		k = int(x) - 48
-	}
+	// XOR with 143 remaps the forbidden bytes [82, 127] to an unused corner
+	// of the 16x16 grid below.
+	k := int(x ^ 143)
+	// Split into row q and column r of a 16x16 grid. The 210 valid pairs
+	// occupy two triangles within this grid.
 	q, r := k/16, k%16
+	// Upper triangle (q < r): pairs where m <= 16, encoded directly as
+	// (q+1, r+1).
 	if q < r {
 		return q + 1, r + 1
 	}
+	// Lower triangle: pairs where m > 16, recovered as (r+1, 29-q).
 	return r + 1, 29 - q
 }
 
@@ -1034,8 +1074,8 @@ func opExchange(pc *uint64, evm *EVM, scope *ScopeContext) ([]byte, error) {
 	}
 
 	// This range is excluded both to preserve compatibility with existing opcodes
-	// and to keep decode_pair’s 16-aligned arithmetic mapping valid (0–79, 128–255).
-	if x > 79 && x < 128 {
+	// and to keep decode_pair’s 16-aligned arithmetic mapping valid (0–81, 128–255).
+	if x > 81 && x < 128 {
 		return nil, &ErrInvalidOpCode{opcode: OpCode(x)}
 	}
 	n, m := decodePair(x)
@@ -1076,9 +1116,6 @@ func makeLog(size int) executionFunc {
 			Address: scope.Contract.Address(),
 			Topics:  topics,
 			Data:    d,
-			// This is a non-consensus field, but assigned here because
-			// core/state doesn't know the current block number.
-			BlockNumber: evm.Context.BlockNumber.Uint64(),
 		})
 
 		return nil, nil

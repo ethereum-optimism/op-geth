@@ -279,5 +279,5 @@ func TestForkChoiceUpdatedNilPayloadAttributes(t *testing.T) {
 	fcState := engine.ForkchoiceStateV1{
 		HeadBlockHash: common.Hash{42},
 	}
-	_, _ = api.forkchoiceUpdated(fcState, nil, engine.PayloadV3, false)
+	_, _ = api.forkchoiceUpdated(t.Context(), fcState, nil, engine.PayloadV3, false)
 }

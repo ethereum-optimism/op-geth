@@ -380,7 +380,7 @@ func (b *EthAPIBackend) sendTx(ctx context.Context, signedTx *types.Transaction)
 }
 
 func (b *EthAPIBackend) GetPoolTransactions() (types.Transactions, error) {
-	pending := b.eth.txPool.Pending(txpool.PendingFilter{})
+	pending, _ := b.eth.txPool.Pending(txpool.PendingFilter{})
 	var txs types.Transactions
 	for _, batch := range pending {
 		for _, lazy := range batch {
@@ -531,4 +531,23 @@ func (b *EthAPIBackend) RPCTxSyncDefaultTimeout() time.Duration {
 
 func (b *EthAPIBackend) RPCTxSyncMaxTimeout() time.Duration {
 	return b.eth.config.TxSyncMaxTimeout
+}
+
+// GetBlockAccessList returns a block access list for the given number/hash
+// or nil if one does not exist.
+func (b *EthAPIBackend) BlockAccessListByNumberOrHash(number rpc.BlockNumberOrHash) (interface{}, error) {
+	var block *types.Block
+	if num := number.BlockNumber; num != nil {
+		block = b.eth.blockchain.GetBlockByNumber(uint64(num.Int64()))
+	} else if hash := number.BlockHash; hash != nil {
+		block = b.eth.blockchain.GetBlockByHash(*hash)
+	}
+
+	if block == nil {
+		return nil, fmt.Errorf("block not found")
+	}
+	if block.AccessList() == nil {
+		return nil, nil
+	}
+	return block.AccessList().StringableRepresentation(), nil
 }

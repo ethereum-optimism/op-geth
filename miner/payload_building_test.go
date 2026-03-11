@@ -18,6 +18,7 @@ package miner
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"encoding/binary"
 	"math/big"
@@ -304,7 +305,7 @@ func testBuildPayload(t *testing.T, noTxPool, interrupt bool, params1559 []byte,
 
 	// payload resolution now interrupts block building, so we have to
 	// wait for the payloading building process to build its first block
-	payload, err := w.buildPayload(args, false)
+	payload, err := w.buildPayload(context.Background(), args, false)
 	if err != nil {
 		t.Fatalf("Failed to build payload %v", err)
 	}
@@ -424,7 +425,7 @@ func testDAFilters(t *testing.T, maxDATxSize, maxDABlockSize *big.Int, expectedT
 	args := newPayloadArgs(b.chain.CurrentBlock().Hash(), config)
 	args.NoTxPool = false
 
-	payload, err := w.buildPayload(args, false)
+	payload, err := w.buildPayload(t.Context(), args, false)
 	if err != nil {
 		t.Fatalf("Failed to build payload %v", err)
 	}
@@ -442,7 +443,7 @@ func testBuildPayloadError(t *testing.T, config *params.ChainConfig, expErrStr s
 
 	args := newPayloadArgs(b.chain.CurrentBlock().Hash(), config)
 	mod(args)
-	payload, err := w.buildPayload(args, false)
+	payload, err := w.buildPayload(t.Context(), args, false)
 	require.Nil(t, payload)
 	if err != nil {
 		require.ErrorContains(t, err, expErrStr)

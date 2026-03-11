@@ -22,8 +22,6 @@ import (
 	"os"
 	"slices"
 	"sort"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts"
@@ -301,6 +299,7 @@ func init() {
 		consoleFlags,
 		debug.Flags,
 		metricsFlags,
+		[]cli.Flag{utils.BlockAccessListExecutionModeFlag},
 	)
 	flags.AutoEnvVars(app.Flags, "GETH")
 
@@ -364,25 +363,6 @@ func prepare(ctx *cli.Context) {
 
 	case !ctx.IsSet(utils.NetworkIdFlag.Name):
 		log.Info("Starting Geth on Ethereum mainnet...")
-	}
-	// If we're a full node on mainnet without --cache specified, bump default cache allowance
-	if !ctx.IsSet(utils.CacheFlag.Name) && !ctx.IsSet(utils.NetworkIdFlag.Name) {
-		// Make sure we're not on any supported preconfigured testnet either
-		if !ctx.IsSet(utils.HoleskyFlag.Name) &&
-			!ctx.IsSet(utils.SepoliaFlag.Name) &&
-			!ctx.IsSet(utils.HoodiFlag.Name) &&
-			!ctx.IsSet(utils.DeveloperFlag.Name) {
-			// Nope, we're really on mainnet. Bump that cache up!
-			// Note: If we don't set the OPNetworkFlag and have already initialized the database, we may hit this case.
-			log.Info("Bumping default cache on mainnet", "provided", ctx.Int(utils.CacheFlag.Name), "updated", 4096)
-			ctx.Set(utils.CacheFlag.Name, strconv.Itoa(4096))
-		}
-	} else if ctx.String(utils.SyncModeFlag.Name) != "light" && !ctx.IsSet(utils.CacheFlag.Name) && ctx.IsSet(utils.OPNetworkFlag.Name) {
-		// We haven't set the cache, but may used the OP network flag we may be on an OP stack mainnet.
-		if strings.Contains(ctx.String(utils.OPNetworkFlag.Name), "mainnet") {
-			log.Info("Bumping default cache on mainnet", "provided", ctx.Int(utils.CacheFlag.Name), "updated", 4096, "network", ctx.String(utils.OPNetworkFlag.Name))
-			ctx.Set(utils.CacheFlag.Name, strconv.Itoa(4096))
-		}
 	}
 }
 

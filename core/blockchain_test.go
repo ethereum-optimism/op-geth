@@ -36,7 +36,6 @@ import (
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/beacon"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
-	"github.com/ethereum/go-ethereum/core/history"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -157,7 +156,7 @@ func testBlockChainImport(chain types.Blocks, blockchain *BlockChain) error {
 			}
 			return err
 		}
-		statedb, err := state.New(blockchain.GetBlockByHash(block.ParentHash()).Root(), blockchain.statedb)
+		statedb, err := state.New(blockchain.GetBlockByHash(block.ParentHash()).Root(), state.NewDatabase(blockchain.triedb, blockchain.codedb))
 		if err != nil {
 			return err
 		}
@@ -166,7 +165,7 @@ func testBlockChainImport(chain types.Blocks, blockchain *BlockChain) error {
 			blockchain.reportBadBlock(block, res, err)
 			return err
 		}
-		err = blockchain.validator.ValidateState(block, statedb, res, false)
+		err = blockchain.validator.ValidateState(block, statedb, res, true)
 		if err != nil {
 			blockchain.reportBadBlock(block, res, err)
 			return err
@@ -3866,7 +3865,8 @@ func TestTransientStorageReset(t *testing.T) {
 			Data:     initCode,
 		})
 		nonce++
-		b.AddTxWithVMConfig(tx, vmConfig)
+		bc := &BlockChain{chainConfig: gspec.Config}
+		b.AddTxWithVMConfig(bc, tx, vmConfig)
 
 		tx, _ = types.SignNewTx(key, signer, &types.LegacyTx{
 			Nonce:    nonce,
@@ -3874,7 +3874,7 @@ func TestTransientStorageReset(t *testing.T) {
 			Gas:      100000,
 			To:       &destAddress,
 		})
-		b.AddTxWithVMConfig(tx, vmConfig)
+		b.AddTxWithVMConfig(bc, tx, vmConfig)
 		nonce++
 	})
 
@@ -4337,26 +4337,13 @@ func TestInsertChainWithCutoff(t *testing.T) {
 func testInsertChainWithCutoff(t *testing.T, cutoff uint64, ancientLimit uint64, genesis *Genesis, blocks []*types.Block, receipts []types.Receipts) {
 	// log.SetDefault(log.NewLogger(log.NewTerminalHandlerWithLevel(os.Stderr, log.LevelDebug, true)))
 
-	// Add a known pruning point for the duration of the test.
 	ghash := genesis.ToBlock().Hash()
 	cutoffBlock := blocks[cutoff-1]
-	history.PrunePoints[ghash] = &history.PrunePoint{
-		BlockNumber: cutoffBlock.NumberU64(),
-		BlockHash:   cutoffBlock.Hash(),
-	}
-	defer func() {
-		delete(history.PrunePoints, ghash)
-	}()
-
-	// Enable pruning in cache config.
-	config := DefaultConfig().WithStateScheme(rawdb.PathScheme)
-	config.ChainHistoryMode = history.KeepPostMerge
 
 	db, _ := rawdb.Open(rawdb.NewMemoryDatabase(), rawdb.OpenOptions{})
 	defer db.Close()
 
-	options := DefaultConfig().WithStateScheme(rawdb.PathScheme)
-	chain, _ := NewBlockChain(db, genesis, beacon.New(ethash.NewFaker()), options)
+	chain, _ := NewBlockChain(db, genesis, beacon.New(ethash.NewFaker()), DefaultConfig().WithStateScheme(rawdb.PathScheme))
 	defer chain.Stop()
 
 	var (

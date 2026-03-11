@@ -143,7 +143,7 @@ func NewBinaryTrie(root common.Hash, db database.NodeDatabase) (*BinaryTrie, err
 		if err != nil {
 			return nil, err
 		}
-		node, err := DeserializeNode(blob, 0)
+		node, err := DeserializeNodeWithHash(blob, 0, root)
 		if err != nil {
 			return nil, err
 		}
@@ -237,6 +237,14 @@ func (t *BinaryTrie) GetAccount(addr common.Address) (*types.StateAccount, error
 // trie.MissingNodeError is returned.
 func (t *BinaryTrie) GetStorage(addr common.Address, key []byte) ([]byte, error) {
 	return t.root.Get(GetBinaryTreeKeyStorageSlot(addr, key), t.nodeResolver)
+}
+
+func (t *BinaryTrie) UpdateAccountBatch(addresses []common.Address, accounts []*types.StateAccount, _ []int) error {
+	panic("not implemented")
+}
+
+func (t *BinaryTrie) UpdateStorageBatch(_ common.Address, keys [][]byte, values [][]byte) error {
+	panic("not implemented")
 }
 
 // UpdateAccount updates the account information for the given address.

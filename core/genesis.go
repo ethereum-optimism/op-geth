@@ -68,13 +68,14 @@ type Genesis struct {
 
 	// These fields are used for consensus tests. Please don't use them
 	// in actual genesis blocks.
-	Number        uint64      `json:"number"`
-	GasUsed       uint64      `json:"gasUsed"`
-	ParentHash    common.Hash `json:"parentHash"`
-	BaseFee       *big.Int    `json:"baseFeePerGas"` // EIP-1559
-	ExcessBlobGas *uint64     `json:"excessBlobGas"` // EIP-4844
-	BlobGasUsed   *uint64     `json:"blobGasUsed"`   // EIP-4844
-	SlotNumber    *uint64     `json:"slotNumber"`    // EIP-7843
+	Number              uint64       `json:"number"`
+	GasUsed             uint64       `json:"gasUsed"`
+	ParentHash          common.Hash  `json:"parentHash"`
+	BaseFee             *big.Int     `json:"baseFeePerGas"`                 // EIP-1559
+	ExcessBlobGas       *uint64      `json:"excessBlobGas"`                 // EIP-4844
+	BlobGasUsed         *uint64      `json:"blobGasUsed"`                   // EIP-4844
+	BlockAccessListHash *common.Hash `json:"blockAccessListHash,omitempty"` // EIP-7928
+	SlotNumber          *uint64      `json:"slotNumber"`                    // EIP-7843
 
 	// StateHash represents the genesis state, to allow instantiation of a chain with missing initial state.
 	// Chains with history pruning, or extraordinarily large genesis allocation (e.g. after a regenesis event)
@@ -129,6 +130,7 @@ func ReadGenesis(db ethdb.Database) (*Genesis, error) {
 	genesis.BaseFee = genesisHeader.BaseFee
 	genesis.ExcessBlobGas = genesisHeader.ExcessBlobGas
 	genesis.BlobGasUsed = genesisHeader.BlobGasUsed
+	genesis.BlockAccessListHash = genesisHeader.BlockAccessListHash
 	genesis.SlotNumber = genesisHeader.SlotNumber
 	// OP Stack: A nil or empty alloc, with a non-matching state-root in the block header, intents to override the state-root.
 	if genesis.Alloc == nil || (len(genesis.Alloc) == 0 && genesisHeader.Root != types.EmptyRootHash) {
@@ -642,18 +644,19 @@ func (g *Genesis) ToBlock() *types.Block {
 // toBlockWithRoot constructs the genesis block with the given genesis state root.
 func (g *Genesis) toBlockWithRoot(stateRoot, storageRootMessagePasser common.Hash) *types.Block {
 	head := &types.Header{
-		Number:     new(big.Int).SetUint64(g.Number),
-		Nonce:      types.EncodeNonce(g.Nonce),
-		Time:       g.Timestamp,
-		ParentHash: g.ParentHash,
-		Extra:      g.ExtraData,
-		GasLimit:   g.GasLimit,
-		GasUsed:    g.GasUsed,
-		BaseFee:    g.BaseFee,
-		Difficulty: g.Difficulty,
-		MixDigest:  g.Mixhash,
-		Coinbase:   g.Coinbase,
-		Root:       stateRoot,
+		Number:              new(big.Int).SetUint64(g.Number),
+		Nonce:               types.EncodeNonce(g.Nonce),
+		Time:                g.Timestamp,
+		ParentHash:          g.ParentHash,
+		Extra:               g.ExtraData,
+		GasLimit:            g.GasLimit,
+		GasUsed:             g.GasUsed,
+		BaseFee:             g.BaseFee,
+		Difficulty:          g.Difficulty,
+		MixDigest:           g.Mixhash,
+		Coinbase:            g.Coinbase,
+		BlockAccessListHash: g.BlockAccessListHash,
+		Root:                stateRoot,
 	}
 	if g.GasLimit == 0 {
 		head.GasLimit = params.GenesisGasLimit

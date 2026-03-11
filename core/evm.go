@@ -71,23 +71,35 @@ func NewEVMBlockContext(header *types.Header, chain ChainContext, author *common
 		operatorCostFn = types.NewOperatorCostFunc(config, statedb)
 	}
 	return vm.BlockContext{
-		CanTransfer: CanTransfer,
-		Transfer:    Transfer,
-		GetHash:     GetHashFn(header, chain),
-		Coinbase:    beneficiary,
-		BlockNumber: new(big.Int).Set(header.Number),
-		Time:        header.Time,
-		Difficulty:  new(big.Int).Set(header.Difficulty),
-		BaseFee:     baseFee,
-		BlobBaseFee: blobBaseFee,
-		GasLimit:    header.GasLimit,
-		Random:      random,
-		SlotNum:     slotNum,
+		CanTransfer:    CanTransfer,
+		Transfer:       Transfer,
+		GetHash:        GetHashFn(header, chain),
+		Coinbase:       beneficiary,
+		BlockNumber:    new(big.Int).Set(header.Number),
+		Time:           header.Time,
+		Difficulty:     new(big.Int).Set(header.Difficulty),
+		BaseFee:        baseFee,
+		BlobBaseFee:    blobBaseFee,
+		GasLimit:       header.GasLimit,
+		Random:         random,
+		SlotNum:        slotNum,
+		CostPerGasByte: CostPerStateByte(header, chain.Config()),
 
 		// OP-Stack additions
 		L1CostFunc:       types.NewL1CostFunc(config, statedb),
 		OperatorCostFunc: operatorCostFn,
 	}
+}
+
+// CostPerStateByte computes the cost per one byte of state creation
+// after EIP-8037
+func CostPerStateByte(header *types.Header, config *params.ChainConfig) uint64 {
+	if config.IsAmsterdam(header.Number, header.Time) {
+		return 1174
+		// TODO (MariusVanDerWijden): for devnet-3 we hardcode the costPerStateByte
+		//return ((header.GasLimit / 2) * 7200 * 365) / params.TargetStateGrowthPerYear
+	}
+	return 0
 }
 
 // NewEVMTxContext creates a new transaction context for a single transaction.
@@ -146,7 +158,10 @@ func CanTransfer(db vm.StateDB, addr common.Address, amount *uint256.Int) bool {
 }
 
 // Transfer subtracts amount from sender and adds amount to recipient using the given Db
-func Transfer(db vm.StateDB, sender, recipient common.Address, amount *uint256.Int) {
+func Transfer(db vm.StateDB, sender, recipient common.Address, amount *uint256.Int, rules *params.Rules) {
 	db.SubBalance(sender, amount, tracing.BalanceChangeTransfer)
 	db.AddBalance(recipient, amount, tracing.BalanceChangeTransfer)
+	if rules.IsAmsterdam && !amount.IsZero() && sender != recipient {
+		db.AddLog(types.EthTransferLog(sender, recipient, amount))
+	}
 }

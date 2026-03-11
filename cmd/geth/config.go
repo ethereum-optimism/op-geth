@@ -35,6 +35,7 @@ import (
 	"github.com/ethereum/go-ethereum/beacon/blsync"
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types/bal"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/eth/catalyst"
 	"github.com/ethereum/go-ethereum/eth/ethconfig"
@@ -238,6 +239,20 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 	if ctx.IsSet(utils.OverrideVerkle.Name) {
 		v := ctx.Uint64(utils.OverrideVerkle.Name)
 		cfg.Eth.OverrideVerkle = &v
+	}
+
+	if ctx.IsSet(utils.BlockAccessListExecutionModeFlag.Name) {
+		val := ctx.String(utils.BlockAccessListExecutionModeFlag.Name)
+		switch val {
+		case utils.BalExecutionModeOptimized:
+			cfg.Eth.BALExecutionMode = bal.BALExecutionOptimized
+		case utils.BalExecutionModeNoBatchIO:
+			cfg.Eth.BALExecutionMode = bal.BALExecutionNoBatchIO
+		case utils.BalExecutionModeSequential:
+			cfg.Eth.BALExecutionMode = bal.BALExecutionSequential
+		default:
+			utils.Fatalf("invalid option for --bal.executionmode: %s.  acceptable values are full|nobatchio|sequential", val)
+		}
 	}
 
 	if ctx.IsSet(utils.OverrideOptimismCanyon.Name) {
