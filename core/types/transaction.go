@@ -223,6 +223,8 @@ func (tx *Transaction) decodeTyped(b []byte) (TxData, error) {
 		inner = new(BlobTx)
 	case SetCodeTxType:
 		inner = new(SetCodeTx)
+	case PostExecTxType:
+		inner = new(PostExecTx)
 	case DepositTxType:
 		inner = new(DepositTx)
 	default:

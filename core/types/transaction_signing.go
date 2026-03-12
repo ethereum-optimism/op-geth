@@ -271,6 +271,9 @@ func (s *modernSigner) Sender(tx *Transaction) (common.Address, error) {
 			return tx.inner.(*depositTxWithNonce).From, nil
 		}
 	}
+	if tt == PostExecTxType {
+		return common.Address{}, nil
+	}
 
 	if !s.supportsType(tt) {
 		return common.Address{}, ErrTxTypeNotSupported

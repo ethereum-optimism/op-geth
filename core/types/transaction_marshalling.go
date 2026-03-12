@@ -179,6 +179,11 @@ func (tx *Transaction) MarshalJSON() ([]byte, error) {
 		yparity := itx.V.Uint64()
 		enc.YParity = (*hexutil.Uint64)(&yparity)
 
+	case *PostExecTx:
+		enc.Gas = (*hexutil.Uint64)(new(uint64))
+		enc.Value = (*hexutil.Big)(new(big.Int))
+		enc.Input = (*hexutil.Bytes)(&itx.Data)
+
 	case *DepositTx:
 		enc.Gas = (*hexutil.Uint64)(&itx.Gas)
 		enc.Value = (*hexutil.Big)(itx.Value)
@@ -590,6 +595,32 @@ func (tx *Transaction) UnmarshalJSON(input []byte) error {
 		if dec.Nonce != nil {
 			inner = &depositTxWithNonce{DepositTx: itx, EffectiveNonce: uint64(*dec.Nonce)}
 		}
+	case PostExecTxType:
+		if dec.AccessList != nil && len(*dec.AccessList) != 0 ||
+			dec.Mint != nil || dec.SourceHash != nil || dec.IsSystemTx != nil || dec.To != nil {
+			return errors.New("unexpected field(s) in post-exec transaction")
+		}
+		if dec.From != nil && *dec.From != (common.Address{}) {
+			return errors.New("post-exec transaction from must be zero address or unset")
+		}
+		if dec.Nonce != nil && uint64(*dec.Nonce) != 0 {
+			return errors.New("post-exec transaction nonce must be 0 or unset")
+		}
+		if dec.Value != nil && dec.Value.ToInt().Cmp(common.Big0) != 0 {
+			return errors.New("post-exec transaction value must be 0")
+		}
+		if dec.Gas != nil && uint64(*dec.Gas) != 0 {
+			return errors.New("post-exec transaction gas must be 0")
+		}
+		if (dec.V != nil && dec.V.ToInt().Cmp(common.Big0) != 0) ||
+			(dec.R != nil && dec.R.ToInt().Cmp(common.Big0) != 0) ||
+			(dec.S != nil && dec.S.ToInt().Cmp(common.Big0) != 0) {
+			return errors.New("post-exec transaction signature must be 0 or unset")
+		}
+		if dec.Input == nil {
+			return errors.New("missing required field 'input' in transaction")
+		}
+		inner = &PostExecTx{Data: *dec.Input}
 	default:
 		return ErrTxTypeNotSupported
 	}
