@@ -1478,7 +1478,7 @@ func (pool *LegacyPool) reset(oldHead, newHead *types.Header) {
 						lost = append(lost, tx)
 					}
 				}
-				if len(pool.ingressFilters) > 0 {
+				if pool.chainconfig.IsInterop(newHead.Time) {
 					lost = filterInteropTxs(lost)
 				}
 				reinject = lost
