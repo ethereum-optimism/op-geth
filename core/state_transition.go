@@ -18,6 +18,7 @@ package core
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"math"
 	"math/big"
@@ -477,7 +478,7 @@ func (st *stateTransition) execute() (*ExecutionResult, error) {
 	result, err := st.innerExecute()
 	// Failed deposits must still be included. Unless we cannot produce the block at all due to the gas limit.
 	// On deposit failure, we rewind any state changes from after the minting, and increment the nonce.
-	if err != nil && err != ErrGasLimitReached && st.msg.IsDepositTx {
+	if err != nil && !errors.Is(err, ErrSystemTxNotSupported) && err != ErrGasLimitReached && st.msg.IsDepositTx {
 		if st.evm.Config.Tracer != nil && st.evm.Config.Tracer.OnEnter != nil {
 			st.evm.Config.Tracer.OnEnter(0, byte(vm.STOP), common.Address{}, common.Address{}, nil, 0, nil)
 		}
