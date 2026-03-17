@@ -46,6 +46,7 @@ type BuildPayloadArgs struct {
 	Random       common.Hash           // The provided randomness value
 	Withdrawals  types.Withdrawals     // The provided withdrawals
 	BeaconRoot   *common.Hash          // The provided beaconRoot (Cancun)
+	SlotNum      *uint64               // The provided slotNumber
 	Version      engine.PayloadVersion // Versioning byte for payload id calculation.
 
 	NoTxPool      bool                 // Optimism addition: option to disable tx pool contents from being included
@@ -65,6 +66,9 @@ func (args *BuildPayloadArgs) Id() engine.PayloadID {
 	rlp.Encode(hasher, args.Withdrawals)
 	if args.BeaconRoot != nil {
 		hasher.Write(args.BeaconRoot[:])
+	}
+	if args.SlotNum != nil {
+		binary.Write(hasher, binary.BigEndian, args.SlotNum)
 	}
 
 	if args.NoTxPool || len(args.Transactions) > 0 { // extend if extra payload attributes are used
@@ -309,6 +313,7 @@ func (miner *Miner) buildPayload(args *BuildPayloadArgs, witness bool) (*Payload
 			random:        args.Random,
 			withdrawals:   args.Withdrawals,
 			beaconRoot:    args.BeaconRoot,
+			slotNum:       args.SlotNum,
 			noTxs:         true,
 			txs:           args.Transactions,
 			gasLimit:      args.GasLimit,
@@ -339,6 +344,7 @@ func (miner *Miner) buildPayload(args *BuildPayloadArgs, witness bool) (*Payload
 		random:        args.Random,
 		withdrawals:   args.Withdrawals,
 		beaconRoot:    args.BeaconRoot,
+		slotNum:       args.SlotNum,
 		noTxs:         false,
 		txs:           args.Transactions,
 		gasLimit:      args.GasLimit,
@@ -393,7 +399,7 @@ func (miner *Miner) buildPayload(args *BuildPayloadArgs, witness bool) (*Payload
 				// after first successful pass, we're updating
 				fullParams.isUpdate = true
 			}
-			timer.Reset(miner.config.Recommit)
+			timer.Reset(max(0, miner.config.Recommit-time.Since(start)))
 			return dur
 		}
 
@@ -426,4 +432,27 @@ func (miner *Miner) buildPayload(args *BuildPayloadArgs, witness bool) (*Payload
 		}
 	}()
 	return payload, nil
+}
+
+// BuildTestingPayload is for testing_buildBlockV*. It creates a block with the exact content given
+// by the parameters instead of using the locally available transactions.
+func (miner *Miner) BuildTestingPayload(args *BuildPayloadArgs, transactions []*types.Transaction, empty bool, extraData []byte) (*engine.ExecutionPayloadEnvelope, error) {
+	fullParams := &generateParams{
+		timestamp:         args.Timestamp,
+		forceTime:         true,
+		parentHash:        args.Parent,
+		coinbase:          args.FeeRecipient,
+		random:            args.Random,
+		withdrawals:       args.Withdrawals,
+		beaconRoot:        args.BeaconRoot,
+		noTxs:             empty,
+		forceOverrides:    true,
+		overrideExtraData: extraData,
+		overrideTxs:       transactions,
+	}
+	res := miner.generateWork(fullParams, false)
+	if res.err != nil {
+		return nil, res.err
+	}
+	return engine.BlockToExecutableData(res.block, new(big.Int), res.sidecars, res.requests), nil
 }

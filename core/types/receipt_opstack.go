@@ -52,3 +52,11 @@ func (rs Receipts) deriveOPStackFields(config *params.ChainConfig, blockTime uin
 	}
 	return nil
 }
+
+func u32ptrTou64ptr(a *uint32) *uint64 {
+	if a == nil {
+		return nil
+	}
+	b := uint64(*a)
+	return &b
+}

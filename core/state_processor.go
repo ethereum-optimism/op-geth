@@ -17,6 +17,7 @@
 package core
 
 import (
+	"context"
 	"fmt"
 	"math/big"
 
@@ -27,6 +28,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/internal/telemetry"
 	"github.com/ethereum/go-ethereum/params"
 )
 
@@ -57,7 +59,7 @@ func (p *StateProcessor) chainConfig() *params.ChainConfig {
 // Process returns the receipts and logs accumulated during the process and
 // returns the amount of gas that was used in the process. If any of the
 // transactions failed to execute due to insufficient gas it will return an error.
-func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg vm.Config) (*ProcessResult, error) {
+func (p *StateProcessor) Process(ctx context.Context, block *types.Block, statedb *state.StateDB, cfg vm.Config) (*ProcessResult, error) {
 	var (
 		config      = p.chainConfig()
 		receipts    types.Receipts
@@ -69,9 +71,14 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 		gp          = new(GasPool).AddGas(block.GasLimit())
 	)
 
+	var tracingStateDB = vm.StateDB(statedb)
+	if hooks := cfg.Tracer; hooks != nil {
+		tracingStateDB = state.NewHookedState(statedb, hooks)
+	}
+
 	// Mutate the block and state according to any hard-fork specs
 	if config.DAOForkSupport && config.DAOForkBlock != nil && config.DAOForkBlock.Cmp(block.Number()) == 0 {
-		misc.ApplyDAOHardFork(statedb)
+		misc.ApplyDAOHardFork(tracingStateDB)
 	}
 	misc.EnsureCreate2Deployer(config, block.Time(), statedb)
 	var (
@@ -79,10 +86,6 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 		signer  = types.MakeSigner(config, header.Number, header.Time)
 	)
 	// Apply pre-execution system calls.
-	tracingStateDB := vm.StateDB(statedb)
-	if hooks := cfg.Tracer; hooks != nil {
-		tracingStateDB = state.NewHookedState(statedb, hooks)
-	}
 	context = NewEVMBlockContext(header, p.chain, nil, config, statedb)
 	evm := vm.NewEVM(context, tracingStateDB, config, cfg)
 
@@ -100,8 +103,12 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 			return nil, fmt.Errorf("could not apply tx %d [%v]: %w", i, tx.Hash().Hex(), err)
 		}
 		statedb.SetTxContext(tx.Hash(), i)
-
+		_, _, spanEnd := telemetry.StartSpan(ctx, "core.ApplyTransactionWithEVM",
+			telemetry.StringAttribute("tx.hash", tx.Hash().Hex()),
+			telemetry.Int64Attribute("tx.index", int64(i)),
+		)
 		receipt, err := ApplyTransactionWithEVM(msg, gp, statedb, blockNumber, blockHash, context.Time, tx, usedGas, evm)
+		spanEnd(&err)
 		if err != nil {
 			return nil, fmt.Errorf("could not apply tx %d [%v]: %w", i, tx.Hash().Hex(), err)
 		}
@@ -109,28 +116,9 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 		allLogs = append(allLogs, receipt.Logs...)
 	}
 
-	isIsthmus := config.IsIsthmus(block.Time())
-
-	// Read requests if Prague is enabled.
-	var requests [][]byte
-	if config.IsPrague(block.Number(), block.Time()) && !isIsthmus {
-		requests = [][]byte{}
-		// EIP-6110
-		if err := ParseDepositLogs(&requests, allLogs, config); err != nil {
-			return nil, fmt.Errorf("failed to parse deposit logs: %w", err)
-		}
-		// EIP-7002
-		if err := ProcessWithdrawalQueue(&requests, evm); err != nil {
-			return nil, fmt.Errorf("failed to process withdrawal queue: %w", err)
-		}
-		// EIP-7251
-		if err := ProcessConsolidationQueue(&requests, evm); err != nil {
-			return nil, fmt.Errorf("failed to process consolidation queue: %w", err)
-		}
-	}
-
-	if isIsthmus {
-		requests = [][]byte{}
+	requests, err := postExecution(ctx, config, block, allLogs, evm)
+	if err != nil {
+		return nil, err
 	}
 
 	// Finalize the block, applying any consensus engine specific extras (e.g. block rewards)
@@ -142,6 +130,31 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 		Logs:     allLogs,
 		GasUsed:  *usedGas,
 	}, nil
+}
+
+// postExecution processes the post-execution system calls if Prague is enabled.
+func postExecution(ctx context.Context, config *params.ChainConfig, block *types.Block, allLogs []*types.Log, evm *vm.EVM) (requests [][]byte, err error) {
+	_, _, spanEnd := telemetry.StartSpan(ctx, "core.postExecution")
+	defer spanEnd(&err)
+
+	// Read requests if Prague is enabled.
+	if config.IsPrague(block.Number(), block.Time()) && !config.IsIsthmus(block.Time()) {
+		requests = [][]byte{}
+		// EIP-6110
+		if err := ParseDepositLogs(&requests, allLogs, config); err != nil {
+			return requests, fmt.Errorf("failed to parse deposit logs: %w", err)
+		}
+		// EIP-7002
+		if err := ProcessWithdrawalQueue(&requests, evm); err != nil {
+			return requests, fmt.Errorf("failed to process withdrawal queue: %w", err)
+		}
+		// EIP-7251
+		if err := ProcessConsolidationQueue(&requests, evm); err != nil {
+			return requests, fmt.Errorf("failed to process consolidation queue: %w", err)
+		}
+	}
+
+	return requests, nil
 }
 
 // ApplyTransactionWithEVM attempts to apply a transaction to the given state database

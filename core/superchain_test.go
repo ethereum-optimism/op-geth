@@ -85,7 +85,7 @@ func TestRegistryChainConfigOverride(t *testing.T) {
 			}
 			genesis.Config.Optimism.EIP1559DenominatorCanyon = tt.setDenominator
 			// create chain config, even with incomplete genesis input: the chain config should be corrected
-			chainConfig, _, _, err := SetupGenesisBlockWithOverride(db, tdb, genesis, tt.overrides)
+			chainConfig, _, _, err := SetupGenesisBlockWithOverride(db, tdb, genesis, tt.overrides, nil)
 			if err != nil {
 				t.Fatal(err)
 			}
