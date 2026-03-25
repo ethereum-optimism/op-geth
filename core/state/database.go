@@ -54,7 +54,7 @@ type Database interface {
 	// Commit flushes all pending writes and finalizes the state transition,
 	// committing the changes to the underlying storage. It returns an error
 	// if the commit fails.
-	Commit(update *stateUpdate) error
+	Commit(update *StateUpdate) error
 }
 
 // Trie is a Ethereum Merkle Patricia trie.
@@ -300,7 +300,7 @@ func (db *CachingDB) Snapshot() *snapshot.Tree {
 // Commit flushes all pending writes and finalizes the state transition,
 // committing the changes to the underlying storage. It returns an error
 // if the commit fails.
-func (db *CachingDB) Commit(update *stateUpdate) error {
+func (db *CachingDB) Commit(update *StateUpdate) error {
 	// Short circuit if nothing to commit
 	if update.empty() {
 		return nil

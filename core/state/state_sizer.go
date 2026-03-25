@@ -125,7 +125,7 @@ func (s SizeStats) add(diff SizeStats) SizeStats {
 }
 
 // calSizeStats measures the state size changes of the provided state update.
-func calSizeStats(update *stateUpdate) (SizeStats, error) {
+func calSizeStats(update *StateUpdate) (SizeStats, error) {
 	stats := SizeStats{
 		BlockNumber: update.blockNumber,
 		StateRoot:   update.root,
@@ -267,7 +267,7 @@ type SizeTracker struct {
 	triedb   *triedb.Database
 	abort    chan struct{}
 	aborted  chan struct{}
-	updateCh chan *stateUpdate
+	updateCh chan *StateUpdate
 	queryCh  chan *stateSizeQuery
 }
 
@@ -281,7 +281,7 @@ func NewSizeTracker(db ethdb.KeyValueStore, triedb *triedb.Database) (*SizeTrack
 		triedb:   triedb,
 		abort:    make(chan struct{}),
 		aborted:  make(chan struct{}),
-		updateCh: make(chan *stateUpdate),
+		updateCh: make(chan *StateUpdate),
 		queryCh:  make(chan *stateSizeQuery),
 	}
 	go t.run()
@@ -402,7 +402,7 @@ wait:
 	}
 
 	var (
-		updates  = make(map[common.Hash]*stateUpdate)
+		updates  = make(map[common.Hash]*StateUpdate)
 		children = make(map[common.Hash][]common.Hash)
 		done     chan buildResult
 	)
@@ -646,7 +646,7 @@ func (t *SizeTracker) iterateTableParallel(closed chan struct{}, prefix []byte, 
 // Notify is an async method used to send the state update to the size tracker.
 // It ignores empty updates (where no state changes occurred).
 // If the channel is full, it drops the update to avoid blocking.
-func (t *SizeTracker) Notify(update *stateUpdate) {
+func (t *SizeTracker) Notify(update *StateUpdate) {
 	if update == nil || update.empty() {
 		return
 	}

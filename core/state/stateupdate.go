@@ -70,10 +70,10 @@ type accountUpdate struct {
 	storagesOriginByHash map[common.Hash][]byte
 }
 
-// stateUpdate represents the difference between two states resulting from state
+// StateUpdate represents the difference between two states resulting from state
 // execution. It contains information about mutated contract codes, accounts,
 // and storage slots, along with their original values.
-type stateUpdate struct {
+type StateUpdate struct {
 	originRoot  common.Hash // hash of the state before applying mutation
 	root        common.Hash // hash of the state after applying mutation
 	blockNumber uint64      // Associated block number
@@ -97,7 +97,7 @@ type stateUpdate struct {
 }
 
 // empty returns a flag indicating the state transition is empty or not.
-func (sc *stateUpdate) empty() bool {
+func (sc *StateUpdate) empty() bool {
 	return sc.originRoot == sc.root
 }
 
@@ -107,7 +107,7 @@ func (sc *stateUpdate) empty() bool {
 //
 // rawStorageKey is a flag indicating whether to use the raw storage slot key or
 // the hash of the slot key for constructing state update object.
-func newStateUpdate(rawStorageKey bool, originRoot common.Hash, root common.Hash, blockNumber uint64, deletes map[common.Hash]*accountDelete, updates map[common.Hash]*accountUpdate, nodes *trienode.MergedNodeSet) *stateUpdate {
+func newStateUpdate(rawStorageKey bool, originRoot common.Hash, root common.Hash, blockNumber uint64, deletes map[common.Hash]*accountDelete, updates map[common.Hash]*accountUpdate, nodes *trienode.MergedNodeSet) *StateUpdate {
 	var (
 		accounts       = make(map[common.Hash][]byte)
 		accountsOrigin = make(map[common.Address][]byte)
@@ -173,7 +173,7 @@ func newStateUpdate(rawStorageKey bool, originRoot common.Hash, root common.Hash
 			}
 		}
 	}
-	return &stateUpdate{
+	return &StateUpdate{
 		originRoot:     originRoot,
 		root:           root,
 		blockNumber:    blockNumber,
@@ -191,7 +191,7 @@ func newStateUpdate(rawStorageKey bool, originRoot common.Hash, root common.Hash
 // object. This function extracts the necessary data from the stateUpdate
 // struct and formats it into the StateSet structure consumed by the triedb
 // package.
-func (sc *stateUpdate) stateSet() *triedb.StateSet {
+func (sc *StateUpdate) stateSet() *triedb.StateSet {
 	return &triedb.StateSet{
 		Accounts:       sc.accounts,
 		AccountsOrigin: sc.accountsOrigin,
@@ -207,7 +207,7 @@ func (sc *stateUpdate) stateSet() *triedb.StateSet {
 // Note: This operation is expensive and not needed during normal state
 // transitions. It is only required when SizeTracker or StateUpdate hook
 // is enabled to produce accurate state statistics.
-func (sc *stateUpdate) deriveCodeFields(reader ContractCodeReader) error {
+func (sc *StateUpdate) deriveCodeFields(reader ContractCodeReader) error {
 	cache := make(map[common.Hash]bool)
 	for addr, code := range sc.codes {
 		if code.originHash != types.EmptyCodeHash {
@@ -229,7 +229,7 @@ func (sc *stateUpdate) deriveCodeFields(reader ContractCodeReader) error {
 }
 
 // ToTracingUpdate converts the internal stateUpdate to an exported tracing.StateUpdate.
-func (sc *stateUpdate) ToTracingUpdate() (*tracing.StateUpdate, error) {
+func (sc *StateUpdate) ToTracingUpdate() (*tracing.StateUpdate, error) {
 	update := &tracing.StateUpdate{
 		OriginRoot:     sc.originRoot,
 		Root:           sc.root,

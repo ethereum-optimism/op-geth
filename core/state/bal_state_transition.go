@@ -46,7 +46,7 @@ type BALStateTransition struct {
 	storageDeleted atomic.Int64
 	storageUpdated atomic.Int64
 
-	stateUpdate *stateUpdate
+	stateUpdate *StateUpdate
 
 	metrics   BALStateTransitionMetrics
 	maxBALIdx int
@@ -215,7 +215,7 @@ func (s *BALStateTransition) commitAccount(addr common.Address) (*accountUpdate,
 }
 
 // CommitWithUpdate flushes mutated trie nodes and state accounts to disk.
-func (s *BALStateTransition) CommitWithUpdate(block uint64, deleteEmptyObjects bool, noStorageWiping bool) (common.Hash, *stateUpdate, error) {
+func (s *BALStateTransition) CommitWithUpdate(block uint64, deleteEmptyObjects bool, noStorageWiping bool) (common.Hash, *StateUpdate, error) {
 	// 1) create a stateUpdate object
 	// Commit objects to the trie, measuring the elapsed time
 	var (
