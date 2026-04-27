@@ -475,6 +475,17 @@ func (api *ConsensusAPI) forkchoiceUpdated(update engine.ForkchoiceStateV1, payl
 				return engine.STATUS_INVALID, fmt.Errorf("transaction %d is not valid: %v", i, err)
 			}
 			transactions = append(transactions, &tx)
+
+			if tx.Type() == types.BtcAttributesDepositedTxType {
+				var btcDepData types.BtcAttributesDepositData
+				if err := btcDepData.UnmarshalBinary(tx.Data()); err != nil {
+					return engine.STATUS_INVALID, engine.InvalidForkChoiceState.With(errors.New("invalid BtcAttributesDepositData"))
+				} else {
+					canonicalTip := common.Hash(btcDepData.CanonicalTip)
+					log.Trace("Requesting Bitcoin block from peers", "hash", canonicalTip)
+					api.eth.RequestBitcoinBlocksFromPeers(canonicalTip)
+				}
+			}
 		}
 		args := &miner.BuildPayloadArgs{
 			Parent:        update.HeadBlockHash,

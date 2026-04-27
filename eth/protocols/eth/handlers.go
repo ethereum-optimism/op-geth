@@ -472,9 +472,49 @@ func handleBTCBlocks(backend Backend, msg Decoder, peer *Peer) error {
 		}
 
 		log.Info("Added BTC block from geth P2P to TBC", "block", hash.String(), "height", insert)
+		go requestMissingAncestors(peer, &msgBlock.Header)
 	}
 
 	return nil
+}
+
+func requestMissingAncestors(peer *Peer, parentHash *wire.BlockHeader) {
+	found, blocksMissing, _, err := vm.TBCBlocksAvailableToHeader(vm.MainCtx, parentHash)
+	if err != nil {
+		log.Error("Failed to check BTC ancestor availability", "hash", parentHash.BlockHash().String(), "err", err)
+		return
+	}
+
+	if !found {
+		if err := peer.RequestBtcBlocks([]common.Hash{
+			common.Hash(parentHash.BlockHash()),
+		}); err != nil {
+			log.Error("could not request btc blocks from peer: %s", err)
+		}
+	}
+
+	// to avoid downstream nil checks, set this to an empty slice if it's nil
+	if blocksMissing == nil {
+		blocksMissing = &[]wire.BlockHeader{}
+	}
+
+	if len(*blocksMissing) == 0 {
+		return
+	}
+
+	log.Info("Requesting missing BTC ancestor blocks from peer", "count", len(*blocksMissing), "peer", peer.ID())
+
+	// request each block missing in its own request.  I don't know how large
+	// blocksMissing will be, so I don't want to request all at once.
+	// we could "batch" the requests, but that's not as readable as this for
+	// loop
+	for _, bm := range *blocksMissing {
+		if err := peer.RequestBtcBlocks([]common.Hash{
+			common.Hash(bm.BlockHash()),
+		}); err != nil {
+			log.Error("could not request btc blocks from peer: %s", err)
+		}
+	}
 }
 
 func handleBlockHeaders(backend Backend, msg Decoder, peer *Peer) error {

@@ -28,6 +28,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/hemilabs/heminetwork/cmd/btctool/bdf"
 	"github.com/hemilabs/heminetwork/service/tbc"
 	"github.com/holiman/uint256"
@@ -513,6 +514,26 @@ func New(stack *node.Node, config *ethconfig.Config, ctx context.Context) (*Ethe
 	eth.shutdownTracker.MarkStartup()
 
 	return eth, nil
+}
+
+func (e *Ethereum) RequestBitcoinBlocksFromPeers(hash common.Hash) {
+	var ch chainhash.Hash
+	if err := ch.SetBytes(hash.Bytes()); err != nil {
+		log.Error("Failed to convert hash for TBC lookup", "hash", hash, "err", err)
+		return
+	}
+	available, err := vm.TBCFullNode.FullBlockAvailable(vm.MainCtx, ch)
+	if err != nil {
+		log.Error("Failed to check BTC block availability before peer request", "hash", hash, "err", err)
+	} else if available {
+		log.Trace("BTC block already in TBC, skipping peer request", "hash", hash)
+		return
+	}
+	for _, peer := range e.handler.peers.all() {
+		if err := peer.RequestBtcBlocks([]common.Hash{hash}); err != nil {
+			log.Error("Failed to request BTC block from peer", "peer", peer.ID(), "hash", hash, "err", err)
+		}
+	}
 }
 
 func makeExtraData(extra []byte) []byte {
