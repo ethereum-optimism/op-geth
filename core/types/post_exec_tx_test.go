@@ -44,6 +44,77 @@ func TestPostExecTxUnmarshalJSONWithRPCMetadata(t *testing.T) {
 	require.Equal(t, uint8(PostExecTxType), tx.Type())
 }
 
+func TestPostExecTxUnmarshalJSONErrors(t *testing.T) {
+	tests := []struct {
+		name          string
+		json          string
+		expectedError string
+	}{
+		{
+			name:          "non-empty accessList",
+			json:          `{"type":"0x7d","input":"0xc201c0","accessList":[{"address":"0x0000000000000000000000000000000000000001","storageKeys":[]}]}`,
+			expectedError: "unexpected field(s) in post-exec transaction",
+		},
+		{
+			name:          "unepxpected isSystemTx field",
+			json:          `{"type":"0x7d","input":"0xc201c0","isSystemTx":true}`,
+			expectedError: "unexpected field(s) in post-exec transaction",
+		},
+		{
+			name:          "unexpected to field",
+			json:          `{"type":"0x7d","input":"0xc201c0","to":"0x0000000000000000000000000000000000000001"}`,
+			expectedError: "unexpected field(s) in post-exec transaction",
+		},
+		{
+			name:          "non-zero from",
+			json:          `{"type":"0x7d","input":"0xc201c0","from":"0x0000000000000000000000000000000000000001"}`,
+			expectedError: "post-exec transaction from must be zero address or unset",
+		},
+		{
+			name:          "non-zero nonce",
+			json:          `{"type":"0x7d","input":"0xc201c0","nonce":"0x1"}`,
+			expectedError: "post-exec transaction nonce must be 0 or unset",
+		},
+		{
+			name:          "non-zero value",
+			json:          `{"type":"0x7d","input":"0xc201c0","value":"0x1"}`,
+			expectedError: "post-exec transaction value must be 0",
+		},
+		{
+			name:          "non-zero gas",
+			json:          `{"type":"0x7d","input":"0xc201c0","gas":"0x1"}`,
+			expectedError: "post-exec transaction gas must be 0",
+		},
+		{
+			name:          "non-zero v",
+			json:          `{"type":"0x7d","input":"0xc201c0","v":"0x1","r":"0x0","s":"0x0"}`,
+			expectedError: "post-exec transaction signature must be 0 or unset",
+		},
+		{
+			name:          "non-zero r",
+			json:          `{"type":"0x7d","input":"0xc201c0","v":"0x0","r":"0x1","s":"0x0"}`,
+			expectedError: "post-exec transaction signature must be 0 or unset",
+		},
+		{
+			name:          "non-zero s",
+			json:          `{"type":"0x7d","input":"0xc201c0","v":"0x0","r":"0x0","s":"0x1"}`,
+			expectedError: "post-exec transaction signature must be 0 or unset",
+		},
+		{
+			name:          "missing input",
+			json:          `{"type":"0x7d"}`,
+			expectedError: "missing required field 'input'",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var tx Transaction
+			err := json.Unmarshal([]byte(test.json), &tx)
+			require.ErrorContains(t, err, test.expectedError)
+		})
+	}
+}
+
 func TestPostExecTxRoundTrips(t *testing.T) {
 	original := NewTx(&PostExecTx{Data: hexutil.MustDecode("0xc201c0")})
 
