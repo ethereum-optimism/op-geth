@@ -380,7 +380,7 @@ func (api *ConsensusAPI) forkchoiceUpdated(ctx context.Context, update engine.Fo
 		for i, otx := range payloadAttributes.Transactions {
 			var tx types.Transaction
 			if err := tx.UnmarshalBinary(otx); err != nil {
-				return engine.STATUS_INVALID, fmt.Errorf("transaction %d is not valid: %v", i, err)
+				return engine.STATUS_INVALID, engine.InvalidPayloadAttributes.With(fmt.Errorf("transaction %d is not valid: %v", i, err))
 			}
 			transactions = append(transactions, &tx)
 		}
