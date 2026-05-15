@@ -52,7 +52,7 @@ func (cl *InteropClient) CheckAccessList(ctx context.Context, inboxEntries []com
 	if err := cl.maybeDial(ctx); err != nil {
 		return err
 	}
-	err := cl.client.CallContext(ctx, nil, "supervisor_checkAccessList", inboxEntries, minSafety, executingDescriptor)
+	err := cl.client.CallContext(ctx, nil, "interop_checkAccessList", inboxEntries, minSafety, executingDescriptor)
 	return err
 }
 
