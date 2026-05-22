@@ -17,7 +17,7 @@ ADD . /go-ethereum
 RUN cd /go-ethereum && go run build/ci.go install -static ./cmd/geth
 
 # Pull Geth into a second stage deploy alpine container
-FROM chainguard/static:latest
+FROM chainguard/wolfi-base:latest
 
 COPY --from=builder /go-ethereum/build/bin/geth /usr/local/bin/
 
