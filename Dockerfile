@@ -19,6 +19,8 @@ RUN cd /go-ethereum && go run build/ci.go install -static ./cmd/geth
 # Pull Geth into a second stage deploy alpine container
 FROM chainguard/wolfi-base:latest
 
+RUN apk add --no-cache ca-certificates wget
+
 COPY --from=builder /go-ethereum/build/bin/geth /usr/local/bin/
 
 EXPOSE 8545 8546 30303 30303/udp
