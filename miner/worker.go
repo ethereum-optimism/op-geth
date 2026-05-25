@@ -108,6 +108,9 @@ func (env *environment) txFitsSize(tx *types.Transaction) bool {
 // discard terminates the background threads before discarding it.
 func (env *environment) discard() {
 	env.state.StopPrefetcher()
+	if env.evm != nil {
+		env.evm.Release()
+	}
 }
 
 const (
@@ -248,8 +251,21 @@ func (miner *Miner) generateWork(ctx context.Context, genParam *generateParams, 
 			}
 		}
 	}
-
-	body := types.Body{Transactions: work.txs, Withdrawals: genParam.withdrawals}
+	// Construct the block body, the withdrawal list should never be null
+	// if Shanghai has been activated.
+	body := types.Body{
+		Transactions: work.txs,
+		Withdrawals:  genParam.withdrawals,
+	}
+	if !miner.chainConfig.IsShanghai(work.header.Number, work.header.Time) {
+		if body.Withdrawals != nil {
+			return &newPayloadResult{err: errors.New("unexpected withdrawals before shanghai")}
+		}
+	} else {
+		if body.Withdrawals == nil {
+			body.Withdrawals = make([]*types.Withdrawal, 0)
+		}
+	}
 
 	if intr := genParam.interrupt; intr != nil && genParam.isUpdate && intr.Load() != commitInterruptNone {
 		return &newPayloadResult{err: errInterruptedUpdate}
@@ -288,11 +304,11 @@ func (miner *Miner) generateWork(ctx context.Context, genParam *generateParams, 
 		reqHash := types.CalcRequestsHash(requests)
 		work.header.RequestsHash = &reqHash
 	}
+	// Assemble the block for delivery.
+	_, _, assembleSpanEnd := telemetry.StartSpan(ctx, "miner.AssembleBlock")
+	block := core.AssembleBlock(miner.engine, miner.chain, work.header, work.state, &body, work.receipts)
+	assembleSpanEnd(nil)
 
-	block, err := miner.engine.FinalizeAndAssemble(ctx, miner.chain, work.header, work.state, &body, work.receipts)
-	if err != nil {
-		return &newPayloadResult{err: err}
-	}
 	return &newPayloadResult{
 		block:    block,
 		fees:     totalFees(block, work.receipts),
@@ -436,7 +452,7 @@ func (miner *Miner) prepareWork(ctx context.Context, genParams *generateParams, 
 // makeEnv creates a new environment for the sealing block.
 func (miner *Miner) makeEnv(parent *types.Header, header *types.Header, coinbase common.Address, witness bool, rpcCtx context.Context) (*environment, error) {
 	// Retrieve the parent state to execute on top.
-	state, err := miner.chain.StateAt(parent.Root)
+	state, err := miner.chain.StateAtForkBoundary(parent, header)
 	if err != nil {
 		return nil, err
 	}
@@ -751,6 +767,7 @@ func (miner *Miner) commitTransactions(ctx context.Context, env *environment, pl
 func (miner *Miner) fillTransactions(ctx context.Context, interrupt *atomic.Int32, env *environment) (err error) {
 	ctx, span, spanEnd := telemetry.StartSpan(ctx, "miner.fillTransactions")
 	defer spanEnd(&err)
+
 	miner.confMu.RLock()
 	tip := miner.config.GasPrice
 	prio := miner.prio
@@ -767,7 +784,7 @@ func (miner *Miner) fillTransactions(ctx context.Context, interrupt *atomic.Int3
 	if env.header.ExcessBlobGas != nil {
 		filter.BlobFee = uint256.MustFromBig(eip4844.CalcBlobFee(miner.chainConfig, env.header))
 	}
-	if miner.chainConfig.IsOsaka(env.header.Number, env.header.Time) {
+	if miner.chainConfig.IsOsaka(env.header.Number, env.header.Time) && !miner.chainConfig.IsAmsterdam(env.header.Number, env.header.Time) {
 		filter.GasLimitCap = params.MaxTxGas
 	}
 	filter.BlobTxs = false

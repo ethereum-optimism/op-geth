@@ -117,7 +117,7 @@ type ExecutableData struct {
 	Withdrawals   []*types.Withdrawal `json:"withdrawals"`
 	BlobGasUsed   *uint64             `json:"blobGasUsed"`
 	ExcessBlobGas *uint64             `json:"excessBlobGas"`
-	SlotNumber    *uint64             `json:"slotNumber"`
+	SlotNumber    *uint64             `json:"slotNumber,omitempty"`
 
 	// OP-Stack Isthmus specific field:
 	// instead of computing the root from a withdrawals list, set it directly.
@@ -301,7 +301,7 @@ func ExecutableDataToBlockNoHash(data ExecutableData, versionedHashes []common.H
 	if data.BaseFeePerGas != nil && (data.BaseFeePerGas.Sign() == -1 || data.BaseFeePerGas.BitLen() > 256) {
 		return nil, fmt.Errorf("invalid baseFeePerGas: %v", data.BaseFeePerGas)
 	}
-	var blobHashes = make([]common.Hash, 0, len(txs))
+	var blobHashes = make([]common.Hash, 0, len(versionedHashes))
 	for _, tx := range txs {
 		blobHashes = append(blobHashes, tx.BlobHashes()...)
 	}

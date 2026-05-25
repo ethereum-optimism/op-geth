@@ -173,7 +173,7 @@ func (miner *Miner) Pending() (*types.Block, types.Receipts, *state.StateDB) {
 		headHeader := miner.chain.CurrentHeader()
 		headBlock := miner.chain.GetBlock(headHeader.Hash(), headHeader.Number.Uint64())
 		headReceipts := miner.chain.GetReceiptsByHash(headHeader.Hash())
-		stateDB, err := miner.chain.StateAt(headHeader.Root)
+		stateDB, err := miner.chain.StateAt(headHeader)
 		if err != nil {
 			return nil, nil, nil
 		}

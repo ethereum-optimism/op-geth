@@ -445,9 +445,9 @@ func (p *BlobPool) Init(gasTip uint64, head *types.Header, reserver txpool.Reser
 	// Initialize the state with head block, or fallback to empty one in
 	// case the head state is not available (might occur when node is not
 	// fully synced).
-	state, err := p.chain.StateAt(head.Root)
+	state, err := p.chain.StateAt(head)
 	if err != nil {
-		state, err = p.chain.StateAt(types.EmptyRootHash)
+		state, err = p.chain.StateAt(p.chain.Genesis().Header())
 	}
 	if err != nil {
 		return err
@@ -898,7 +898,7 @@ func (p *BlobPool) Reset(oldHead, newHead *types.Header) {
 	// Handle reorg buffer timeouts evicting old gapped transactions
 	p.evictGapped()
 
-	statedb, err := p.chain.StateAt(newHead.Root)
+	statedb, err := p.chain.StateAt(newHead)
 	if err != nil {
 		log.Error("Failed to reset blobpool state", "err", err)
 		return
@@ -1521,7 +1521,8 @@ func (p *BlobPool) GetBlobs(vhashes []common.Hash, version byte) ([]*kzg4844.Blo
 			case types.BlobSidecarVersion1:
 				cellProofs, err := sidecar.CellProofsAt(i)
 				if err != nil {
-					return nil, nil, nil, err
+					log.Error("Failed to get cell proofs", "id", txID, "err", err)
+					continue
 				}
 				pf = cellProofs
 			}
@@ -1600,9 +1601,10 @@ func (p *BlobPool) addLocked(tx *types.Transaction, checkGapped bool) (err error
 			// Store the tx in memory, and revalidate later
 			from, _ := types.Sender(p.signer, tx)
 			allowance := p.gappedAllowance(from)
-			if allowance >= 1 && len(p.gapped) < maxGapped {
+			if allowance >= 1 && len(p.gappedSource) < maxGapped {
 				p.gapped[from] = append(p.gapped[from], tx)
 				p.gappedSource[tx.Hash()] = from
+				gappedGauge.Update(int64(len(p.gappedSource)))
 				log.Trace("added tx to gapped blob queue", "allowance", allowance, "hash", tx.Hash(), "from", from, "nonce", tx.Nonce(), "qlen", len(p.gapped[from]))
 				return nil
 			} else {
@@ -1610,6 +1612,7 @@ func (p *BlobPool) addLocked(tx *types.Transaction, checkGapped bool) (err error
 				// transactions by keeping the old and dropping this one.
 				// Thus replacing a gapped transaction with another gapped transaction
 				// is discouraged.
+				addGappedFullMeter.Mark(1)
 				log.Trace("no gapped blob queue allowance", "allowance", allowance, "hash", tx.Hash(), "from", from, "nonce", tx.Nonce(), "qlen", len(p.gapped[from]))
 			}
 		case errors.Is(err, core.ErrInsufficientFunds):
@@ -1795,6 +1798,7 @@ func (p *BlobPool) addLocked(tx *types.Transaction, checkGapped bool) (err error
 				// We do not recurse here, but continue to loop instead.
 				// We are under lock, so we can add the transaction directly.
 				if err := p.addLocked(tx, false); err == nil {
+					gappedPromotedMeter.Mark(1)
 					log.Trace("Gapped blob transaction added to pool", "hash", tx.Hash(), "from", from, "nonce", tx.Nonce(), "qlen", len(p.gapped[from]))
 				} else {
 					log.Trace("Gapped blob transaction not accepted", "hash", tx.Hash(), "from", from, "nonce", tx.Nonce(), "err", err)
@@ -1806,6 +1810,7 @@ func (p *BlobPool) addLocked(tx *types.Transaction, checkGapped bool) (err error
 		} else {
 			p.gapped[from] = gtxs
 		}
+		gappedGauge.Update(int64(len(p.gappedSource)))
 	}
 	return nil
 }
@@ -2073,8 +2078,9 @@ func (p *BlobPool) evictGapped() {
 				keep = append(keep, gtx)
 			}
 		}
-		if len(keep) < len(txs) {
-			log.Trace("Evicting old gapped blob transactions", "count", len(txs)-len(keep), "from", from)
+		if evicted := len(txs) - len(keep); evicted > 0 {
+			gappedEvictedMeter.Mark(int64(evicted))
+			log.Trace("Evicting old gapped blob transactions", "count", evicted, "from", from)
 		}
 		if len(keep) == 0 {
 			delete(p.gapped, from)
@@ -2082,6 +2088,7 @@ func (p *BlobPool) evictGapped() {
 			p.gapped[from] = keep
 		}
 	}
+	gappedGauge.Update(int64(len(p.gappedSource)))
 }
 
 // isAnnouncable checks whether a transaction is announcable based on its

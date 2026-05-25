@@ -595,7 +595,6 @@ func (c *Clique) FinalizeAndAssemble(ctx context.Context, chain consensus.ChainH
 	// Assemble and return the final block for sealing.
 	return types.NewBlock(header, &types.Body{Transactions: body.Transactions}, receipts, trie.NewStackTrie(nil), chain.Config()), nil
 }
-
 // Authorize injects a private key into the consensus engine to mint new blocks
 // with.
 func (c *Clique) Authorize(signer common.Address) {
