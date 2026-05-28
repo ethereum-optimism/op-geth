@@ -83,6 +83,12 @@ var (
 		},
 		Type: DynamicFeeTxType,
 	}
+	postExecReceipt = &Receipt{
+		Status:            ReceiptStatusSuccessful,
+		CumulativeGasUsed: 1,
+		Logs:              []*Log{},
+		Type:              PostExecTxType,
+	}
 
 	// Create a few transactions to have receipts for
 	to2 = common.HexToAddress("0x2")
@@ -576,6 +582,26 @@ func TestReceiptMarshalBinary(t *testing.T) {
 	eip1559Want := common.FromHex("02f901c58001b9010000000000000010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000500000000000000000000000000000000000014000000000000000000000000000000000000000000000000000000000000000000000000000010000080000000000000000000004000000000000000000000000000040000000000000000000000000000800000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000f8bef85d940000000000000000000000000000000000000011f842a0000000000000000000000000000000000000000000000000000000000000deada0000000000000000000000000000000000000000000000000000000000000beef830100fff85d940000000000000000000000000000000000000111f842a0000000000000000000000000000000000000000000000000000000000000deada0000000000000000000000000000000000000000000000000000000000000beef830100ff")
 	if !bytes.Equal(have, eip1559Want) {
 		t.Errorf("encoded RLP mismatch, got %x want %x", have, eip1559Want)
+	}
+
+	// PostExec Receipt: same envelope shape as the typed receipts above,
+	// just prefixed by the 0x7d type byte. EncodeIndex must produce the
+	// same bytes as MarshalBinary so that DeriveSha matches what op-reth
+	// commits to in the block header.
+	buf.Reset()
+	postExecReceipt.Bloom = CreateBloom(postExecReceipt)
+	have, err = postExecReceipt.MarshalBinary()
+	if err != nil {
+		t.Fatalf("marshal binary error: %v", err)
+	}
+	postExecReceipts := Receipts{postExecReceipt}
+	postExecReceipts.EncodeIndex(0, buf)
+	haveEncodeIndex = buf.Bytes()
+	if !bytes.Equal(have, haveEncodeIndex) {
+		t.Errorf("BinaryMarshal and EncodeIndex mismatch, got %x want %x", have, haveEncodeIndex)
+	}
+	if len(have) == 0 || have[0] != PostExecTxType {
+		t.Errorf("expected encoded receipt to start with PostExecTxType (0x%x), got %x", PostExecTxType, have)
 	}
 }
 
