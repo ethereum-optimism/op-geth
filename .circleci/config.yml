@@ -58,11 +58,14 @@ jobs:
       image: ubuntu-2004:current
     steps:
       - checkout
-      # Fetch more history for diffing
+      # Fetch full history for diffing. forkdiff has to walk every op-geth
+      # commit down to the go-ethereum base, and the deepest of those is well
+      # past a fixed --depth, so a shallow fetch hits the shallow boundary and
+      # fails with "object not found". Unshallow if needed, otherwise no-op.
       - run:
           name: Fetch git history
           command: |
-            git fetch --depth 1000
+            git fetch --unshallow || git fetch
 
       # Build forkdiff using Docker
       - run:
