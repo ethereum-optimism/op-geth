@@ -53,39 +53,6 @@ commands:
             echo "export GOOGLE_APPLICATION_CREDENTIALS='<< parameters.gcp_cred_config_file_path >>'" | tee -a "$BASH_ENV"
 
 jobs:
-  build-and-deploy:
-    machine:
-      image: ubuntu-2004:current
-    steps:
-      - checkout
-      # Fetch more history for diffing
-      - run:
-          name: Fetch git history
-          command: |
-            git fetch --depth 1000
-
-      # Build forkdiff using Docker
-      - run:
-          name: Build forkdiff
-          command: |
-            docker run --volume $(pwd):/workspace \
-              protolambda/forkdiff:0.1.1 \
-              -repo=/workspace \
-              -fork=/workspace/fork.yaml \
-              -out=/workspace/index.html
-
-      # Prepare pages directory
-      - run:
-          name: Build pages
-          command: |
-            mkdir -p /tmp/pages
-            mv index.html /tmp/pages/index.html
-            touch /tmp/pages/.nojekyll
-            if [ "$CIRCLE_PROJECT_REPONAME" == "op-geth" ] && [ "$CIRCLE_PROJECT_USERNAME" == "ethereum-optimism" ]; then
-              echo "op-geth.optimism.io" > /tmp/pages/CNAME
-            fi
-      - utils/github-pages-deploy:
-          src-pages-dir: /tmp/pages
   docker-release:
     environment:
       DOCKER_BUILDKIT: 1
@@ -226,11 +193,3 @@ workflows:
           push_tags: true
           context:
             - oplabs-gcr-release
-
-  merge:
-    jobs:
-      - build-and-deploy:
-          context: circleci-repo-op-geth
-          filters:
-            branches:
-              only: optimism
