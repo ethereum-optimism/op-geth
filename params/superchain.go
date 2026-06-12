@@ -57,7 +57,7 @@ func LoadOPStackChainConfig(chConfig *superchain.ChainConfig) (*ChainConfig, err
 		IsthmusTime:             hardforks.IsthmusTime,
 		JovianTime:              hardforks.JovianTime,
 		KarstTime:               hardforks.KarstTime,
-		InteropTime:             hardforks.InteropTime,
+		LagoonTime:              hardforks.LagoonTime,
 		TerminalTotalDifficulty: common.Big0,
 		Ethash:                  nil,
 		Clique:                  nil,

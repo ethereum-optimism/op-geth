@@ -40,9 +40,9 @@ func createInteropMiner(t *testing.T, supervisorInFailsafe bool, queryFailsafeCb
 
 	genesis := minerTestGenesisBlock(15, 11_500_000, testBankAddress)
 
-	// Enable interop by setting InteropTime to 0
-	genesis.Config.InteropTime = new(uint64)
-	*genesis.Config.InteropTime = 0
+	// Enable interop by setting LagoonTime to 0
+	genesis.Config.LagoonTime = new(uint64)
+	*genesis.Config.LagoonTime = 0
 
 	chainConfig, _, _, err := core.SetupGenesisBlock(chainDB, triedb, genesis)
 	if err != nil {

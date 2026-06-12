@@ -36,8 +36,8 @@ func (c *ChainConfig) opCheckCompatible(newcfg *ChainConfig, headNumber *big.Int
 	if isForkTimestampIncompatible(c.KarstTime, newcfg.KarstTime, headTimestamp, genesisTimestamp) {
 		return newTimestampCompatError("Karst fork timestamp", c.KarstTime, newcfg.KarstTime)
 	}
-	if isForkTimestampIncompatible(c.InteropTime, newcfg.InteropTime, headTimestamp, genesisTimestamp) {
-		return newTimestampCompatError("Interop fork timestamp", c.InteropTime, newcfg.InteropTime)
+	if isForkTimestampIncompatible(c.LagoonTime, newcfg.LagoonTime, headTimestamp, genesisTimestamp) {
+		return newTimestampCompatError("Lagoon fork timestamp", c.LagoonTime, newcfg.LagoonTime)
 	}
 	return nil
 }
@@ -71,8 +71,8 @@ func (c *ChainConfig) opDescription() string {
 	if c.KarstTime != nil {
 		banner += fmt.Sprintf(" - Karst:                       @%-10v\n", *c.KarstTime)
 	}
-	if c.InteropTime != nil {
-		banner += fmt.Sprintf(" - Interop:                     @%-10v\n", *c.InteropTime)
+	if c.LagoonTime != nil {
+		banner += fmt.Sprintf(" - Lagoon:                      @%-10v\n", *c.LagoonTime)
 	}
 	banner += "\nAll op fork specifications can be found at https://specs.optimism.io/\n"
 	return banner

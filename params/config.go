@@ -398,7 +398,7 @@ var (
 		conf.IsthmusTime = &zero
 		conf.JovianTime = &zero
 		conf.KarstTime = nil
-		conf.InteropTime = nil
+		conf.LagoonTime = nil
 		conf.Optimism = &OptimismConfig{EIP1559Elasticity: 6, EIP1559Denominator: 50, EIP1559DenominatorCanyon: uint64ptr(250)}
 		return &conf
 	}()
@@ -518,7 +518,7 @@ type ChainConfig struct {
 	JovianTime   *uint64 `json:"jovianTime,omitempty"`   // Jovian switch time (nil = no fork, 0 = already on Optimism Jovian)
 	KarstTime    *uint64 `json:"karstTime,omitempty"`    // Karst switch time (nil = no fork, 0 = already on Optimism Karst)
 
-	InteropTime *uint64 `json:"interopTime,omitempty"` // Interop switch time (nil = no fork, 0 = already on optimism interop)
+	LagoonTime *uint64 `json:"lagoonTime,omitempty"` // Lagoon switch time (nil = no fork, 0 = already on optimism lagoon)
 
 	// TerminalTotalDifficulty is the amount of total difficulty reached by
 	// the network that triggers the consensus upgrade.
@@ -677,8 +677,8 @@ func (c *ChainConfig) String() string {
 	if c.JovianTime != nil {
 		result += fmt.Sprintf(", Jovian: %v", *c.JovianTime)
 	}
-	if c.InteropTime != nil {
-		result += fmt.Sprintf(", Interop: %v", *c.InteropTime)
+	if c.LagoonTime != nil {
+		result += fmt.Sprintf(", Lagoon: %v", *c.LagoonTime)
 	}
 	result += "}"
 	return result
@@ -1025,8 +1025,8 @@ func (c *ChainConfig) IsKarst(time uint64) bool {
 	return isTimestampForked(c.KarstTime, time)
 }
 
-func (c *ChainConfig) IsInterop(time uint64) bool {
-	return isTimestampForked(c.InteropTime, time)
+func (c *ChainConfig) IsLagoon(time uint64) bool {
+	return isTimestampForked(c.LagoonTime, time)
 }
 
 // IsOptimism returns whether the node is an optimism node or not.

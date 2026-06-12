@@ -404,7 +404,7 @@ func (o *ChainOverrides) apply(cfg *params.ChainConfig) error {
 		cfg.KarstTime = o.OverrideOptimismKarst
 	}
 	if o.OverrideOptimismInterop != nil {
-		cfg.InteropTime = o.OverrideOptimismInterop
+		cfg.LagoonTime = o.OverrideOptimismInterop
 	}
 
 	// We check for validity after applying the overrides, even if there weren't any.
