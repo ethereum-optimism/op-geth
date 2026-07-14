@@ -707,6 +707,7 @@ func (g *Genesis) toBlockWithRoot(stateRoot, storageRootMessagePasser common.Has
 			if head.SlotNumber == nil {
 				head.SlotNumber = new(uint64)
 			}
+			head.BlockAccessListHash = &types.EmptyBlockAccessListHash
 		}
 		// If Isthmus is active at genesis, set the WithdrawalRoot to the storage root of the L2ToL1MessagePasser contract.
 		if g.Config.IsOptimismIsthmus(g.Timestamp) {

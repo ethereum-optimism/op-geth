@@ -221,6 +221,32 @@ func TestGenesisCommit(t *testing.T) {
 	}
 }
 
+func TestAmsterdamGenesisCommit(t *testing.T) {
+	config := *params.AllDevChainProtocolChanges
+	config.AmsterdamTime = new(uint64)
+	blobSchedule := *config.BlobScheduleConfig
+	blobSchedule.Amsterdam = blobSchedule.Osaka
+	config.BlobScheduleConfig = &blobSchedule
+	genesis := &Genesis{
+		BaseFee:    big.NewInt(params.InitialBaseFee),
+		Config:     &config,
+		GasLimit:   params.GenesisGasLimit,
+		Difficulty: big.NewInt(0),
+	}
+
+	db := rawdb.NewMemoryDatabase()
+	block := genesis.MustCommit(db, triedb.NewDatabase(db, triedb.HashDefaults))
+	if block.Header().BlockAccessListHash == nil {
+		t.Fatal("Amsterdam genesis is missing block access list hash")
+	}
+	if *block.Header().BlockAccessListHash != types.EmptyBlockAccessListHash {
+		t.Fatalf("unexpected Amsterdam genesis block access list hash: %s", block.Header().BlockAccessListHash)
+	}
+	if stored := rawdb.ReadBlock(db, block.Hash(), 0); stored == nil {
+		t.Fatal("Amsterdam genesis block could not be read back from database")
+	}
+}
+
 func TestReadWriteGenesisAlloc(t *testing.T) {
 	var (
 		db    = rawdb.NewMemoryDatabase()
