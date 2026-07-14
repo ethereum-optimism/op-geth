@@ -3412,6 +3412,21 @@ func TestRPCMarshalBlock(t *testing.T) {
 	}
 }
 
+func TestRPCMarshalHeaderAmsterdamFields(t *testing.T) {
+	blockAccessListHash := types.EmptyBlockAccessListHash
+	slotNumber := uint64(42)
+	header := &types.Header{
+		Number:              big.NewInt(0),
+		Difficulty:          big.NewInt(0),
+		BlockAccessListHash: &blockAccessListHash,
+		SlotNumber:          &slotNumber,
+	}
+
+	result := RPCMarshalHeader(header)
+	require.Equal(t, &blockAccessListHash, result["blockAccessListHash"])
+	require.Equal(t, hexutil.Uint64(slotNumber), result["slotNumber"])
+}
+
 func TestRPCGetBlockOrHeader(t *testing.T) {
 	t.Parallel()
 
