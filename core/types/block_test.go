@@ -258,30 +258,28 @@ func TestAmsterdamHeaderRLPRoundTrip(t *testing.T) {
 	excessBlobGas := uint64(0)
 	parentBeaconRoot := common.Hash{}
 	requestsHash := EmptyRequestsHash
-	for _, balHash := range []*common.Hash{nil, &blockAccessListHash} {
-		header := &Header{
-			Difficulty:          new(big.Int),
-			Number:              big.NewInt(1),
-			BaseFee:             big.NewInt(1),
-			WithdrawalsHash:     &withdrawalsHash,
-			BlobGasUsed:         &blobGasUsed,
-			ExcessBlobGas:       &excessBlobGas,
-			ParentBeaconRoot:    &parentBeaconRoot,
-			RequestsHash:        &requestsHash,
-			SlotNumber:          &slotNumber,
-			BlockAccessListHash: balHash,
-		}
-		encoded, err := rlp.EncodeToBytes(header)
-		if err != nil {
-			t.Fatal(err)
-		}
-		var decoded Header
-		if err := rlp.DecodeBytes(encoded, &decoded); err != nil {
-			t.Fatal(err)
-		}
-		if header.Hash() != decoded.Hash() {
-			t.Fatalf("header hash mismatch: have %s, want %s", decoded.Hash(), header.Hash())
-		}
+	header := &Header{
+		Difficulty:          new(big.Int),
+		Number:              big.NewInt(1),
+		BaseFee:             big.NewInt(1),
+		WithdrawalsHash:     &withdrawalsHash,
+		BlobGasUsed:         &blobGasUsed,
+		ExcessBlobGas:       &excessBlobGas,
+		ParentBeaconRoot:    &parentBeaconRoot,
+		RequestsHash:        &requestsHash,
+		SlotNumber:          &slotNumber,
+		BlockAccessListHash: &blockAccessListHash,
+	}
+	encoded, err := rlp.EncodeToBytes(header)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var decoded Header
+	if err := rlp.DecodeBytes(encoded, &decoded); err != nil {
+		t.Fatal(err)
+	}
+	if header.Hash() != decoded.Hash() {
+		t.Fatalf("header hash mismatch: have %s, want %s", decoded.Hash(), header.Hash())
 	}
 }
 

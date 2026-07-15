@@ -37,8 +37,8 @@ func (h Header) MarshalJSON() ([]byte, error) {
 		ExcessBlobGas       *hexutil.Uint64 `json:"excessBlobGas" rlp:"optional"`
 		ParentBeaconRoot    *common.Hash    `json:"parentBeaconBlockRoot" rlp:"optional"`
 		RequestsHash        *common.Hash    `json:"requestsHash" rlp:"optional"`
-		SlotNumber          *hexutil.Uint64 `json:"slotNumber" rlp:"optional"`
 		BlockAccessListHash *common.Hash    `json:"blockAccessListHash" rlp:"optional"`
+		SlotNumber          *hexutil.Uint64 `json:"slotNumber" rlp:"optional"`
 		Hash                common.Hash     `json:"hash"`
 	}
 	var enc Header
@@ -63,8 +63,8 @@ func (h Header) MarshalJSON() ([]byte, error) {
 	enc.ExcessBlobGas = (*hexutil.Uint64)(h.ExcessBlobGas)
 	enc.ParentBeaconRoot = h.ParentBeaconRoot
 	enc.RequestsHash = h.RequestsHash
-	enc.SlotNumber = (*hexutil.Uint64)(h.SlotNumber)
 	enc.BlockAccessListHash = h.BlockAccessListHash
+	enc.SlotNumber = (*hexutil.Uint64)(h.SlotNumber)
 	enc.Hash = h.Hash()
 	return json.Marshal(&enc)
 }
@@ -93,8 +93,8 @@ func (h *Header) UnmarshalJSON(input []byte) error {
 		ExcessBlobGas       *hexutil.Uint64 `json:"excessBlobGas" rlp:"optional"`
 		ParentBeaconRoot    *common.Hash    `json:"parentBeaconBlockRoot" rlp:"optional"`
 		RequestsHash        *common.Hash    `json:"requestsHash" rlp:"optional"`
-		SlotNumber          *hexutil.Uint64 `json:"slotNumber" rlp:"optional"`
 		BlockAccessListHash *common.Hash    `json:"blockAccessListHash" rlp:"optional"`
+		SlotNumber          *hexutil.Uint64 `json:"slotNumber" rlp:"optional"`
 	}
 	var dec Header
 	if err := json.Unmarshal(input, &dec); err != nil {
@@ -175,11 +175,11 @@ func (h *Header) UnmarshalJSON(input []byte) error {
 	if dec.RequestsHash != nil {
 		h.RequestsHash = dec.RequestsHash
 	}
-	if dec.SlotNumber != nil {
-		h.SlotNumber = (*uint64)(dec.SlotNumber)
-	}
 	if dec.BlockAccessListHash != nil {
 		h.BlockAccessListHash = dec.BlockAccessListHash
+	}
+	if dec.SlotNumber != nil {
+		h.SlotNumber = (*uint64)(dec.SlotNumber)
 	}
 	return nil
 }

@@ -404,6 +404,7 @@ func (miner *Miner) prepareWork(ctx context.Context, genParams *generateParams, 
 		if genParams.slotNum == nil {
 			return nil, errors.New("no slot number set post-amsterdam")
 		}
+		header.BlockAccessListHash = &types.EmptyBlockAccessListHash
 		header.SlotNumber = genParams.slotNum
 	}
 	// Could potentially happen if starting to mine in an odd state.

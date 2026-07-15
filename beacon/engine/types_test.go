@@ -17,12 +17,30 @@
 package engine
 
 import (
+	"math/big"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto/kzg4844"
 )
+
+func TestExecutableDataToBlockSetsAmsterdamBlockAccessListHash(t *testing.T) {
+	slotNumber := uint64(1)
+	data := ExecutableData{
+		LogsBloom:     make([]byte, 256),
+		BaseFeePerGas: big.NewInt(1),
+		Transactions:  make([][]byte, 0),
+		SlotNumber:    &slotNumber,
+	}
+	block, err := ExecutableDataToBlockNoHash(data, []common.Hash{}, nil, nil, types.DefaultBlockConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if hash := block.Header().BlockAccessListHash; hash == nil || *hash != types.EmptyBlockAccessListHash {
+		t.Fatalf("unexpected block access list hash: %v", hash)
+	}
+}
 
 func TestBlobs(t *testing.T) {
 	var (
