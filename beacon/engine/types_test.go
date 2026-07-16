@@ -17,13 +17,51 @@
 package engine
 
 import (
+	"bytes"
+	"encoding/json"
 	"math/big"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto/kzg4844"
 )
+
+func TestGlamsterdamEngineWireFields(t *testing.T) {
+	targetGasLimit := uint64(60_000_000)
+	attrs := PayloadAttributes{TargetGasLimit: &targetGasLimit}
+	encodedAttrs, err := json.Marshal(attrs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var decodedAttrs PayloadAttributes
+	if err := json.Unmarshal(encodedAttrs, &decodedAttrs); err != nil {
+		t.Fatal(err)
+	}
+	if decodedAttrs.TargetGasLimit == nil || *decodedAttrs.TargetGasLimit != targetGasLimit {
+		t.Fatalf("unexpected target gas limit: %v", decodedAttrs.TargetGasLimit)
+	}
+
+	emptyBAL := hexutil.Bytes{0xc0}
+	payload := ExecutableData{
+		LogsBloom:       make([]byte, 256),
+		BaseFeePerGas:   big.NewInt(1),
+		Transactions:    make([][]byte, 0),
+		BlockAccessList: &emptyBAL,
+	}
+	encodedPayload, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var decodedPayload ExecutableData
+	if err := json.Unmarshal(encodedPayload, &decodedPayload); err != nil {
+		t.Fatal(err)
+	}
+	if decodedPayload.BlockAccessList == nil || !bytes.Equal(*decodedPayload.BlockAccessList, emptyBAL) {
+		t.Fatalf("unexpected block access list: %x", decodedPayload.BlockAccessList)
+	}
+}
 
 func TestExecutableDataToBlockSetsAmsterdamBlockAccessListHash(t *testing.T) {
 	slotNumber := uint64(1)

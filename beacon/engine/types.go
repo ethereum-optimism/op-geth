@@ -70,6 +70,7 @@ type PayloadAttributes struct {
 	Withdrawals           []*types.Withdrawal `json:"withdrawals"`
 	BeaconRoot            *common.Hash        `json:"parentBeaconBlockRoot"`
 	SlotNumber            *uint64             `json:"slotNumber"`
+	TargetGasLimit        *uint64             `json:"targetGasLimit"`
 
 	// Transactions is a field for rollups: the transactions list is forced into the block
 	Transactions [][]byte `json:"transactions,omitempty"  gencodec:"optional"`
@@ -89,11 +90,12 @@ type PayloadAttributes struct {
 
 // JSON type overrides for PayloadAttributes.
 type payloadAttributesMarshaling struct {
-	Transactions  []hexutil.Bytes
-	GasLimit      *hexutil.Uint64
-	EIP1559Params hexutil.Bytes
-	Timestamp     hexutil.Uint64
-	SlotNumber    *hexutil.Uint64
+	Transactions   []hexutil.Bytes
+	GasLimit       *hexutil.Uint64
+	EIP1559Params  hexutil.Bytes
+	Timestamp      hexutil.Uint64
+	SlotNumber     *hexutil.Uint64
+	TargetGasLimit *hexutil.Uint64
 }
 
 //go:generate go run github.com/fjl/gencodec -type ExecutableData -field-override executableDataMarshaling -out gen_ed.go
@@ -118,6 +120,10 @@ type ExecutableData struct {
 	BlobGasUsed   *uint64             `json:"blobGasUsed"`
 	ExcessBlobGas *uint64             `json:"excessBlobGas"`
 	SlotNumber    *uint64             `json:"slotNumber"`
+	// BlockAccessList carries the EIP-7928 RLP payload as an Engine API hex value.
+	// op-geth does not execute BALs yet; keeping this field opaque lets clients use
+	// op-geth's Engine API types to drive a newer geth subprocess without data loss.
+	BlockAccessList *hexutil.Bytes `json:"blockAccessList,omitempty"`
 
 	// OP-Stack Isthmus specific field:
 	// instead of computing the root from a withdrawals list, set it directly.

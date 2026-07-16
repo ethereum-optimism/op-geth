@@ -215,7 +215,7 @@ func (api *ConsensusAPI) ForkchoiceUpdatedV3(ctx context.Context, update engine.
 
 // ForkchoiceUpdatedV4 is equivalent to V3 with the addition of slot number
 // in the payload attributes. It supports only PayloadAttributesV4.
-func (api *ConsensusAPI) ForkchoiceUpdatedV4(ctx context.Context, update engine.ForkchoiceStateV1, params *engine.PayloadAttributes) (engine.ForkChoiceResponse, error) {
+func (api *ConsensusAPI) ForkchoiceUpdatedV4(ctx context.Context, update engine.ForkchoiceStateV1, params *engine.PayloadAttributes, _ *types.CustodyBitmap) (engine.ForkChoiceResponse, error) {
 	if params != nil {
 		switch {
 		case params.Withdrawals == nil:
@@ -224,6 +224,8 @@ func (api *ConsensusAPI) ForkchoiceUpdatedV4(ctx context.Context, update engine.
 			return engine.STATUS_INVALID, attributesErr("missing beacon root")
 		case params.SlotNumber == nil:
 			return engine.STATUS_INVALID, attributesErr("missing slot number")
+		case params.TargetGasLimit == nil:
+			return engine.STATUS_INVALID, attributesErr("missing target gas limit")
 		case !api.checkFork(params.Timestamp, forks.Amsterdam):
 			return engine.STATUS_INVALID, unsupportedForkErr("fcuV4 must only be called for amsterdam payloads")
 		}
