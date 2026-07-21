@@ -7,8 +7,21 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
 )
+
+// TestPostExecTxHashIsCanonicalEncoding pins the universal typed-tx rule: the hash is keccak256 of
+// the canonical EIP-2718 encoding (0x7D || Data), the same rule DepositTx follows. It must not wrap
+// Data in the inner struct's RLP — PostExecTx.encode writes Data verbatim, so the hash preimage
+// must equal MarshalBinary, not RLP([Data]).
+func TestPostExecTxHashIsCanonicalEncoding(t *testing.T) {
+	tx := NewTx(&PostExecTx{Data: hexutil.MustDecode("0xc201c0")})
+
+	bin, err := tx.MarshalBinary()
+	require.NoError(t, err)
+	require.Equal(t, crypto.Keccak256Hash(bin), tx.Hash())
+}
 
 func TestPostExecTxUnmarshalJSON(t *testing.T) {
 	var tx Transaction

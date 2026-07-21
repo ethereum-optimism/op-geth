@@ -700,9 +700,14 @@ func (tx *Transaction) Hash() common.Hash {
 	}
 
 	var h common.Hash
-	if tx.Type() == LegacyTxType {
+	switch tx.Type() {
+	case LegacyTxType:
 		h = rlpHash(tx.inner)
-	} else {
+	case PostExecTxType:
+		// Canonical encoding is 0x7D || Data (not RLP of the inner struct); hash that, like every
+		// other typed tx.
+		h = crypto.Keccak256Hash([]byte{PostExecTxType}, tx.Data())
+	default:
 		h = prefixedRlpHash(tx.Type(), tx.inner)
 	}
 	tx.hash.Store(&h)
