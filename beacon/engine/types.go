@@ -24,6 +24,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/trie"
 )
@@ -350,9 +351,13 @@ func ExecutableDataToBlockNoHash(data ExecutableData, versionedHashes []common.H
 	} else if isthmusEnabled {
 		return nil, fmt.Errorf("requests must be an empty array for Isthmus blocks")
 	}
+	if data.SlotNumber != nil && data.BlockAccessList == nil {
+		return nil, fmt.Errorf("attribute BlockAccessList is required for Amsterdam blocks")
+	}
 	var blockAccessListHash *common.Hash
-	if data.SlotNumber != nil {
-		blockAccessListHash = &types.EmptyBlockAccessListHash
+	if data.BlockAccessList != nil {
+		hash := crypto.Keccak256Hash(*data.BlockAccessList)
+		blockAccessListHash = &hash
 	}
 
 	header := &types.Header{

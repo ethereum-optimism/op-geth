@@ -25,6 +25,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/crypto/kzg4844"
 )
 
@@ -65,18 +66,26 @@ func TestGlamsterdamEngineWireFields(t *testing.T) {
 
 func TestExecutableDataToBlockSetsAmsterdamBlockAccessListHash(t *testing.T) {
 	slotNumber := uint64(1)
+	blockAccessList := hexutil.Bytes{0xc1, 0x80}
 	data := ExecutableData{
-		LogsBloom:     make([]byte, 256),
-		BaseFeePerGas: big.NewInt(1),
-		Transactions:  make([][]byte, 0),
-		SlotNumber:    &slotNumber,
+		LogsBloom:       make([]byte, 256),
+		BaseFeePerGas:   big.NewInt(1),
+		Transactions:    make([][]byte, 0),
+		SlotNumber:      &slotNumber,
+		BlockAccessList: &blockAccessList,
 	}
 	block, err := ExecutableDataToBlockNoHash(data, []common.Hash{}, nil, nil, types.DefaultBlockConfig)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if hash := block.Header().BlockAccessListHash; hash == nil || *hash != types.EmptyBlockAccessListHash {
-		t.Fatalf("unexpected block access list hash: %v", hash)
+	want := crypto.Keccak256Hash(blockAccessList)
+	if hash := block.Header().BlockAccessListHash; hash == nil || *hash != want {
+		t.Fatalf("unexpected block access list hash: have %v, want %v", hash, want)
+	}
+
+	data.BlockAccessList = nil
+	if _, err := ExecutableDataToBlockNoHash(data, []common.Hash{}, nil, nil, types.DefaultBlockConfig); err == nil {
+		t.Fatal("expected missing block access list to be rejected")
 	}
 }
 
