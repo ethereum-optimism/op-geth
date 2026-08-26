@@ -51,6 +51,7 @@ const (
 	DynamicFeeTxType = 0x02
 	BlobTxType       = 0x03
 	SetCodeTxType    = 0x04
+	Eip8130TxType    = 0x79
 )
 
 // Transaction is an Ethereum transaction.
@@ -223,6 +224,8 @@ func (tx *Transaction) decodeTyped(b []byte) (TxData, error) {
 		inner = new(BlobTx)
 	case SetCodeTxType:
 		inner = new(SetCodeTx)
+	case Eip8130TxType:
+		inner = new(Eip8130Tx)
 	case PostExecTxType:
 		inner = new(PostExecTx)
 	case DepositTxType:
@@ -646,6 +649,13 @@ func (tx *Transaction) WithBlobTxSidecar(sideCar *BlobTxSidecar) *Transaction {
 		cpy.from.Store(f)
 	}
 	return cpy
+}
+
+// Eip8130 returns the inner EIP-8130 transaction, or nil if tx is not one. It
+// exposes the EIP-8130-specific fields, which have no generic accessors on Transaction.
+func (tx *Transaction) Eip8130() *Eip8130Tx {
+	inner, _ := tx.inner.(*Eip8130Tx)
+	return inner
 }
 
 // SetCodeAuthorizations returns the authorizations list of the transaction.
