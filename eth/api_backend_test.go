@@ -28,6 +28,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/beacon"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
+	"github.com/ethereum/go-ethereum/consensus/misc/eip1559"
+	"github.com/ethereum/go-ethereum/consensus/misc/eip4844"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/txpool"
@@ -179,4 +181,70 @@ func testSendTx(t *testing.T, withLocal bool) {
 			t.Fatalf("Unexpected error, want: %v, got: %v", txpool.ErrInflightTxLimitReached, err)
 		}
 	}
+}
+
+func TestEthAPIBackendBaseFee(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("london_active", func(t *testing.T) {
+		b := initBackend(false)
+		head := b.CurrentHeader()
+		want := eip1559.CalcBaseFee(b.ChainConfig(), head, head.Time+1)
+		got := b.BaseFee(ctx)
+		if got == nil {
+			t.Fatal("BaseFee() returned nil for London-active chain")
+		}
+		if got.Cmp(want) != 0 {
+			t.Errorf("BaseFee() = %v, want %v", got, want)
+		}
+	})
+
+	t.Run("pre_london", func(t *testing.T) {
+		cfg := &params.ChainConfig{
+			ChainID:        big.NewInt(1337),
+			HomesteadBlock: big.NewInt(0),
+			Ethash:         new(params.EthashConfig),
+		}
+		gs := &core.Genesis{Config: cfg, Difficulty: big.NewInt(1)}
+		db := rawdb.NewMemoryDatabase()
+		chain, err := core.NewBlockChain(db, gs, ethash.NewFaker(), nil)
+		if err != nil {
+			t.Fatalf("NewBlockChain: %v", err)
+		}
+		b := &EthAPIBackend{eth: &Ethereum{blockchain: chain}}
+		if got := b.BaseFee(ctx); got != nil {
+			t.Errorf("BaseFee() = %v, want nil", got)
+		}
+	})
+}
+
+func TestEthAPIBackendBlobBaseFee(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("cancun_active", func(t *testing.T) {
+		b := initBackend(false)
+		head := b.CurrentHeader()
+		want := eip4844.CalcBlobFee(b.ChainConfig(), head)
+		got := b.BlobBaseFee(ctx)
+		if got == nil {
+			t.Fatal("BlobBaseFee() returned nil for Cancun-active chain")
+		}
+		if got.Cmp(want) != 0 {
+			t.Errorf("BlobBaseFee() = %v, want %v", got, want)
+		}
+	})
+
+	t.Run("pre_cancun", func(t *testing.T) {
+		// TestChainConfig has London active but no CancunTime, so ExcessBlobGas is never set.
+		gs := &core.Genesis{Config: params.TestChainConfig, Difficulty: big.NewInt(1)}
+		db := rawdb.NewMemoryDatabase()
+		chain, err := core.NewBlockChain(db, gs, ethash.NewFaker(), nil)
+		if err != nil {
+			t.Fatalf("NewBlockChain: %v", err)
+		}
+		b := &EthAPIBackend{eth: &Ethereum{blockchain: chain}}
+		if got := b.BlobBaseFee(ctx); got != nil {
+			t.Errorf("BlobBaseFee() = %v, want nil", got)
+		}
+	})
 }
