@@ -717,12 +717,20 @@ func (st *stateTransition) innerExecute() (*ExecutionResult, error) {
 				return nil, fmt.Errorf("optimism gas cost overflows U256: %d", gasCost)
 			}
 			st.state.AddBalance(params.OptimismBaseFeeRecipient, amtU256, tracing.BalanceIncreaseRewardTransactionFee)
+			// add the OptimismBaseFeeRecipient to the witness iff base fee is greater than 0
+			if rules.IsEIP4762 && amtU256.Sign() != 0 {
+				st.evm.AccessEvents.AddAccount(params.OptimismBaseFeeRecipient, true)
+			}
 			if l1Cost := st.evm.Context.L1CostFunc(st.msg.RollupCostData, st.evm.Context.Time); l1Cost != nil {
 				amtU256, overflow = uint256.FromBig(l1Cost)
 				if overflow {
 					return nil, fmt.Errorf("optimism l1 cost overflows U256: %d", l1Cost)
 				}
 				st.state.AddBalance(params.OptimismL1FeeRecipient, amtU256, tracing.BalanceIncreaseRewardTransactionFee)
+				// add the OptimismL1FeeRecipient to the witness iff l1 fee is greater than 0
+				if rules.IsEIP4762 && amtU256.Sign() != 0 {
+					st.evm.AccessEvents.AddAccount(params.OptimismL1FeeRecipient, true)
+				}
 			}
 			if rules.IsOptimismIsthmus {
 				// Operator Fee refunds are only applied if Isthmus is active and the transaction is *not* a deposit.
