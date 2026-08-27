@@ -459,6 +459,9 @@ func (api *API) TraceBlockByNumber(ctx context.Context, number rpc.BlockNumber, 
 			if err != nil {
 				return nil, fmt.Errorf("historical backend error: %w", err)
 			}
+			for i, tx := range block.Transactions() {
+				histResult[i].TxHash = tx.Hash()
+			}
 			return histResult, nil
 		} else {
 			return nil, rpc.ErrNoHistoricalFallback
@@ -482,6 +485,9 @@ func (api *API) TraceBlockByHash(ctx context.Context, hash common.Hash, config *
 			err = api.backend.HistoricalRPCService().CallContext(ctx, &histResult, "debug_traceBlockByHash", hash, config)
 			if err != nil {
 				return nil, fmt.Errorf("historical backend error: %w", err)
+			}
+			for i, tx := range block.Transactions() {
+				histResult[i].TxHash = tx.Hash()
 			}
 			return histResult, nil
 		} else {
