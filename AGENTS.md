@@ -1,5 +1,21 @@
 # AGENTS
 
+## Repository status: the `op-geth` binary is end of life
+
+Read this before proposing work in this repository.
+
+The `geth` binary built here is no longer a supported OP Stack execution client.
+It will not be updated for **L1 hardforks from Glamsterdam onwards**, nor for
+**L2 (OP Stack) hardforks from Karst onwards**. Do not implement those forks
+here, and do not treat their absence as a bug to fix or a gap to fill.
+
+The repository stays open for now because other parts of the OP Stack consume it
+as a Go library, via a `replace github.com/ethereum/go-ethereum =>
+github.com/ethereum-optimism/op-geth` directive. That is the work this
+repository exists to serve. Changes that only improve the binary as a node
+implementation are out of scope; if a task looks like one, say so rather than
+implementing it.
+
 ## Guidelines
 
 - **Keep changes minimal and focused.** Only modify code directly related to the task at hand. Do not refactor unrelated code, rename existing variables or functions for style, or bundle unrelated fixes into the same commit or PR.
