@@ -1,3 +1,22 @@
+> [!WARNING]
+> **The `op-geth` binary is end of life.**
+>
+> `op-geth` is no longer a supported OP Stack execution client. It will not be
+> updated for:
+>
+> - **L1 hardforks from Glamsterdam onwards**
+> - **L2 (OP Stack) hardforks from Karst onwards**
+>
+> Those forks will not be implemented here, so a node running this binary will
+> stop following the chain at the first of them to activate. Node operators
+> should plan to move to another OP Stack execution client before then.
+>
+> The repository stays open for now because other parts of the OP Stack consume
+> it as a Go library, via a `replace github.com/ethereum/go-ethereum =>
+> github.com/ethereum-optimism/op-geth` directive. Work that serves those
+> library consumers is still in scope; work that extends the binary as a node
+> implementation is not.
+
 ## Go Ethereum
 
 Golang execution layer implementation of the Ethereum protocol.
