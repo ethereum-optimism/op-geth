@@ -194,7 +194,82 @@ func TestCalcBaseFeeOptimism(t *testing.T) {
 	}
 }
 
-// TestCalcBaseFeeOptimismHolocene assumes all blocks are Optimism blocks post-Holocene upgrade
+// TestCalcBaseFeeOptimismMalformedExtraData verifies that CalcBaseFee does not
+// panic when the parent header has malformed extraData and instead falls back to
+// chain-config defaults. This is a regression test for op-geth#757.
+func TestCalcBaseFeeOptimismMalformedExtraData(t *testing.T) {
+	cfg := opConfig()
+	parentGasLimit := uint64(30_000_000)
+	parentBaseFee := int64(10_000_000)
+
+	malformedExtras := []struct {
+		name  string
+		extra []byte
+		time  uint64
+	}{
+		{"holocene_empty", []byte{}, testHoloceneTime},
+		{"holocene_short", []byte{0x01}, testHoloceneTime},
+		{"holocene_wrong_len", []byte{0x00, 0x01, 0x02}, testHoloceneTime},
+		{"holocene_wrong_version", append([]byte{0xFF}, make([]byte, 8)...), testHoloceneTime},
+		{"holocene_zero_denom_elasticity", EncodeHoloceneExtraData(0, 0), testHoloceneTime},
+		{"holocene_zero_elasticity", EncodeHoloceneExtraData(10, 0), testHoloceneTime},
+		{"holocene_zero_denominator", EncodeHoloceneExtraData(0, 6), testHoloceneTime},
+		{"jovian_empty", []byte{}, testJovianTime},
+		{"jovian_short", []byte{0x01, 0x02}, testJovianTime},
+		{"jovian_wrong_len", make([]byte, 10), testJovianTime},
+	}
+
+	for _, tc := range malformedExtras {
+		t.Run(tc.name, func(t *testing.T) {
+			parent := &types.Header{
+				Number:   common.Big32,
+				GasLimit: parentGasLimit,
+				GasUsed:  parentGasLimit / 2,
+				BaseFee:  big.NewInt(parentBaseFee),
+				Time:     tc.time,
+				Extra:    tc.extra,
+			}
+			if cfg.IsJovian(tc.time) {
+				blobGas := uint64(0)
+				parent.BlobGasUsed = &blobGas
+			}
+
+			require.NotPanics(t, func() {
+				baseFee := CalcBaseFee(cfg, parent, tc.time+2)
+				require.NotNil(t, baseFee)
+			})
+		})
+	}
+}
+
+// TestCalcBaseFeeOptimismMalformedFallsBackToConfig verifies that malformed
+// parent extraData causes CalcBaseFee to use chain-config defaults rather than
+// the decoded zeros.
+func TestCalcBaseFeeOptimismMalformedFallsBackToConfig(t *testing.T) {
+	cfg := opConfig()
+	parentGasLimit := uint64(30_000_000)
+	parentBaseFee := int64(10_000_000)
+
+	parent := &types.Header{
+		Number:   common.Big32,
+		GasLimit: parentGasLimit,
+		GasUsed:  parentGasLimit / 2,
+		BaseFee:  big.NewInt(parentBaseFee),
+		Time:     testHoloceneTime,
+		Extra:    []byte{0x01}, // invalid: will fail ValidateOptimismExtraData
+	}
+
+	malformedResult := CalcBaseFee(cfg, parent, parent.Time+2)
+
+	// Compute the expected result using chain-config defaults (Canyon denominator=250, elasticity=6).
+	// gas target = 30M/6 = 5M, gasUsed = 15M (half of limit), so gasUsed > target.
+	// gasUsedDelta = 15M - 5M = 10M
+	// increase = parentBaseFee * gasUsedDelta / gasTarget / denominator
+	//          = 10M * 10M / 5M / 250 = 80000
+	// expectedBaseFee = 10M + 80000 = 10_080_000
+	expected := big.NewInt(10_080_000)
+	require.Equal(t, expected, malformedResult, "malformed extraData should fall back to chain-config defaults")
+}
 func TestCalcBaseFeeOptimismHolocene(t *testing.T) {
 	parentBaseFee := int64(10_000_000)
 	parentGasLimit := uint64(30_000_000)
