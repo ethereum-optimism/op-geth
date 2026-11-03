@@ -52,7 +52,18 @@ var (
 	errInvalidNonce     = errors.New("invalid nonce")
 	errInvalidUncleHash = errors.New("invalid uncle hash")
 	errInvalidTimestamp = errors.New("invalid timestamp")
+	errKarstDeprecated  = errors.New("op-geth is deprecated as of the Karst fork; refusing to process block")
 )
+
+// karstKillSwitch returns an error if the given block timestamp activates Karst.
+// op-geth must never build, seal, or import a block at or after Karst, so this
+// is used as a deprecation kill switch across the consensus engine's entry points.
+func karstKillSwitch(cfg *params.ChainConfig, time uint64) error {
+	if cfg.IsOptimismKarst(time) {
+		return fmt.Errorf("%w: block timestamp %d", errKarstDeprecated, time)
+	}
+	return nil
+}
 
 // Beacon is a consensus engine that combines the eth1 consensus and proof-of-stake
 // algorithm. There is a special flag inside to decide whether to use legacy consensus
@@ -233,6 +244,9 @@ func (beacon *Beacon) VerifyUncles(chain consensus.ChainReader, block *types.Blo
 // (b) we don't verify if a block is in the future anymore
 // (c) the extradata is limited to 32 bytes
 func (beacon *Beacon) verifyHeader(chain consensus.ChainHeaderReader, header, parent *types.Header) error {
+	if err := karstKillSwitch(chain.Config(), header.Time); err != nil {
+		return err
+	}
 	// Ensure that the header's extra-data section is of a reasonable size
 	if len(header.Extra) > int(params.MaximumExtraDataSize) {
 		return fmt.Errorf("extra-data longer than 32 bytes (%d)", len(header.Extra))
@@ -355,6 +369,9 @@ func (beacon *Beacon) verifyHeaders(chain consensus.ChainHeaderReader, headers [
 // Prepare implements consensus.Engine, initializing the difficulty field of a
 // header to conform to the beacon protocol. The changes are done inline.
 func (beacon *Beacon) Prepare(chain consensus.ChainHeaderReader, header *types.Header) error {
+	if err := karstKillSwitch(chain.Config(), header.Time); err != nil {
+		return err
+	}
 	if !chain.Config().IsPostMerge(header.Number.Uint64(), header.Time) {
 		return beacon.ethone.Prepare(chain, header)
 	}
@@ -381,6 +398,10 @@ func (beacon *Beacon) Finalize(chain consensus.ChainHeaderReader, header *types.
 // FinalizeAndAssemble implements consensus.Engine, setting the final state and
 // assembling the block.
 func (beacon *Beacon) FinalizeAndAssemble(ctx context.Context, chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, body *types.Body, receipts []*types.Receipt) (result *types.Block, err error) {
+	if err := karstKillSwitch(chain.Config(), header.Time); err != nil {
+		return nil, err
+	}
+
 	ctx, _, spanEnd := telemetry.StartSpan(ctx, "consensus.beacon.FinalizeAndAssemble",
 		telemetry.Int64Attribute("block.number", int64(header.Number.Uint64())),
 		telemetry.Int64Attribute("txs.count", int64(len(body.Transactions))),
