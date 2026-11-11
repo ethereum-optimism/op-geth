@@ -21,8 +21,10 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/binary"
+	"log/slog"
 	"math/big"
 	"reflect"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -42,6 +44,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 )
 
@@ -183,6 +186,48 @@ func TestBuildPayload(t *testing.T) {
 	t.Run("with-zero-params-holocene", func(t *testing.T) { testBuildPayload(t, true, false, zeroParams, holoceneConfig()) })
 	t.Run("with-zero-params-jovian", func(t *testing.T) { testBuildPayload(t, true, false, zeroParams, jovianConfig()) })
 }
+
+// TestBuildPayloadStopsOnMinerClose checks that the background builder of a payload stops once
+// the miner closes, instead of spinning on the closed lifetime context.
+func TestBuildPayloadStopsOnMinerClose(t *testing.T) {
+	stops := new(shutdownStopCounter)
+	prev := log.Root()
+	log.SetDefault(log.NewLogger(stops))
+	t.Cleanup(func() { log.SetDefault(prev) })
+
+	w, b := newTestWorker(t, params.TestChainConfig, ethash.NewFaker(), rawdb.NewMemoryDatabase(), 0)
+	args := newPayloadArgs(b.chain.CurrentBlock().Hash(), params.TestChainConfig)
+	args.NoTxPool = false // only a payload built from the tx pool runs the background builder
+	payload, err := w.buildPayload(context.Background(), args, false)
+	require.NoError(t, err)
+	t.Cleanup(payload.stopBuilding)
+
+	w.Close()
+	require.Eventually(t, func() bool { return stops.n.Load() > 0 }, 5*time.Second, 10*time.Millisecond,
+		"the builder did not stop on miner close")
+	require.Never(t, func() bool { return stops.n.Load() > 1 }, 200*time.Millisecond, 10*time.Millisecond,
+		"the builder kept running after miner close")
+}
+
+// shutdownStopCounter counts the records that log a payload stop because of miner shutdown.
+// No other test in this package closes its miner, so every such record comes from this test.
+type shutdownStopCounter struct{ n atomic.Int32 }
+
+func (c *shutdownStopCounter) Enabled(context.Context, slog.Level) bool { return true }
+
+func (c *shutdownStopCounter) Handle(_ context.Context, r slog.Record) error {
+	r.Attrs(func(a slog.Attr) bool {
+		if a.Key == "reason" && a.Value.String() == "miner-shutdown" {
+			c.n.Add(1)
+		}
+		return true
+	})
+	return nil
+}
+
+func (c *shutdownStopCounter) WithAttrs([]slog.Attr) slog.Handler { return c }
+
+func (c *shutdownStopCounter) WithGroup(string) slog.Handler { return c }
 
 func TestBuildPayloadError(t *testing.T) {
 	t.Run("pre-holocene-with-params", func(t *testing.T) {

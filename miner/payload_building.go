@@ -423,6 +423,7 @@ func (miner *Miner) buildPayload(ctx context.Context, args *BuildPayloadArgs, wi
 			case <-miner.lifeCtx.Done():
 				bSpan.SetAttributes(telemetry.StringAttribute("exit.reason", "miner-shutdown"))
 				log.Info("Stopping work on payload", "id", payload.id, "reason", "miner-shutdown")
+				return
 			case <-timer.C:
 				// When block building takes close to the full recommit interval,
 				// the timer fires near-instantly on the next iteration. If the
