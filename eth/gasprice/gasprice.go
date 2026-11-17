@@ -77,6 +77,7 @@ type Oracle struct {
 
 	checkBlocks, percentile           int
 	maxHeaderHistory, maxBlockHistory uint64
+	maxDABlockSize                    *big.Int
 
 	historyCache *lru.Cache[cacheKey, processedFees]
 
@@ -85,7 +86,7 @@ type Oracle struct {
 
 // NewOracle returns a new gasprice oracle which can recommend suitable
 // gasprice for newly created transaction.
-func NewOracle(backend OracleBackend, params Config, startPrice *big.Int) *Oracle {
+func NewOracle(backend OracleBackend, params Config, startPrice *big.Int, maxDABlockSize *big.Int) *Oracle {
 	blocks := params.Blocks
 	if blocks < 1 {
 		blocks = 1
@@ -124,6 +125,9 @@ func NewOracle(backend OracleBackend, params Config, startPrice *big.Int) *Oracl
 	if startPrice == nil {
 		startPrice = new(big.Int)
 	}
+	if maxDABlockSize == nil {
+		maxDABlockSize = new(big.Int)
+	}
 
 	cache := lru.NewCache[cacheKey, processedFees](2048)
 	headEvent := make(chan core.ChainHeadEvent, 1)
@@ -154,6 +158,7 @@ func NewOracle(backend OracleBackend, params Config, startPrice *big.Int) *Oracl
 		percentile:       percent,
 		maxHeaderHistory: maxHeaderHistory,
 		maxBlockHistory:  maxBlockHistory,
+		maxDABlockSize:   maxDABlockSize,
 		historyCache:     cache,
 	}
 
