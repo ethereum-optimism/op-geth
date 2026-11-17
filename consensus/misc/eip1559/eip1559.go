@@ -60,7 +60,6 @@ func VerifyEIP1559Header(config *params.ChainConfig, parent, header *types.Heade
 
 // CalcBaseFee calculates the basefee of the header.
 // The time belongs to the new block to check which upgrades are active.
-// It is assumed the parent Header has valid extraData.
 func CalcBaseFee(config *params.ChainConfig, parent *types.Header, time uint64) *big.Int {
 	// If the current block is the first EIP-1559 block, return the InitialBaseFee.
 	if !config.IsLondon(parent.Number) {
@@ -74,8 +73,13 @@ func CalcBaseFee(config *params.ChainConfig, parent *types.Header, time uint64) 
 	// OPStack addition: from Holocene onwards, decode
 	// denominator, elasticity and minBaseFee from
 	// the extra data using optimism-specific rules.
+	// Only override the chain-config defaults if the parent extraData is valid.
+	// The decoders use best-effort logic and return zeros on malformed input,
+	// which would cause a divide-by-zero panic in calcBaseFeeInner.
 	if config.IsOptimismHolocene(parent.Time) {
-		denominator, elasticity, minBaseFee = DecodeOptimismExtraData(config, parent.Time, parent.Extra)
+		if err := ValidateOptimismExtraData(config, parent.Time, parent.Extra); err == nil {
+			denominator, elasticity, minBaseFee = DecodeOptimismExtraData(config, parent.Time, parent.Extra)
+		}
 	}
 
 	// OPStack addition: calculate the base fee using the upstream code.

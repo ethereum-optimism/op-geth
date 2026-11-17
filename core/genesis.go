@@ -27,6 +27,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/common/math"
+	"github.com/ethereum/go-ethereum/consensus/misc/eip1559"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/tracing"
@@ -737,6 +738,11 @@ func (g *Genesis) Commit(db ethdb.Database, triedb *triedb.Database, tracer *tra
 	}
 	if config.Clique != nil && len(g.ExtraData) < 32+crypto.SignatureLength {
 		return nil, errors.New("can't start clique chain without signers")
+	}
+	if config.IsOptimism() && config.IsOptimismHolocene(g.Timestamp) {
+		if err := eip1559.ValidateOptimismExtraData(config, g.Timestamp, g.ExtraData); err != nil {
+			return nil, fmt.Errorf("invalid optimism genesis extraData: %w", err)
+		}
 	}
 	var stateRoot, storageRootMessagePasser common.Hash
 	var err error
